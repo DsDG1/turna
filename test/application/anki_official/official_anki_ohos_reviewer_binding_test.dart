@@ -528,15 +528,132 @@ void main() {
     expect(adopted.phase, OfficialAnkiReviewerPhase.showingQuestion);
     await adopted.dispose();
   });
+
+  test(
+      'presentCard forwards textZoom, previewOnly, hasAudio, and localized avHint',
+      () async {
+    final transport = _FakeTransport();
+    const card = OfficialAnkiRenderedCard(
+      cardId: 7,
+      questionHtml: 'q [sound:missing.mp3]',
+      answerHtml: 'a',
+      questionDisplayHtml: 'q',
+      answerDisplayHtml: 'a',
+      css: '',
+      questionAvTags: <OfficialAnkiAvTag>[
+        OfficialAnkiAvTag.sound('missing.mp3'),
+      ],
+    );
+    engine.renders[7] = card;
+    await controller.loadAndShowQuestion(7);
+    final binding = OfficialAnkiOhosReviewerBinding(
+      transport: transport,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      textZoom: 135,
+      previewOnly: true,
+    );
+    await binding.presentCard(
+      controller: controller,
+      card: controller.card!,
+      showingAnswer: false,
+      generation: controller.presentGeneration,
+      dark: false,
+    );
+
+    expect(transport.lastPayload?['textZoom'], 135);
+    expect(transport.lastPayload?['previewOnly'], isTrue);
+    expect(transport.lastPayload?['hasAudio'], isTrue);
+    expect(transport.lastPayload?['avHint'], '媒体文件缺失：missing.mp3');
+  });
+
+  test(
+      'previewOnly refuses rating without invoking grades and flips back on showQuestion',
+      () async {
+    final transport = _FakeTransport();
+    var gradesCalled = false;
+    final grades = OfficialAnkiCourseGradesBridgeImpl(
+      flags: OfficialAnkiFeatureFlags.productionAndroid.copyWith(
+        courseGradesScheduler: true,
+      ),
+      onAnswer: (cardId, rating, millisecondsTaken) async {
+        gradesCalled = true;
+        return true;
+      },
+    );
+    engine.renders[7] = const OfficialAnkiRenderedCard(
+      cardId: 7,
+      questionHtml: 'q',
+      answerHtml: 'a',
+      questionDisplayHtml: 'q',
+      answerDisplayHtml: 'a',
+      css: '',
+    );
+    await controller.loadAndShowQuestion(7);
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: grades,
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      previewOnly: true,
+      transport: transport,
+    );
+    await transport.onShowAnswer?.call('');
+    await pumpEventQueue();
+    expect(controller.showingAnswer, isTrue);
+
+    final receipt = await transport.onRate?.call('good');
+    await pumpEventQueue();
+    expect(receipt, 'scheduler_unavailable');
+    expect(gradesCalled, isFalse);
+
+    await transport.onShowQuestion?.call();
+    await pumpEventQueue();
+    expect(controller.showingAnswer, isFalse);
+    expect(transport.calls.last, 'present:question');
+  });
+
+  test('replayAudio delegates to controller.replayAudio and returns avHint',
+      () async {
+    final transport = _FakeTransport();
+    engine.renders[7] = const OfficialAnkiRenderedCard(
+      cardId: 7,
+      questionHtml: 'q [sound:missing.mp3]',
+      answerHtml: 'a',
+      questionDisplayHtml: 'q',
+      answerDisplayHtml: 'a',
+      css: '',
+      questionAvTags: <OfficialAnkiAvTag>[
+        OfficialAnkiAvTag.sound('missing.mp3'),
+      ],
+    );
+    await controller.loadAndShowQuestion(7);
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+    );
+    final hint = await transport.onReplayAudio?.call();
+    expect(hint, '媒体文件缺失：missing.mp3');
+  });
 }
 
 class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   final calls = <String>[];
   Map<String, Object?>? lastPayload;
   Future<void> Function(String typed)? onShowAnswer;
+  Future<void> Function()? onShowQuestion;
   Future<String> Function(String rating)? onRate;
   Future<String> Function(String rating)? onRetryAdvance;
   Future<void> Function()? onRetryPresent;
+  Future<String?> Function()? onReplayAudio;
   final reportedFailures = <String>[];
   final _open = Completer<String>();
 
@@ -545,17 +662,25 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    void Function()? onShowQuestion,
     Future<String> Function(String rating)? onRetryAdvance,
     Future<void> Function()? onRetryPresent,
     Future<void> Function()? onUndo,
+    Future<String?> Function()? onReplayAudio,
     Future<Map<String, Object?>?> Function()? onSettlement,
   }) async {
     this.onShowAnswer = (typed) async {
       onShowAnswer(typed);
     };
+    this.onShowQuestion = onShowQuestion == null
+        ? null
+        : () async {
+            onShowQuestion();
+          };
     this.onRate = onRate;
     this.onRetryAdvance = onRetryAdvance;
     this.onRetryPresent = onRetryPresent;
+    this.onReplayAudio = onReplayAudio;
   }
 
   @override

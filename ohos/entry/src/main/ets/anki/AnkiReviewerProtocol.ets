@@ -35,12 +35,14 @@ export const METHOD_PROBE_REVIEWER_ASSETS: string = 'probeReviewerAssets';
 // OfficialAnkiReviewerChannel.bindOutbound on the Dart side)
 
 export const METHOD_SHOW_ANSWER: string = 'showAnswer';
+export const METHOD_SHOW_QUESTION: string = 'showQuestion';
 export const METHOD_RATE: string = 'rate';
 export const METHOD_TYPED_CHANGED: string = 'typedChanged';
 export const METHOD_RETRY_ADVANCE: string = 'retryAdvance';
 export const METHOD_RETRY_PRESENT: string = 'retryPresent';
 export const METHOD_REQUEST_UNDO: string = 'requestUndo';
 export const METHOD_REVIEW_SETTLEMENT: string = 'reviewSettlement';
+export const METHOD_REPLAY_AUDIO: string = 'replayAudio';
 
 // --------------------------------------------------------- argument names
 

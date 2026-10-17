@@ -59,12 +59,14 @@ abstract final class OfficialAnkiReviewerProtocol {
   // OfficialAnkiReviewerChannel.bindOutbound)
 
   static const methodShowAnswer = 'showAnswer';
+  static const methodShowQuestion = 'showQuestion';
   static const methodRate = 'rate';
   static const methodTypedChanged = 'typedChanged';
   static const methodRetryAdvance = 'retryAdvance';
   static const methodRetryPresent = 'retryPresent';
   static const methodRequestUndo = 'requestUndo';
   static const methodReviewSettlement = 'reviewSettlement';
+  static const methodReplayAudio = 'replayAudio';
 
   // ------------------------------------------------- argument / field names
 
@@ -214,7 +216,7 @@ Map<String, Object?> officialAnkiReviewerPayload({
 }
 
 /// The OHOS present payload: the cross-platform ten plus the ArkTS-only
-/// five.
+/// nine.
 ///
 /// `typedVisible` is read by the ArkUI page, not by the frame.
 /// `comparisonHtml` is the official engine's `compare_answer` result; the
@@ -225,6 +227,10 @@ Map<String, Object?> officialAnkiReviewerPayload({
 /// `progressIndex`/`progressTotal` drive the native header's count and bar
 /// (UI-4) and `debug` lets the page append stable codes to its status line
 /// in debug builds only (UI-3) — the page has no other way to know.
+/// `textZoom` carries the user's card text scale percentage (`100` = 1.0x),
+/// `previewOnly` switches the page from 4-button rating chrome to 0-write
+/// preview chrome, and `hasAudio`/`avHint` drive the manual audio replay
+/// entry and non-fatal AV status line.
 Map<String, Object?> ohosReviewerPayload({
   required OfficialAnkiRenderedCard card,
   required int generation,
@@ -235,7 +241,15 @@ Map<String, Object?> ohosReviewerPayload({
   int? progressIndex,
   int? progressTotal,
   bool debug = false,
+  int textZoom = 100,
+  bool previewOnly = false,
+  bool? hasAudio,
+  String? avHint,
 }) {
+  final effectiveHasAudio = hasAudio ??
+      (showingAnswer
+          ? card.answerAvTags.isNotEmpty
+          : card.questionAvTags.isNotEmpty);
   return <String, Object?>{
     ...officialAnkiReviewerPayload(
       card: card,
@@ -249,5 +263,9 @@ Map<String, Object?> ohosReviewerPayload({
     'progressIndex': progressIndex,
     'progressTotal': progressTotal,
     'debug': debug,
+    'textZoom': textZoom,
+    'previewOnly': previewOnly,
+    'hasAudio': effectiveHasAudio,
+    'avHint': avHint ?? '',
   };
 }

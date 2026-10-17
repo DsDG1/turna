@@ -168,6 +168,10 @@ struct AnkiReviewerPage {
   @State private progressIndex: number = 0;
   @State private progressTotal: number = 0;
   @State private debugChrome: boolean = false;
+  @State private textZoom: number = 100;
+  @State private previewOnly: boolean = false;
+  @State private hasAudio: boolean = false;
+  @State private avHint: string = '';
   @State private settleTotal: number = -1;
   @State private settleRemembered: number = -1;
   @State private settleForgotten: number = -1;
@@ -290,6 +294,10 @@ struct AnkiReviewerPage {
       this.progressIndex = state.progressIndex;
       this.progressTotal = state.progressTotal;
       this.debugChrome = state.debug;
+      this.textZoom = state.textZoom;
+      this.previewOnly = state.previewOnly;
+      this.hasAudio = state.hasAudio;
+      this.avHint = state.avHint;
       if (!state.presentPending) {
         // A present landing resolves whatever the previous face left behind:
         // the loading hint, a retryable status, and an error banner whose
@@ -408,6 +416,28 @@ struct AnkiReviewerPage {
     this.cancelTypedFlush();
     this.presentPending = true;
     session.channel().showAnswer(this.typed);
+  }
+
+  private onShowQuestion(): void {
+    const session: AnkiReviewerSession | undefined = this.session();
+    if (session === undefined) {
+      return;
+    }
+    this.typedFrozen = false;
+    this.presentPending = true;
+    session.channel().showQuestion();
+  }
+
+  private onReplayAudio(): void {
+    const session: AnkiReviewerSession | undefined = this.session();
+    if (session === undefined) {
+      return;
+    }
+    session.channel().replayAudio((hint: string): void => {
+      if (hint.length > 0) {
+        this.avHint = hint;
+      }
+    });
   }
 
   /// Disables the row the instant a button is tapped, then waits for Dart's
@@ -542,23 +572,39 @@ struct AnkiReviewerPage {
         .width('100%')
 
       Row() {
-        Text(this.progressTotal > 0
-          ? String(this.progressIndex) + '/' + String(this.progressTotal)
-          : '—')
+        Text(this.previewOnly
+          ? '预览'
+          : (this.progressTotal > 0
+            ? String(this.progressIndex) + '/' + String(this.progressTotal)
+            : '—'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.palette().textSecondary)
         Blank()
-        Button('撤销')
-          .fontSize(13)
-          .fontColor(this.palette().textSecondary)
-          .backgroundColor(Color.Transparent)
-          .padding({ left: 8, right: 8 })
-          .height(32)
-          .enabled(this.booted && !this.complete && !this.advanceStuck)
-          .onClick(() => {
-            this.onUndo();
-          })
+        if (this.hasAudio) {
+          Button('重播')
+            .fontSize(13)
+            .fontColor(this.palette().textSecondary)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 8 })
+            .height(32)
+            .enabled(this.booted && !this.presentPending && !this.complete)
+            .onClick((): void => {
+              this.onReplayAudio();
+            })
+        }
+        if (!this.previewOnly) {
+          Button('撤销')
+            .fontSize(13)
+            .fontColor(this.palette().textSecondary)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 8 })
+            .height(32)
+            .enabled(this.booted && !this.complete && !this.advanceStuck)
+            .onClick(() => {
+              this.onUndo();
+            })
+        }
         Button('✕')
           .fontSize(15)
           .fontColor(this.palette().textSecondary)
@@ -574,6 +620,7 @@ struct AnkiReviewerPage {
       .margin({ top: 4, bottom: 2 })
 
       Web({ src: 'https://anki.local/assets/reviewer.html', controller: this.controller })
+        .textZoomRatio(this.textZoom)
         .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse => this.intercept(event))
         .onPageEnd((event: OnPageEndEvent) => {
           if (event.url.indexOf('reviewer.html') >= 0) {
@@ -604,12 +651,23 @@ struct AnkiReviewerPage {
       }
 
       if (this.confirmExit && !this.complete) {
-        Text('再按一次返回或 ✕ 结束复习（已评分的卡片会保留）')
+        Text(this.previewOnly
+          ? '再按一次返回或 ✕ 结束预览'
+          : '再按一次返回或 ✕ 结束复习（已评分的卡片会保留）')
           .fontSize(12)
           .fontColor(this.palette().textSecondary)
           .width('100%')
           .textAlign(TextAlign.Center)
           .margin({ top: 6 })
+      }
+
+      if (this.avHint.length > 0 && this.errorCode.length === 0) {
+        Text(this.avHint)
+          .fontSize(12)
+          .fontColor(this.palette().textSecondary)
+          .width('100%')
+          .textAlign(TextAlign.Center)
+          .margin({ top: 4 })
       }
 
       if (this.errorCode.length > 0) {
@@ -683,6 +741,7 @@ struct AnkiReviewerPage {
             .margin({ left: 16, right: 16 })
           TextInput({ text: this.typed, placeholder: '输入你的答案' })
             .enabled(!this.typedFrozen && !this.presentPending)
+            .fontSize(Math.round(15 * this.textZoom / 100))
             .enterKeyType(EnterKeyType.Done)
             .onSubmit(() => {
               if (!this.typedFrozen) {
@@ -788,6 +847,38 @@ struct AnkiReviewerPage {
           .onClick(() => {
             this.onShowAnswer();
           })
+      } else if (this.previewOnly) {
+        Row() {
+          Button(this.presentPending ? '正在翻回…' : '显示正面')
+            .layoutWeight(1)
+            .height(48)
+            .fontSize(15)
+            .fontColor(this.palette().textPrimary)
+            .backgroundColor(Color.Transparent)
+            .borderRadius(12)
+            .border({ width: 1, color: this.palette().divider })
+            .margin({ right: 6 })
+            .enabled(!this.presentPending)
+            .onClick((): void => {
+              this.onShowQuestion();
+            })
+          Button('完成预览')
+            .layoutWeight(1)
+            .height(48)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .backgroundColor(COLOR_GOOD)
+            .fontColor(Color.White)
+            .borderRadius(12)
+            .margin({ left: 6 })
+            .onClick((): void => {
+              this.endReview(VERDICT_COMPLETED);
+            })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 16, right: 16 })
+        .margin({ top: 10, bottom: 16 })
       } else if (this.ratingSent) {
         // UI-8: one honest "submitted, loading" state instead of four dead
         // buttons that give no reason.

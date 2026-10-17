@@ -2850,7 +2850,15 @@ class AppStrings {
   /// message — the raw key is a diagnostic, never UI copy (it used to leak
   /// into release error screens as `官方卡片无法显示（official_anki.x）`).
   static String officialAnkiError(String key) {
+    if (key.startsWith('official_anki.media_missing:')) {
+      final file = key.substring('official_anki.media_missing:'.length);
+      return '媒体文件缺失：$file';
+    }
     switch (key) {
+      case 'official_anki.tts_voice_unavailable':
+        return '当前语言朗读不可用。';
+      case 'official_anki.tts_empty':
+        return '无可朗读文本。';
       case 'official_anki.card_not_found':
         return '这张官方卡片不存在。';
       case 'official_anki.unrenderable_card':

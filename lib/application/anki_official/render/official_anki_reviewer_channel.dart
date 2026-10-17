@@ -53,15 +53,20 @@ class OfficialAnkiReviewerChannel {
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    Future<void> Function()? onShowQuestion,
     Future<String> Function(String rating)? onRetryAdvance,
     Future<void> Function()? onRetryPresent,
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
+    Future<String?> Function()? onReplayAudio,
   }) async {
     channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case OfficialAnkiReviewerProtocol.methodShowAnswer:
           onShowAnswer(call.arguments as String? ?? '');
+          return null;
+        case OfficialAnkiReviewerProtocol.methodShowQuestion:
+          await onShowQuestion?.call();
           return null;
         case OfficialAnkiReviewerProtocol.methodRate:
           // The reply IS the receipt: the page disables the four buttons on
@@ -89,6 +94,8 @@ class OfficialAnkiReviewerChannel {
           // plain "Review complete" row.
           final data = await onSettlement?.call();
           return data == null ? '' : jsonEncode(data);
+        case OfficialAnkiReviewerProtocol.methodReplayAudio:
+          return await onReplayAudio?.call() ?? '';
         default:
           // Answered rather than thrown: an unknown method from the page is a
           // protocol drift, and it must not take down the page's own call stack

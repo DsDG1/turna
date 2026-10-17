@@ -467,13 +467,14 @@ flutter:
       final matrix = OfficialAnkiCapabilityMatrix.forPlatform('ohos');
       expect(matrix.officialCore, isTrue);
       expect(matrix.legacyFallbackRequired, isFalse);
-      // Deliberately still false: the ArkTS PlatformView does not exist until
-      // step 5b, and advertising the reviewer now would offer a UI that
-      // cannot render.
+      // ADR 0050 §3.7: step 5b native ArkUI Web reviewer landed with its
+      // real-device first-card receipt (2026-10-14), so the capability matrix
+      // now reflects the resolved official renderer flag instead of hardcoding
+      // false from step 3.
       expect(
         matrix.officialReviewer,
-        isFalse,
-        reason: 'faithful reviewer is step 5b, not step 3',
+        isTrue,
+        reason: 'step 5b native reviewer landed (ADR 0050 §3.7)',
       );
 
       expect(

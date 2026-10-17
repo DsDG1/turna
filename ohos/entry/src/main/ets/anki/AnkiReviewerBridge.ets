@@ -25,11 +25,13 @@ import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/Meth
 import type Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
 import {
   METHOD_RATE,
+  METHOD_REPLAY_AUDIO,
   METHOD_REQUEST_UNDO,
   METHOD_RETRY_ADVANCE,
   METHOD_RETRY_PRESENT,
   METHOD_REVIEW_SETTLEMENT,
   METHOD_SHOW_ANSWER,
+  METHOD_SHOW_QUESTION,
   METHOD_TYPED_CHANGED,
 } from './AnkiReviewerProtocol';
 
@@ -56,6 +58,12 @@ export class AnkiReviewerBridge {
   /// opinion about spelling next to the one that has the dictionary.
   public showAnswer(typed: string): void {
     this.callDart(METHOD_SHOW_ANSWER, typed);
+  }
+
+  /// Preview mode's flip-back control: asks Dart to re-present the question
+  /// face without writing any grade or scheduler state.
+  public showQuestion(): void {
+    this.callDart(METHOD_SHOW_QUESTION, '');
   }
 
   /// One of Anki's four buttons. `rating` arrives as the button's own label so
@@ -146,6 +154,37 @@ export class AnkiReviewerBridge {
       },
     };
     channel.invokeMethod(METHOD_REVIEW_SETTLEMENT, '', receiver);
+  }
+
+  /// Manual audio replay for the current face. `onResult` receives any
+  /// non-fatal AV hint (missing media file, TTS fallback notice) returned by
+  /// the Dart coordinator after playback settles.
+  public replayAudio(onResult?: (hint: string) => void): void {
+    const channel: MethodChannel | null = outbound;
+    if (channel === null) {
+      if (onResult !== undefined) {
+        onResult('');
+      }
+      return;
+    }
+    const receiver: MethodResult = {
+      success: (result: Any): void => {
+        if (onResult !== undefined) {
+          onResult(result === null || result === undefined ? '' : String(result));
+        }
+      },
+      error: (): void => {
+        if (onResult !== undefined) {
+          onResult('');
+        }
+      },
+      notImplemented: (): void => {
+        if (onResult !== undefined) {
+          onResult('');
+        }
+      },
+    };
+    channel.invokeMethod(METHOD_REPLAY_AUDIO, '', receiver);
   }
 
   /// Every keystroke, mirroring the Flutter `TextField`'s `onChanged`. Sent on

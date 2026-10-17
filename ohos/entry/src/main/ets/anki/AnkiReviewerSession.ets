@@ -70,6 +70,10 @@ interface ReviewerPresentPayload {
   progressTotal?: number;
   debug?: boolean;
   mediaNames?: Array<string>;
+  textZoom?: number;
+  previewOnly?: boolean;
+  hasAudio?: boolean;
+  avHint?: string;
 }
 
 /// One snapshot of the native chrome around the Web: what the bottom row
@@ -92,6 +96,10 @@ export interface ReviewerChromeState {
   progressIndex: number;
   progressTotal: number;
   debug: boolean;
+  textZoom: number;
+  previewOnly: boolean;
+  hasAudio: boolean;
+  avHint: string;
 }
 
 type ChromeListener = (state: ReviewerChromeState) => void;
@@ -106,6 +114,10 @@ function chromeState(
   progressIndex: number,
   progressTotal: number,
   debug: boolean,
+  textZoom: number,
+  previewOnly: boolean,
+  hasAudio: boolean,
+  avHint: string,
 ): ReviewerChromeState {
   const state: ReviewerChromeState = {
     presentPending: presentPending,
@@ -116,6 +128,10 @@ function chromeState(
     progressIndex: progressIndex,
     progressTotal: progressTotal,
     debug: debug,
+    textZoom: textZoom,
+    previewOnly: previewOnly,
+    hasAudio: hasAudio,
+    avHint: avHint,
   };
   return state;
 }
@@ -189,6 +205,8 @@ export class AnkiReviewerSession {
   private chromeProgressIndex: number = 0;
   private chromeProgressTotal: number = 0;
   private chromeDebug: boolean = false;
+  private chromeTextZoom: number = 100;
+  private chromePreviewOnly: boolean = false;
 
   constructor(mediaRoot: string) {
     this.server = new AnkiOriginServer(mediaRoot);
@@ -291,6 +309,10 @@ export class AnkiReviewerSession {
     let progressIndex: number = this.chromeProgressIndex;
     let progressTotal: number = this.chromeProgressTotal;
     let debug: boolean = this.chromeDebug;
+    let textZoom: number = this.chromeTextZoom;
+    let previewOnly: boolean = this.chromePreviewOnly;
+    let hasAudio: boolean = false;
+    let avHint: string = '';
     let mediaNames: Array<string> = [];
     try {
       const parsed: ReviewerPresentPayload = JSON.parse(payloadJson) as ReviewerPresentPayload;
@@ -320,6 +342,16 @@ export class AnkiReviewerSession {
       if (parsedNames !== undefined) {
         mediaNames = parsedNames;
       }
+      const parsedZoom: number | undefined = parsed.textZoom;
+      if (parsedZoom !== undefined && parsedZoom > 0) {
+        textZoom = parsedZoom;
+      }
+      previewOnly = parsed.previewOnly === true;
+      hasAudio = parsed.hasAudio === true;
+      const parsedHint: string | undefined = parsed.avHint;
+      if (parsedHint !== undefined) {
+        avHint = parsedHint;
+      }
     } catch (e) {
       typedVisible = false;
       cardId = 0;
@@ -329,6 +361,8 @@ export class AnkiReviewerSession {
     this.chromeProgressIndex = progressIndex;
     this.chromeProgressTotal = progressTotal;
     this.chromeDebug = debug;
+    this.chromeTextZoom = textZoom;
+    this.chromePreviewOnly = previewOnly;
     // P1: the arriving card's media replaces everyone else's. Dart has
     // already pushed these names; everything still cached belongs to the
     // previous card and is dead weight from here on.
@@ -347,6 +381,10 @@ export class AnkiReviewerSession {
       progressIndex,
       progressTotal,
       debug,
+      textZoom,
+      previewOnly,
+      hasAudio,
+      avHint,
     ));
     const expression: string =
       'window.OfficialReviewer.present(' + payloadJson + ',' + JSON.stringify(side) + ')';
@@ -367,6 +405,10 @@ export class AnkiReviewerSession {
             progressIndex,
             progressTotal,
             debug,
+            textZoom,
+            previewOnly,
+            hasAudio,
+            avHint,
           ));
           this.notifyFailure(ack.stableCode ?? RENDER_ERROR);
         } else {
@@ -379,6 +421,10 @@ export class AnkiReviewerSession {
             progressIndex,
             progressTotal,
             debug,
+            textZoom,
+            previewOnly,
+            hasAudio,
+            avHint,
           ));
         }
         resolve(ack);

@@ -1,11 +1,15 @@
 # 测试基线收据（只保留最近批次）
 
-> 本文件**只保留 2026-09-20 及之后的 48 条收据**（覆盖架构接口化、P0–P4 架构简化、
+> 本文件**只保留 2026-09-20 及之后的 49 条收据**（覆盖架构接口化、P0–P4 架构简化、
 > iOS 官方 Anki 启用、PopScope 死循环修复、文档债清理、Official Anki 状态源补记、测试冗余清理、安全与质量整改 PR-2～PR-7、OHOS Anki 引擎层交叉编译探针、OHOS 伴生轻量版 W0/W1 闸门、W4 RDB 接线与真机调通、W5 文件选择、鸿蒙图标、伴生版音频与 TTS、upsert 探针并发、鸿蒙 Official Anki 授权（ADR 0050）等最近批次）。
 > 2026-09-17 及更早的 56 条见 [`archive/BASELINE-pre-2026-09-20.md`](./archive/BASELINE-pre-2026-09-20.md)。
 
 > **新增收据一律前插到本文件顶部。** 引用收据必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**
 > （行号在只增不减的文件上必然腐坏——已删除的 `system-font-cutover-plan.md` 曾引 `BASELINE.md:303-307`，真实位置早已漂到第 100 行）。
+
+---
+
+Generated: 2026-10-17（**鸿蒙复习器 5 项功能对等性补齐：JS 禁用守卫、预览模式、字号缩放、手动音频重播与提示、officialReviewer 标志；本地门禁全绿**）：**性质**——鸿蒙复习器功能对齐批次，补齐与 Android/iOS `OfficialAnkiReviewerStage` 的 5 项行为缺口。**改动**——① **预览模式（`showPreviewControls: true`）与课程内嵌卡片（`OfficialAnkiCanonicalCardView`）对齐**：`OfficialAnkiReviewerStage._grades` 默认构造改为 `courseGradesScheduler: !widget.showPreviewControls`；`OfficialAnkiOhosReviewerBinding._rate` 在 `_previewOnly` 下直接返回 `receiptSchedulerUnavailable` 严禁写入调度器；`ohosReviewerPayload` 携带 `previewOnly` 标志，新增 `showQuestion` 出向通道（`methodShowQuestion` / `METHOD_SHOW_QUESTION`）；`AnkiReviewerPage.ets` 在 `previewOnly` 下隐藏顶栏「撤销」、翻开答案面后底栏展示「显示正面 / 完成预览」双按钮替代四档评分按钮，关闭后若无 `onNativeClosed` 则回调 `widget.onBack`。② **`ankiForceDisableJs` / `allowJs` 安全守卫**：`OfficialAnkiReviewerStage` 将 `allowJs && !forceDisableJs` 判断前置到 `isHarmonyOsTarget` 分支之前，JS 禁用时不拉起 `AnkiReviewerAbility`（已附着则 `detach`），直接渲染 `OfficialAnkiReviewerErrorView(messageKey: 'official_anki.renderer_flag_fail_closed')` 并上报 `controller.onRenderFailure`。③ **卡片字号缩放（`cardTextScale` / `textZoom`）透传**：`cardTextScaleOf(context)` 经 `OfficialAnkiOhosReviewerBinding` → `ohosReviewerPayload['textZoom']` → `AnkiReviewerSession.ets` → `AnkiReviewerPage.ets` 的 `Web(...).textZoomRatio(this.textZoom)` 及 `TextInput` 字号生效。④ **手动音频重播（`replayAudio`）与音频诊断提示（`avHint`）**：`ohosReviewerPayload` 新增 `hasAudio` 与 `avHint`，通道新增 `replayAudio`（`methodReplayAudio` / `METHOD_REPLAY_AUDIO`），`AnkiReviewerPage.ets` 顶栏在 `hasAudio` 为真时展示「重播」按钮并在状态区展示 `avHint`；`OfficialAnkiMediaResolver.resolveRelativeName` 增加 `!mediaRoot.existsSync()` 前置守卫避免未建目录时 `resolveSymbolicLinksSync` 抛异常；`AppStrings.officialAnkiError` 补齐 `official_anki.media_missing:*`、`official_anki.tts_voice_unavailable` 与 `official_anki.tts_empty` 文案。⑤ **能力矩阵 `officialReviewer` 标志对齐**：`OfficialAnkiCapabilityMatrix.forPlatform('ohos').officialReviewer` 改为 `resolved.allowsOfficialRenderer`，同步更新 `ohos_eol_architecture_guard_test.dart`。**验证**——`dart analyze` **No issues found**；`ohos_eol_architecture_guard_test.dart` + `official_anki_reviewer_protocol_guard_test.dart` + `official_anki_ohos_reviewer_binding_test.dart`（+3 例：payload 字段透传、previewOnly 拒写与翻回正面、replayAudio 回传提示）+ `official_anki_reviewer_ui_av_error_test.dart` + `official_template_body_test.dart` + `layering_guard_test.dart` **51 passed / 0 failed**（全量较上批 +3，计 2170）。
 
 ---
 

@@ -83,21 +83,44 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   int? _blockedJsGeneration;
   OfficialAnkiOhosReviewerBinding? _ohos;
   Object? _ohosError;
+  var _ohosStarting = false;
   var _ohosClosed = false;
   var _dark = false;
+  var _textZoom = 100;
 
   OfficialAnkiCourseGradesBridge get _grades =>
       widget.grades ??
       OfficialAnkiCourseGradesBridgeImpl(
-        flags: OfficialAnkiFeatureFlags.current
-            .copyWith(courseGradesScheduler: true),
+        flags: OfficialAnkiFeatureFlags.current.copyWith(
+          courseGradesScheduler: !widget.showPreviewControls,
+        ),
       );
+
+  bool _effectiveAllowJs(BuildContext context) {
+    final forceDisableJs = Provider.of<SettingsProvider?>(
+          context,
+          listen: false,
+        )?.ankiForceDisableJs ??
+        false;
+    return widget.allowJs && !forceDisableJs;
+  }
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onChanged);
-    if (isHarmonyOsTarget) {
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _textZoom = cardTextScaleOf(context);
+    if (isHarmonyOsTarget &&
+        _effectiveAllowJs(context) &&
+        _ohos == null &&
+        !_ohosStarting &&
+        _ohosError == null &&
+        !_ohosClosed) {
       unawaited(_startOhos());
     }
   }
@@ -122,6 +145,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   }
 
   Future<void> _startOhos() async {
+    if (_ohosStarting) return;
+    _ohosStarting = true;
     try {
       final binding = await OfficialAnkiOhosReviewerBinding.attach(
         controller: _controller,
@@ -130,6 +155,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         resolver: OfficialAnkiMediaResolver(widget.paths.mediaFolder),
         sourceId: widget.sourceId,
         dark: _dark,
+        textZoom: _textZoom,
+        previewOnly: widget.showPreviewControls,
         onReveal: widget.onNativeReveal,
         onRated: widget.onNativeRated,
         onClosed: _onAbilityClosed,
@@ -137,7 +164,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         onSettlement: widget.onNativeSettlement,
         onProgress: widget.onNativeProgress,
       );
-      if (!mounted) {
+      if (!mounted || !_effectiveAllowJs(context)) {
         binding.detach(_controller);
         return;
       }
@@ -152,6 +179,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           error: error, stackTrace: stack);
       if (!mounted) return;
       setState(() => _ohosError = error);
+    } finally {
+      _ohosStarting = false;
     }
   }
 
@@ -161,7 +190,11 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   void _onAbilityClosed(String verdict) {
     if (!mounted) return;
     setState(() => _ohosClosed = true);
-    widget.onNativeClosed?.call(verdict);
+    if (widget.onNativeClosed != null) {
+      widget.onNativeClosed!(verdict);
+    } else if (widget.showPreviewControls) {
+      widget.onBack?.call();
+    }
   }
 
   void _rebindOhos() {
@@ -173,6 +206,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       resolver: OfficialAnkiMediaResolver(widget.paths.mediaFolder),
       sourceId: widget.sourceId,
       dark: _dark,
+      textZoom: _textZoom,
+      previewOnly: widget.showPreviewControls,
       onReveal: widget.onNativeReveal,
       onRated: widget.onNativeRated,
       onClosed: _onAbilityClosed,
@@ -209,24 +244,29 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
 
   @override
   Widget build(BuildContext context) {
-    _dark = Theme.of(context).brightness == Brightness.dark;
-    _ohos?.setDark(_dark);
-    if (isHarmonyOsTarget) {
-      return _buildOhos();
-    }
     final flags = OfficialAnkiFeatureFlags.current;
     final controller = _controller;
     final card = controller.card;
     final cardTextScale = cardTextScaleOf(context);
+    final forceDisableJs = context.select<SettingsProvider?, bool>(
+      (settings) => settings?.ankiForceDisableJs ?? false,
+    );
+    final allowJs = widget.allowJs && !forceDisableJs;
+    _dark = Theme.of(context).brightness == Brightness.dark;
+    _textZoom = cardTextScale;
+    _ohos
+      ?..setDark(_dark)
+      ..setTextZoom(cardTextScale)
+      ..setPreviewOnly(widget.showPreviewControls);
+    if (isHarmonyOsTarget) {
+      return _buildOhos(controller, allowJs: allowJs);
+    }
     // The replay button replays the card author's own AV tags; hide it on
     // cards without media instead of offering a no-op "system read aloud".
     final hasReplayableAv = card != null &&
         (controller.showingAnswer
             ? card.answerAvTags.isNotEmpty
             : card.questionAvTags.isNotEmpty);
-    final forceDisableJs = context.select<SettingsProvider?, bool>(
-      (settings) => settings?.ankiForceDisableJs ?? false,
-    );
     return Column(
       key: const Key('official-review-stage'),
       children: [
@@ -245,7 +285,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           ),
         Expanded(
             child: _buildSurface(controller, card, cardTextScale,
-                allowJs: widget.allowJs && !forceDisableJs)),
+                allowJs: allowJs)),
         if (controller.avHint != null && !controller.ui.isError)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -324,7 +364,52 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     );
   }
 
-  Widget _buildOhos() {
+  void _scheduleBlockedJsFailure(OfficialAnkiReviewerController controller) {
+    final generation = controller.presentGeneration;
+    final side = controller.currentSide;
+    if (_blockedJsGeneration == generation) return;
+    _blockedJsGeneration = generation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !identical(controller, _controller) ||
+          generation != controller.presentGeneration ||
+          side != controller.currentSide) {
+        return;
+      }
+      controller.onRenderFailure(
+        code: 'official_anki.renderer_flag_fail_closed',
+        side: side,
+        generation: generation,
+      );
+    });
+  }
+
+  Widget _buildOhos(
+    OfficialAnkiReviewerController controller, {
+    required bool allowJs,
+  }) {
+    if (!allowJs) {
+      _ohos?.detach(_controller);
+      _ohos = null;
+      _scheduleBlockedJsFailure(controller);
+      return const Column(
+        key: Key('official-review-stage'),
+        children: [
+          Expanded(
+            child: OfficialAnkiReviewerErrorView(
+              messageKey: 'official_anki.renderer_flag_fail_closed',
+            ),
+          ),
+        ],
+      );
+    }
+    _blockedJsGeneration = null;
+    if (_ohos == null &&
+        !_ohosStarting &&
+        _ohosError == null &&
+        !_ohosClosed) {
+      unawaited(_startOhos());
+    }
     final error = _ohosError;
     return Column(
       key: const Key('official-review-stage'),
@@ -350,23 +435,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       OfficialAnkiRenderedCard? card, int cardTextScale,
       {required bool allowJs}) {
     if (!allowJs) {
-      final generation = controller.presentGeneration;
-      final side = controller.currentSide;
-      if (_blockedJsGeneration != generation) {
-        _blockedJsGeneration = generation;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted ||
-              !identical(controller, _controller) ||
-              generation != controller.presentGeneration ||
-              side != controller.currentSide) {
-            return;
-          }
-          controller.onRenderFailure(
-              code: 'official_anki.renderer_flag_fail_closed',
-              side: side,
-              generation: generation);
-        });
-      }
+      _scheduleBlockedJsFailure(controller);
       // The official shell needs JavaScript for its render ACK. Until it has
       // a script-free contract, honour the user's hard off-switch by failing
       // closed instead of executing imported scripts or issuing a fake ACK.

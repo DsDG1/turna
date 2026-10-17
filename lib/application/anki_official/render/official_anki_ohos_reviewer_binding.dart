@@ -10,6 +10,7 @@ import 'package:turna/application/anki_official/render/official_anki_render_stat
 import 'package:turna/application/anki_official/render/official_anki_reviewer_channel.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// The calls the HarmonyOS reviewer page can make. The real channel is one
 /// implementation; tests supply another so the order of media push and
@@ -19,10 +20,12 @@ abstract class OfficialAnkiOhosReviewerTransport {
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    Future<void> Function()? onShowQuestion,
     Future<String> Function(String rating)? onRetryAdvance,
     Future<void> Function()? onRetryPresent,
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
+    Future<String?> Function()? onReplayAudio,
   });
 
   Future<String> open({required String mediaRoot});
@@ -54,19 +57,23 @@ class OfficialAnkiReviewerChannelTransport
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    Future<void> Function()? onShowQuestion,
     Future<String> Function(String rating)? onRetryAdvance,
     Future<void> Function()? onRetryPresent,
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
+    Future<String?> Function()? onReplayAudio,
   }) {
     return channel.bindOutbound(
       onShowAnswer: onShowAnswer,
       onRate: onRate,
       onTypedChanged: onTypedChanged,
+      onShowQuestion: onShowQuestion,
       onRetryAdvance: onRetryAdvance,
       onRetryPresent: onRetryPresent,
       onUndo: onUndo,
       onSettlement: onSettlement,
+      onReplayAudio: onReplayAudio,
     );
   }
 
@@ -109,9 +116,13 @@ class OfficialAnkiOhosReviewerBinding {
     required OfficialAnkiCourseGradesBridge grades,
     required this.mediaRoot,
     required OfficialAnkiMediaResolver resolver,
+    int textZoom = 100,
+    bool previewOnly = false,
     DateTime Function()? now,
   })  : _grades = grades,
         _resolver = resolver,
+        _textZoom = textZoom,
+        _previewOnly = previewOnly,
         _now = now ?? DateTime.now;
 
   static OfficialAnkiOhosReviewerBinding? _live;
@@ -131,6 +142,8 @@ class OfficialAnkiOhosReviewerBinding {
   Future<Map<String, Object?>?> Function()? _onSettlement;
   (int, int)? Function()? _onProgress;
   var _dark = false;
+  var _textZoom = 100;
+  var _previewOnly = false;
   var _opened = false;
   var _closed = false;
   DateTime? _answerShownAt;
@@ -155,6 +168,8 @@ class OfficialAnkiOhosReviewerBinding {
     required OfficialAnkiMediaResolver resolver,
     required String sourceId,
     required bool dark,
+    int textZoom = 100,
+    bool previewOnly = false,
     void Function()? onReveal,
     Future<bool> Function(String rating)? onRated,
     void Function(String verdict)? onClosed,
@@ -172,6 +187,8 @@ class OfficialAnkiOhosReviewerBinding {
         resolver: resolver,
         sourceId: sourceId,
         dark: dark,
+        textZoom: textZoom,
+        previewOnly: previewOnly,
         onReveal: onReveal,
         onRated: onRated,
         onClosed: onClosed,
@@ -189,6 +206,8 @@ class OfficialAnkiOhosReviewerBinding {
       grades: grades,
       mediaRoot: mediaRoot,
       resolver: resolver,
+      textZoom: textZoom,
+      previewOnly: previewOnly,
       now: now,
     );
     try {
@@ -204,6 +223,8 @@ class OfficialAnkiOhosReviewerBinding {
       resolver: resolver,
       sourceId: sourceId,
       dark: dark,
+      textZoom: textZoom,
+      previewOnly: previewOnly,
       onReveal: onReveal,
       onRated: onRated,
       onClosed: onClosed,
@@ -227,12 +248,22 @@ class OfficialAnkiOhosReviewerBinding {
     _dark = value;
   }
 
+  void setTextZoom(int value) {
+    _textZoom = value;
+  }
+
+  void setPreviewOnly(bool value) {
+    _previewOnly = value;
+  }
+
   void rebind({
     required OfficialAnkiReviewerController controller,
     required OfficialAnkiCourseGradesBridge grades,
     required OfficialAnkiMediaResolver resolver,
     required String sourceId,
     required bool dark,
+    int? textZoom,
+    bool? previewOnly,
     void Function()? onReveal,
     Future<bool> Function(String rating)? onRated,
     void Function(String verdict)? onClosed,
@@ -250,6 +281,8 @@ class OfficialAnkiOhosReviewerBinding {
     _resolver = resolver;
     _sourceId = sourceId;
     _dark = dark;
+    if (textZoom != null) _textZoom = textZoom;
+    if (previewOnly != null) _previewOnly = previewOnly;
     _onReveal = onReveal;
     _onRated = onRated;
     _onClosed = onClosed;
@@ -272,6 +305,7 @@ class OfficialAnkiOhosReviewerBinding {
       onShowAnswer: (typed) {
         unawaited(_flip(typed));
       },
+      onShowQuestion: _showQuestion,
       onRate: _rate,
       onTypedChanged: (text) {
         _controller?.typed.updateProvided(text);
@@ -282,6 +316,7 @@ class OfficialAnkiOhosReviewerBinding {
         await _onUndo?.call();
       },
       onSettlement: _onSettlement,
+      onReplayAudio: _replayAudio,
     );
     final opened = transport.open(mediaRoot: mediaRoot);
     unawaited(opened.then((verdict) {
@@ -326,6 +361,8 @@ class OfficialAnkiOhosReviewerBinding {
       generation: controller.presentGeneration,
       comparisonHtml: controller.typed.comparison?.comparisonHtml,
       dark: _dark,
+      textZoom: _textZoom,
+      previewOnly: _previewOnly,
     ));
   }
 
@@ -338,6 +375,8 @@ class OfficialAnkiOhosReviewerBinding {
     required int generation,
     required bool dark,
     String? comparisonHtml,
+    int? textZoom,
+    bool? previewOnly,
   }) {
     final side = showingAnswer
         ? OfficialAnkiReviewerProtocol.sideAnswer
@@ -374,6 +413,13 @@ class OfficialAnkiOhosReviewerBinding {
           progressIndex: progress?.$1,
           progressTotal: progress?.$2,
           debug: kDebugMode,
+          textZoom: textZoom ?? _textZoom,
+          previewOnly: previewOnly ?? _previewOnly,
+          avHint: _resolveAvHint(
+            controller,
+            card,
+            showingAnswer: showingAnswer,
+          ),
         );
         final ack = await transport.present(payload: payload, side: side);
         if (_pending != key || _closed) return;
@@ -406,10 +452,56 @@ class OfficialAnkiOhosReviewerBinding {
     _onReveal?.call();
   }
 
+  Future<void> _showQuestion() async {
+    final controller = _controller;
+    if (controller == null || _closed) return;
+    _answerShownAt = null;
+    await controller.showQuestion();
+  }
+
+  Future<String> _replayAudio() async {
+    final controller = _controller;
+    if (controller == null || _closed || controller.replayBusy) return '';
+    await controller.replay();
+    return _localizeAvHint(controller.avHint);
+  }
+
+  String _resolveAvHint(
+    OfficialAnkiReviewerController controller,
+    OfficialAnkiRenderedCard card, {
+    required bool showingAnswer,
+  }) {
+    final existing = controller.avHint;
+    if (existing != null && existing.isNotEmpty) {
+      return _localizeAvHint(existing);
+    }
+    final tags = showingAnswer ? card.answerAvTags : card.questionAvTags;
+    for (final tag in tags) {
+      if (tag.kind == OfficialAnkiAvKind.soundOrVideo) {
+        final name = tag.filename ?? '';
+        final decision = _resolver.resolveRelativeName(name);
+        if (!decision.allowed || decision.file == null) {
+          return _localizeAvHint('official_anki.media_missing:$name');
+        }
+      } else if ((tag.fieldText ?? '').isEmpty) {
+        return _localizeAvHint('official_anki.tts_empty');
+      }
+    }
+    return '';
+  }
+
+  static String _localizeAvHint(String? key) {
+    if (key == null || key.isEmpty) return '';
+    return AppStrings.officialAnkiError(key);
+  }
+
   Future<String> _rate(String rating) async {
     final controller = _controller;
     final card = controller?.card;
     if (_closed) return OfficialAnkiReviewerProtocol.receiptSessionClosed;
+    if (_previewOnly) {
+      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
+    }
     if (controller == null || card == null) {
       return OfficialAnkiReviewerProtocol.receiptNoCard;
     }

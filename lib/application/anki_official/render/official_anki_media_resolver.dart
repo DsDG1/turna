@@ -49,6 +49,9 @@ class OfficialAnkiMediaResolver {
     if (!decision.allowed || decision.filename == null) {
       return OfficialAnkiMediaDecision.denied(decision.reason ?? 'name');
     }
+    if (!mediaRoot.existsSync()) {
+      return OfficialAnkiMediaDecision.denied('missing');
+    }
     final name = decision.filename!;
     final root = mediaRoot.resolveSymbolicLinksSync();
     final candidate = File('${mediaRoot.path}${Platform.pathSeparator}$name');

@@ -238,6 +238,18 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   连续两轮进复习×20 / 大卡翻面时序）未跑，hap 未重编；上一节「评分回执与
   按钮互斥」的真机复验同样待取——**复验须覆盖本批异常路径，不能只验互斥**。
 
+## 鸿蒙复习链路协议门禁、探针隔离与 5 项功能对等性补齐（2026-10-17）
+
+- **R0 协议契约收口与对称性门禁**：新增 `official_anki_reviewer_protocol.dart`（Dart）与 `AnkiReviewerProtocol.ets`（ArkTS）单一协议词表，并由 `official_anki_reviewer_protocol_guard_test.dart` 双向文本解析断言方法名、回执码、失败分类集合与载荷字段一一对应。
+- **R1 探针隔离重构**：将 7 个步 5b 探针文件从生产目录统一迁入 `ohos/entry/src/main/ets/probe/`，移除生产 `AnkiReviewerBridge.ets` 中未使用的 `attach/emit` 回调镜像，并在协议守卫中钉死探针与生产 `AnkiHttp.ets` 的四轴 Range/MIME 允许差集。
+- **5 项功能对等性补齐**：
+  1. **预览模式（`showPreviewControls: true`）与课程内嵌卡片（`OfficialAnkiCanonicalCardView`）守卫**：禁用预览模式下的默认调度器写入（`courseGradesScheduler: !widget.showPreviewControls` + `_rate` 拒写回 `scheduler_unavailable`），新增 `showQuestion` 通道与原生预览底栏（「显示正面 / 完成预览」替代四档评分按钮，隐藏「撤销」）。
+  2. **JS 禁用开关（`ankiForceDisableJs` / `allowJs`）守卫**：在鸿蒙分支前置检查，禁用时不拉起 `AnkiReviewerAbility`，直接渲染 `official_anki.renderer_flag_fail_closed` 错误页并上报 `onRenderFailure`。
+  3. **卡片字号缩放（`cardTextScale` / `textZoom`）透传**：打通 `cardTextScaleOf(context)` → `ohosReviewerPayload['textZoom']` → `AnkiReviewerPage.ets` 的 `Web.textZoomRatio` 与 `TextInput` 字号。
+  4. **手动音频重播（`replayAudio`）与 `avHint` 展示**：新增 `hasAudio` / `avHint` 载荷字段与 `replayAudio` 出向通道，顶栏支持手动重播并在状态区展示缺失媒体/TTS 不可用提示。
+  5. **能力矩阵 `officialReviewer` 对齐**：`OfficialAnkiCapabilityMatrix.forPlatform('ohos').officialReviewer` 改为 `resolved.allowsOfficialRenderer`。
+  验证收据见 `test/BASELINE.md` 2026-10-17 各条目。
+
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
 > 状态与证据明细以 [ADR 0050](../decisions/0050-ohos-official-anki.md) 为真源

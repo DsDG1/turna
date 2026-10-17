@@ -131,17 +131,17 @@ class OfficialAnkiCapabilityMatrix {
           legacyFallbackRequired: false,
         );
       case 'ohos':
-        // ADR 0050 §6 step 3. Core and scheduler are the same FFI path
-        // Android uses, and both layers are measured on hardware (§2.1
-        // platform identity, §4.2 dlopen=ok abi=1, §4.1 catalog=ok).
-        // `officialReviewer` stays false until step 5b ships the ArkTS
-        // PlatformView — advertising it now would offer a UI that cannot
-        // render, which is the failure shape this repo keeps rediscovering
-        // only on device.
+        // ADR 0050 §6 steps 3 & 5b. Core and scheduler share the Android FFI
+        // path (§2.1 platform identity, §4.2 dlopen=ok abi=1, §4.1
+        // catalog=ok), and step 5b's native ArkUI reviewer has its hardware
+        // receipt (2026-10-14 Mate 90 Pro Max) plus feature parity with the
+        // mobile stage (JS off-switch, preview-only 0-write mode, textZoom,
+        // manual audio replay). Follow `allowsOfficialRenderer` like
+        // Android/iOS so kill-switch flags still fail closed.
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: true,
-          officialReviewer: false,
+          officialReviewer: resolved.allowsOfficialRenderer,
           officialScheduler: resolved.allowsOfficialScheduler,
           legacyFallbackRequired: false,
         );
