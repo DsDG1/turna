@@ -167,4 +167,58 @@ void main() {
       );
     });
   });
+
+  group('exit confirmation count (D9)', () {
+    late final String chrome;
+    late final String page;
+
+    setUpAll(() {
+      chrome = _code(_chromePath);
+      page = _code(_pagePath);
+    });
+
+    test('the confirmation says how many cards are left', () {
+      // Android's `reviewExitConfirmBody(remaining)` tells the learner what the
+      // decision costs; a bare "are you sure" on one platform and a count on
+      // the other is the same product behaving differently.
+      expect(
+        chrome.contains("'还剩 ' + String(this.remainingCount) +"),
+        isTrue,
+        reason: 'the exit confirmation lost its remaining-card count',
+      );
+      expect(
+        chrome.contains(": '再按一次返回或 ✕ 结束复习（已评分的卡片会保留）'"),
+        isTrue,
+        reason: 'the count-free fallback is gone — it is what shows when the '
+            'count is not yet known (boot, or a session that owes nothing)',
+      );
+    });
+
+    test('the count uses Android\'s formula, current card included', () {
+      // Android: `items.length - currentIndex`. On this side that is
+      // `progressTotal - (progressIndex - 1)`, because `progressIndex` is
+      // `answered + 1` and `progressTotal` is `answered + owed`.
+      expect(
+        RegExp(r'this\.progressTotal - this\.progressIndex \+ 1')
+            .hasMatch(page),
+        isTrue,
+        reason: 'the remaining count drifted from Android\'s definition; '
+            'off-by-one here is a lie in a confirmation dialog',
+      );
+      expect(
+        page.contains('remainingCount: this.remainingCards()'),
+        isTrue,
+        reason: 'the status area is no longer fed the computed count',
+      );
+    });
+
+    test('a negative count can never be rendered', () {
+      expect(
+        RegExp(r'return owed > 0 \? owed : 0;').hasMatch(page),
+        isTrue,
+        reason: 'during boot both progress fields are 0; without the clamp the '
+            'line reads 还剩 -1 张',
+      );
+    });
+  });
 }

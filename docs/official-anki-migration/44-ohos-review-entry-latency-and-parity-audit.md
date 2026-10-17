@@ -73,7 +73,7 @@ O1 媒体分层、R2 拆分、T1 跨语言测试已施工且 hap 构建转绿；
 | D6 | **换卡 rebuild 仍是全队列渲染** | `official_formal_review_coordinator.dart` `_doRebuild` 的 `for (final card in queue.cards)` | 即使首屏分批，第 9 张起仍会一次性卡住（所以 D2 的分批必须同时改这里） |
 | D7 | ~~评分档位两平台不一致~~ **已施工（2026-10-18）** | 安卓 `BinaryRecallBar`（2 档）vs 鸿蒙原四档 | 鸿蒙改二档，同语义；真机复验收据待取 |
 | D8 | ~~鸿蒙缺 bury / suspend / redo~~ **已施工（2026-10-18）** | 原：`_AnkiStudySessionView` 的鸿蒙分支直接 `Scaffold(body: _cardSurface)`，工具栏整体省略 | 原生补三键 + `requestCardAction` 协议；真机复验收据待取 |
-| D9 | **返回确认形态不一致** | 安卓 `AlertDialog`；鸿蒙两步按键 + `EXIT_CONFIRM_WINDOW_MS` 文案 | 语义一致、形态不同；鸿蒙文案未带剩余张数 |
+| D9 | ~~返回确认缺剩余张数~~ **文案已对齐（2026-10-18）** | 安卓 `AlertDialog` + `reviewExitConfirmBody(remaining)`；鸿蒙两步按键 + `EXIT_CONFIRM_WINDOW_MS` | 形态仍不同（一步弹窗 vs 两步按键），信息量已一致：都报剩余张数 |
 
 > D1、D8 是**产品缺陷**，不是性能问题，所以它们按「各自独立一批」排期，
 > 不与性能项合批。两条均已于 2026-10-18 施工。
@@ -540,8 +540,11 @@ ArkUI ability 拉起走系统默认转场。可评估
 
 ### 4.3 状态文案
 
-- 鸿蒙两步返回确认的文案未带剩余张数，安卓的
-  `reviewExitConfirmBody(remaining)` 带。建议对齐。
+- ~~鸿蒙两步返回确认的文案未带剩余张数，安卓的 `reviewExitConfirmBody(remaining)`
+  带。建议对齐。~~ **已施工（2026-10-18）**：文案改为
+  「还剩 N 张未完成，再按一次返回或 ✕ 结束复习（已评分的卡片会保留）」，
+  计数口径与安卓 `ReviewSessionController.remainingCount` 一致（
+  `items.length - currentIndex`，含当前这张）；N 未知时回落原文案。
 - ArkUI 状态区的 `正在加载…` / `调度器忙，请再点一次` 与 Flutter 的
   `AppStrings` 是两套硬编码中文（`AnkiReviewerPage.ets` / `AnkiReviewerChrome.ets`）。
   当前没有 l10n 需求就不动，但要记在案：**这是未来的口径漂移点**。
@@ -558,9 +561,9 @@ ArkUI ability 拉起走系统默认转场。可评估
 | 音频重播 | Flutter 图标 | 原生「重播」+ avHint | ✅（对等性已补） |
 | 撤销 | Flutter 顶栏 | 原生顶栏 | ✅ |
 | 进度口径 | `currentIndex+1 / totalCount` | `answeredCount+1 / (answeredCount+items.length)` | ⚠️ 收缩口径不同，数字跳动方式不同 |
-| 返回确认 | AlertDialog | 两步按键 + 2 s 窗口 | ⚠️ 形态不同 |
+| 返回确认 | AlertDialog（带剩余张数） | 两步按键 + 2 s 窗口（**2026-10-18 起也带剩余张数**） | ⚠️ 形态不同，信息量已一致 |
 | 完成 | Flutter `UnifiedReviewCompletion` | 原生完成行 → Close → Flutter 完成屏 | ⚠️ 两段式 |
-| 工具栏 | redo / bury / suspend | **无** | ❌ 功能缺失 |
+| 工具栏 | redo / bury / suspend | redo / bury / suspend（顶栏第二行） | ✅ 2026-10-18 对齐 |
 | 错误出口 | 页内错误 + 返回 | 原生有退出；Flutter 侧无返回 | ❌ 缺陷（D1） |
 
 ### 5.1 评分档位：**已定案「对齐安卓」（二档），2026-10-18 施工**
@@ -638,6 +641,7 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 | P1-4 暖帧 | 首卡 present → `renderComplete` 的 ack 时间；首卡只创建一个 iframe | debug chrome；现有 60 ms 是**翻卡**，首卡必须单独量 |
 | D7 二档 | 同卡同评级两平台落库 rating 一致（`again`/`good`）；标签与语义色一致；评分行切换不跳布局 | 真机过卡 + 两平台对拍 |
 | D8 工具 | bury / suspend / redo 产生与安卓相同的调度效果 | 真机 + 调度前后队列对比 |
+| D9 退出确认 | 两步确认的第一跳文案报出剩余张数，且与 `remainingCount` 同口径 | 真机 + 对照 `progressIndex/progressTotal` |
 
 **口径提醒**：本文任何一条施工完成，都不改变 34 收据的 Held 项
 （真机导入、课程学习解锁、步 6 首跑收据、互斥与三批修复的真机复验）。
@@ -661,4 +665,6 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 5. ~~**D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）~~
    **已施工（2026-10-18）**：三项全要，原生补三键 + `requestCardAction`
    协议 + 三态回执，见 §3.8。真机判据待取
-6. **P2-5 / P2-6**（先测量，测完再决定是否立项）——排期里唯一剩下的两项
+6. ~~**D9 退出确认文案**~~ **已施工（2026-10-18）**：补剩余张数，口径对齐安卓
+   `remainingCount`（含当前这张），N 未知时回落原文案；见 §4.3
+7. **P2-5 / P2-6**（先测量，测完再决定是否立项）——排期里唯一剩下的两项

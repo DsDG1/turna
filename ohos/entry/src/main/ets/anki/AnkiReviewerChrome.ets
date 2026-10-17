@@ -278,6 +278,11 @@ export struct AnkiReviewerStatusArea {
   @Prop debugChrome: boolean = false;
   @Prop advanceStuck: boolean = false;
   @Prop booted: boolean = false;
+
+  /// D9: cards still owed, counted the same way Android's
+  /// `ReviewSessionController.remainingCount` counts them — the current card
+  /// included, because it is still unanswered.
+  @Prop remainingCount: number = 0;
   onRetryOrReconnect: () => void = (): void => {};
   onExitEarly: () => void = (): void => {};
 
@@ -301,9 +306,17 @@ export struct AnkiReviewerStatusArea {
       }
 
       if (this.confirmExit && !this.isComplete) {
+        // D9: the count is the point. Android's exit dialog says how much is
+        // left (`reviewExitConfirmBody(remaining)`); a confirmation that only
+        // says "are you sure" asks the learner to price a decision without
+        // telling them what it costs. The mechanism hint stays because the
+        // shape here is a two-step tap, not a dialog.
         Text(this.previewOnly
           ? '再按一次返回或 ✕ 结束预览'
-          : '再按一次返回或 ✕ 结束复习（已评分的卡片会保留）')
+          : (this.remainingCount > 0
+            ? '还剩 ' + String(this.remainingCount) +
+              ' 张未完成，再按一次返回或 ✕ 结束复习（已评分的卡片会保留）'
+            : '再按一次返回或 ✕ 结束复习（已评分的卡片会保留）'))
           .fontSize(12)
           .fontColor(this.palette().textSecondary)
           .width('100%')

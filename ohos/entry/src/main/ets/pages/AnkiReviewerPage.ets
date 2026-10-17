@@ -404,6 +404,20 @@ struct AnkiReviewerPage {
     session.channel().requestUndo();
   }
 
+  /// D9: cards still owed, matching Android's `remainingCount` shape — the
+  /// current card counts, because it is still unanswered. `progressIndex` is
+  /// `answered + 1` (clamped) and `progressTotal` is `answered + owed`, so the
+  /// owed count is `total - (index - 1)`. Guarded at 0 rather than trusting
+  /// the arithmetic: during boot both fields are 0, and a negative "还剩" line
+  /// is worse than no line.
+  private remainingCards(): number {
+    if (this.progressTotal <= 0) {
+      return 0;
+    }
+    const owed: number = this.progressTotal - this.progressIndex + 1;
+    return owed > 0 ? owed : 0;
+  }
+
   /// D8: redo / bury / suspend. All three share one path because all three
   /// share one contract — mutate, then tell the page whether the session moved
   /// on, finished, or refused. Worded generically on purpose: "评分失败" would
@@ -554,6 +568,7 @@ struct AnkiReviewerPage {
         debugChrome: this.debugChrome,
         advanceStuck: this.advanceStuck,
         booted: this.booted,
+        remainingCount: this.remainingCards(),
         onRetryOrReconnect: (): void => {
           if (this.booted) {
             this.retryRender();

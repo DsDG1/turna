@@ -304,6 +304,11 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   用例 + 6 例 chrome 源码守卫。**Dart 单测、ArkTS 编译、真机三者仍为零收据**，
   hap 未重编。细节见 `test/BASELINE.md` 同日首条与
   [44](./44-ohos-review-entry-latency-and-parity-audit.md) §3.8。
+- **同批附带 D9：退出确认补剩余张数**。安卓 `reviewExitConfirmBody(remaining)`
+  报数，鸿蒙两步确认不报。现改为「还剩 N 张未完成，再按一次返回或 ✕ 结束复习
+  （已评分的卡片会保留）」，N 与安卓 `remainingCount` 同口径（含当前这张），
+  未知时回落原文案。**形态差异（弹窗 vs 两步按键）仍在**，本轮只对齐信息量。
+  见 44 §4.3。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
