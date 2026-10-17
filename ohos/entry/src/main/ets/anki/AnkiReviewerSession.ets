@@ -137,24 +137,23 @@ function chromeState(
   return state;
 }
 
-/// Poll cadence for reading `__turnaLastRender`, mirroring the Android
-/// client's `APPLY_DELAY_MS`.
-const POLL_DELAY_MS: number = 50;
-
 function failedAck(type: string, stableCode: string): RenderAck {
   const ack: RenderAck = { ok: false, type: type, stableCode: stableCode };
   return ack;
 }
 
-/// Polls `__turnaLastRender` as a `|`-joined scalar row rather than as JSON:
-/// `runJavaScript` resolves with the JSON encoding of the script's value, and
-/// a JSON string full of escaped quotes cannot be unescaped here — ArkTS
-/// `replace` substitutes only the first match, so the ported-from-Android
-/// unwrap left most escapes in place and every poll failed to parse what the
+/// One-shot read of `__turnaLastRender` as a `|`-joined scalar row rather than
+/// as JSON. `runJavaScript` resolves with the JSON encoding of the script's
+/// value, and a JSON string full of escaped quotes cannot be unescaped here —
+/// ArkTS `replace` substitutes only the first match, so the ported-from-Android
+/// unwrap left most escapes in place and every read failed to parse what the
 /// frame had plainly published (12 s timeouts on faces that were on screen).
 /// None of the seven fields can contain `|`, quotes or backslashes, so the
 /// encoded result carries nothing but its outer quotes.
-const POLL_EXPRESSION: string =
+///
+/// The live path is the `TurnaOhosReviewer.onAck` push. This expression runs
+/// only when that push has not settled the present by the timeout.
+const READ_ACK_EXPRESSION: string =
   '(function(){ var a = window.__turnaLastRender; if (!a) { return ""; } ' +
   'return [a.type, a.generation, a.side, a.stableCode, a.height, a.cardId, a.ok].join("|"); })()';
 
@@ -230,6 +229,9 @@ export class AnkiReviewerSession {
   private chromeDebug: boolean = false;
   private chromeTextZoom: number = 100;
   private chromePreviewOnly: boolean = false;
+  private shellReadyHook: (() => void) | undefined = undefined;
+  private pushedAck: ((row: string) => void) | undefined = undefined;
+  private ackSerial: number = 0;
 
   constructor(mediaRoot: string) {
     this.server = new AnkiOriginServer(mediaRoot);
@@ -251,8 +253,41 @@ export class AnkiReviewerSession {
     return this.shellReady && this.web !== undefined;
   }
 
+  public setShellReadyHook(hook: () => void): void {
+    this.shellReadyHook = hook;
+  }
+
   public markShellReady(): void {
     this.shellReady = true;
+    // Pre-build the card iframe before the first present arrives. Issued before
+    // `hook()` on purpose: the hook releases Dart's `waitUntilReady`, which
+    // presents immediately, and ArkWeb runs `runJavaScript` calls in issue
+    // order — warming afterwards would let the present's injection queue ahead
+    // of the warm-up it is supposed to benefit from.
+    //
+    // Best-effort by design. An older shell has no `warmFrame`, and a failed
+    // warm-up only means the first card pays the cold iframe load it paid
+    // before this existed.
+    this.web?.runJavaScript(
+      'window.OfficialReviewer && window.OfficialReviewer.warmFrame && window.OfficialReviewer.warmFrame()'
+    ).catch((_e: BusinessError): void => {
+      // No shell method or no window: documented fallback, never a failure.
+    });
+    const hook: (() => void) | undefined = this.shellReadyHook;
+    if (hook !== undefined) {
+      hook();
+    }
+  }
+
+  /// Terminal ack pushed by `reviewer.js` through `TurnaOhosReviewer.onAck`.
+  /// Ignored when no present is waiting, or when the row's generation is not
+  /// the one this present injected.
+  public acceptPushedAck(row: string): void {
+    const listener: ((row: string) => void) | undefined = this.pushedAck;
+    if (listener === undefined) {
+      return;
+    }
+    listener(row);
   }
 
   public setChromeListener(listener: ChromeListener | undefined): void {
@@ -325,23 +360,19 @@ export class AnkiReviewerSession {
   /// distinguish "rendered" from "gave up", which is the difference between
   /// showing the answer and silently advancing a card that never drew.
   ///
-  /// The ack is POLLED, not pushed: `reviewer.js` publishes its latest outcome
-  /// to `window.__turnaLastRender` (its `publishDebug`), and the Android client
-  /// reads that field in a loop until it says `renderComplete` or
-  /// `renderError`. There is no bridge message for it — an earlier draft of
-  /// this file waited for one that nothing ever sends, and every present ended
-  /// in RENDER_TIMEOUT while the card sat happily drawn on screen.
+  /// The ack is pushed: `reviewer.js` still writes `window.__turnaLastRender`
+  /// (Android polls that field) and, when `TurnaOhosReviewer.onAck` exists,
+  /// calls it once with the terminal row. An earlier draft waited for a bridge
+  /// message nothing sent, and every present ended in RENDER_TIMEOUT while the
+  /// card sat drawn on screen. If the push never arrives, the timeout reads
+  /// `__turnaLastRender` once and then gives up — it does not loop.
   ///
-  /// The poll only settles on an ack whose `generation` equals this payload's
+  /// A present only settles on an ack whose `generation` equals this payload's
   /// (B7). An ack with no generation does not match: an empty field used to
   /// parse as 0, and a payload that failed to parse used to present anyway
   /// with generation 0, so the previous card's row could settle this one.
-  /// The frame clears its published ack at the start of a present, but if
-  /// that clear ever loses to the poll — a slow expression queue, a page
-  /// that was mid-present — accepting the stale row hands Dart somebody
-  /// else's result while the controller keeps waiting on a generation
-  /// nothing will answer. Generation, not cardId, is the discriminator:
-  /// error acks legitimately carry no card.
+  /// Generation, not cardId, is the discriminator: error acks legitimately
+  /// carry no card.
   public present(payloadJson: string, side: string): Promise<RenderAck> {
     const controller: webview.WebviewController | undefined = this.web;
     if (controller === undefined) {
@@ -433,11 +464,18 @@ export class AnkiReviewerSession {
       'window.OfficialReviewer.present(' + payloadJson + ',' + JSON.stringify(side) + ')';
     return new Promise<RenderAck>((resolve) => {
       let settled: boolean = false;
+      let timeoutId: number = -1;
+      this.ackSerial += 1;
+      const serial: number = this.ackSerial;
       const finish = (ack: RenderAck): void => {
         if (settled) {
           return;
         }
         settled = true;
+        if (this.ackSerial === serial) {
+          this.pushedAck = undefined;
+        }
+        clearTimeout(timeoutId);
         if (ack.type === ACK_TYPE_RENDER_ERROR) {
           this.notifyChrome(chromeState(
             false,
@@ -472,43 +510,51 @@ export class AnkiReviewerSession {
         }
         resolve(ack);
       };
-      const deadline: number = Date.now() + PRESENT_TIMEOUT_MS;
-      const poll = (): void => {
+      const consider = (raw: string): boolean => {
+        if (raw.length === 0) {
+          return false;
+        }
+        const type: string = raw.split('|')[0] ?? '';
+        if (type !== ACK_TYPE_RENDER_COMPLETE && type !== ACK_TYPE_RENDER_ERROR) {
+          return false;
+        }
+        const ack: RenderAck = parseAck(raw);
+        const ackGeneration: number | undefined = ack.generation;
+        if (ackGeneration !== undefined && ackGeneration === generation) {
+          finish(ack);
+          return true;
+        }
+        // A stale generation belongs to an earlier payload. Leave this
+        // present waiting for its own row.
+        return false;
+      };
+      this.pushedAck = (row: string): void => {
+        if (this.ackSerial !== serial) {
+          return;
+        }
+        consider(row);
+      };
+      timeoutId = setTimeout((): void => {
         controller
-          .runJavaScript(POLL_EXPRESSION)
+          .runJavaScript(READ_ACK_EXPRESSION)
           .then((value: string): void => {
-            const raw: string = unwrapEvalString(value);
-            if (raw.length > 0) {
-              const type: string = raw.split('|')[0] ?? '';
-              if (type === ACK_TYPE_RENDER_COMPLETE || type === ACK_TYPE_RENDER_ERROR) {
-                const ack: RenderAck = parseAck(raw);
-                const ackGeneration: number | undefined = ack.generation;
-                if (ackGeneration !== undefined && ackGeneration === generation) {
-                  finish(ack);
-                  return;
-                }
-                // A stale generation: the published row belongs to an
-                // earlier payload — keep polling.
-              }
-              // `cardAccepted` / `frameReady` are mid-present and must not
-              // settle anything, same as on Android; keep polling.
-            }
-            if (Date.now() >= deadline) {
-              finish(failedAck(ACK_TYPE_RENDER_ERROR, RENDER_TIMEOUT));
+            if (settled) {
               return;
             }
-            setTimeout(poll, POLL_DELAY_MS);
+            const raw: string = unwrapEvalString(value);
+            if (!consider(raw)) {
+              finish(failedAck(ACK_TYPE_RENDER_ERROR, RENDER_TIMEOUT));
+            }
           })
           .catch((e: BusinessError): void => {
             finish(failedAck(ACK_TYPE_RENDER_ERROR, 'POLL_FAILED_' + String(e.code)));
           });
-      };
+      }, PRESENT_TIMEOUT_MS);
       controller
         .runJavaScript(expression)
         .catch((e: BusinessError): void => {
           finish(failedAck(ACK_TYPE_RENDER_ERROR, 'RUN_JAVASCRIPT_FAILED_' + String(e.code)));
         });
-      setTimeout(poll, POLL_DELAY_MS);
     });
   }
 
@@ -517,6 +563,27 @@ export class AnkiReviewerSession {
   /// page asks Dart rather than guessing from the HTML.
   public setTypedVisible(visible: boolean): void {
     this.bridge.setTypedVisible(visible);
+  }
+}
+
+/// Object injected into the reviewer shell as `TurnaOhosReviewer`.
+///
+/// Its own type, same reason as `AnkiProbeBridge`: ArkTS hands page script
+/// only the methods listed in `methodList`. The handler forwards the scalar
+/// row into the session the plugin's `present` is waiting on.
+export class AnkiReviewerAckBridge {
+  private handler: ((row: string) => void) | undefined = undefined;
+
+  public attach(handler: (row: string) => void): void {
+    this.handler = handler;
+  }
+
+  public onAck(row: string): void {
+    const handler: ((row: string) => void) | undefined = this.handler;
+    if (handler === undefined) {
+      return;
+    }
+    handler(row);
   }
 }
 

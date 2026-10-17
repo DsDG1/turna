@@ -55,7 +55,7 @@ export const ARG_BASE64: string = 'base64';
 
 // ------------------------------------------------------- rating receipts (10)
 //
-// Receipt codes for the four rating buttons; the page's button interlock
+// Receipt codes for the page's rating buttons; the page's button interlock
 // decides from these whether to re-arm, hold, or swap in the completion row.
 // 'advance_failed' additionally swaps the row for the explicit "retry the
 // advance" entry — its recovery re-runs the advance, never the rating.

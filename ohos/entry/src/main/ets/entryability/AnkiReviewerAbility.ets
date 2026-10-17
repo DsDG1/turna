@@ -106,7 +106,7 @@ export default class AnkiReviewerAbility extends UIAbility {
 
   onDestroy(): void {
     // B3: a store that only ever overwrites kept serving the destroyed
-    // session to the next launch's `awaitReviewerReady` poll — which then
+    // session to the next launch's `awaitReviewerReady` — which then
     // presented onto this page's dead Web controller.
     const session: AnkiReviewerSession | undefined = this.session;
     if (session !== undefined) {

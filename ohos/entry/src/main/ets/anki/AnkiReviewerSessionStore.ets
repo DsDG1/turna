@@ -15,9 +15,10 @@
 // B3: the store also hands out a monotonic epoch, one per session ever begun.
 // A destroyed ability's session is removed on destroy, and `awaitReviewerReady`
 // additionally refuses to accept any session from BEFORE its own call: the
-// second launch of a reviewer used to race its `ready` poll against the
+// second launch of a reviewer used to race its ready wait against the
 // previous session (still present, already shell-ready) and present onto a
-// destroyed page's Web controller.
+// destroyed page's Web controller. Shell readiness is pushed from
+// `markShellReady` through [notifyReviewerShellReady]; callers do not poll.
 
 import { AnkiReviewerSession } from './AnkiReviewerSession';
 
@@ -27,6 +28,9 @@ let sessionEpoch: number = 0;
 export function beginReviewerSession(mediaRoot: string): AnkiReviewerSession {
   sessionEpoch += 1;
   currentSession = new AnkiReviewerSession(mediaRoot);
+  currentSession.setShellReadyHook((): void => {
+    notifyReviewerShellReady();
+  });
   return currentSession;
 }
 
@@ -47,4 +51,39 @@ export function reviewerSession(): AnkiReviewerSession | undefined {
 /// before launching a reviewer and only accept strictly newer sessions.
 export function reviewerSessionEpoch(): number {
   return sessionEpoch;
+}
+
+type ShellReadyListener = () => void;
+
+let shellReadyListeners: Array<ShellReadyListener> = [];
+
+/// True only for a session begun after [wantEpoch] whose shell has loaded.
+/// A still-ready session from an earlier launch does not qualify (B3).
+export function shellReadyAfter(wantEpoch: number): boolean {
+  const session: AnkiReviewerSession | undefined = currentSession;
+  return session !== undefined && sessionEpoch > wantEpoch && session.isShellReady();
+}
+
+export function subscribeShellReady(listener: ShellReadyListener): () => void {
+  shellReadyListeners.push(listener);
+  return (): void => {
+    const kept: Array<ShellReadyListener> = [];
+    for (let index: number = 0; index < shellReadyListeners.length; index++) {
+      const item: ShellReadyListener | undefined = shellReadyListeners[index];
+      if (item !== undefined && item !== listener) {
+        kept.push(item);
+      }
+    }
+    shellReadyListeners = kept;
+  };
+}
+
+export function notifyReviewerShellReady(): void {
+  const snapshot: Array<ShellReadyListener> = shellReadyListeners.slice();
+  for (let index: number = 0; index < snapshot.length; index++) {
+    const listener: ShellReadyListener | undefined = snapshot[index];
+    if (listener !== undefined) {
+      listener();
+    }
+  }
 }

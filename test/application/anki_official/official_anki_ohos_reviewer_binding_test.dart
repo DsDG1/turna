@@ -690,6 +690,102 @@ void main() {
     );
   });
 
+  test('media pushes never exceed the concurrency ceiling', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel(OfficialAnkiReviewerProtocol.channelName);
+    var inFlight = 0;
+    var maxInFlight = 0;
+    final cachedNames = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method !=
+          OfficialAnkiReviewerProtocol.methodCacheReviewerMedia) {
+        return null;
+      }
+      inFlight += 1;
+      if (inFlight > maxInFlight) maxInFlight = inFlight;
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+      final args = call.arguments as Map<Object?, Object?>;
+      cachedNames.add(args[OfficialAnkiReviewerProtocol.argName] as String);
+      inFlight -= 1;
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    media.createSync(recursive: true);
+    final names = <String>[];
+    for (var i = 0; i < 8; i++) {
+      final name = 'm$i.png';
+      File('${media.path}/$name').writeAsBytesSync(List<int>.filled(512, i));
+      names.add(name);
+    }
+
+    final settled = await OfficialAnkiReviewerChannel.instance
+        .pushMediaForCard(OfficialAnkiMediaResolver(media), names);
+
+    expect(settled, hasLength(8), reason: 'every name must be settled');
+    expect(cachedNames, hasLength(8));
+    // Only the ceiling is asserted. Whether two channel calls actually overlap
+    // depends on the test messenger's scheduling, which this test neither owns
+    // nor wants to pin — the invariant worth guarding is that the pool is
+    // bounded, not that it saturates.
+    expect(
+      maxInFlight,
+      lessThanOrEqualTo(OfficialAnkiReviewerChannel.mediaPushConcurrency),
+      reason: 'unbounded Future.wait would spike memory on media-heavy cards',
+    );
+  });
+
+  test('a failed media push stays out of the ledger and is retried', () async {
+    final transport = _FakeTransport()..failNames.add('cat.png');
+    const card = OfficialAnkiRenderedCard(
+      cardId: 31,
+      questionHtml: '<img src="https://anki.local/media/cat.png">'
+          '<img src="https://anki.local/media/dog.png">',
+      answerHtml: 'back',
+      questionDisplayHtml: '<img src="https://anki.local/media/cat.png">'
+          '<img src="https://anki.local/media/dog.png">',
+      answerDisplayHtml: 'back',
+      css: '',
+    );
+    final binding = OfficialAnkiOhosReviewerBinding(
+      transport: transport,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+    );
+
+    await binding.presentCard(
+      controller: controller,
+      card: card,
+      showingAnswer: false,
+      generation: 1,
+      dark: false,
+    );
+    expect(
+      transport.calls.where((c) => c.startsWith('push:')),
+      hasLength(1),
+      reason: 'both names are attempted on the first present',
+    );
+
+    // Flipping the same card only retries the one that failed: `dog.png` was
+    // settled and must not cost another read + channel trip.
+    await binding.presentCard(
+      controller: controller,
+      card: card,
+      showingAnswer: true,
+      generation: 2,
+      dark: false,
+    );
+    final pushes =
+        transport.calls.where((c) => c.startsWith('push:')).toList();
+    expect(pushes, hasLength(2), reason: 'cat.png must be retried');
+    expect(pushes.last, 'push:cat.png');
+  });
+
   test(
       'rebind swaps controller listener and detach ignores non-matching controller (T1)',
       () async {
@@ -784,6 +880,17 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   final reportedFailures = <String>[];
   final _open = Completer<String>();
 
+  /// Names this fake pretends to have failed to read or push. They are absent
+  /// from the returned set, which is what the binding records.
+  final failNames = <String>{};
+
+  /// A per-name delay, so concurrency can be observed rather than assumed.
+  Duration pushDelay = Duration.zero;
+
+  /// In-flight accounting. `maxInFlight` is the peak the binding ever allowed.
+  int inFlight = 0;
+  int maxInFlight = 0;
+
   @override
   Future<void> bindOutbound({
     required void Function(String typed) onShowAnswer,
@@ -828,11 +935,39 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   }
 
   @override
-  Future<void> pushMediaForCard(
+  Future<Set<String>> pushMediaForCard(
     OfficialAnkiMediaResolver resolver,
     Iterable<String> names,
   ) async {
     calls.add('push:${names.join(',')}');
+    final requested = names.toList(growable: false);
+    final delivered = <String>{};
+    if (requested.isEmpty) return delivered;
+
+    // Mirror the channel's worker pool so the binding-facing test observes the
+    // same concurrency ceiling the production path uses.
+    var next = 0;
+    Future<void> worker() async {
+      while (true) {
+        final index = next++;
+        if (index >= requested.length) return;
+        final name = requested[index];
+        inFlight += 1;
+        if (inFlight > maxInFlight) maxInFlight = inFlight;
+        try {
+          if (pushDelay > Duration.zero) await Future<void>.delayed(pushDelay);
+          if (!failNames.contains(name)) delivered.add(name);
+        } finally {
+          inFlight -= 1;
+        }
+      }
+    }
+
+    final workers = requested.length < 4 ? requested.length : 4;
+    await Future.wait(
+      List<Future<void>>.generate(workers, (_) => worker()),
+    );
+    return delivered;
   }
 
   @override

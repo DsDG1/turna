@@ -32,7 +32,12 @@ abstract class OfficialAnkiOhosReviewerTransport {
 
   Future<void> waitUntilReady();
 
-  Future<void> pushMediaForCard(
+  /// Pushes the card's media and reports the names that actually landed.
+  ///
+  /// The result is a set, not a count: [OfficialAnkiOhosReviewerBinding] keeps
+  /// its own ledger of what the native cache holds, and recording a name whose
+  /// bytes never arrived would make every later present skip the retry.
+  Future<Set<String>> pushMediaForCard(
     OfficialAnkiMediaResolver resolver,
     Iterable<String> names,
   );
@@ -85,7 +90,7 @@ class OfficialAnkiReviewerChannelTransport
   Future<void> waitUntilReady() => channel.waitUntilReady();
 
   @override
-  Future<void> pushMediaForCard(
+  Future<Set<String>> pushMediaForCard(
     OfficialAnkiMediaResolver resolver,
     Iterable<String> names,
   ) {
@@ -399,8 +404,12 @@ class OfficialAnkiOhosReviewerBinding {
         }
         final toPush = names.difference(_pushedMediaNames);
         if (toPush.isNotEmpty) {
-          await transport.pushMediaForCard(_resolver, toPush);
-          _pushedMediaNames.addAll(toPush);
+          // Record what is settled, not what was attempted. A name whose read
+          // or channel trip threw stays out of the ledger so the next present
+          // retries it; names that are pointless to resend (missing file,
+          // oversized) come back settled and are not retried.
+          final settled = await transport.pushMediaForCard(_resolver, toPush);
+          _pushedMediaNames.addAll(settled);
         }
         if (_pending != key || _closed) return;
         final progress = _onProgress?.call();

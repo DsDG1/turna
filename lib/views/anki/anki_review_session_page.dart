@@ -501,8 +501,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       'total': controller.answeredCount,
       'remembered': controller.rememberedCount,
       'forgotten': controller.forgottenCount,
-      'seconds':
-          DateTime.now().difference(controller.startedAt).inSeconds,
+      'seconds': DateTime.now().difference(controller.startedAt).inSeconds,
       'xp': _settlement.earnedXp,
     };
   }
@@ -916,6 +915,13 @@ class _AnkiStudySessionView extends StatelessWidget {
     // Wave 2 §8.3: a blocked current card locks scoring until retried.
     final blockedFailure = liveQueue?.currentBlockedFailure;
 
+    if (isHarmonyOsTarget) {
+      return Scaffold(
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        body: _cardSurface(item, revealed: revealed, structured: structured),
+      );
+    }
+
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: ReviewProgressHeader(
@@ -1003,59 +1009,10 @@ class _AnkiStudySessionView extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Expanded(
-                    child: Builder(
-                      builder: (context) {
-                        final session = officialSession;
-                        return StudyCardSurface(
-                          presentation: item.presentation,
-                          content: _contentFor(item),
-                          isRevealed: revealed,
-                          generation: controller.generation,
-                          grades: _ohosGrades(session),
-                          onNativeClosed: onNativeClosed,
-                          renderedCard:
-                              liveQueue?.renderedCardFor(item.cardKey.cardId),
-                          onNativeUndo: onNativeUndo,
-                          onNativeSettlement: onNativeSettlement,
-                          onNativeProgress: onNativeProgress,
-                          onNativeReveal: session == null
-                              ? null
-                              : () {
-                                  session.showAnswer();
-                                  unawaited(
-                                    AnkiStudySessionHost.revealAndPresentAnswer(
-                                      controller,
-                                    ),
-                                  );
-                                },
-                          onNativeRated: session == null
-                              ? null
-                              : (rating) => advanceFromNativeRating(
-                                    controller: controller,
-                                    officialSession: session,
-                                    liveQueue: liveQueue,
-                                    rating: rating,
-                                  ),
-                          onReveal: () {
-                            unawaited(
-                              AnkiStudySessionHost.revealAndPresentAnswer(
-                                controller,
-                                onOfficialShowAnswer:
-                                    officialSession?.showAnswer,
-                              ),
-                            );
-                          },
-                          onPresented: controller.acceptPresentation,
-                          onObjectiveResult: structured
-                              ? (correct) {
-                                  unawaited(
-                                    controller.submitObjectiveAnswer(
-                                        correct: correct),
-                                  );
-                                }
-                              : null,
-                        );
-                      },
+                    child: _cardSurface(
+                      item,
+                      revealed: revealed,
+                      structured: structured,
                     ),
                   ),
                   SizedBox(height: sizing.bottomGap),
@@ -1141,6 +1098,56 @@ class _AnkiStudySessionView extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+
+  Widget _cardSurface(
+    StudyItem item, {
+    required bool revealed,
+    required bool structured,
+  }) {
+    final session = officialSession;
+    return StudyCardSurface(
+      presentation: item.presentation,
+      content: _contentFor(item),
+      isRevealed: revealed,
+      generation: controller.generation,
+      grades: _ohosGrades(session),
+      onNativeClosed: onNativeClosed,
+      renderedCard: liveQueue?.renderedCardFor(item.cardKey.cardId),
+      onNativeUndo: onNativeUndo,
+      onNativeSettlement: onNativeSettlement,
+      onNativeProgress: onNativeProgress,
+      onNativeReveal: session == null
+          ? null
+          : () {
+              session.showAnswer();
+              unawaited(
+                AnkiStudySessionHost.revealAndPresentAnswer(controller),
+              );
+            },
+      onNativeRated: session == null
+          ? null
+          : (rating) => advanceFromNativeRating(
+                controller: controller,
+                officialSession: session,
+                liveQueue: liveQueue,
+                rating: rating,
+              ),
+      onReveal: () {
+        unawaited(
+          AnkiStudySessionHost.revealAndPresentAnswer(
+            controller,
+            onOfficialShowAnswer: officialSession?.showAnswer,
+          ),
+        );
+      },
+      onPresented: controller.acceptPresentation,
+      onObjectiveResult: structured
+          ? (correct) {
+              unawaited(controller.submitObjectiveAnswer(correct: correct));
+            }
+          : null,
     );
   }
 

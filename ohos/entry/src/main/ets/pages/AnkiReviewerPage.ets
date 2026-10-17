@@ -5,8 +5,9 @@
 // Layout is the whole interaction design here, so it is worth stating: the
 // `Web` holds the card (question or answer, never both), the typed-answer
 // field sits under it while the question is showing, and the bottom row is
-// either one "show answer" button, the four rating buttons, the two preview
-// buttons, or — once the queue finishes — the completion row with its stats.
+// either one "show answer" button, the two rating buttons (forget / remember,
+// matching Android's binary recall bar), the two preview buttons, or — once the
+// queue finishes — the completion row with its stats.
 //
 // R2: visual chrome tokens, palette helpers, and the header/status/typed/bottom
 // subcomponents live in `../anki/AnkiReviewerChrome.ets` so this page stays
@@ -17,6 +18,7 @@ import { common, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import {
+  AnkiReviewerAckBridge,
   AnkiReviewerSession,
   ReviewerChromeState,
   interceptFor,
@@ -48,6 +50,7 @@ import {
 @Component
 struct AnkiReviewerPage {
   private controller: webview.WebviewController = new webview.WebviewController();
+  private ackBridge: AnkiReviewerAckBridge = new AnkiReviewerAckBridge();
   @State private answerLanded: boolean = false;
   @State private presentPending: boolean = false;
   @State private typedVisible: boolean = false;
@@ -93,6 +96,13 @@ struct AnkiReviewerPage {
   }
 
   aboutToAppear(): void {
+    this.ackBridge.attach((row: string): void => {
+      const session: AnkiReviewerSession | undefined = reviewerSession();
+      if (session === undefined) {
+        return;
+      }
+      session.acceptPushedAck(row);
+    });
     this.measureBottomAvoid();
     this.bootWhenSessionArrives();
   }
@@ -441,6 +451,12 @@ struct AnkiReviewerPage {
       })
 
       Web({ src: 'https://anki.local/assets/reviewer.html', controller: this.controller })
+        .javaScriptProxy({
+          object: this.ackBridge,
+          name: 'TurnaOhosReviewer',
+          methodList: ['onAck'],
+          controller: this.controller,
+        })
         .textZoomRatio(this.textZoom)
         .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse => this.intercept(event))
         .onPageEnd((event: OnPageEndEvent) => {

@@ -79,7 +79,7 @@ abstract final class OfficialAnkiReviewerProtocol {
 
   // ----------------------------------------------------- rating receipts (10)
   //
-  // Receipt codes for the page's four rating buttons. They cross the channel
+  // Receipt codes for the page's rating buttons. They cross the channel
   // as plain strings, so every value is part of the wire contract with
   // `AnkiReviewerPage` — renaming one is a protocol change on both sides.
   //
@@ -234,7 +234,7 @@ Map<String, Object?> officialAnkiReviewerPayload({
 /// (UI-4) and `debug` lets the page append stable codes to its status line
 /// in debug builds only (UI-3) — the page has no other way to know.
 /// `textZoom` carries the user's card text scale percentage (`100` = 1.0x),
-/// `previewOnly` switches the page from 4-button rating chrome to 0-write
+/// `previewOnly` switches the page from rating chrome to 0-write
 /// preview chrome, and `hasAudio`/`avHint` drive the manual audio replay
 /// entry and non-fatal AV status line.
 Map<String, Object?> ohosReviewerPayload({

@@ -24,7 +24,12 @@ import { Want, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { probeReviewerAssets } from '../probe/AnkiReviewerAssetProbe';
 import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
-import { reviewerSession, reviewerSessionEpoch } from '../anki/AnkiReviewerSessionStore';
+import {
+  reviewerSession,
+  reviewerSessionEpoch,
+  shellReadyAfter,
+  subscribeShellReady,
+} from '../anki/AnkiReviewerSessionStore';
 import { attachReviewerOutbound } from '../anki/AnkiReviewerBridge';
 import {
   ARG_BASE64,
@@ -45,6 +50,9 @@ import {
 import hilog from '@ohos.hilog';
 
 const TAG = "AnkiReviewerPlugin";
+
+/// Shell load budget. One timer, not a poll: `markShellReady` wakes waiters.
+const REVIEWER_READY_TIMEOUT_MS: number = 8000;
 
 // The probe's ability. Renamed with the probe when step 5b lands the real
 // reviewer; the Dart-visible channel name is already the final one so this
@@ -262,32 +270,42 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
   /// `OfficialReviewer.present` against a document that does not have it.
   ///
   /// B3: only a session BEGUN AFTER this call counts. The previous
-  /// session used to satisfy the poll — destroyed ability, stale store entry,
+  /// session used to satisfy the wait — destroyed ability, stale store entry,
   /// `shellReady` still true — and Dart then presented onto a dead Web
   /// controller as the "second review opens broken" bug. The epoch is
   /// captured at entry, which is safe here by construction: this call is
   /// issued milliseconds after `openReviewer`, while the ability still has a
   /// whole page (and its Web) to load before any new session can be ready.
   private awaitReviewerReady(result: MethodResult): void {
-    const started: number = Date.now();
     const wantEpoch: number = reviewerSessionEpoch();
-    const tick = (): void => {
-      const session: AnkiReviewerSession | undefined = reviewerSession();
-      if (
-        session !== undefined &&
-        reviewerSessionEpoch() > wantEpoch &&
-        session.isShellReady()
-      ) {
-        result.success('ready');
+    let settled: boolean = false;
+    let unsubscribe: () => void = (): void => {};
+    let timer: number = -1;
+    const succeed = (): void => {
+      if (settled) {
         return;
       }
-      if (Date.now() - started > 8000) {
-        result.error('REVIEWER_NOT_READY', 'reviewer shell did not load', null);
-        return;
-      }
-      setTimeout(tick, 50);
+      settled = true;
+      clearTimeout(timer);
+      unsubscribe();
+      result.success('ready');
     };
-    tick();
+    timer = setTimeout((): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      unsubscribe();
+      result.error('REVIEWER_NOT_READY', 'reviewer shell did not load', null);
+    }, REVIEWER_READY_TIMEOUT_MS);
+    unsubscribe = subscribeShellReady((): void => {
+      if (shellReadyAfter(wantEpoch)) {
+        succeed();
+      }
+    });
+    if (shellReadyAfter(wantEpoch)) {
+      succeed();
+    }
   }
 
   /// Dart-side render failures land on the page's error banner (B2): the

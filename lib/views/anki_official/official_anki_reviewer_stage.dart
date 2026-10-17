@@ -384,6 +384,16 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     });
   }
 
+  /// The OHOS error screens are full-screen over a Flutter page the learner
+  /// can neither see nor reach, so a back entry is the only way out.
+  ///
+  /// The fallback is not optional: formal review reaches this stage through
+  /// `OfficialTemplateWebViewBody`, which does not pass `onBack`. Without the
+  /// fallback the button would render (it is also the visibility switch) and
+  /// then do nothing — worse than not offering it.
+  VoidCallback get _ohosBack =>
+      widget.onBack ?? () => Navigator.of(context).maybePop();
+
   Widget _buildOhos(
     OfficialAnkiReviewerController controller, {
     required bool allowJs,
@@ -392,22 +402,23 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       _ohos?.detach(_controller);
       _ohos = null;
       _scheduleBlockedJsFailure(controller);
-      return const Column(
-        key: Key('official-review-stage'),
+      // Fail-closed keeps no retry: the JS switch is a user setting, not a
+      // transient failure, so re-running the same boot would fail the same
+      // way. It still needs an exit.
+      return Column(
+        key: const Key('official-review-stage'),
         children: [
           Expanded(
             child: OfficialAnkiReviewerErrorView(
               messageKey: 'official_anki.renderer_flag_fail_closed',
+              onBack: _ohosBack,
             ),
           ),
         ],
       );
     }
     _blockedJsGeneration = null;
-    if (_ohos == null &&
-        !_ohosStarting &&
-        _ohosError == null &&
-        !_ohosClosed) {
+    if (_ohos == null && !_ohosStarting && _ohosError == null && !_ohosClosed) {
       unawaited(_startOhos());
     }
     final error = _ohosError;
@@ -418,13 +429,14 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           child: error == null
               ? (_ohosClosed
                   ? const _OhosReviewerInterruptedPanel()
-                  : const Center(child: CircularProgressIndicator()))
+                  : const SizedBox.expand())
               : OfficialAnkiReviewerErrorView(
                   messageKey: 'official_anki.render_failed',
                   onRetry: () {
                     setState(() => _ohosError = null);
                     unawaited(_startOhos());
                   },
+                  onBack: _ohosBack,
                 ),
         ),
       ],

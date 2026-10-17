@@ -136,52 +136,112 @@ class OfficialAnkiReviewerChannel {
   /// synchronous `onInterceptRequest` path avoids a file open per icon.
   static const int directReadBypassThreshold = 256 * 1024;
 
-  /// Pushes one small media file's bytes for the card about to be presented.
+  /// Resolves one media name and reports whether it is **settled**.
   ///
-  /// Files larger than [directReadBypassThreshold] are skipped here and served
-  /// directly from `mediaRoot` on disk by `AnkiOriginServer.mediaResponse`
-  /// (including partial 206 Range slices). For small files (`<= 256 KB`),
+  /// "Settled" means the name needs no further attempt: either its bytes are
+  /// in the native cache, or sending them is pointless — the resolver rejected
+  /// the name and the file is missing, or it exceeds
+  /// [directReadBypassThreshold] and the origin server serves it from disk under
+  /// Range requests. Retrying either case cannot change the outcome, and
+  /// re-reading a 3 MB audio's first 256 KB on every present would be a
+  /// regression dressed as diligence.
+  ///
+  /// The only unsettled outcome is a transient one — the read or the channel
+  /// trip throws. Those escape to [pushMediaForCard], which keeps the name out
+  /// of its result so the next present retries it.
+  ///
   /// Base64 is used because a MethodChannel carries strings and this SDK's
   /// standard codec has no byte-array mapping; payloads `>= 64 KB` encode on a
   /// background isolate via [compute].
-  Future<void> pushMedia(
+  Future<bool> pushMedia(
     OfficialAnkiMediaResolver resolver,
     String name,
   ) async {
     final decision = resolver.resolveRelativeName(name);
     if (!decision.allowed || decision.file == null) {
       logger.w('[OhosReviewer] media denied ${decision.reason}: $name');
-      return;
+      return true;
     }
-    final length = await decision.file!.length();
-    if (length > directReadBypassThreshold) {
-      return;
+    // One open, one bounded read. The previous shape asked the file its length
+    // and then read it whole: two IOs, and a multi-megabyte file was
+    // materialised in memory only to be discarded for exceeding the threshold.
+    // Reading `threshold + 1` bytes answers both questions at once — a buffer
+    // that filled means the file is too big and belongs on the Range path. A
+    // short buffer is EOF for a regular file, so there is nothing left to
+    // collect.
+    final handle = await decision.file!.open();
+    try {
+      final bytes = await handle.read(directReadBypassThreshold + 1);
+      if (bytes.length > directReadBypassThreshold) {
+        return true;
+      }
+      final encoded = bytes.length >= _base64IsolateThreshold
+          ? await compute(base64Encode, bytes)
+          : base64Encode(bytes);
+      await channel.invokeMethod<void>(
+        OfficialAnkiReviewerProtocol.methodCacheReviewerMedia,
+        <String, Object?>{
+          OfficialAnkiReviewerProtocol.argName: name,
+          OfficialAnkiReviewerProtocol.argBase64: encoded,
+        },
+      );
+      return true;
+    } finally {
+      await handle.close();
     }
-    final bytes = await decision.file!.readAsBytes();
-    final encoded = bytes.length >= _base64IsolateThreshold
-        ? await compute(base64Encode, bytes)
-        : base64Encode(bytes);
-    await channel.invokeMethod<void>(
-      OfficialAnkiReviewerProtocol.methodCacheReviewerMedia,
-      <String, Object?>{
-        OfficialAnkiReviewerProtocol.argName: name,
-        OfficialAnkiReviewerProtocol.argBase64: encoded,
-      },
-    );
   }
 
-  /// Pushes every media file a rendered card references.
+  /// How many media files may be in flight at once.
+  ///
+  /// Four rather than unbounded: each worker holds one file's bytes plus its
+  /// Base64 string, and a card can reference a dozen icons. Unbounded
+  /// parallelism trades a few hundred milliseconds for a memory spike on a
+  /// platform whose reviewer page already carries a 2.27 MB MathJax payload.
+  static const int mediaPushConcurrency = 4;
+
+  /// Pushes every media file a rendered card references, and reports the names
+  /// that are settled.
   ///
   /// Taken from the card's own HTML rather than from the whole collection: a
   /// 20 000-card collection has media this card does not want, and pushing all
   /// of it would cost base64 round-trips for files nobody will request.
-  Future<void> pushMediaForCard(
+  ///
+  /// The returned set is the ledger the caller records. A name missing from it
+  /// was a transient failure and will be retried on the next present; the
+  /// origin server's disk fallback covers this render meanwhile.
+  Future<Set<String>> pushMediaForCard(
     OfficialAnkiMediaResolver resolver,
     Iterable<String> names,
   ) async {
-    for (final name in names.toSet()) {
-      await pushMedia(resolver, name);
+    final pending = names.toSet().toList(growable: false);
+    if (pending.isEmpty) return <String>{};
+    final settled = <String>{};
+    var next = 0;
+
+    Future<void> worker() async {
+      while (true) {
+        final index = next++;
+        if (index >= pending.length) return;
+        final name = pending[index];
+        try {
+          if (await pushMedia(resolver, name)) {
+            settled.add(name);
+          }
+        } catch (error, stack) {
+          // One unreadable file must not cancel the remaining pushes; staying
+          // out of the settled set is what makes it retryable.
+          logger.w('[OhosReviewer] media push failed: $name',
+              error: error, stackTrace: stack);
+        }
+      }
     }
+
+    final workers =
+        pending.length < mediaPushConcurrency ? pending.length : mediaPushConcurrency;
+    await Future.wait(
+      List<Future<void>>.generate(workers, (_) => worker()),
+    );
+    return settled;
   }
 
   /// Presents one side of the card and returns the frame's own ack.

@@ -16,13 +16,6 @@ import {
   THEME_NIGHT,
 } from './AnkiReviewerProtocol';
 
-export const RATINGS: Array<string> = [
-  RATING_AGAIN,
-  RATING_HARD,
-  RATING_GOOD,
-  RATING_EASY,
-];
-
 export const EXIT_CONFIRM_WINDOW_MS: number = 2000;
 
 /// Brand chrome (UI-1/UI-5): Turna's peacock tokens mirrored from
@@ -32,6 +25,15 @@ export const COLOR_AGAIN: string = '#E74C3C';
 export const COLOR_HARD: string = '#E67E22';
 export const COLOR_GOOD: string = '#1F727E';
 export const COLOR_EASY: string = '#4A95A8';
+
+/// Tint + edge pair for the two rating buttons, mirroring Android's
+/// `_RecallButton`: one hue drives both, at 12% fill and 35% border. Written as
+/// ARGB literals because ArkTS has no alpha helper that keeps the base hex
+/// readable next to it. When the base token changes these must move with it.
+export const COLOR_AGAIN_TINT: string = '#1FE74C3C';
+export const COLOR_AGAIN_EDGE: string = '#59E74C3C';
+export const COLOR_GOOD_TINT: string = '#1F1F727E';
+export const COLOR_GOOD_EDGE: string = '#591F727E';
 
 export interface AnkiChromePalette {
   bg: string;
@@ -73,19 +75,27 @@ export function paletteForTheme(themeName: string): AnkiChromePalette {
   return themeName === THEME_NIGHT ? nightPalette() : dayPalette();
 }
 
+/// Label wording follows Android's `AppStrings.reviewBinaryForgotten` /
+/// `reviewBinaryRemembered` for the two ratings that are offered. The `hard` /
+/// `easy` branches are unreachable from the UI and kept only so a future
+/// four-rating surface cannot silently inherit the wrong word.
 export function ratingLabel(rating: string): string {
   if (rating === RATING_AGAIN) {
-    return '重来';
+    return '忘记';
   }
   if (rating === RATING_HARD) {
     return '困难';
   }
   if (rating === RATING_GOOD) {
-    return '良好';
+    return '记住';
   }
   return '简单';
 }
 
+/// Hue for one rating token. The two-rating bottom bar no longer calls this —
+/// it uses the explicit `COLOR_AGAIN*` / `COLOR_GOOD*` pairs — but the mapping
+/// stays because a four-rating surface would need exactly this and nothing else
+/// in the file knows the engine's four tokens map onto these four hues.
 export function ratingColor(rating: string): string {
   if (rating === RATING_AGAIN) {
     return COLOR_AGAIN;
@@ -506,11 +516,12 @@ export struct AnkiReviewerBottomBar {
         .padding({ left: 16, right: 16 })
         .margin({ top: 10, bottom: 16 })
       } else if (this.ratingSent) {
-        // UI-8: one honest "submitted, loading" state instead of four dead
-        // buttons that give no reason.
+        // UI-8: one honest "submitted, loading" state instead of inert rating
+        // buttons that give no reason. Same height as the rating row so the
+        // swap does not shift the layout under the learner's finger.
         Button('已提交，加载中…')
           .width('100%')
-          .height(50)
+          .height(52)
           .fontSize(15)
           .fontColor(this.palette().textHint)
           .backgroundColor(this.palette().divider)
@@ -518,34 +529,44 @@ export struct AnkiReviewerBottomBar {
           .margin({ left: 16, right: 16, top: 10, bottom: 16 })
           .enabled(false)
       } else {
+        // Two ratings, matching Android's `BinaryRecallBar`: both are a tinted
+        // fill with a same-hue border, neither is promoted. The four-button row
+        // made `good` the hero (wider, filled, taller) — with only two choices
+        // that hierarchy has nothing to contrast against and reads as an
+        // uneven, misaligned pair.
         Row() {
-          ForEach(RATINGS, (rating: string): void => {
-            Button(ratingLabel(rating))
-              .layoutWeight(rating === RATING_GOOD ? 1.25 : 1)
-              .height(rating === RATING_GOOD ? 50 : 46)
-              .fontSize(rating === RATING_GOOD ? 15 : 14)
-              .fontWeight(rating === RATING_GOOD ? FontWeight.Medium : FontWeight.Normal)
-              .backgroundColor(rating === RATING_GOOD
-                ? ratingColor(rating)
-                : Color.Transparent)
-              .fontColor(rating === RATING_GOOD
-                ? Color.White
-                : ratingColor(rating))
-              .borderRadius(12)
-              .border({
-                width: 1,
-                color: rating === RATING_GOOD ? ratingColor(rating) : this.palette().divider,
-              })
-              .margin({ right: 8 })
-              .animation({ duration: 150, curve: Curve.EaseOut })
-              .onClick((): void => {
-                this.onRate(rating);
-              })
-          }, (rating: string): string => rating)
+          Button(ratingLabel(RATING_AGAIN))
+            .layoutWeight(1)
+            .height(52)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .backgroundColor(COLOR_AGAIN_TINT)
+            .fontColor(COLOR_AGAIN)
+            .borderRadius(16)
+            .border({ width: 1.5, color: COLOR_AGAIN_EDGE })
+            .margin({ right: 6 })
+            .animation({ duration: 150, curve: Curve.EaseOut })
+            .onClick((): void => {
+              this.onRate(RATING_AGAIN);
+            })
+          Button(ratingLabel(RATING_GOOD))
+            .layoutWeight(1)
+            .height(52)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .backgroundColor(COLOR_GOOD_TINT)
+            .fontColor(COLOR_GOOD)
+            .borderRadius(16)
+            .border({ width: 1.5, color: COLOR_GOOD_EDGE })
+            .margin({ left: 6 })
+            .animation({ duration: 150, curve: Curve.EaseOut })
+            .onClick((): void => {
+              this.onRate(RATING_GOOD);
+            })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .padding({ left: 16, right: 8 })
+        .padding({ left: 16, right: 16 })
         .margin({ top: 10, bottom: 16 })
       }
     }

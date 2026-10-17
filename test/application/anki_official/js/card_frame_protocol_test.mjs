@@ -272,7 +272,7 @@ async function testRejectStaleGeneration() {
   );
 }
 
-function loadReviewer({ silentFrame = false } = {}) {
+function loadReviewer({ silentFrame = false, neverReadyFirstFrame = false } = {}) {
   const hostEl = el({ id: "card-host" });
   const store = { "card-host": hostEl };
   const frames = [];
@@ -317,6 +317,11 @@ function loadReviewer({ silentFrame = false } = {}) {
         this[name] = value;
         if (name !== "src") return;
         queueMicrotask(() => {
+          // `neverReadyFirstFrame` models a warm-up whose document never
+          // settles (slow MathJax, a wedged frame). The shell must replace it
+          // and present anyway; a frame that never answers is the one case the
+          // warm-frame fast path cannot absorb.
+          if (neverReadyFirstFrame && frames.length === 1) return;
           if (silentFrame) {
             shell._deliverFromFrame({ v: 1, type: "frameReady" }, child);
             return;
@@ -519,6 +524,84 @@ async function testShellAppliesContentHeight() {
   );
 }
 
+// A warm frame is built before any card exists, so the first present does not
+// pay the iframe + card-frame.js load on its critical path. These four cases
+// pin the three ways that can go wrong: building twice, being torn down by the
+// first card, and hanging forever when the frame never reports ready.
+async function testWarmFrameIsIdempotent() {
+  const host = loadReviewer();
+  const reviewer = host.shell.OfficialReviewer;
+  assert(typeof reviewer.warmFrame === "function", "shell exposes warmFrame");
+  reviewer.warmFrame();
+  reviewer.warmFrame();
+  await sleep(20);
+  assert(host.frames.length === 1, "two warm calls build one iframe");
+}
+
+async function testWarmFrameIsAdoptedByFirstCard() {
+  const host = loadReviewer();
+  const reviewer = host.shell.OfficialReviewer;
+  reviewer.warmFrame();
+  await sleep(20);
+  assert(host.frames.length === 1, "warm-up created the iframe");
+  const ack = await reviewer.present(
+    {
+      cardId: 11,
+      generation: 1,
+      questionDisplayHtml: "<p>warm q</p>",
+      answerDisplayHtml: "<p>warm a</p>",
+    },
+    "question"
+  );
+  assert(ack && ack.type === "renderComplete", "first card renders in the warm frame");
+  assert(host.frames.length === 1, "first card does not build a second iframe");
+}
+
+async function testWarmFrameTimeoutFallsBack() {
+  // Must be set at load time: the frame's readiness is decided when it is
+  // created, and warmFrame creates it before the test can intervene.
+  const host = loadReviewer({ neverReadyFirstFrame: true });
+  const reviewer = host.shell.OfficialReviewer;
+  reviewer.warmFrame();
+  await sleep(5);
+  const ack = await reviewer.present(
+    {
+      cardId: 12,
+      generation: 1,
+      questionDisplayHtml: "<p>dead q</p>",
+      answerDisplayHtml: "<p>dead a</p>",
+    },
+    "question"
+  );
+  assert(
+    ack && ack.type === "renderComplete",
+    "present still succeeds when the warm frame never answers"
+  );
+  assert(host.frames.length === 2, "a frame that never answered is replaced");
+}
+
+async function testClearCardDropsWarmth() {
+  const host = loadReviewer();
+  const reviewer = host.shell.OfficialReviewer;
+  reviewer.warmFrame();
+  await reviewer.present(
+    {
+      cardId: 13,
+      generation: 1,
+      questionDisplayHtml: "<p>q</p>",
+      answerDisplayHtml: "<p>a</p>",
+    },
+    "question"
+  );
+  reviewer.clearCard();
+  reviewer.warmFrame();
+  await sleep(20);
+  assert(
+    host.frames.length === 2,
+    "clearCard resets the warm flag so the next warm-up builds a fresh frame"
+  );
+}
+
 async function main() {
   await testSetCardGenerationProtocol();
   await testRejectStaleGeneration();
@@ -527,6 +610,10 @@ async function main() {
   await testTimeoutDoesNotShowAnswer();
   await testContentHeightChangedPosted();
   await testShellAppliesContentHeight();
+  await testWarmFrameIsIdempotent();
+  await testWarmFrameIsAdoptedByFirstCard();
+  await testWarmFrameTimeoutFallsBack();
+  await testClearCardDropsWarmth();
   if (failed) {
     console.error(`\n${failed} assertion(s) failed`);
     process.exit(1);

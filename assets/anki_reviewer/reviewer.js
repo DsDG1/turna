@@ -11,6 +11,13 @@
   var presentSeq = 0;
   var acceptRebuilds = 0;
   var frameSeq = 0;
+  // Warmth and "ever presented" are separate facts. `frameWarm` means an iframe
+  // was created before any card arrived (warmFrame); `hasPresented` means at
+  // least one setCard has landed since the frame was created. A warm frame must
+  // not look like "the previous card is still here", or the first card would
+  // tear it down and pay the cold load the warm-up existed to avoid.
+  var frameWarm = false;
+  var hasPresented = false;
   var postedTypes = [];
 
   function randomNonce() {
@@ -27,6 +34,26 @@
     window.__turnaPostedTypes = postedTypes.slice();
     window.__turnaLastRender = lastAck;
     window.__turnaCardId = lastFrameCardId;
+    notifyOhosAck();
+  }
+
+  // HarmonyOS only. Android keeps polling __turnaLastRender and has no
+  // TurnaOhosReviewer object, so this is a no-op there. The row matches the
+  // ArkTS one-shot read: type|generation|side|stableCode|height|cardId|ok.
+  function notifyOhosAck() {
+    var bridge = window.TurnaOhosReviewer;
+    if (!bridge || typeof bridge.onAck !== "function" || !lastAck) return;
+    var type = lastAck.type || "";
+    if (type !== "renderComplete" && type !== "renderError") return;
+    bridge.onAck([
+      lastAck.type,
+      lastAck.generation,
+      lastAck.side,
+      lastAck.stableCode,
+      lastAck.height,
+      lastAck.cardId,
+      lastAck.ok
+    ].join("|"));
   }
 
   function postToFrame(message) {
@@ -144,8 +171,36 @@
     if (pending) pending(msg);
   });
 
+  // Creates the card iframe before a card exists.
+  //
+  // The shell is what makes the reviewer visible; the iframe is what makes it
+  // *card-shaped*, and it costs a document load of its own (`card-frame.html`
+  // + `card-frame.js`, and MathJax for maths cards). Building it during the
+  // present meant the first card paid that load on its critical path. Called
+  // once the shell has settled, it overlaps with everything Dart is still
+  // doing — media pushes, the render payload.
+  //
+  // Idempotent: `markShellReady` can fire more than once (`onPageEnd` is not
+  // exclusive), and an iframe is expensive enough that a second one would
+  // undo the saving.
+  function warmFrame() {
+    if (frame) return;
+    replaceFrame();
+    frameWarm = true;
+  }
+
   async function ensureFrame(token) {
     if (frame && frameReady) return { ok: true, type: "frameReady" };
+    // A warm frame exists but has not reported ready yet. Wait for it instead
+    // of replacing it — replacing is exactly the cold load warmFrame avoided.
+    // Falling back to a replacement on timeout keeps a broken warm-up from
+    // hanging the first card.
+    if (frame && frameWarm) {
+      var warming = await waitForAck("frameReady", token, ackTimeoutMs());
+      if (!(warming && warming.stableCode === "RENDER_TIMEOUT")) {
+        return warming;
+      }
+    }
     replaceFrame();
     return waitForAck("frameReady", token, ackTimeoutMs());
   }
@@ -162,7 +217,7 @@
     payload = nextPayload || payload || {};
     var token = payload.generation || generation + 1;
     var incomingCardId = payload.cardId;
-    var newCard = !frame || incomingCardId !== lastFrameCardId;
+    var newCard = !frame || (hasPresented && incomingCardId !== lastFrameCardId);
     generation = token;
     lastAck = null;
     window.__turnaLastRender = null;
@@ -265,6 +320,10 @@
     if (!isAccepted(accepted)) {
       return accepted;
     }
+    // A card has landed in this frame. From here on a different card id means a
+    // real card switch (replace the frame), not a warm frame still waiting for
+    // its first card.
+    hasPresented = true;
     if (seq !== presentSeq) {
       return {
         ok: false,
@@ -351,9 +410,16 @@
       }
       frame = null;
       frameReady = false;
+      // Both facts describe the frame that just went away. Keeping either one
+      // would make the next present think a card is already on screen.
+      frameWarm = false;
+      hasPresented = false;
       host.innerHTML = "";
       publishDebug();
     },
+    // Pre-builds the card iframe so the first present does not pay a document
+    // load. Safe to call before any card exists; a no-op after one does.
+    warmFrame: warmFrame,
     takeAck: function () {
       return lastAck;
     }

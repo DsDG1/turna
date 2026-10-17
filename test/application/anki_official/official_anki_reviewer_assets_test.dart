@@ -50,6 +50,7 @@ void main() {
         frameHtml.contains('<base href="https://anki.local/media/">'), isTrue);
     expect(
         frameHtml.contains('https://anki.local/assets/card-frame.js'), isTrue);
+    expect(js.contains('TurnaOhosReviewer'), isTrue);
     expect(js.contains('OfficialReviewer'), isTrue);
     expect(js.contains('present:'), isTrue);
     expect(js.contains('opacity = "0"'), isFalse);
