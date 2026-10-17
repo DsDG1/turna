@@ -73,10 +73,11 @@ void main() {
         reason: 'the card-action row must sit directly inside the previewOnly '
             'guard',
       );
-      final mutations = RegExp(r'\.enabled\(this\.booted && !this\.isComplete && '
-          r'!this\.mutating && !this\.presentPending\)')
-          .allMatches(chrome)
-          .length;
+      final mutations =
+          RegExp(r'\.enabled\(this\.booted && !this\.isComplete && '
+                  r'!this\.mutating && !this\.presentPending\)')
+              .allMatches(chrome)
+              .length;
       expect(
         mutations,
         3,
@@ -114,7 +115,8 @@ void main() {
         RegExp(r'private requestCardAction\(action: string, pendingText: string\)')
             .hasMatch(page),
         isTrue,
-        reason: 'the three entries must share one handler; three handlers would '
+        reason:
+            'the three entries must share one handler; three handlers would '
             'be three copies of the same interlock',
       );
       final receiptBody = RegExp(

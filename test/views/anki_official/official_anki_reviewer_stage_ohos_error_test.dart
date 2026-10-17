@@ -64,15 +64,15 @@ void main() {
       expect(failClosed.contains('onRetry:'), isFalse,
           reason: 're-running the same boot with scripts still off fails the '
               'same way — a retry button here would be a lie.');
-      expect(
-          failClosed.contains("'official_anki.renderer_flag_fail_closed'"),
+      expect(failClosed.contains("'official_anki.renderer_flag_fail_closed'"),
           isTrue,
           reason: 'this branch is fail-closed, not a render failure; the two '
               'messages must not be swapped.');
     });
 
     test('the start-failure branch renders both retry and back', () {
-      expect(RegExp(r'OfficialAnkiReviewerErrorView\(').allMatches(startFailure),
+      expect(
+          RegExp(r'OfficialAnkiReviewerErrorView\(').allMatches(startFailure),
           hasLength(1));
       expect(startFailure.contains('onBack: _ohosBack'), isTrue,
           reason: 'ability launch can fail permanently (missing ability, bad '

@@ -365,7 +365,8 @@ class OfficialAnkiOhosReviewerBinding {
       if (identical(_live, binding)) {
         _live = null;
       }
-      logger.w('[OhosReviewer] warm-up boot failed', error: error, stackTrace: stack);
+      logger.w('[OhosReviewer] warm-up boot failed',
+          error: error, stackTrace: stack);
     }));
     return OfficialAnkiOhosReviewerWarmUp._(binding, binding._ready);
   }
@@ -859,8 +860,8 @@ class OfficialAnkiOhosReviewerBinding {
       controller.onRenderComplete(generation: ackGeneration, side: ackSide);
       return;
     }
-    final code = ack?[OfficialAnkiReviewerProtocol.ackFieldStableCode]
-        ?.toString();
+    final code =
+        ack?[OfficialAnkiReviewerProtocol.ackFieldStableCode]?.toString();
     controller.onRenderFailure(
       code: code == null || code.isEmpty
           ? OfficialAnkiReviewerProtocol.renderTimeout
