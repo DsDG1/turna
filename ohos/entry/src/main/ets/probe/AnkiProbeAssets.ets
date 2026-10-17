@@ -15,6 +15,41 @@
 // interception happens; and a synthesised WAV keeps the probe honest about the
 // one property under test (does the kernel send Range and honour our 206)
 // without adding a second question about who owns the bytes.
+//
+// R1 (2026-10-17) moved this file out of `ets/anki/` into `ets/probe/`. Nothing
+// here changed except its address.
+//
+// ALLOWED DIFFERENCES FROM THE PRODUCTION HTTP/MIME MIRROR
+//
+// Range and MIME have three implementations by design: Dart's
+// `OfficialAnkiHttpRange`/`OfficialAnkiMime` are the normative source,
+// `anki/AnkiHttp.ets` is the production ArkTS mirror, and the Range/MIME pair
+// at the bottom of THIS file is the probe's. The probe's copy is deliberately
+// looser on exactly three axes, and they are deliberate — do not "fix" them
+// into a regression, and do not close them without updating this list:
+//
+//   1. `parseRange`, unrecognised prefix. Production answers 416 for a Range
+//      header that does not start with `bytes=`; the probe answers 200 with the
+//      whole file. Rationale: this probe's question is "does the kernel issue a
+//      Range request and can it seek in what we serve", so a request we cannot
+//      classify must still leave the probe something to measure. Production has
+//      the opposite requirement — a server that answers 200 to every Range is
+//      one the kernel cannot seek in.
+//   2. `parseRange`, unparseable spec. Production answers 416 for a spec with no
+//      dash, an empty spec, or a comma (multi-range); the probe falls back to
+//      the whole file. Same reason as (1).
+//   3. `mimeForName` / `encodingForMime`. Production maps `.js` to
+//      `text/javascript` and gates utf-8 on `text/*` or `application/json`
+//      (after stripping `;` parameters); the probe maps `.js` to
+//      `application/javascript` — also accepted by the kernel — and gates on
+//      `text/*` or anything ending in `javascript`. The probe serves four asset
+//      kinds and has no `application/json`, so the narrower production table
+//      would only be dead code here.
+//
+// These three are pinned by
+// `test/application/anki_official/official_anki_reviewer_protocol_guard_test.dart`
+// (differential needles against both files), so silently replacing one
+// implementation with the other fails the gate rather than the field.
 
 export const ANKI_ORIGIN: string = 'https://anki.local';
 

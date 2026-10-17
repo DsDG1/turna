@@ -13,11 +13,15 @@
 // page's claims are cross-checked against the request transcript in
 // `AnkiOriginServerProbe`, because a page that failed to load anything still
 // executes and can still say "everything worked".
+//
+// R1 (2026-10-17) moved this page out of `ets/pages/` into `ets/probe/`. Its
+// route in `main_pages.json` moved with it (`probe/AnkiReviewerProbePage`), and
+// the probe ability's `PAGE` constant points at the new path.
 
 import { webview } from '@kit.ArkWeb';
-import { AnkiOriginServerProbe } from '../anki/AnkiOriginServerProbe';
-import { AnkiProbeBridge } from '../anki/AnkiProbeBridge';
-import { AnkiProbeReport } from '../anki/AnkiProbeReport';
+import { AnkiOriginServerProbe } from './AnkiOriginServerProbe';
+import { AnkiProbeBridge } from './AnkiProbeBridge';
+import { AnkiProbeReport } from './AnkiProbeReport';
 
 const SHELL_URL: string = 'https://anki.local/assets/shell.html';
 

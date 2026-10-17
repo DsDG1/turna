@@ -15,14 +15,20 @@
 // when the run is over, and reports a verdict even when the page never
 // reported at all — a silent probe and a probe that failed are different
 // findings and must not look the same.
+//
+// R1 (2026-10-17) moved this ability out of `ets/entryability/` into
+// `ets/probe/`; `module.json5`'s `srcEntry` moved with it. The ability *name*
+// (`AnkiReviewerProbeAbility`) is a logical identifier rather than a path, so
+// the plugin's `startAbilityForResult` addressing and the Dart channel are
+// untouched.
 
 import { AbilityConstant, UIAbility, Want, common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { AnkiProbeReport } from '../anki/AnkiProbeReport';
+import { AnkiProbeReport } from './AnkiProbeReport';
 
 const TAG: string = 'AnkiReviewerProbeAbility';
-const PAGE: string = 'pages/AnkiReviewerProbePage';
+const PAGE: string = 'probe/AnkiReviewerProbePage';
 
 /// Long enough for the whole run: the page's own 30 s "nobody tapped the seek
 /// button" fallback sits just inside this, so an unattended run still reports

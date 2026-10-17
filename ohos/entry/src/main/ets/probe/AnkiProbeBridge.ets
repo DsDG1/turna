@@ -6,6 +6,8 @@
 // `AnkiProbeReport`, because ArkTS hands the page *only* the public methods
 // listed in `methodList`. Anything else on the object stays unreachable from
 // page script, which is why the ability's completion sink is not here.
+//
+// R1 (2026-10-17) moved this file out of `ets/anki/` into `ets/probe/`.
 
 export class AnkiProbeBridge {
   private handler: ((raw: string) => void) | undefined = undefined;

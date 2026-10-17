@@ -225,8 +225,11 @@ interpolation 全套（SDK `ets/component/common.d.ts`）。
 
 ### 3.2 前提 3 的真机收据（2026-10-14，Mate 90 Pro Max / API 26）：**成立**
 
-探针本体（`ohos/entry/src/main/ets/anki/` 六个 ArkTS 文件 + `pages/AnkiReviewerProbePage.ets`
-+ `lib/application/anki_official/render/official_anki_reviewer_probe.dart`）此前已写好但
+探针本体（2026-10-17 R1 起为 `ohos/entry/src/main/ets/probe/` 七个 ArkTS 文件 +
+`lib/application/anki_official/render/official_anki_reviewer_probe.dart`；R1 之前是
+`ohos/entry/src/main/ets/anki/` 下四个 + `pages/AnkiReviewerProbePage.ets` +
+`entryability/AnkiReviewerProbeAbility.ets` + `anki/AnkiReviewerAssetProbe.ets`）
+此前已写好但
 **没有真机收据**，因为需要一次真实手势。2026-10-14 连上设备后跑通，原始判定行：
 
 ```

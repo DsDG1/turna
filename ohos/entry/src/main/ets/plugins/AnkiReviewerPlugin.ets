@@ -22,7 +22,7 @@ import MethodChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodC
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { Want, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { probeReviewerAssets } from '../anki/AnkiReviewerAssetProbe';
+import { probeReviewerAssets } from '../probe/AnkiReviewerAssetProbe';
 import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
 import { reviewerSession, reviewerSessionEpoch } from '../anki/AnkiReviewerSessionStore';
 import { attachReviewerOutbound } from '../anki/AnkiReviewerBridge';
@@ -40,7 +40,6 @@ import {
   METHOD_PRESENT_REVIEWER,
   METHOD_PROBE_REVIEWER_ASSETS,
   METHOD_PROBE_REVIEWER_CAPABILITIES,
-  METHOD_REVIEWER_LAST_ACK,
   RENDER_ERROR,
 } from '../anki/AnkiReviewerProtocol';
 import hilog from '@ohos.hilog';
@@ -93,8 +92,6 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
           this.presentReviewer(result, call);
         } else if (call.method === METHOD_CACHE_REVIEWER_MEDIA) {
           this.cacheReviewerMedia(result, call);
-        } else if (call.method === METHOD_REVIEWER_LAST_ACK) {
-          this.reviewerLastAck(result);
         } else if (call.method === METHOD_AWAIT_REVIEWER_READY) {
           this.awaitReviewerReady(result);
         } else if (call.method === METHOD_NOTIFY_REVIEWER_FAILURE) {
@@ -260,18 +257,6 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
     }
     session.origin().cacheMedia(name, base64);
     result.success('');
-  }
-
-  /// Polled by Dart after `presentReviewer` resolves, and by anything that wants
-  /// the height the frame measured — which is the only place that number exists.
-  private reviewerLastAck(result: MethodResult): void {
-    const session: AnkiReviewerSession | undefined = reviewerSession();
-    if (session === undefined) {
-      result.success('');
-      return;
-    }
-    const ack: RenderAck | undefined = session.lastRenderAck();
-    result.success(ack === undefined ? '' : JSON.stringify(ack));
   }
 
   /// Resolves when the reviewer shell has loaded, or after 8 seconds.

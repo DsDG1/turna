@@ -55,11 +55,17 @@ const CSP: string =
   'base-uri https://anki.local/media/; ' +
   "form-action 'none';";
 
-/// The eight files the shell and the card frame request. Mirrors
-/// `REVIEWER_ASSETS` in `AnkiReviewerAssetProbe.ets` — which is where the byte
-/// counts in ADR 0050 §3.3 were measured, so a file added in one place and not
-/// the other would show up as a blank card rather than as a build error.
-const ASSET_NAMES: Array<string> = [
+/// The eight files the shell and the card frame request, in load order.
+///
+/// This is the single declaration of the list. It used to be duplicated in
+/// `AnkiReviewerAssetProbe.ets` (`REVIEWER_ASSETS`), and the duplication was
+/// self-admitted as unsafe: a file added here and not there shows up as a blank
+/// card rather than as a build error. The probe now imports this instead.
+///
+/// Exported because ADR 0050 §3.3's per-asset byte counts were measured by
+/// reading this exact set — a probe with its own copy would be measuring a list
+/// the server does not serve.
+export const REVIEWER_ASSET_NAMES: Array<string> = [
   'reviewer.html',
   'reviewer.js',
   'reviewer.css',
@@ -73,42 +79,24 @@ const ASSET_NAMES: Array<string> = [
 /// Everything except MathJax: ~16 KB in total, small enough that reading it
 /// synchronously costs nothing, which is what lets the shell family be served
 /// without ever racing the kernel's first request (see [preloadSync]).
-const SYNC_ASSET_NAMES: Array<string> = [
-  'reviewer.html',
-  'reviewer.js',
-  'reviewer.css',
-  'card-frame.html',
-  'card-frame.js',
-  'mathjax-config.js',
-  'manifest.json',
-];
+///
+/// Derived from [REVIEWER_ASSET_NAMES] rather than written out, so a new shell
+/// asset joins the sync set by default. The split is keyed on `mathjax/` with a
+/// slash: `mathjax-config.js` is a few hundred bytes of config and belongs here,
+/// and matching on the bare word `mathjax` would silently drop it into the
+/// promise path with the 2.27 MB payload it does not belong with.
+const SYNC_ASSET_NAMES: Array<string> = [];
+for (const name of REVIEWER_ASSET_NAMES) {
+  if (name.indexOf('mathjax/') < 0) {
+    SYNC_ASSET_NAMES.push(name);
+  }
+}
 
-const RAWFILE_ROOT: string = 'flutter_assets/assets/anki_reviewer';
+export const REVIEWER_ASSET_ROOT: string = 'flutter_assets/assets/anki_reviewer';
 
 export function isShellUrl(url: string): boolean {
   return url === SHELL_URL || url.startsWith(SHELL_URL + '?');
 }
-
-/// Media bytes for a name that has already passed every path rule.
-///
-/// It exists because of a real gap in this platform's file API, not for
-/// abstraction's sake: `fileIo.openSync` (since 12) returns a `File`, while
-/// `fileIo.readSync` (since 11) still takes a `number` descriptor, and
-/// `readFileSync` does not exist at all — so there is **no synchronous binary
-/// read that accepts the handle `openSync` returns**. `respond` cannot await
-/// (see `interceptFor`).
-///
-/// It is a **cache lookup and nothing else**, deliberately. The first shape
-/// considered was a callback into Dart, which would read more naturally and is
-/// impossible: `respond` runs inside a synchronous interception, and a
-/// MethodChannel call is a promise, so there is no way for the page to have the
-/// bytes before the response object has to be returned. Dart therefore pushes
-/// the current card's media here *before* the `present` that will request it —
-/// the same preload-then-serve-sync arrangement the eight assets already use.
-///
-/// Guessing that the runtime would accept a `File` where the type says `number`
-/// is the kind of assumption that compiles nowhere and fails only on device.
-export type MediaProvider = (name: string, start: number, length: number) => Uint8Array | undefined;
 
 /// The ArkWeb response body accepts ArrayBuffer, not Uint8Array. Handing the
 /// rawfile bytes over as a TypedArray compiles but delivers an empty body —
@@ -123,7 +111,6 @@ export class AnkiOriginServer {
   private readonly assets: Map<string, Uint8Array> = new Map();
   private readonly mediaRoot: string;
   private readonly media: Map<string, Uint8Array> = new Map();
-  private denialCount: number = 0;
 
   constructor(mediaRoot: string) {
     this.mediaRoot = mediaRoot;
@@ -133,6 +120,25 @@ export class AnkiOriginServer {
   /// request it. Base64 because a MethodChannel carries strings, and because
   /// this SDK's standard codec has no byte-array mapping — the same reason
   /// AudioPlugin.stageBytes and the RDB BLOB bridge base64.
+  ///
+  /// **Why a push and not a read.** Two independent gaps in this platform's
+  /// file API force it, and neither is a style choice:
+  ///
+  /// 1. `fileIo.openSync` (since 12) returns a `File`, `fileIo.readSync` (since
+  ///    11) still takes a `number` descriptor, and `readFileSync` does not
+  ///    exist at all — so there is **no synchronous binary read that accepts the
+  ///    handle `openSync` returns**. Guessing the runtime would accept a `File`
+  ///    where the type says `number` is the kind of assumption that compiles
+  ///    nowhere and fails only on device.
+  /// 2. `respond` cannot await (see `interceptFor`), and a MethodChannel call
+  ///    is a promise — so a callback into Dart at request time would need the
+  ///    bytes before the response object has to be returned.
+  ///
+  /// The push-then-serve-sync arrangement is therefore the same one the eight
+  /// assets already use. What survives of the abandoned callback design is the
+  /// map below, which is a cache lookup and nothing else. (R1 removed the
+  /// `MediaProvider` function type that used to sit here: nothing ever
+  /// constructed one, so it was documentation wearing a type's clothes.)
   public cacheMedia(name: string, base64: string): void {
     // `decodeSync` is an instance method on `Base64Helper`, not a static one —
     // asking for it off the class type is a compile error, and guessing wrong
@@ -177,7 +183,7 @@ export class AnkiOriginServer {
   /// asset is a build-order mistake and wants to fail loudly at open time.
   public preloadSync(context: common.UIAbilityContext): void {
     for (const name of SYNC_ASSET_NAMES) {
-      const raw: string = RAWFILE_ROOT + '/' + name;
+      const raw: string = REVIEWER_ASSET_ROOT + '/' + name;
       try {
         this.assets.set(name, context.resourceManager.getRawFileContentSync(raw));
       } catch (e) {
@@ -197,8 +203,8 @@ export class AnkiOriginServer {
   /// exactly like a reviewer correctly declining to render a card with no maths.
   public preload(context: common.UIAbilityContext): Promise<string> {
     const pending: Array<Promise<void>> = [];
-    for (const name of ASSET_NAMES) {
-      const raw: string = RAWFILE_ROOT + '/' + name;
+    for (const name of REVIEWER_ASSET_NAMES) {
+      const raw: string = REVIEWER_ASSET_ROOT + '/' + name;
       pending.push(
         context.resourceManager
           .getRawFileContent(raw)
@@ -231,7 +237,6 @@ export class AnkiOriginServer {
   ): WebResourceResponse {
     const target: RequestTarget = classifyRequest(url);
     if (!target.allowed) {
-      this.denialCount += 1;
       return denied(403, target.reason ?? 'denied');
     }
     if (target.assetName !== undefined) {
@@ -239,10 +244,6 @@ export class AnkiOriginServer {
     }
     const name: string = target.mediaName ?? '';
     return this.mediaResponse(method, name, findHeader(headers, 'range'));
-  }
-
-  public denials(): number {
-    return this.denialCount;
   }
 
   private assetResponse(method: string, name: string): WebResourceResponse {

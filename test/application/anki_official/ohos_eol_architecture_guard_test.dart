@@ -113,12 +113,13 @@ void main() {
             if (_shouldSkip(file.path)) continue;
             var fileNeedles = needles;
             // Same carve-out as pubspec.yaml above, applied per file: the
-            // OHOS CI workflow is the one sanctioned place under .github that
-            // must name the fork's world, including the DevEco SDK layout
+            // OHOS CI workflow and the DevEco CLI MCP bridge are the
+            // sanctioned places that must name the DevEco SDK layout
             // directory literally called `openharmony` (ADR 0050 §6 step 6).
-            // Every other file under .github keeps the full needle set.
-            if (file.path.replaceAll('\\', '/')
-                .endsWith('.github/workflows/ohos_ci.yml')) {
+            // Every other file under .github and tool keeps the full needle set.
+            final normalizedPath = file.path.replaceAll('\\', '/');
+            if (normalizedPath.endsWith('.github/workflows/ohos_ci.yml') ||
+                normalizedPath.endsWith('tool/workbuddy/deveco-cli-mcp.mjs')) {
               fileNeedles = needles.where((n) => n != 'openharmony').toList();
             }
             _scanFile(file, fileNeedles, violations);
@@ -711,8 +712,19 @@ const _requiredOhosFiles = <String>[
   // that is not in `main_pages.json` opens to a blank screen with no build
   // error, which is the same failure class as an unregistered plugin.
   'ohos/entry/src/main/ets/plugins/AnkiReviewerPlugin.ets',
-  'ohos/entry/src/main/ets/entryability/AnkiReviewerProbeAbility.ets',
-  'ohos/entry/src/main/ets/pages/AnkiReviewerProbePage.ets',
+  // ADR 0050 §6 step 5b probe host, relocated to `ets/probe/` by R1. A
+  // separate UIAbility rather than another entry in `main_pages.json`:
+  // `@ohos.router` is deprecated from API 18 and this hap declares 5.1.0(18),
+  // which is what pushed the page across an ability boundary. Both the ability
+  // and the page it loads are listed — a registered ability pointing at a page
+  // that is not in `main_pages.json` opens to a blank screen with no build
+  // error, which is the same failure class as an unregistered plugin. The
+  // ability's *name* (`AnkiReviewerProbeAbility`) is a logical identifier
+  // rather than a path, so relocating `srcEntry` left the plugin's
+  // `startAbilityForResult` addressing untouched; `main_pages.json` and the
+  // ability's `PAGE` constant moved with the page.
+  'ohos/entry/src/main/ets/probe/AnkiReviewerProbeAbility.ets',
+  'ohos/entry/src/main/ets/probe/AnkiReviewerProbePage.ets',
   // ADR 0050 §3.7: the production reviewer half. Same missing-file failure
   // class as above, with one addition learned on device — the session store
   // is a library module precisely because an @Entry page's module state is

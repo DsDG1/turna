@@ -13,6 +13,11 @@
 // Renamed from `AnkiOriginServer.ets` when the production origin took that
 // name. The probe is still the fallback evidence for premise 3, so it is kept
 // rather than deleted; only the file name changed.
+//
+// R1 (2026-10-17) moved this file out of `ets/anki/` into `ets/probe/`. Nothing
+// here changed except its address. Note that its Range/MIME pair comes from
+// `./AnkiProbeAssets`, whose deliberately looser behaviour versus the
+// production mirror is declared at the top of that file.
 
 import {
   ANKI_ORIGIN,

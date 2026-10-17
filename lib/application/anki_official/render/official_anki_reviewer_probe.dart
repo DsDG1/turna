@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
@@ -61,12 +60,6 @@ bool get officialAnkiReviewerProbeStarted => _probeStarted;
 void resetOfficialAnkiReviewerProbeForTest() {
   _probeStarted = false;
 }
-
-/// True when the reviewer channel is expected to exist on this platform. Kept
-/// separate from [isHarmonyOsTarget] so the view can ask "is this a platform
-/// where the native reviewer is the design" rather than re-deriving it.
-bool get officialAnkiReviewerRunsNatively =>
-    !kIsWeb && (isHarmonyOsTarget || defaultTargetPlatform.name == 'android');
 
 bool _assetProbeStarted = false;
 

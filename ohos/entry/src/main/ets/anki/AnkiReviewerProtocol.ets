@@ -25,7 +25,6 @@ export const CHANNEL_NAME: string = 'me.dsdogs.turna/official_anki_reviewer';
 export const METHOD_OPEN_REVIEWER: string = 'openReviewer';
 export const METHOD_PRESENT_REVIEWER: string = 'presentReviewer';
 export const METHOD_CACHE_REVIEWER_MEDIA: string = 'cacheReviewerMedia';
-export const METHOD_REVIEWER_LAST_ACK: string = 'reviewerLastAck';
 export const METHOD_AWAIT_REVIEWER_READY: string = 'awaitReviewerReady';
 export const METHOD_NOTIFY_REVIEWER_FAILURE: string = 'notifyReviewerFailure';
 export const METHOD_PROBE_REVIEWER_CAPABILITIES: string = 'probeReviewerCapabilities';

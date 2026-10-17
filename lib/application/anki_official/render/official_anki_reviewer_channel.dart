@@ -193,19 +193,6 @@ class OfficialAnkiReviewerChannel {
     return decoded is Map<String, Object?> ? decoded : null;
   }
 
-  /// The frame's last ack, for anything that wants the measured height — the
-  /// only place that number exists.
-  Future<Map<String, Object?>?> lastAck() async {
-    final raw = await channel.invokeMethod<String>(
-      OfficialAnkiReviewerProtocol.methodReviewerLastAck,
-    );
-    if (raw == null || raw.isEmpty) {
-      return null;
-    }
-    final decoded = jsonDecode(raw);
-    return decoded is Map<String, Object?> ? decoded : null;
-  }
-
   /// Pushes a render failure the page cannot otherwise see. The ArkTS
   /// `present` promise only carries acks that crossed the channel; failures
   /// detected on this side (media push exceptions, controller errors) would

@@ -1,7 +1,7 @@
 {
   "src": [
     "pages/Index",
-    "pages/AnkiReviewerProbePage",
+    "probe/AnkiReviewerProbePage",
     "pages/AnkiReviewerPage"
   ]
 }

@@ -49,7 +49,7 @@
         // reachable from the system UI; what it exposes is a Web page serving
         // one synthetic origin.
         "name": "AnkiReviewerProbeAbility",
-        "srcEntry": "./ets/entryability/AnkiReviewerProbeAbility.ets",
+        "srcEntry": "./ets/probe/AnkiReviewerProbeAbility.ets",
         "description": "$string:EntryAbility_desc",
         "icon": "$media:icon",
         "label": "$string:EntryAbility_label",

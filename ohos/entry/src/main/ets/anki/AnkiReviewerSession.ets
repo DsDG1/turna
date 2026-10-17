@@ -181,7 +181,6 @@ export class AnkiReviewerSession {
   private server: AnkiOriginServer;
   private bridge: AnkiReviewerBridge;
   private web: webview.WebviewController | undefined = undefined;
-  private lastAck: RenderAck | undefined = undefined;
   private answerShown: boolean = false;
   private shellReady: boolean = false;
   private chrome: ChromeListener | undefined = undefined;
@@ -358,7 +357,6 @@ export class AnkiReviewerSession {
           return;
         }
         settled = true;
-        this.lastAck = ack;
         if (ack.type === ACK_TYPE_RENDER_ERROR) {
           this.notifyChrome(chromeState(
             false,
@@ -423,14 +421,6 @@ export class AnkiReviewerSession {
         });
       setTimeout(poll, POLL_DELAY_MS);
     });
-  }
-
-  public lastRenderAck(): RenderAck | undefined {
-    return this.lastAck;
-  }
-
-  public showingAnswer(): boolean {
-    return this.answerShown;
   }
 
   /// The `[[type:…]]` placeholder is rendered by the frame, and whether this

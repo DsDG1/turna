@@ -24,37 +24,37 @@
 // always available, because Dart is on the other end of the channel either way.
 // It is simply the expensive option for 2.27 MB, so it stays the fallback rather
 // than the answer.
+//
+// R1 (2026-10-17) moved this file out of `ets/anki/` into `ets/probe/`, and
+// deleted its private copy of the asset list in favour of the production
+// server's — see [probeReviewerAssetsSync] for why that copy was dangerous.
+// This file remains reachable from the production plugin on purpose: the two
+// `probeReviewer*` channel methods are the diagnostics that answer "can the
+// reviewer ability read its own assets at runtime", and there is no other
+// caller for them.
 
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-
-/// `AudioPlugin`'s prefix is `flutter_assets/assets`; the reviewer's directory
-/// hangs off it. `assets/` being part of the path is the engine's convention, not
-/// ours, and dropping it makes every lookup miss with `9001005` — which on a
-/// phone is indistinguishable from "the reviewer is broken".
-export const REVIEWER_ASSET_ROOT: string = 'flutter_assets/assets/anki_reviewer';
-
-/// Every file the shell and the card frame request, in load order. Kept
-/// explicit rather than derived from a directory listing: a reviewer that
-/// silently stops serving MathJax would otherwise look identical to a reviewer
-/// that correctly declines to serve a card with no maths on it.
-export const REVIEWER_ASSETS: Array<string> = [
-  'reviewer.html',
-  'reviewer.js',
-  'reviewer.css',
-  'card-frame.html',
-  'card-frame.js',
-  'mathjax-config.js',
-  'manifest.json',
-  'mathjax/tex-svg-full.js',
-];
+import { REVIEWER_ASSET_NAMES, REVIEWER_ASSET_ROOT } from '../anki/AnkiOriginServer';
 
 /// Reads all eight synchronously and reports `name=bytes` or `name!err<code>`.
 /// A miss is named rather than skipped: "every asset failed" and "MathJax alone
 /// failed" call for different responses, and a summary line would collapse them.
+///
+/// The eight are [REVIEWER_ASSET_NAMES] — the production server's own list,
+/// imported rather than re-declared. It used to carry a private copy, and the
+/// copy was the dangerous part: a file added to one side and not the other
+/// produced no build error and no warning, only a blank card in the field. A
+/// probe reading a list the server does not serve would also have been
+/// measuring something other than what ADR 0050 §3.3 recorded.
+///
+/// `REVIEWER_ASSET_ROOT` is imported for the same reason: the `flutter_assets/`
+/// prefix is the engine's convention hanging off `AudioPlugin`'s, and dropping
+/// `assets/` from it makes every lookup miss with `9001005` — which on a phone
+/// is indistinguishable from "the reviewer is broken".
 export function probeReviewerAssetsSync(context: common.UIAbilityContext): string {
   const parts: Array<string> = [];
-  for (const name of REVIEWER_ASSETS) {
+  for (const name of REVIEWER_ASSET_NAMES) {
     const raw: string = REVIEWER_ASSET_ROOT + '/' + name;
     try {
       const bytes: Uint8Array = context.resourceManager.getRawFileContentSync(raw);

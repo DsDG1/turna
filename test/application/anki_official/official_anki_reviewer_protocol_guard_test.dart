@@ -28,17 +28,75 @@ import 'package:turna/application/anki_official/render/official_anki_reviewer_pr
 ///   separate contract from the OHOS ack shape and is not unified.
 /// * Range/MIME has three implementations by design: Dart's
 ///   `OfficialAnkiHttpRange`/`OfficialAnkiMime` are the normative source,
-///   `AnkiHttp.ets` is the production ArkTS mirror, and the probe keeps a
-///   deliberately looser copy (unrecognized Range header answers 200, not
-///   416). Known accepted differences: `originAllowed` normalises port -1
-///   (Dart URL) vs 0 (ArkTS URL), and the `encodingForMime` branch sets
-///   differ per platform.
+///   `anki/AnkiHttp.ets` is the production ArkTS mirror, and the probe keeps a
+///   deliberately looser copy. The probe's three accepted differences are
+///   enumerated and pinned in [_rangeMimeAllowedDifferences] below, so neither
+///   copy can be silently replaced by the other. `originAllowed` separately
+///   normalises port -1 (Dart URL) vs 0 (ArkTS URL).
 const _dartProtocolPath =
     'lib/application/anki_official/render/official_anki_reviewer_protocol.dart';
 const _arktsProtocolPath =
     'ohos/entry/src/main/ets/anki/AnkiReviewerProtocol.ets';
 const _arktsSessionPath =
     'ohos/entry/src/main/ets/anki/AnkiReviewerSession.ets';
+
+/// The probe's own Range/MIME pair moved under `ets/probe/` in R1; its
+/// production counterpart stayed in `ets/anki/`.
+const _arktsProbeHttpPath =
+    'ohos/entry/src/main/ets/probe/AnkiProbeAssets.ets';
+const _arktsProdHttpPath = 'ohos/entry/src/main/ets/anki/AnkiHttp.ets';
+
+/// The declared differences between the probe's Range/MIME copy and the
+/// production mirror — the machine-checkable half of the list written at the top
+/// of [_arktsProbeHttpPath].
+///
+/// Each row asserts BOTH sides, because the failure this guards against runs in
+/// both directions: someone copying the production implementation over the probe
+/// (silently making the probe stricter, so a Range the probe cannot classify
+/// answers 416 and the probe reports nothing at all), and someone copying the
+/// probe over production (silently making the reviewer a server that answers 200
+/// to every Range, which is one the kernel cannot seek in). Either way the
+/// documented reason stops being true, so the row that described it has to go
+/// with it — which is why these are needles on both sides rather than a note.
+const _rangeMimeAllowedDifferences = <({
+  String axis,
+  String why,
+  String probeNeedle,
+  String prodNeedle,
+})>[
+  (
+    axis: 'parseRange: unrecognized Range prefix',
+    why: 'the probe still has to leave something to measure when it cannot '
+        'classify the header; production must refuse, because a server that '
+        'answers 200 to every Range is one the kernel cannot seek in',
+    probeNeedle: r"if \(!raw\.toLowerCase\(\)\.startsWith\(prefix\)\)\s*\{\s*return whole;",
+    prodNeedle: r"if \(!lower\.startsWith\('bytes='\)\)\s*\{\s*return unsatisfiable\(length\);",
+  ),
+  (
+    axis: 'parseRange: unparseable Range spec',
+    why: 'no dash, an empty spec, or a multi-range comma all fall back to the '
+        'whole file on the probe side and to 416 on the production side, for '
+        'the same reason as the prefix axis',
+    probeNeedle: r"if \(dash <= 0\)\s*\{\s*return whole;",
+    prodNeedle: r"if \(dash < 0\)\s*\{\s*return unsatisfiable\(length\);",
+  ),
+  (
+    axis: 'mimeForName: .js',
+    why: 'the kernel accepts both spellings; the probe serves four asset kinds '
+        'and has no application/json, so the narrower production table would be '
+        'dead code on that side',
+    probeNeedle: r"'\.js': 'application/javascript'",
+    prodNeedle: r"lower\.endsWith\('\.js'\)\)\s*\{\s*return 'text/javascript';",
+  ),
+  (
+    axis: 'encodingForMime: utf-8 branch set',
+    why: 'production gates on text/* or application/json after stripping the '
+        '; parameters; the probe gates on text/* or anything ending in '
+        'javascript, which is the only difference its own MIME table needs',
+    probeNeedle: r"mime\.startsWith\('text/'\) \|\| mime\.endsWith\('javascript'\)",
+    prodNeedle: r"base\.startsWith\('text/'\) \|\| base === 'application/json'",
+  ),
+];
 
 /// Constants that exist only on the Dart side, each with why.
 const _dartOnly = <String, String>{
@@ -281,7 +339,38 @@ void main() {
                 'the entry');
       }
     });
+
+    test('probe Range/MIME keeps both sides of its declared differences', () {
+      final probeSource = _readArkts(_arktsProbeHttpPath);
+      final prodSource = _readArkts(_arktsProdHttpPath);
+      for (final diff in _rangeMimeAllowedDifferences) {
+        expect(
+          RegExp(diff.probeNeedle).hasMatch(probeSource),
+          isTrue,
+          reason: '${diff.axis}: $_arktsProbeHttpPath no longer shows the '
+              'declared probe behaviour — ${diff.why} Restore it, or close the '
+              'difference on purpose and update this table together with the '
+              'header of that file.',
+        );
+        expect(
+          RegExp(diff.prodNeedle).hasMatch(prodSource),
+          isTrue,
+          reason: '${diff.axis}: $_arktsProdHttpPath no longer shows the '
+              'declared production behaviour — ${diff.why} If the two copies '
+              'have silently converged, update this table together with the '
+              'probe header in the same commit.',
+        );
+      }
+    });
   });
+}
+
+String _readArkts(String path) {
+  final file = File(path);
+  expect(file.existsSync(), isTrue,
+      reason: '$path is missing — if it was relocated, update the path constant '
+          'next to the allowed-difference table it is read through');
+  return file.readAsStringSync();
 }
 
 Map<String, String> _dartScalars(String source) {

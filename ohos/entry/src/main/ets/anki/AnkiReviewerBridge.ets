@@ -8,11 +8,17 @@
 // and therefore untrusted input even though this build assembled the frame, so
 // the boundary is drawn where it is drawn.
 //
-// Mirrors `AnkiProbeBridge`, with one addition that the probe did not need: the
-// typed answer. The probe had no button that meant anything to Dart; the
-// reviewer has three — show answer, rate, and the text field — and each one is a
-// message Dart has to act on, so each gets a method rather than a stringly-typed
-// event channel.
+// Mirrors `AnkiProbeBridge` in `ets/probe/`, which keeps the shape for a reason
+// that does not apply here. The probe's `attach`/`emit` pair is a stringly-typed
+// event channel: the page hands the object a callback and every method mirrors
+// itself into it. Production never attaches one — `attachReviewerOutbound` is
+// the only wiring this file has — so all seven mirrored calls went nowhere and
+// the channel was a second, silent path to the same seven methods. R1 removed it;
+// every method below now reaches Dart exactly once, through `outbound`.
+//
+// What the probe did not need and the reviewer has is the typed answer, plus
+// receipts: show answer, rate and the text field are three messages Dart has to
+// act on, and `rate` additionally has to report back what Dart decided.
 
 import MethodChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
@@ -34,12 +40,7 @@ export function attachReviewerOutbound(channel: MethodChannel | null): void {
 }
 
 export class AnkiReviewerBridge {
-  private handler: ((kind: string, raw: string) => void) | undefined = undefined;
   private typedVisible: boolean = false;
-
-  public attach(handler: (kind: string, raw: string) => void): void {
-    this.handler = handler;
-  }
 
   public setTypedVisible(visible: boolean): void {
     this.typedVisible = visible;
@@ -49,20 +50,11 @@ export class AnkiReviewerBridge {
     return this.typedVisible;
   }
 
-  private emit(kind: string, payload: string): void {
-    const handler: ((kind: string, raw: string) => void) | undefined = this.handler;
-    if (handler === undefined) {
-      return;
-    }
-    handler(kind, payload);
-  }
-
   /// The learner tapped "show answer". `typed` is whatever the native field
   /// held, sent as an opaque string: comparing it is the official engine's job
   /// on the Dart side, and doing any normalisation here would put a second
   /// opinion about spelling next to the one that has the dictionary.
   public showAnswer(typed: string): void {
-    this.emit(METHOD_SHOW_ANSWER, typed);
     this.callDart(METHOD_SHOW_ANSWER, typed);
   }
 
@@ -77,7 +69,6 @@ export class AnkiReviewerBridge {
   /// re-enable them — without the receipt, a refusal on the Dart side is
   /// indistinguishable from a button that does nothing.
   public rate(rating: string, onResult: (code: string) => void): void {
-    this.emit(METHOD_RATE, rating);
     const channel: MethodChannel | null = outbound;
     if (channel === null) {
       onResult('bridge_detached');
@@ -102,7 +93,6 @@ export class AnkiReviewerBridge {
   /// advance re-runs. Carries its receipt back for the same reason `rate`
   /// does — a retry that nothing answers reads as a dead button.
   public retryAdvance(rating: string, onResult: (code: string) => void): void {
-    this.emit(METHOD_RETRY_ADVANCE, rating);
     const channel: MethodChannel | null = outbound;
     if (channel === null) {
       onResult('bridge_detached');
@@ -126,14 +116,12 @@ export class AnkiReviewerBridge {
   /// receipt — the present that follows (or the next failure banner) is the
   /// visible outcome.
   public retryPresent(): void {
-    this.emit(METHOD_RETRY_PRESENT, '');
     this.callDart(METHOD_RETRY_PRESENT, '');
   }
 
   /// The native header's undo entry (UI-4). Fire-and-forget: the rebuilt
   /// present that follows the host's undo hooks is the visible outcome.
   public requestUndo(): void {
-    this.emit(METHOD_REQUEST_UNDO, '');
     this.callDart(METHOD_REQUEST_UNDO, '');
   }
 
@@ -141,7 +129,6 @@ export class AnkiReviewerBridge {
   /// the Flutter settlement produced, or an empty string when Dart had
   /// nothing to report — the page then keeps its plain completion row.
   public settlement(onResult: (json: string) => void): void {
-    this.emit(METHOD_REVIEW_SETTLEMENT, '');
     const channel: MethodChannel | null = outbound;
     if (channel === null) {
       onResult('');
@@ -167,7 +154,6 @@ export class AnkiReviewerBridge {
   /// against what they actually typed, not against a value reconstructed at
   /// submit time.
   public typedChanged(text: string): void {
-    this.emit(METHOD_TYPED_CHANGED, text);
     this.callDart(METHOD_TYPED_CHANGED, text);
   }
 

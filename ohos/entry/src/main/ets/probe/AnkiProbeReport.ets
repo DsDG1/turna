@@ -12,6 +12,8 @@
 // ability reports is the *same* object the page's `onInterceptRequest` wrote to.
 // If the ability kept its own copy, the cross-check between the page's claim
 // and what the kernel actually requested would be checking two different things.
+//
+// R1 (2026-10-17) moved this file out of `ets/anki/` into `ets/probe/`.
 
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AnkiOriginServerProbe } from './AnkiOriginServerProbe';
