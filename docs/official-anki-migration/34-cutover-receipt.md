@@ -285,11 +285,14 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   4 路有界并发（返回 settled 集合，失败名字下次重推）、**P1-4** 首帧 iframe 预热
   （`warmFrame()` 由 `markShellReady` 在 hook 前发起）、**P0-1** ability 预热
   （新增 `closeReviewer` 协议方法与 `warm_canceled` verdict；`warmUp` 不等 shell
-  就绪，`attach` await 同一个 future；失败/空批次/异常/退出四条路径都 cancel）。
-  本地收据：`flutter analyze` No issues（两次）、`node card_frame_protocol_test.mjs`
-  全绿（11 例）、新增 4 例预热单测。**Dart 单测与 ArkTS 编译均未取得收据**
-  （本机 `flutter_tester` WebSocket 失败、`ohpm install` 失败），hap 未重编、
-  真机未验。P1-3 的「提前」未做，理由见 44 §3.4。细节见 `test/BASELINE.md` 同日两条。
+  就绪，`attach` await 同一个 future；失败/空批次/异常/退出四条路径都 cancel）、
+  **P0-2** 首屏分批与滚动窗口（首屏只渲染 8 张，`restrictAllowedCards` 从
+  `assembledIds` 改为 `eligible − 失败`，`_doRebuild` 改成从 current 起的滚动窗口）。
+  本地收据：`flutter analyze` No issues（三次）、`node card_frame_protocol_test.mjs`
+  全绿（11 例）、新增 4 例预热单测 + 6 例窗口源码守卫。**Dart 单测与 ArkTS 编译
+  均未取得收据**（本机 `flutter_tester` WebSocket 失败、`ohpm install` 失败），
+  hap 未重编、真机未验。P1-3 的「提前」未做，理由见 44 §3.4。细节见
+  `test/BASELINE.md` 同日三条。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 

@@ -109,8 +109,9 @@ O1 媒体分层、R2 拆分、T1 跨语言测试已施工且 hap 构建转绿；
 1. **P0-1 依赖 `closeReviewer` 协议新增**——**已定：接受**（2026-10-18）。协议
    两侧各加一个方法名常量与一个 `warm_canceled` verdict；ArkTS 侧在 session 建好
    之前收到取消会记住请求（`consumePendingReviewerCancel`），由页面订阅后立即兑现。
-2. **P0-2 用窗口 8，不是「严格一卡先出」**。严格 1 张会让进度从 1/1 跳到 1/8，
-   并让 batch / ledger 提前收敛；产品若坚持一卡先出，另立「后台填窗」阶段。
+2. **P0-2 用窗口 8，不是「严格一卡先出」**——**已定并按此施工**。严格 1 张会让
+   进度从 1/1 跳到 1/8，并让 batch / ledger 提前收敛；产品若坚持一卡先出，另立
+   「后台填窗」阶段，不要塞进本项。
 
 > 篇幅说明：§3 逐项按八子项展开后全文约 530 行，超出初版 430 行预算。未拆成
 > 独立文档——拆开后 44 会失去「诊断 → 设计」的连续性，而本仓库 34 收据与
@@ -218,7 +219,8 @@ ability 冷启动、窗口创建、shell 预读全部排在 loader 之后。
 
 ### 3.3 P0-2 首屏分批与滚动窗口
 
-**状态**：设计完成，可施工（本批最重的一项）。
+**状态**：**已施工（2026-10-18）**。`officialInitialRenderWindow = 8`，定义在
+`official_formal_review_coordinator.dart`（loader 已 import 该文件，反向不成立）。
 
 **现状**：`official_formal_review_production_loader.dart` 的 `load()` 在
 `for (final card in queue.cards)` 里串行渲染整个队列；`official_study_batch_assembler.dart`
@@ -577,6 +579,9 @@ suspend 是重度 Anki 用户功能。
 3. ~~**P0-1 预热**（依赖 `closeReviewer` 协议新增；取舍未定则不做）~~
    **已施工（2026-10-18）**：协议新增已接受，`warmUp` / `cancel` / 调用点四条
    取消路径落地。真机判据待取
-4. **P0-2 分批装载**（核心契约改动，必须单独一批 + 门禁）
+4. ~~**P0-2 分批装载**~~ **已施工（2026-10-18）**：窗口 8、eligible 过滤、
+   `restrictAllowedCards` 改 `eligible - 失败`、`_doRebuild` 滚动窗口。
+   行为测试待有可跑测试的环境补（见 `official_formal_review_render_window_guard_test.dart`
+   顶部 TODO）
 5. **D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）
 6. **P2-5 / P2-6**（先测量，测完再决定是否立项）

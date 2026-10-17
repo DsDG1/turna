@@ -6,6 +6,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_eligibility.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/review/official_anki_routed_source.dart';
@@ -141,6 +142,31 @@ class OfficialFormalReviewProductionLoader {
 
     final faces = <int, OfficialRenderedFace>{};
     final failures = <OfficialCardRenderFailure>[];
+
+    // Eligibility is computed BEFORE rendering now, not after: the first screen
+    // renders only a window of the queue, and a window taken from the raw queue
+    // can be eight unintroduced or retired cards. The batch would then come out
+    // empty and read as "nothing due" while the learner has a full queue.
+    final dueRepo = OfficialFormalDueRepository.instance;
+    final perSource = dueRepo.snapshot.byImport[importId];
+    final placementIds = activePlacementCardIds?.call(sourceId) ??
+        (perSource != null && perSource.activePlacementCardIds.isNotEmpty
+            ? perSource.activePlacementCardIds
+            : target.cardIds);
+
+    final placementKeys = {for (final id in placementIds) key(id)};
+    final retiredKeys = {
+      for (final id in (perSource?.retiredCardIds ?? const <int>{})) key(id),
+    };
+    final eligibleKeys = computeFormalDueCardKeys(
+      officialSchedulerDueCardKeys: {
+        for (final card in queue.cards) key(card.cardId),
+      },
+      activePlacementCardKeys: placementKeys,
+      retiredCardKeys: retiredKeys,
+    );
+    final eligibleIds = {for (final k in eligibleKeys) k.cardId};
+
     Map<CanonicalCardKey, CardPresentation> presentations;
     if (presentationsForCards != null) {
       presentations = await presentationsForCards!(
@@ -148,7 +174,15 @@ class OfficialFormalReviewProductionLoader {
         cards: queue.cards,
       );
     } else {
-      for (final card in queue.cards) {
+      // P0-2: render a window, not the queue. The page shows one card; the ones
+      // past the window are rendered by the live queue as the learner advances
+      // (see `OfficialFormalReviewLiveQueue._doRebuild`). Rendering the whole
+      // queue here made first paint proportional to queue length — up to a
+      // hundred serial `renderCard` calls before anything appeared.
+      final window = queue.cards
+          .where((card) => eligibleIds.contains(card.cardId))
+          .take(officialInitialRenderWindow);
+      for (final card in window) {
         try {
           faces[card.cardId] = await renderer.render(
             sourceId: sourceId,
@@ -185,18 +219,6 @@ class OfficialFormalReviewProductionLoader {
       );
     }
 
-    final dueRepo = OfficialFormalDueRepository.instance;
-    final perSource = dueRepo.snapshot.byImport[importId];
-    final placementIds = activePlacementCardIds?.call(sourceId) ??
-        (perSource != null && perSource.activePlacementCardIds.isNotEmpty
-            ? perSource.activePlacementCardIds
-            : target.cardIds);
-
-    final placementKeys = {for (final id in placementIds) key(id)};
-    final retiredKeys = {
-      for (final id in (perSource?.retiredCardIds ?? const <int>{})) key(id),
-    };
-
     final batch = const FormalReviewLauncher().assembleOfficialBatch(
       session: session,
       sourceId: sourceId,
@@ -210,11 +232,15 @@ class OfficialFormalReviewProductionLoader {
       assembler: OfficialStudyBatchAssembler(profileId: profileId),
     );
 
-    final assembledIds = {
-      for (final item in batch.items) item.cardKey.cardId,
-    };
-    if (assembledIds.isNotEmpty) {
-      session.restrictAllowedCards(assembledIds);
+    // `assembledIds` used to narrow the session to exactly the cards in this
+    // batch. That was right while the batch was the whole queue, and becomes a
+    // permanent truncation the moment rendering is windowed. Keep every
+    // eligible card except the ones that just failed to render; the rest arrive
+    // through the live queue's rolling window.
+    final failedIds = {for (final failure in failures) failure.cardId};
+    final allowedIds = eligibleIds.difference(failedIds);
+    if (allowedIds.isNotEmpty) {
+      session.restrictAllowedCards(allowedIds);
     }
 
     // Key fidelity HTML faces by the assembled sessionItemId.

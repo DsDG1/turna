@@ -177,6 +177,19 @@ class OfficialFormalReviewRenderer {
 /// one the queue reports [OfficialLiveQueueBlockedOnCurrentCard], keeps
 /// the previous items visible and locks scoring — it is never silently
 /// dropped (maintainability plan §8.3).
+/// How many cards the reviewer renders before it hands the batch over (P0-2).
+///
+/// Eight, not one. A single-card batch would make the controller's `totalCount`
+/// start at 1 and jump to 8 on the first answer (the progress bar reads 1/1
+/// then 1/8), and `OfficialStudyBatchAssembler` skips cards without a
+/// presentation — so a one-card window also lets the batch/ledger converge
+/// early. Eight still costs about 8% of a hundred-card render.
+///
+/// The same number is the rolling window in [_doRebuild]: after every mutation
+/// the current card plus the next seven are kept rendered, and the rest arrive
+/// as the learner advances.
+const int officialInitialRenderWindow = 8;
+
 class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   OfficialFormalReviewLiveQueue({
     required this.session,
@@ -279,14 +292,36 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
       final queue = session.queue;
       if (queue == null) return const OfficialLiveQueueRebuildStale();
       final failures = <OfficialCardRenderFailure>[];
-      for (final card in queue.cards) {
-        if (_faces.containsKey(card.cardId)) continue;
+      // P0-2: a rolling window, not the whole queue.
+      //
+      // It starts at the scheduler's current card so `currentSnapshot()` always
+      // has a face to show, then runs forward to keep the next few warm. Cards
+      // behind the current one keep their cached faces (undo can come back to
+      // them), which is why the window counts already-rendered cards rather
+      // than re-rendering them.
+      final startAtCardId = session.current?.cardId;
+      final cards = queue.cards;
+      final startIndex = startAtCardId == null
+          ? 0
+          : cards.indexWhere((c) => c.cardId == startAtCardId);
+      final ordered = startIndex <= 0 ? cards : cards.sublist(startIndex);
+
+      var rendered = 0;
+      for (final card in ordered) {
+        if (rendered >= officialInitialRenderWindow) break;
+        if (_faces.containsKey(card.cardId)) {
+          rendered += 1;
+          continue;
+        }
         try {
           _faces[card.cardId] = await renderer.render(
             sourceId: sourceId,
             cardId: card.cardId,
           );
+          rendered += 1;
         } catch (error) {
+          // A failure does not consume a window slot: one unrenderable card
+          // must not shrink the window to nothing and stall the session.
           final failure = OfficialCardRenderFailure.fromError(
             error,
             sourceId: sourceId,
