@@ -851,13 +851,15 @@ void main() {
 
   test('a failed warm-up does not become the live binding (P0-1)', () async {
     final broken = _FakeTransport()..failReady = true;
-    await expectLater(
-      OfficialAnkiOhosReviewerBinding.warmUp(
-        mediaRoot: media.path,
-        transport: broken,
-      ),
-      throwsA(isA<StateError>()),
+    // `warmUp` returns the handle without waiting for the shell — awaiting it
+    // here would put the boot back on the loader's critical path, which is the
+    // whole thing the warm-up exists to avoid. So the failure surfaces on
+    // `ready`, not on the call itself.
+    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: broken,
     );
+    await expectLater(warmUp.ready, throwsA(isA<StateError>()));
 
     // Whatever went wrong, the next real attempt must open its own reviewer
     // rather than inherit a half-booted one.
@@ -872,6 +874,27 @@ void main() {
       transport: healthy,
     );
     expect(healthy.openCalls, 1);
+  });
+
+  test('a cancel with no ability behind it never sends close (P0-1)', () async {
+    // The native side remembers a cancel that arrives with no session
+    // (`cancelPending`) and the NEXT reviewer consumes it. So a boot that died
+    // before `open` must not send one — otherwise the learner's next reviewer
+    // flashes open and closes itself, which looks exactly like a crash.
+    final transport = _FakeTransport()..failBind = true;
+    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+    await expectLater(warmUp.ready, throwsA(isA<StateError>()));
+    await warmUp.cancel();
+
+    expect(transport.openCalls, 0);
+    expect(
+      transport.closeCalls,
+      0,
+      reason: 'a close with nothing open poisons the next reviewer',
+    );
   });
 
   test(
@@ -1127,6 +1150,9 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
     Future<Map<String, Object?>?> Function()? onSettlement,
     Future<String> Function(String action)? onCardAction,
   }) async {
+    if (failBind) {
+      throw StateError('outbound handlers could not be installed');
+    }
     this.onShowAnswer = (typed) async {
       onShowAnswer(typed);
     };
@@ -1140,9 +1166,7 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
     this.onRetryPresent = onRetryPresent;
     this.onReplayAudio = onReplayAudio;
     this.onCardAction = onCardAction;
-  }
-
-  @override
+  }  @override
   Future<String> open({required String mediaRoot}) {
     openCalls += 1;
     return _open.future;
@@ -1154,6 +1178,10 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
 
   /// When true, `waitUntilReady` throws — a shell that never loads.
   bool failReady = false;
+
+  /// When true, installing the outbound handlers throws — a boot that dies
+  /// before `open` is ever issued.
+  bool failBind = false;
 
   /// P0-1: how many times the speculative open was abandoned.
   int closeCalls = 0;

@@ -205,12 +205,20 @@ ability 冷启动、窗口创建、shell 预读全部排在 loader 之后。
 - `_live` 复用要排除已关闭的旧 binding；`singleton` / `onNewWant` 语义不变。
 - mediaRoot 必须与 Stage 用同一 `OfficialAnkiPaths` 的 mediaFolder。
 
-**测试点（已落 4 例）**：`official_anki_ohos_reviewer_binding_test.dart` ——
+**测试点（已落 5 例）**：`official_anki_ohos_reviewer_binding_test.dart` ——
 ① 预热后 attach 只 open 一次（`openCalls == 1`）；② `cancel()` 调 `close()` 并把
 槽位让给下一次 attach；③ 预热态评分回 `scheduler_unavailable`（不静默吞掉也不空指针）；
-④ boot 失败不成为 `_live`，下一次 attach 自行 open。协议层由
+④ boot 失败不成为 `_live`，下一次 attach 自行 open；⑤ **boot 连 `open` 都没发出时
+cancel 不发 `close`**——ArkTS 的 `cancelPending` 会被下一个复习页消费，一次「无事
+可关」的 cancel 等于毒化学习者的下一次进入。协议层由
 `official_anki_reviewer_protocol_guard_test.dart` 双向断言
 `METHOD_CLOSE_REVIEWER ↔ methodCloseReviewer`、`VERDICT_WARM_CANCELED ↔ verdictWarmCanceled`。
+
+> **复检修正（2026-10-18 同日夜）**：④ 原来断言「`warmUp` 抛异常」，与实现相反——
+> `warmUp` **刻意不等** `ready`（等了就把 boot 放回 loader 关键路径）。测试已改成
+> 断言 `warmUp` 正常返回、`warmUp.ready` 抛错；⑤ 是这次复检发现的真实缺陷，
+> 修复为 `_openIssued` 守卫（`_openWarm` 在 `bindOutbound` 之后、`open` 之前
+> 检查 `_closed`）。
 
 **风险与回退**：中（协议新增 + ability 生命周期）。回退整批：删调用点 +
 `warmUp` + `closeReviewer`，不留半开状态。
@@ -660,8 +668,8 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
    取消路径落地。真机判据待取
 4. ~~**P0-2 分批装载**~~ **已施工（2026-10-18）**：窗口 8、eligible 过滤、
    `restrictAllowedCards` 改 `eligible - 失败`、`_doRebuild` 滚动窗口。
-   行为测试待有可跑测试的环境补（见 `official_formal_review_render_window_guard_test.dart`
-   顶部 TODO）
+   **行为收据已取**（同日复检）：`official_formal_review_render_window_behavior_test.dart`
+   用 20 卡夹具断言 `renderCount == 8` / batch 8 张 / `allowedCardIds` 20 张，通过
 5. ~~**D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）~~
    **已施工（2026-10-18）**：三项全要，原生补三键 + `requestCardAction`
    协议 + 三态回执，见 §3.8。真机判据待取

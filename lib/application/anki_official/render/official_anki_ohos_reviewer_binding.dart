@@ -198,6 +198,15 @@ class OfficialAnkiOhosReviewerBinding {
   var _opened = false;
   var _closed = false;
 
+  /// Whether `transport.open` was actually issued.
+  ///
+  /// `cancel()` needs this to tell "abandon a reviewer that exists" from "abort
+  /// a boot that never reached the ability". Sending `closeReviewer` in the
+  /// second case is not harmless: the native side remembers a cancel that
+  /// arrives with no session (`cancelPending`) and the NEXT reviewer consumes
+  /// it — the learner would see the page they just opened flash and vanish.
+  var _openIssued = false;
+
   /// The boot sequence: [open] transport, bind callbacks, wait for the shell.
   ///
   /// A warm-up resolves this before any controller exists; [attach] awaits the
@@ -453,6 +462,10 @@ class OfficialAnkiOhosReviewerBinding {
       onReplayAudio: _replayAudio,
       onCardAction: _cardAction,
     );
+    // Cancelled while the outbound handlers were being installed: nothing was
+    // opened, so there is nothing to close and nothing to leave on screen.
+    if (_closed) return;
+    _openIssued = true;
     final opened = transport.open(mediaRoot: mediaRoot);
     unawaited(opened.then((verdict) {
       _closed = true;
@@ -878,12 +891,17 @@ class OfficialAnkiOhosReviewerWarmUp {
   /// Sets `_closed` before talking to ArkTS so a concurrent [attach] cannot
   /// adopt a reviewer that is already being torn down — the worst outcome here
   /// would be presenting a card into a page that is closing.
+  ///
+  /// **No `close` when the boot never issued an `open`.** The native side
+  /// remembers a cancel that arrives with no session and the next reviewer
+  /// consumes it, which would close a session the learner had just started.
   Future<void> cancel() async {
     if (_binding._closed) return;
     _binding._closed = true;
     if (identical(OfficialAnkiOhosReviewerBinding._live, _binding)) {
       OfficialAnkiOhosReviewerBinding._live = null;
     }
+    if (!_binding._openIssued) return;
     try {
       await _binding.transport.close();
     } catch (error) {

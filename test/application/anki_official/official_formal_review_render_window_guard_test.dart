@@ -1,20 +1,20 @@
 // P0-2 is a scaling change: the first batch renders a window of the queue
 // instead of all of it. Its behaviour is invisible on the queues the existing
 // tests use (2–4 cards, all inside the window), so a behavioural test there
-// would pass with the code deleted. A faithful one needs a 20-card fixture
-// built through the catalog ledger, the course-tree view and the introduction
-// store — a large amount of setup for one assertion.
+// would pass with the code deleted.
 //
-// What can silently regress is structural: someone deletes `.take(...)` (and
-// first paint goes back to proportional with queue length), or swaps the
-// allowed set back to the assembled batch (and the session is permanently
-// truncated to the window — cards past it never appear). Both are pinned here
-// at the source level, the same way `fidelity_webview_csp_guard_test.dart` pins
-// its wiring.
+// **The behavioural half now exists**:
+// `official_formal_review_render_window_behavior_test.dart` builds the 20-card
+// fixture (catalog ledger + course-tree view + introduction store) and asserts
+// renderCount == 8, batch of 8, allowedCardIds of 20. Run it whenever this
+// file's needles change; this file stays because it names *why* each line
+// matters, which a passing assertion does not.
 //
-// TODO(P0-2): once a host can run `flutter test`, add the real 20-card case to
-// `official_formal_review_loader_hydration_test.dart`: renderCount == 8,
-// batch.items.length == 8, allowedCardIds.length == 20.
+// What can silently regress is still structural: someone deletes `.take(...)`
+// (first paint goes back to proportional with queue length), or swaps the
+// allowed set back to the assembled batch (the session is permanently
+// truncated to the window). Both are pinned here at the source level, the same
+// way `fidelity_webview_csp_guard_test.dart` pins its wiring.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

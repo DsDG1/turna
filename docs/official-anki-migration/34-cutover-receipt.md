@@ -309,6 +309,19 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   （已评分的卡片会保留）」，N 与安卓 `remainingCount` 同口径（含当前这张），
   未知时回落原文案。**形态差异（弹窗 vs 两步按键）仍在**，本轮只对齐信息量。
   见 44 §4.3。
+- **同一夜复检（2026-10-18，覆盖上面三个批次的「零收据」口径）**：`flutter_tester`
+  报 `Invalid WebSocket upgrade request` 的根因是**本机代理**（`http_proxy` /
+  `https_proxy = http://127.0.0.1:7664` 接管了本地 VM service 的 WebSocket），
+  **不是环境损坏**，也不是「与改动无关」就能带过的事——它让五批改动都没能跑一次
+  测试。清代理后：全量 `flutter test --exclude-tags golden` **2162 passed /
+  0 failed**；JS 协议 11 例全绿。复检同时抓到并修掉 **1 处错测试**（预热失败用例
+  断言 `warmUp` 抛错，而实现刻意不等 `ready`）与 **1 个真缺陷**
+  （`cancel()` 在没有 `open` 时仍发 `closeReviewer`，ArkTS 的 `cancelPending`
+  会被**下一次**复习页消费，等于让学习者下次进入闪一下即自毁），并补上 P0-2 的
+  20 卡行为收据（`renderCount == 8` / batch 8 / allowed 20）。**hap 仍未绿**：
+  `ohpm` 依赖阶段已通（同因代理），现挂在 `hvigor` 的 `evaluateHvigorConfig`
+  （本机 hvigor 6.26.1 vs `modelVersion 5.1.0` 的配置漂移，五个提交未碰 hvigor
+  配置），**未进 `.ets` 编译**，ArkTS 仍无编译器收据；真机仍未验。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
@@ -515,7 +528,7 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
-| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工**（redo / bury / suspend 三键；协议新增单个 `requestCardAction` + 三个动作词，回执复用既有词表），**真机未验**。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**真机复验**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档落库值与按钮形态、10-18 工具栏三键的调度效果（bury / suspend 后队列计数下降且卡不再出现，redo 恢复上一张）；伴生版不进主交付 |
+| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工**（redo / bury / suspend 三键；协议新增单个 `requestCardAction` + 三个动作词，回执复用既有词表），**真机未验**。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**真机复验**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档落库值与按钮形态、10-18 工具栏三键的调度效果（bury / suspend 后队列计数下降且卡不再出现，redo 恢复上一张）。**本地门禁**：2026-10-18 复检全量 `flutter test --exclude-tags golden` **2162 绿**（此前五批的「零执行」是代理造成的，已纠正）；**ArkTS 编译器收据仍缺**（hvigor 配置漂移）+ 真机未验；伴生版不进主交付 |
 
 ## Android ABI packaging
 

@@ -516,8 +516,12 @@ rating 正是 `forgotten → again`、`remembered → good`，鸿蒙只发这两
 `ratingLabel` 文案改「忘记」「记住」，`ratingSent` 行高对齐 52；`AnkiReviewerPage.ets`
 与两侧协议文件仅改注释，**四个 rating 词（again/hard/good/easy）在协议层全部保留**
 （引擎与 `answerCard` 仍接受四个）。**验证**——`flutter analyze` **No issues**；
-`flutter test` 因本机 `flutter_tester` 环境失败未跑（不改写既有基线）；hap 未重编，
-ArkTS 改动未经真实编译器。**历史声明**——§3.5 的「四档评分」与 §3.7 首卡收据中的
+`flutter test` 当夜未跑（`flutter_tester` 报 WebSocket upgrade 失败）；**同夜复检查明
+根因是本机 `http_proxy/https_proxy` 代理接管了本地 VM service 的 WebSocket**，清代理后
+全量 `flutter test --exclude-tags golden` **2162 绿**——即「本机跑不了测试」不成立，
+本补记的 Dart 单测收据以复检为准；hap 未重编（`ohpm` 阶段同因代理，已通；现挂
+`hvigor` 的 `evaluateHvigorConfig` 配置漂移），ArkTS 改动仍未经真实编译器。
+**历史声明**——§3.5 的「四档评分」与 §3.7 首卡收据中的
 「四档评分按钮」均为 2026-10-14/16 的历史记述，自本补记起作废；现行正式复习为二档。
 **真机复验收据待取**（`again` / `good` 落库值、按钮形态、评分行切换不跳布局、
 错误码路径）。审查与验收判据见 [44](../official-anki-migration/44-ohos-review-entry-latency-and-parity-audit.md) §5.1 与 §6。
