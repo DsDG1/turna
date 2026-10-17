@@ -72,10 +72,11 @@ O1 媒体分层、R2 拆分、T1 跨语言测试已施工且 hap 构建转绿；
 | D5 | **首卡 iframe 冷加载** | `assets/anki_reviewer/reviewer.js` `presentOnce` 的 `replaceFrame()` | 首卡多付一次 iframe + `card-frame.js` 加载 |
 | D6 | **换卡 rebuild 仍是全队列渲染** | `official_formal_review_coordinator.dart` `_doRebuild` 的 `for (final card in queue.cards)` | 即使首屏分批，第 9 张起仍会一次性卡住（所以 D2 的分批必须同时改这里） |
 | D7 | ~~评分档位两平台不一致~~ **已施工（2026-10-18）** | 安卓 `BinaryRecallBar`（2 档）vs 鸿蒙原四档 | 鸿蒙改二档，同语义；真机复验收据待取 |
-| D8 | **鸿蒙缺 bury / suspend / redo** | `_AnkiStudySessionView` 的鸿蒙分支直接 `Scaffold(body: _cardSurface)`，工具栏整体省略 | 功能缺口（不只是观感） |
+| D8 | ~~鸿蒙缺 bury / suspend / redo~~ **已施工（2026-10-18）** | 原：`_AnkiStudySessionView` 的鸿蒙分支直接 `Scaffold(body: _cardSurface)`，工具栏整体省略 | 原生补三键 + `requestCardAction` 协议；真机复验收据待取 |
 | D9 | **返回确认形态不一致** | 安卓 `AlertDialog`；鸿蒙两步按键 + `EXIT_CONFIRM_WINDOW_MS` 文案 | 语义一致、形态不同；鸿蒙文案未带剩余张数 |
 
-> D1、D8 是**产品缺陷**，不是性能问题，建议与性能优化分开排期。
+> D1、D8 是**产品缺陷**，不是性能问题，所以它们按「各自独立一批」排期，
+> 不与性能项合批。两条均已于 2026-10-18 施工。
 
 ### 2.3 本轮文档边界
 
@@ -445,6 +446,76 @@ review` 选最大。
 `p95 payloadBytes > 256 KB` **与** `p95 evalMs > 50 ms`（或 eval 占首卡 >10%）。
 否则结案为「非瓶颈」，从施工清单里删掉。
 
+### 3.8 D8 工具栏：redo / bury / suspend（本轮施工）
+
+**状态**：已施工（2026-10-18）。
+
+**现状（改前）**：安卓 `_AnkiSessionToolbar` 有三个 `IconButton`
+（`redo_rounded` / `bedtime_outlined` / `pause_circle_outline_rounded`）；
+鸿蒙分支 `if (isHarmonyOsTarget) return Scaffold(body: _cardSurface(...))`
+把整个工具栏跳过了。鸿蒙只有 `撤销`（`AnkiReviewerHeaderBar` 里的文本按钮）。
+
+**改法**：
+
+1. **协议**：新增一个出向方法 `requestCardAction` + 动作词
+   `redo` / `bury` / `suspend`，两侧常量同名同值，由既有守卫的标量对称
+   断言自动覆盖。**一个方法而不是三个**：三者共享同一条回执契约和同一组前置
+   条件，三个方法就是一个 switch 的三份副本、三次漂移机会。
+2. **回执复用既有词表，不新增**：`advanced → ok`、`completed → ok_complete`、
+   `refused → scheduler_unavailable`、宿主抛异常 → `engine_error`。理由是
+   守卫里有一句「回执码是十个互异值」的断言——为三个状态再造两个词，等于在
+   两侧各加两个分支来描述已经能表达的东西。
+3. **宿主**：`_AnkiStudySessionView` 的三个钩子照抄安卓
+   `onRedo`/`onBury`/`onSuspend` 的序列（mutate → `rebuildFromLiveQueue` →
+   `advanceFromScheduler`），抽到 `advanceAfterNativeMutation`。返回
+   `OfficialNativeMutation` 三态而不是 `bool`——`bool` 会让「完成」与「被拒」
+   无法区分，而一次被拒的搁置若被当成完成，就会在队列还有卡时结束会话。
+4. **UI**：`AnkiReviewerHeaderBar` 加第二行（右对齐三个文本键），位置对齐安卓
+   的工具栏（卡片上方的横条）；`撤销` 仍留在计数行，因为安卓的
+   `ReviewProgressHeader` 也在那里——这个分工是刻意的。预览态整行隐藏
+   （预览没有可变更的会话，回执会全是「不可用」）。
+5. **互斥**：`mutating` 与 `ratingSent` 一样是页面级互锁。两者都改同一个
+   调度器，放行共存等于让两次推进赛跑一次队列。
+
+**数据流**：
+
+```text
+ArkUI 按钮 → page.requestCardAction(word) → bridge（带回执接收器）
+  → channel（Dart）→ binding._cardAction(word)
+  → 宿主钩子：redoLast / buryCurrent / suspendCurrent → rebuild → advance
+  → 三态 → ok / ok_complete / scheduler_unavailable → 页面回收互锁或收尾
+```
+
+**关键约束**：
+
+- `redo` 走 `controller.redoLast()`，**不是** `session.redo()`：后者只动引擎，
+  不动控制器的 `_undoneReceipt`，重做之后批次与位置会对不上。
+- 三项都必须带 `onMutated: liveQueue.rebuildFromLiveQueue`，否则搁置/暂停后
+  队列仍是旧的，棋盘上还挂着已被移出队列的卡。
+- 未知动作词**只回执、不派发**：新 shell 发来一个 Dart 不认识的词是协议漂移，
+  不是用户操作，它不能有机会改动队列。
+- `_cardAction` 在预热态（`_onRedo == null`）必须回 `scheduler_unavailable`，
+  与评分路径的 `_grades == null` 分支同构。
+
+**测试点**：
+
+- `official_anki_ohos_reviewer_binding_test.dart` 新增 7 例：三个动作词各达
+  自己的钩子；`completed → ok_complete`；`refused → scheduler_unavailable`；
+  未知词不派发；宿主抛异常回 `engine_error`；预览态不触钩子；预热态回
+  `scheduler_unavailable`。
+- `ohos_card_action_chrome_guard_test.dart`（新）：chrome 三键存在且各自回调
+  自己的钩子、整行在 `!previewOnly` 内、三键共用一条 `enabled` 规则、页面用
+  协议常量而非字符串字面量、回执路径含 `ok_complete`/`complete`/`settlement`、
+  桥原样转发动作词且带回调。
+- 协议守卫：`requestCardAction` 与三个动作词由既有标量对称断言覆盖，无需改。
+
+**风险与回退**：中低。回退：删掉 chrome 第二行即可让三个入口消失，协议与
+binding 留着不产生调用；再退一步删 `requestCardAction` 三处常量，守卫会
+同时红，正好挡住半删。
+
+**真机判据**：见 §6 的 D8 行——搁置/暂停在浏览器与调度器两侧都生效（队列计数
+下降、卡不再出现），重做恢复上一张且计数回退，三者在预览态不可见。
+
 ## 4. 减少打扰
 
 ### 4.1 原则
@@ -537,17 +608,21 @@ ArkUI ability 拉起走系统默认转场。可评估
 对齐扩大成引擎语义与统计口径的改动，且与主交付平台的既有交互冲突。协议层四词
 保留，未来若恢复四档不需要动协议。
 
-### 5.2 工具栏（D8）
+### 5.2 工具栏（D8）——已施工（2026-10-18）
 
-鸿蒙分支缺 redo / bury / suspend。这三项在 `_AnkiSessionToolbar` 里是
-Flutter 实现，鸿蒙分支整个 `Scaffold` 省略了它。补法有两种：
+鸿蒙分支原缺 redo / bury / suspend：这三项在安卓是 `_AnkiSessionToolbar`
+里的三个 `IconButton`，而鸿蒙分支整个 `Scaffold` 省略了它。
 
-- **原生补**：ArkUI 顶栏加三个入口，走已有 channel（需新增
-  `requestBury` / `requestSuspend` / `requestRedo` 三个方法 + 协议守卫）；
-- **Flutter 补**：鸿蒙分支保留一个极简 Flutter 顶栏，只放三个按钮。
+**两条路都评估过**：原生补（ArkUI 顶栏加入口，走 channel）或 Flutter 补
+（鸿蒙分支保留一个极简 Flutter 顶栏）。**选了原生补**——鸿蒙复习页的整套
+chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一层 Flutter，
+转场时会露馅，而且它与既有 `撤销` 入口的形态会不一致。
 
-**推荐原生补**（与现有 UI 一致），但要先确认产品上是否三个都要——bury /
-suspend 是重度 Anki 用户功能。
+**产品口径**：三项都要。这条链路的验收目标是「与安卓对齐」，安卓三个都在，
+少任何一个都还是不对齐；`bury` / `suspend` 虽是重度用户功能，但 `redo` 是
+`undo` 的天然配对，单缺它会让「撤销」变成一个不可回退的动作。
+
+施工落点与关键判断见 §3.8。
 
 ## 6. 验收方式
 
@@ -583,5 +658,7 @@ suspend 是重度 Anki 用户功能。
    `restrictAllowedCards` 改 `eligible - 失败`、`_doRebuild` 滚动窗口。
    行为测试待有可跑测试的环境补（见 `official_formal_review_render_window_guard_test.dart`
    顶部 TODO）
-5. **D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）
-6. **P2-5 / P2-6**（先测量，测完再决定是否立项）
+5. ~~**D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）~~
+   **已施工（2026-10-18）**：三项全要，原生补三键 + `requestCardAction`
+   协议 + 三态回执，见 §3.8。真机判据待取
+6. **P2-5 / P2-6**（先测量，测完再决定是否立项）——排期里唯一剩下的两项

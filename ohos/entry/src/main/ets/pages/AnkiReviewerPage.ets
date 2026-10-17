@@ -35,6 +35,9 @@ import {
   paletteForTheme,
 } from '../anki/AnkiReviewerChrome';
 import {
+  CARD_ACTION_BURY,
+  CARD_ACTION_REDO,
+  CARD_ACTION_SUSPEND,
   FATAL_CODES,
   RECEIPT_ADVANCE_FAILED,
   RECEIPT_ANSWER_NOT_READY,
@@ -63,6 +66,11 @@ struct AnkiReviewerPage {
   @State private errorFatal: boolean = false;
   @State private ratingSent: boolean = false;
   @State private advanceStuck: boolean = false;
+
+  /// D8: one of redo / bury / suspend is in flight. Mutually exclusive with
+  /// the rating interlock — both mutate the same scheduler, so allowing them
+  /// together would race two advances against one queue.
+  @State private mutating: boolean = false;
   @State private complete: boolean = false;
   @State private confirmExit: boolean = false;
   @State private theme: string = THEME_DAY;
@@ -339,7 +347,7 @@ struct AnkiReviewerPage {
 
   private onRate(rating: string): void {
     const session: AnkiReviewerSession | undefined = this.session();
-    if (session === undefined) {
+    if (session === undefined || this.mutating) {
       return;
     }
     this.status = '';
@@ -394,6 +402,43 @@ struct AnkiReviewerPage {
     }
     this.status = '正在撤销…';
     session.channel().requestUndo();
+  }
+
+  /// D8: redo / bury / suspend. All three share one path because all three
+  /// share one contract — mutate, then tell the page whether the session moved
+  /// on, finished, or refused. Worded generically on purpose: "评分失败" would
+  /// be a lie for a bury, and the receipt is the same vocabulary as a rating's
+  /// so the page must not special-case it.
+  private requestCardAction(action: string, pendingText: string): void {
+    const session: AnkiReviewerSession | undefined = this.session();
+    if (session === undefined || this.mutating) {
+      return;
+    }
+    this.mutating = true;
+    this.status = pendingText;
+    this.errorCode = '';
+    this.errorFatal = false;
+    session.channel().requestCardAction(action, (code: string): void => {
+      this.mutating = false;
+      this.onMutationReceipt(code);
+    });
+  }
+
+  private onMutationReceipt(code: string): void {
+    if (code === RECEIPT_OK) {
+      this.status = '';
+      return;
+    }
+    if (code === RECEIPT_OK_COMPLETE) {
+      this.status = '';
+      this.complete = true;
+      this.fetchSettlement();
+      return;
+    }
+    this.status = '';
+    // A refusal is not an engine failure and must not raise the fatal banner:
+    // the card is still on screen and the entry is armed again.
+    this.showError('操作未生效：' + (code.length > 0 ? code : '无回执'), false);
   }
 
   private fetchSettlement(): void {
@@ -451,11 +496,21 @@ struct AnkiReviewerPage {
         presentPending: this.presentPending,
         isComplete: this.complete,
         advanceStuck: this.advanceStuck,
+        mutating: this.mutating,
         onReplayAudio: (): void => {
           this.onReplayAudio();
         },
         onUndo: (): void => {
           this.onUndo();
+        },
+        onRedo: (): void => {
+          this.requestCardAction(CARD_ACTION_REDO, '正在重做…');
+        },
+        onBury: (): void => {
+          this.requestCardAction(CARD_ACTION_BURY, '正在搁置…');
+        },
+        onSuspend: (): void => {
+          this.requestCardAction(CARD_ACTION_SUSPEND, '正在暂停…');
         },
         onRequestExit: (): void => {
           this.requestExit();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
+import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -38,6 +39,9 @@ class StudyCardSurface extends StatefulWidget {
     this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
+    this.onNativeRedo,
+    this.onNativeBury,
+    this.onNativeSuspend,
   });
 
   final CardPresentation? presentation;
@@ -67,6 +71,9 @@ class StudyCardSurface extends StatefulWidget {
   final Future<void> Function()? onNativeUndo;
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
   final (int, int)? Function()? onNativeProgress;
+  final Future<OfficialNativeMutation> Function()? onNativeRedo;
+  final Future<OfficialNativeMutation> Function()? onNativeBury;
+  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
 
   @override
   State<StudyCardSurface> createState() => _StudyCardSurfaceState();
@@ -175,6 +182,9 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         onNativeUndo: widget.onNativeUndo,
         onNativeSettlement: widget.onNativeSettlement,
         onNativeProgress: widget.onNativeProgress,
+        onNativeRedo: widget.onNativeRedo,
+        onNativeBury: widget.onNativeBury,
+        onNativeSuspend: widget.onNativeSuspend,
       );
     }
     if (content is StandardCourseCardContent) {

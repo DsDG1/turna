@@ -13,6 +13,25 @@ import 'package:turna/application/anki_official/render/official_anki_reviewer_pr
 import 'package:turna/core/logger.dart';
 import 'package:turna/l10n/app_strings.dart';
 
+/// What a header mutation (redo / bury / suspend) did to the session.
+///
+/// Three states rather than a bool because the page needs to tell "moved on",
+/// "finished" and "refused" apart, and a bool cannot: `true` for both advanced
+/// and refused would re-arm the buttons on a card that never moved, and `false`
+/// for both finished and refused would show a completion row over a queue that
+/// still owes cards.
+enum OfficialNativeMutation {
+  /// Another card is on screen; the page re-arms its buttons.
+  advanced,
+
+  /// The mutation emptied the queue; the page swaps in its completion row.
+  completed,
+
+  /// Nothing happened (locked session, empty undo stack, finished queue). The
+  /// page keeps the card and reports the refusal.
+  refused,
+}
+
 /// The calls the HarmonyOS reviewer page can make. The real channel is one
 /// implementation; tests supply another so the order of media push and
 /// present can be asserted without a device.
@@ -27,6 +46,10 @@ abstract class OfficialAnkiOhosReviewerTransport {
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     Future<String?> Function()? onReplayAudio,
+
+    /// Redo / bury / suspend from the native header, carrying the action word
+    /// (`redo` / `bury` / `suspend`) and answering with a receipt.
+    Future<String> Function(String action)? onCardAction,
   });
 
   Future<String> open({required String mediaRoot});
@@ -76,6 +99,7 @@ class OfficialAnkiReviewerChannelTransport
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     Future<String?> Function()? onReplayAudio,
+    Future<String> Function(String action)? onCardAction,
   }) {
     return channel.bindOutbound(
       onShowAnswer: onShowAnswer,
@@ -87,6 +111,7 @@ class OfficialAnkiReviewerChannelTransport
       onUndo: onUndo,
       onSettlement: onSettlement,
       onReplayAudio: onReplayAudio,
+      onCardAction: onCardAction,
     );
   }
 
@@ -160,6 +185,13 @@ class OfficialAnkiOhosReviewerBinding {
   Future<void> Function()? _onUndo;
   Future<Map<String, Object?>?> Function()? _onSettlement;
   (int, int)? Function()? _onProgress;
+
+  /// D8: the host owns redo / bury / suspend — it holds the controller, the
+  /// official session and the live queue, and it is the only layer that can
+  /// rebuild after the queue changed. The binding's job is the receipt.
+  Future<OfficialNativeMutation> Function()? _onRedo;
+  Future<OfficialNativeMutation> Function()? _onBury;
+  Future<OfficialNativeMutation> Function()? _onSuspend;
   var _dark = false;
   var _textZoom = 100;
   var _previewOnly = false;
@@ -201,6 +233,9 @@ class OfficialAnkiOhosReviewerBinding {
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     (int, int)? Function()? onProgress,
+    Future<OfficialNativeMutation> Function()? onRedo,
+    Future<OfficialNativeMutation> Function()? onBury,
+    Future<OfficialNativeMutation> Function()? onSuspend,
     OfficialAnkiOhosReviewerTransport? transport,
     DateTime Function()? now,
   }) async {
@@ -224,6 +259,9 @@ class OfficialAnkiOhosReviewerBinding {
         onUndo: onUndo,
         onSettlement: onSettlement,
         onProgress: onProgress,
+        onRedo: onRedo,
+        onBury: onBury,
+        onSuspend: onSuspend,
       );
       return existing;
     }
@@ -261,6 +299,9 @@ class OfficialAnkiOhosReviewerBinding {
       onUndo: onUndo,
       onSettlement: onSettlement,
       onProgress: onProgress,
+      onRedo: onRedo,
+      onBury: onBury,
+      onSuspend: onSuspend,
     );
     return binding;
   }
@@ -355,6 +396,9 @@ class OfficialAnkiOhosReviewerBinding {
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     (int, int)? Function()? onProgress,
+    Future<OfficialNativeMutation> Function()? onRedo,
+    Future<OfficialNativeMutation> Function()? onBury,
+    Future<OfficialNativeMutation> Function()? onSuspend,
   }) {
     if (!identical(_controller, controller)) {
       _controller?.removeListener(_onController);
@@ -374,6 +418,9 @@ class OfficialAnkiOhosReviewerBinding {
     _onUndo = onUndo;
     _onSettlement = onSettlement;
     _onProgress = onProgress;
+    _onRedo = onRedo;
+    _onBury = onBury;
+    _onSuspend = onSuspend;
     if (_opened && !_closed) {
       _onController();
     }
@@ -404,6 +451,7 @@ class OfficialAnkiOhosReviewerBinding {
       },
       onSettlement: _onSettlement,
       onReplayAudio: _replayAudio,
+      onCardAction: _cardAction,
     );
     final opened = transport.open(mediaRoot: mediaRoot);
     unawaited(opened.then((verdict) {
@@ -642,6 +690,59 @@ class OfficialAnkiOhosReviewerBinding {
       return OfficialAnkiReviewerProtocol.receiptOk;
     }
     return _runAdvance(rated, rating);
+  }
+
+  /// D8: the header's redo / bury / suspend entries.
+  ///
+  /// Mirrors [_rate]'s gating and receipt shape, but the mutation itself lives
+  /// in the host: only it can rebuild the live queue and re-derive the batch,
+  /// and doing it here would duplicate the controller/session plumbing the
+  /// session page already owns.
+  ///
+  /// No new receipt vocabulary: `refused` answers `scheduler_unavailable`
+  /// (which is literally true — the scheduler will not take this action right
+  /// now) and a throw answers `engine_error`. How the page words those is the
+  /// page's business; inventing two more codes would mean two more branches on
+  /// both sides of the channel for the same three states.
+  Future<String> _cardAction(String action) async {
+    if (_closed) return OfficialAnkiReviewerProtocol.receiptSessionClosed;
+    if (_previewOnly) {
+      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
+    }
+    final Future<OfficialNativeMutation> Function()? run;
+    if (action == OfficialAnkiReviewerProtocol.cardActionRedo) {
+      run = _onRedo;
+    } else if (action == OfficialAnkiReviewerProtocol.cardActionBury) {
+      run = _onBury;
+    } else if (action == OfficialAnkiReviewerProtocol.cardActionSuspend) {
+      run = _onSuspend;
+    } else {
+      // Protocol drift, not a user mistake: answer instead of throwing so the
+      // page's button stack survives an unknown verb from a newer shell.
+      logger.w('[OhosReviewer] unknown card action: $action');
+      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
+    }
+    if (run == null || _controller == null) {
+      // Warm-up: the page is up but no host has attached, exactly like the
+      // rating path. There is no session to mutate.
+      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
+    }
+    try {
+      final outcome = await run();
+      if (outcome == OfficialNativeMutation.completed) {
+        return OfficialAnkiReviewerProtocol.receiptOkComplete;
+      }
+      return outcome == OfficialNativeMutation.advanced
+          ? OfficialAnkiReviewerProtocol.receiptOk
+          : OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
+    } catch (error, stack) {
+      // The mutation may or may not have landed in the engine. Claiming
+      // progress would be a lie the page cannot recover from; a failure
+      // receipt leaves the card on screen and the button armed for a retry.
+      logger.w('[OhosReviewer] card action failed: $action',
+          error: error, stackTrace: stack);
+      return OfficialAnkiReviewerProtocol.receiptEngineError;
+    }
   }
 
   /// Runs the host's advance callback, translating any throw into the

@@ -954,6 +954,140 @@ void main() {
       reason: 'detached controller must no longer schedule presents',
     );
   });
+
+  group('card action receipts (D8)', () {
+    Future<_FakeTransport> attachWith({
+      Future<OfficialNativeMutation> Function()? onRedo,
+      Future<OfficialNativeMutation> Function()? onBury,
+      Future<OfficialNativeMutation> Function()? onSuspend,
+      bool previewOnly = false,
+    }) async {
+      final transport = _FakeTransport();
+      engine.renders[7] = const OfficialAnkiRenderedCard(
+        cardId: 7,
+        questionHtml: 'q',
+        answerHtml: 'a',
+        questionDisplayHtml: 'q',
+        answerDisplayHtml: 'a',
+        css: '',
+      );
+      await controller.loadAndShowQuestion(7);
+      await OfficialAnkiOhosReviewerBinding.attach(
+        controller: controller,
+        grades: const OfficialAnkiCourseGradesBridgeImpl(),
+        mediaRoot: media.path,
+        resolver: OfficialAnkiMediaResolver(media),
+        sourceId: 'source-d8',
+        dark: false,
+        previewOnly: previewOnly,
+        transport: transport,
+        onRedo: onRedo,
+        onBury: onBury,
+        onSuspend: onSuspend,
+      );
+      return transport;
+    }
+
+    test('each action word reaches its own host hook', () async {
+      final seen = <String>[];
+      final transport = await attachWith(
+        onRedo: () async {
+          seen.add('redo');
+          return OfficialNativeMutation.advanced;
+        },
+        onBury: () async {
+          seen.add('bury');
+          return OfficialNativeMutation.advanced;
+        },
+        onSuspend: () async {
+          seen.add('suspend');
+          return OfficialNativeMutation.advanced;
+        },
+      );
+
+      expect(await transport.onCardAction?.call('redo'), 'ok');
+      expect(await transport.onCardAction?.call('bury'), 'ok');
+      expect(await transport.onCardAction?.call('suspend'), 'ok');
+      expect(seen, ['redo', 'bury', 'suspend']);
+    });
+
+    test('completed answers ok_complete so the page can end the session',
+        () async {
+      final transport = await attachWith(
+        onBury: () async => OfficialNativeMutation.completed,
+      );
+      expect(await transport.onCardAction?.call('bury'), 'ok_complete');
+    });
+
+    test('refused answers scheduler_unavailable, never ok', () async {
+      // `ok` here would re-arm the buttons on a card that never moved, which
+      // is the one receipt the page cannot recover from.
+      final transport = await attachWith(
+        onSuspend: () async => OfficialNativeMutation.refused,
+      );
+      expect(
+        await transport.onCardAction?.call('suspend'),
+        'scheduler_unavailable',
+      );
+    });
+
+    test('an unknown action word is answered, not dispatched', () async {
+      var called = 0;
+      final transport = await attachWith(
+        onRedo: () async {
+          called += 1;
+          return OfficialNativeMutation.advanced;
+        },
+      );
+      expect(
+        await transport.onCardAction?.call('buryEverything'),
+        'scheduler_unavailable',
+      );
+      expect(called, 0, reason: 'protocol drift must not mutate the queue');
+    });
+
+    test('a throwing host hook answers engine_error instead of escaping',
+        () async {
+      // Escaping to the channel would read as `channel_error_*` on the page and
+      // disable the three entries for the rest of the session.
+      final transport = await attachWith(
+        onBury: () async => throw StateError('ledger refused'),
+      );
+      expect(await transport.onCardAction?.call('bury'), 'engine_error');
+    });
+
+    test('preview answers unavailable and never touches the host', () async {
+      var called = 0;
+      final transport = await attachWith(
+        previewOnly: true,
+        onRedo: () async {
+          called += 1;
+          return OfficialNativeMutation.advanced;
+        },
+      );
+      expect(
+        await transport.onCardAction?.call('redo'),
+        'scheduler_unavailable',
+      );
+      expect(called, 0);
+    });
+
+    test('a warm-up reviewer with no host answers unavailable', () async {
+      // The P0-1 window: the page is up before any host attached, so the three
+      // entries must answer rather than silently do nothing.
+      final transport = _FakeTransport();
+      OfficialAnkiOhosReviewerBinding.resetForTest();
+      await OfficialAnkiOhosReviewerBinding.warmUp(
+        mediaRoot: media.path,
+        transport: transport,
+      );
+      await pumpEventQueue();
+      expect(
+        await transport.onCardAction?.call('bury'),
+        'scheduler_unavailable',
+      );
+    });
+  });
 }
 
 class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
@@ -965,6 +1099,7 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   Future<String> Function(String rating)? onRetryAdvance;
   Future<void> Function()? onRetryPresent;
   Future<String?> Function()? onReplayAudio;
+  Future<String> Function(String action)? onCardAction;
   final reportedFailures = <String>[];
   final _open = Completer<String>();
 
@@ -990,6 +1125,7 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
     Future<void> Function()? onUndo,
     Future<String?> Function()? onReplayAudio,
     Future<Map<String, Object?>?> Function()? onSettlement,
+    Future<String> Function(String action)? onCardAction,
   }) async {
     this.onShowAnswer = (typed) async {
       onShowAnswer(typed);
@@ -1003,6 +1139,7 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
     this.onRetryAdvance = onRetryAdvance;
     this.onRetryPresent = onRetryPresent;
     this.onReplayAudio = onReplayAudio;
+    this.onCardAction = onCardAction;
   }
 
   @override

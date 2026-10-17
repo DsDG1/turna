@@ -38,6 +38,9 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
     this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
+    this.onNativeRedo,
+    this.onNativeBury,
+    this.onNativeSuspend,
   });
 
   final OfficialAnkiReviewerController controller;
@@ -70,6 +73,14 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
 
   /// OHOS header progress (UI-4): `(index, total)` for the count and bar.
   final (int, int)? Function()? onNativeProgress;
+
+  /// OHOS header redo / bury / suspend (D8). Each answers with what the
+  /// mutation did — moved on, finished, or was refused — because the page
+  /// decides from that whether to re-arm its buttons or show its completion
+  /// row.
+  final Future<OfficialNativeMutation> Function()? onNativeRedo;
+  final Future<OfficialNativeMutation> Function()? onNativeBury;
+  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
 
   @override
   State<OfficialAnkiReviewerStage> createState() =>
@@ -163,6 +174,9 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         onUndo: widget.onNativeUndo,
         onSettlement: widget.onNativeSettlement,
         onProgress: widget.onNativeProgress,
+        onRedo: widget.onNativeRedo,
+        onBury: widget.onNativeBury,
+        onSuspend: widget.onNativeSuspend,
       );
       if (!mounted || !_effectiveAllowJs(context)) {
         binding.detach(_controller);
@@ -214,6 +228,9 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       onUndo: widget.onNativeUndo,
       onSettlement: widget.onNativeSettlement,
       onProgress: widget.onNativeProgress,
+      onRedo: widget.onNativeRedo,
+      onBury: widget.onNativeBury,
+      onSuspend: widget.onNativeSuspend,
     );
   }
 

@@ -293,6 +293,17 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   均未取得收据**（本机 `flutter_tester` WebSocket 失败、`ohpm install` 失败），
   hap 未重编、真机未验。P1-3 的「提前」未做，理由见 44 §3.4。细节见
   `test/BASELINE.md` 同日三条。
+- **同日晚第三批（2026-10-18 深夜）：D8 工具栏补 redo / bury / suspend**。协议新增
+  **一个**出向方法 `requestCardAction` + 动作词 `redo` / `bury` / `suspend`（两侧
+  同名同值）；回执复用既有词表（`ok` / `ok_complete` / `scheduler_unavailable` /
+  `engine_error`），**不新增回执码**，故守卫的「十个互异值」断言不变。宿主三个钩子
+  照抄安卓 `_AnkiSessionToolbar` 的序列（mutate → 重建实时队列 → 推进），返回
+  `OfficialNativeMutation` 三态而非 `bool`（否则「完成」与「被拒」不可区分）。
+  ArkUI 顶栏加第二行右对齐三键，预览态隐藏，`mutating` 与 `ratingSent` 互斥。
+  本地收据：`flutter analyze` **No issues**（54.5s → 36.6s）、新增 7 例 binding
+  用例 + 6 例 chrome 源码守卫。**Dart 单测、ArkTS 编译、真机三者仍为零收据**，
+  hap 未重编。细节见 `test/BASELINE.md` 同日首条与
+  [44](./44-ohos-review-entry-latency-and-parity-audit.md) §3.8。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
@@ -499,7 +510,7 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
-| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**真机复验**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档落库值与按钮形态；伴生版不进主交付 |
+| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工**（redo / bury / suspend 三键；协议新增单个 `requestCardAction` + 三个动作词，回执复用既有词表），**真机未验**。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**真机复验**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档落库值与按钮形态、10-18 工具栏三键的调度效果（bury / suspend 后队列计数下降且卡不再出现，redo 恢复上一张）；伴生版不进主交付 |
 
 ## Android ABI packaging
 

@@ -50,6 +50,19 @@ export const METHOD_REQUEST_UNDO: string = 'requestUndo';
 export const METHOD_REVIEW_SETTLEMENT: string = 'reviewSettlement';
 export const METHOD_REPLAY_AUDIO: string = 'replayAudio';
 
+/// The header's redo / bury / suspend entries (D8). One method with an action
+/// argument: all three share one receipt contract and one set of
+/// preconditions, so three methods would be three copies of a single switch.
+/// Unlike `requestUndo` this one answers — a refused bury has no rebuilt
+/// present to fall back on, and an unanswered button reads as broken.
+export const METHOD_REQUEST_CARD_ACTION: string = 'requestCardAction';
+
+/// Action vocabulary for `requestCardAction`; mirror of the Dart constants,
+/// pinned by the protocol guard.
+export const CARD_ACTION_REDO: string = 'redo';
+export const CARD_ACTION_BURY: string = 'bury';
+export const CARD_ACTION_SUSPEND: string = 'suspend';
+
 // --------------------------------------------------------- argument names
 
 /// openReviewer's argument; also the Want parameter AnkiReviewerAbility reads.

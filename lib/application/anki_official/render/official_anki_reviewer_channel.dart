@@ -59,6 +59,7 @@ class OfficialAnkiReviewerChannel {
     Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     Future<String?> Function()? onReplayAudio,
+    Future<String> Function(String action)? onCardAction,
   }) async {
     channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -88,6 +89,13 @@ class OfficialAnkiReviewerChannel {
         case OfficialAnkiReviewerProtocol.methodRequestUndo:
           await onUndo?.call();
           return null;
+        case OfficialAnkiReviewerProtocol.methodRequestCardAction:
+          // D8: like `rate`, the reply IS the receipt — the page disables the
+          // three entries while the mutation runs and only re-arms them on
+          // what this returns. An unanswered refusal would leave a button that
+          // visibly does nothing.
+          return onCardAction?.call(call.arguments as String? ?? '') ??
+              OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
         case OfficialAnkiReviewerProtocol.methodReviewSettlement:
           // UI-7: the completion row's statistics. JSON because the value is
           // a small record the page formats itself; an empty reply keeps the

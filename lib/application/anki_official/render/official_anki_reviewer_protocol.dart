@@ -78,6 +78,24 @@ abstract final class OfficialAnkiReviewerProtocol {
   static const methodReviewSettlement = 'reviewSettlement';
   static const methodReplayAudio = 'replayAudio';
 
+  /// The native header's redo / bury / suspend entries (D8). One method with
+  /// an action argument rather than three methods: all three share the same
+  /// receipt contract ("did the session move on, finish, or refuse") and the
+  /// same preconditions, so three separate methods would be three copies of
+  /// one switch with three chances to drift.
+  ///
+  /// Unlike [methodRequestUndo] this one answers. Undo is fire-and-forget
+  /// because its recovery is the rebuilt present; a bury that the scheduler
+  /// refuses has no such follow-up, and a button that nothing answers reads
+  /// on device as broken.
+  static const methodRequestCardAction = 'requestCardAction';
+
+  /// Argument / vocabulary for [methodRequestCardAction]. Declared on both
+  /// sides and pinned by the protocol guard as scalars.
+  static const cardActionRedo = 'redo';
+  static const cardActionBury = 'bury';
+  static const cardActionSuspend = 'suspend';
+
   // ------------------------------------------------- argument / field names
 
   /// `openReviewer`'s argument; also the Want parameter the ability reads.

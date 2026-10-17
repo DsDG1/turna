@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
@@ -41,6 +42,9 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
     this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
+    this.onNativeRedo,
+    this.onNativeBury,
+    this.onNativeSuspend,
   });
 
   final OfficialTemplateContent content;
@@ -70,6 +74,9 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
   final Future<void> Function()? onNativeUndo;
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
   final (int, int)? Function()? onNativeProgress;
+  final Future<OfficialNativeMutation> Function()? onNativeRedo;
+  final Future<OfficialNativeMutation> Function()? onNativeBury;
+  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
 
   @override
   State<OfficialTemplateWebViewBody> createState() =>
@@ -305,6 +312,9 @@ class _OfficialTemplateWebViewBodyState
       onNativeUndo: widget.onNativeUndo,
       onNativeSettlement: widget.onNativeSettlement,
       onNativeProgress: widget.onNativeProgress,
+      onNativeRedo: widget.onNativeRedo,
+      onNativeBury: widget.onNativeBury,
+      onNativeSuspend: widget.onNativeSuspend,
     );
   }
 }

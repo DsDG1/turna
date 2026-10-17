@@ -135,8 +135,16 @@ export struct AnkiReviewerHeaderBar {
   @Prop presentPending: boolean = false;
   @Prop isComplete: boolean = false;
   @Prop advanceStuck: boolean = false;
+
+  /// D8: a redo / bury / suspend is in flight. Kept separate from
+  /// `presentPending` because they answer different questions — that one means
+  /// "a card is rendering", this one means "the queue is being mutated".
+  @Prop mutating: boolean = false;
   onReplayAudio: () => void = (): void => {};
   onUndo: () => void = (): void => {};
+  onRedo: () => void = (): void => {};
+  onBury: () => void = (): void => {};
+  onSuspend: () => void = (): void => {};
   onRequestExit: () => void = (): void => {};
 
   private palette(): AnkiChromePalette {
@@ -203,6 +211,54 @@ export struct AnkiReviewerHeaderBar {
       .width('100%')
       .padding({ left: 16, right: 8 })
       .margin({ top: 4, bottom: 2 })
+
+      // D8: the three queue mutations Android puts in its session toolbar
+      // (`_AnkiSessionToolbar`), in its position — a strip above the card,
+      // right-aligned, plain text at the same weight as the rest of the
+      // chrome. Undo stays up in the count row because that is also where
+      // Android keeps it (`ReviewProgressHeader`); the split is deliberate,
+      // not an oversight.
+      //
+      // Hidden in preview: a preview has no session to mutate, and the
+      // receipts would all come back "not available".
+      if (!this.previewOnly) {
+        Row() {
+          Blank()
+          Button('重做')
+            .fontSize(13)
+            .fontColor(this.palette().textSecondary)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 8 })
+            .height(30)
+            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending)
+            .onClick((): void => {
+              this.onRedo();
+            })
+          Button('搁置')
+            .fontSize(13)
+            .fontColor(this.palette().textSecondary)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 8 })
+            .height(30)
+            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending)
+            .onClick((): void => {
+              this.onBury();
+            })
+          Button('暂停')
+            .fontSize(13)
+            .fontColor(this.palette().textSecondary)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 8 })
+            .height(30)
+            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending)
+            .onClick((): void => {
+              this.onSuspend();
+            })
+        }
+        .width('100%')
+        .padding({ left: 16, right: 8 })
+        .margin({ bottom: 2 })
+      }
     }
     .width('100%')
   }

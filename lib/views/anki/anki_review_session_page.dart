@@ -548,6 +548,64 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     await _controller?.undoLast();
   }
 
+  /// OHOS header redo / bury / suspend (D8).
+  ///
+  /// Android's `_AnkiSessionToolbar` runs exactly this sequence — mutate, let
+  /// the live queue rebuild, then let the scheduler say which card is next —
+  /// and these three hooks exist so the native page is not the one place
+  /// missing it.
+  ///
+  /// The answer is a three-state outcome, not a bool: the page re-arms its
+  /// buttons on `advanced`, swaps in its completion row on `completed`, and
+  /// keeps the card on `refused`. A bool would make the last two
+  /// indistinguishable, which is how a refused bury would end a session with
+  /// cards still owed.
+  Future<OfficialNativeMutation> _onNativeRedo() {
+    return _applyNativeMutation(() async {
+      final redone = await _controller?.redoLast() ?? false;
+      if (redone) await _officialSessionLiveQueue?.rebuildFromLiveQueue();
+      return redone;
+    });
+  }
+
+  Future<OfficialNativeMutation> _onNativeBury() {
+    return _applyNativeMutation(
+      () => _controller?.buryCurrent(onMutated: _rebuildLiveQueue) ?? Future.value(false),
+    );
+  }
+
+  Future<OfficialNativeMutation> _onNativeSuspend() {
+    return _applyNativeMutation(
+      () => _controller?.suspendCurrent(onMutated: _rebuildLiveQueue) ??
+          Future.value(false),
+    );
+  }
+
+  Future<void> Function()? get _rebuildLiveQueue {
+    final queue = _officialSessionLiveQueue;
+    return queue == null ? null : () => queue.rebuildFromLiveQueue();
+  }
+
+  Future<OfficialNativeMutation> _applyNativeMutation(
+    Future<bool> Function() mutate,
+  ) async {
+    final controller = _controller;
+    final session = _officialSession;
+    if (controller == null || session == null) {
+      return OfficialNativeMutation.refused;
+    }
+    final committed = await mutate();
+    if (!committed) return OfficialNativeMutation.refused;
+    final advanced = await advanceAfterNativeMutation(
+      controller: controller,
+      officialSession: session,
+      liveQueue: _officialSessionLiveQueue,
+    );
+    return advanced
+        ? OfficialNativeMutation.advanced
+        : OfficialNativeMutation.completed;
+  }
+
   /// OHOS completion-row statistics (UI-7): answered / remembered /
   /// forgotten / elapsed / XP, shown on the native page so the summary is
   /// visible before the Close hop back to the Flutter completion screen.
@@ -669,6 +727,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         onNativeUndo: _onNativeUndo,
         onNativeSettlement: _onNativeSettlement,
         onNativeProgress: _onNativeProgress,
+        onNativeRedo: _onNativeRedo,
+        onNativeBury: _onNativeBury,
+        onNativeSuspend: _onNativeSuspend,
         sourceProgress: reviewAll?.current == null
             ? null
             : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
@@ -899,6 +960,9 @@ class _AnkiStudySessionView extends StatelessWidget {
     this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
+    this.onNativeRedo,
+    this.onNativeBury,
+    this.onNativeSuspend,
     this.sourceProgress,
     this.earnedXp = 0,
   });
@@ -922,6 +986,12 @@ class _AnkiStudySessionView extends StatelessWidget {
   final Future<void> Function()? onNativeUndo;
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
   final (int, int)? Function()? onNativeProgress;
+
+  /// OHOS header redo / bury / suspend (D8). Same three-state contract as the
+  /// binding's `OfficialNativeMutation`.
+  final Future<OfficialNativeMutation> Function()? onNativeRedo;
+  final Future<OfficialNativeMutation> Function()? onNativeBury;
+  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
   final String? sourceProgress;
   final int earnedXp;
 
@@ -1175,6 +1245,9 @@ class _AnkiStudySessionView extends StatelessWidget {
       onNativeUndo: onNativeUndo,
       onNativeSettlement: onNativeSettlement,
       onNativeProgress: onNativeProgress,
+      onNativeRedo: onNativeRedo,
+      onNativeBury: onNativeBury,
+      onNativeSuspend: onNativeSuspend,
       onNativeReveal: session == null
           ? null
           : () {

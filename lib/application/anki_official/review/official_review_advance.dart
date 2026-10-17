@@ -87,3 +87,29 @@ Future<bool> advanceFromNativeRating({
   return !controller.isComplete &&
       controller.phase != StudyCardPhase.readyForNext;
 }
+
+/// Advance after a scheduler mutation the native OHOS page asked for (redo /
+/// bury / suspend, D8).
+///
+/// Same return contract as [advanceFromNativeRating] — `true` when another card
+/// is on screen, `false` when the queue finished — but with no commit of its
+/// own: the mutation already happened in the engine, and unlike a rating there
+/// is no client mutation id to feed back into the controller.
+///
+/// Deliberately not folded into [advanceFromScheduler]: the two callers above
+/// only want the move, while the native page also needs to know whether the
+/// session is over, and the difference decides whether the receipt is `ok` or
+/// `ok_complete`.
+Future<bool> advanceAfterNativeMutation({
+  required StudySessionController controller,
+  required OfficialReviewSession officialSession,
+  required OfficialFormalReviewLiveQueue? liveQueue,
+}) async {
+  await advanceFromScheduler(
+    controller: controller,
+    officialSession: officialSession,
+    liveQueue: liveQueue,
+  );
+  return !controller.isComplete &&
+      controller.phase != StudyCardPhase.readyForNext;
+}
