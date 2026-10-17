@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -14,6 +15,8 @@ import 'package:turna/application/anki_official/render/official_anki_media_resol
 import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_channel.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/application/anki_official/render/official_anki_typed_answer_controller.dart';
 
 void main() {
@@ -642,6 +645,130 @@ void main() {
     );
     final hint = await transport.onReplayAudio?.call();
     expect(hint, '媒体文件缺失：missing.mp3');
+  });
+
+  test(
+      'pushMedia warms small files and bypasses files above directReadBypassThreshold (O1)',
+      () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel(OfficialAnkiReviewerProtocol.channelName);
+    final cachedNames = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method == OfficialAnkiReviewerProtocol.methodCacheReviewerMedia) {
+        final args = call.arguments as Map<Object?, Object?>;
+        cachedNames.add(args[OfficialAnkiReviewerProtocol.argName] as String);
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    media.createSync(recursive: true);
+    File('${media.path}/small.png').writeAsBytesSync(List<int>.filled(1024, 7));
+    File('${media.path}/large.mp3').writeAsBytesSync(
+      List<int>.filled(
+        OfficialAnkiReviewerChannel.directReadBypassThreshold + 16,
+        9,
+      ),
+    );
+
+    final resolver = OfficialAnkiMediaResolver(media);
+    await OfficialAnkiReviewerChannel.instance.pushMediaForCard(
+      resolver,
+      const <String>['small.png', 'large.mp3'],
+    );
+
+    expect(cachedNames, ['small.png']);
+    expect(
+      mediaNamesIn(
+        '<img src="/media/rel.png"><style>@font-face{src:url("https://anki.local/media/font.woff2?v=1#sub")}</style>',
+      ).toList(),
+      ['rel.png', 'font.woff2'],
+    );
+  });
+
+  test(
+      'rebind swaps controller listener and detach ignores non-matching controller (T1)',
+      () async {
+    final transport = _FakeTransport();
+    final facade = OfficialAnkiRenderFacade(
+      info: await engine.engineInfo(),
+      engine: engine,
+    );
+    final secondController = OfficialAnkiReviewerController(
+      facade: facade,
+      av: OfficialAnkiAvCoordinator(
+        resolver: OfficialAnkiMediaResolver(media),
+        player: _SilentAv(),
+      ),
+      typed: OfficialAnkiTypedAnswerController(facade),
+    );
+    addTearDown(secondController.dispose);
+
+    engine.renders[7] = const OfficialAnkiRenderedCard(
+      cardId: 7,
+      questionHtml: 'q7',
+      answerHtml: 'a7',
+      questionDisplayHtml: 'q7',
+      answerDisplayHtml: 'a7',
+      css: '',
+    );
+    engine.renders[8] = const OfficialAnkiRenderedCard(
+      cardId: 8,
+      questionHtml: 'q8',
+      answerHtml: 'a8',
+      questionDisplayHtml: 'q8',
+      answerDisplayHtml: 'a8',
+      css: 'body { background: url("https://anki.local/media/bg.png"); }',
+    );
+    await controller.loadAndShowQuestion(7);
+    await secondController.loadAndShowQuestion(8);
+
+    final binding = await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-7',
+      dark: false,
+      transport: transport,
+    );
+    await pumpEventQueue();
+    expect(transport.lastPayload?['cardId'], 7);
+
+    // Detaching an unrelated controller must leave the live controller attached.
+    binding.detach(secondController);
+    await controller.showAnswer();
+    await pumpEventQueue();
+    expect(transport.calls.last, 'present:answer');
+
+    // Rebinding to secondController detaches controller and presents card 8
+    // (including CSS media references).
+    transport.calls.clear();
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: secondController,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-8',
+      dark: true,
+      transport: transport,
+    );
+    await pumpEventQueue();
+    expect(transport.lastPayload?['cardId'], 8);
+    expect(transport.lastPayload?['mediaNames'], ['bg.png']);
+
+    final countAfterRebind = transport.calls.length;
+    await controller.showQuestion();
+    await pumpEventQueue();
+    expect(
+      transport.calls.length,
+      countAfterRebind,
+      reason: 'detached controller must no longer schedule presents',
+    );
   });
 }
 

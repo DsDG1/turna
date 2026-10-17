@@ -1,11 +1,15 @@
 # 测试基线收据（只保留最近批次）
 
-> 本文件**只保留 2026-09-20 及之后的 49 条收据**（覆盖架构接口化、P0–P4 架构简化、
+> 本文件**只保留 2026-09-20 及之后的 50 条收据**（覆盖架构接口化、P0–P4 架构简化、
 > iOS 官方 Anki 启用、PopScope 死循环修复、文档债清理、Official Anki 状态源补记、测试冗余清理、安全与质量整改 PR-2～PR-7、OHOS Anki 引擎层交叉编译探针、OHOS 伴生轻量版 W0/W1 闸门、W4 RDB 接线与真机调通、W5 文件选择、鸿蒙图标、伴生版音频与 TTS、upsert 探针并发、鸿蒙 Official Anki 授权（ADR 0050）等最近批次）。
 > 2026-09-17 及更早的 56 条见 [`archive/BASELINE-pre-2026-09-20.md`](./archive/BASELINE-pre-2026-09-20.md)。
 
 > **新增收据一律前插到本文件顶部。** 引用收据必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**
 > （行号在只增不减的文件上必然腐坏——已删除的 `system-font-cutover-plan.md` 曾引 `BASELINE.md:303-307`，真实位置早已漂到第 100 行）。
+
+---
+
+Generated: 2026-10-17（**鸿蒙复习链路阶段三施工：O1 媒体分层直读与 `AnkiMediaPath.ets` 缺陷修复 + R2 `AnkiReviewerPage.ets` 组件拆分 + T1 跨语言路径向量与绑定边界单测落地；本地门禁全绿**）：**性质**——性能/架构与测试补面批次（复习架构优化计划 O1 + R2 + T1 批次）。**改动**——① **O1 媒体分层服务与 `AnkiMediaPath.ets` 两处真实缺陷修复**：修复 `AnkiMediaPath.ets` 中 `classifyEncodedPath` 对合法 `/media/<name>` 误返 `allowed: false` 的缺陷（改为 `new RequestTarget(true, undefined, decision.filename)`）以及 `decodeOnce` 按单字节 `String.fromCharCode` 解码百分号序列导致非 ASCII 媒体文件名损坏的缺陷（新增 `decodeUtf8OrLatin1` 严格按 UTF-8 解码、非法字节序列回退 Latin-1，与 Dart `OfficialAnkiMediaPath.decodeOnce` 完全对齐）；`AnkiOriginServer.ets` 新增 `readFileSlice(path, offset, length)`，经 `fs.openSync(path, fs.OpenMode.READ_ONLY)` + `fs.readSync(file.fd, buffer, { offset, length })` + `fs.closeSync(file)` 实现同步 Range 切片直读（`<= 256 KB` 整文件读取顺带写回内存缓存）；`OfficialAnkiReviewerChannel.pushMedia` 新增 `directReadBypassThreshold = 256 * 1024`（`> 256 KB` 大媒体跳过 Base64 + MethodChannel 推送，直走原生 `file.fd` 切片读），`mediaNamesIn` 与 `presentCard` 扩展扫描 `card.css` 及相对 `/media/...` URL 并剥离 `?`/`#` 后缀。② **R2 `AnkiReviewerPage.ets` 组件拆分减重**：抽离 `ohos/entry/src/main/ets/anki/AnkiReviewerChrome.ets`（承载 `AnkiChromePalette` 昼夜主题令牌、评分/结算格式化辅助函数及 `AnkiReviewerHeaderBar` / `AnkiReviewerStatusArea` / `AnkiReviewerTypedBar` / `AnkiReviewerBottomBar` 四个 `@Component` 子组件），将 `AnkiReviewerPage.ets` 从 932 行减重至 480 行；`_requiredOhosFiles` 同步登记 `AnkiReviewerChrome.ets`、`AnkiMediaPath.ets` 与 `AnkiHttp.ets`。③ **T1 跨语言向量与边界单测补面**：`official_anki_media_resolver_test.dart` 新增 2 例（Dart/ArkTS/Kotlin/Swift 四端源码不变量校验 + Node 直接加载执行 `AnkiMediaPath.ets` 与 `AnkiHttp.ets` 跑通全部 45 条 `media_path_vectors.json` 及 Range/206/416 向量并与 Dart 逐项比对）；`official_anki_ohos_reviewer_binding_test.dart` 新增 2 例（`pushMedia` 256KB 直读绕行与 CSS/相对路径提取、`rebind` 切换控制器与 `detach` 非匹配控制器竞态守卫）。**验证**——`dart analyze` **No issues found**；`ohos_eol_architecture_guard_test.dart` + `official_anki_reviewer_protocol_guard_test.dart` + `official_anki_ohos_reviewer_binding_test.dart` + `official_anki_media_resolver_test.dart` **48 passed / 0 failed**（全量较上批 +4，计 2174）。
 
 ---
 

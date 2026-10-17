@@ -127,19 +127,23 @@ class OfficialAnkiReviewerChannel {
     return verdict ?? '';
   }
 
-  /// Pushes one media file's bytes for the card about to be presented.
+  /// Above this size (`256 KB`), [pushMedia] leaves the file on disk for
+  /// `AnkiOriginServer.mediaResponse` to read on demand via positioned
+  /// `fs.openSync` + `fs.readSync(file.fd, buffer, { offset, length })` under
+  /// `mediaRoot`, avoiding a full-file read, ×4/3 Base64 string allocation, and
+  /// MethodChannel copy for multi-megabyte audio/video or high-res images (O1).
+  /// Small icons and short clips still warm the per-card in-memory map so the
+  /// synchronous `onInterceptRequest` path avoids a file open per icon.
+  static const int directReadBypassThreshold = 256 * 1024;
+
+  /// Pushes one small media file's bytes for the card about to be presented.
   ///
-  /// Base64 because a MethodChannel carries strings and this SDK's standard
-  /// codec has no byte-array mapping — the same reason `AudioPlugin.stageBytes`
-  /// and the RDB BLOB bridge base64. The bytes come from
-  /// [OfficialAnkiMediaResolver] rather than a second reader written in ArkTS,
-  /// so the path rules are applied exactly once, by the side that owns them.
-  ///
-  /// Disk reads are async and large payloads are base64-encoded on an
-  /// isolate: both used to run on the main isolate, where a multi-megabyte
-  /// audio stalled every animation on screen for the duration of the read
-  /// plus a ×4/3 string build. Small files stay inline — an isolate spawn
-  /// per icon costs more than the encode it would offload.
+  /// Files larger than [directReadBypassThreshold] are skipped here and served
+  /// directly from `mediaRoot` on disk by `AnkiOriginServer.mediaResponse`
+  /// (including partial 206 Range slices). For small files (`<= 256 KB`),
+  /// Base64 is used because a MethodChannel carries strings and this SDK's
+  /// standard codec has no byte-array mapping; payloads `>= 64 KB` encode on a
+  /// background isolate via [compute].
   Future<void> pushMedia(
     OfficialAnkiMediaResolver resolver,
     String name,
@@ -147,6 +151,10 @@ class OfficialAnkiReviewerChannel {
     final decision = resolver.resolveRelativeName(name);
     if (!decision.allowed || decision.file == null) {
       logger.w('[OhosReviewer] media denied ${decision.reason}: $name');
+      return;
+    }
+    final length = await decision.file!.length();
+    if (length > directReadBypassThreshold) {
       return;
     }
     final bytes = await decision.file!.readAsBytes();
@@ -226,11 +234,24 @@ const int _base64IsolateThreshold = 64 * 1024;
 /// names as they are stored on disk, so "tidying" them here would silently miss
 /// every media file whose name is not pure ASCII.
 Iterable<String> mediaNamesIn(String html) {
-  final pattern = RegExp(r'''https://anki\.local/media/([^\s"'<>)]+)''');
+  final pattern = RegExp(
+    r'''(?:https://anki\.local/media/|(?<=[\s"'=(])/media/)([^\s"'<>)]+)''',
+  );
   final names = <String>[];
   for (final match in pattern.allMatches(html)) {
-    final raw = match.group(1);
+    var raw = match.group(1);
     if (raw == null || raw.isEmpty) {
+      continue;
+    }
+    final hash = raw.indexOf('#');
+    if (hash >= 0) {
+      raw = raw.substring(0, hash);
+    }
+    final query = raw.indexOf('?');
+    if (query >= 0) {
+      raw = raw.substring(0, query);
+    }
+    if (raw.isEmpty) {
       continue;
     }
     try {

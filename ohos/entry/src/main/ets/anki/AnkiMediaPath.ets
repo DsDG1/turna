@@ -96,6 +96,99 @@ export function decodeOnce(encoded: string): string | undefined {
       return undefined;
     }
   }
+  return decodeUtf8OrLatin1(units);
+}
+
+/// Mirrors Dart's `utf8.decode(bytes, allowMalformed: false)` with a fallback
+/// to `latin1.decode(bytes)` when the byte sequence is not valid UTF-8 (or
+/// already carries raw unescaped code units > 0xFF).
+function decodeUtf8OrLatin1(units: Array<number>): string {
+  for (const unit of units) {
+    if (unit > 0xff) {
+      return unitsToCharCodes(units);
+    }
+  }
+  let out: string = '';
+  let i: number = 0;
+  while (i < units.length) {
+    const b0: number = units[i];
+    if (b0 <= 0x7f) {
+      out += String.fromCharCode(b0);
+      i += 1;
+      continue;
+    }
+    if (b0 >= 0xc2 && b0 <= 0xdf) {
+      if (i + 1 >= units.length) {
+        return unitsToCharCodes(units);
+      }
+      const b1: number = units[i + 1];
+      if ((b1 & 0xc0) !== 0x80) {
+        return unitsToCharCodes(units);
+      }
+      const cp: number = ((b0 & 0x1f) << 6) | (b1 & 0x3f);
+      out += String.fromCharCode(cp);
+      i += 2;
+      continue;
+    }
+    if (b0 >= 0xe0 && b0 <= 0xef) {
+      if (i + 2 >= units.length) {
+        return unitsToCharCodes(units);
+      }
+      const b1: number = units[i + 1];
+      const b2: number = units[i + 2];
+      if ((b1 & 0xc0) !== 0x80 || (b2 & 0xc0) !== 0x80) {
+        return unitsToCharCodes(units);
+      }
+      if (b0 === 0xe0 && b1 < 0xa0) {
+        return unitsToCharCodes(units);
+      }
+      if (b0 === 0xed && b1 >= 0xa0) {
+        return unitsToCharCodes(units);
+      }
+      const cp: number = ((b0 & 0x0f) << 12) | ((b1 & 0x3f) << 6) | (b2 & 0x3f);
+      out += String.fromCharCode(cp);
+      i += 3;
+      continue;
+    }
+    if (b0 >= 0xf0 && b0 <= 0xf4) {
+      if (i + 3 >= units.length) {
+        return unitsToCharCodes(units);
+      }
+      const b1: number = units[i + 1];
+      const b2: number = units[i + 2];
+      const b3: number = units[i + 3];
+      if (
+        (b1 & 0xc0) !== 0x80 ||
+        (b2 & 0xc0) !== 0x80 ||
+        (b3 & 0xc0) !== 0x80
+      ) {
+        return unitsToCharCodes(units);
+      }
+      if (b0 === 0xf0 && b1 < 0x90) {
+        return unitsToCharCodes(units);
+      }
+      if (b0 === 0xf4 && b1 > 0x8f) {
+        return unitsToCharCodes(units);
+      }
+      const cp: number =
+        ((b0 & 0x07) << 18) |
+        ((b1 & 0x3f) << 12) |
+        ((b2 & 0x3f) << 6) |
+        (b3 & 0x3f);
+      const offset: number = cp - 0x10000;
+      out += String.fromCharCode(
+        0xd800 + (offset >> 10),
+        0xdc00 + (offset & 0x3ff),
+      );
+      i += 4;
+      continue;
+    }
+    return unitsToCharCodes(units);
+  }
+  return out;
+}
+
+function unitsToCharCodes(units: Array<number>): string {
   let decoded: string = '';
   for (const unit of units) {
     decoded += String.fromCharCode(unit);
@@ -158,7 +251,7 @@ export function classifyEncodedPath(encodedPath: string): RequestTarget {
       decision.reason ?? 'media_name',
     );
   }
-  return new RequestTarget(false, undefined, decision.filename);
+  return new RequestTarget(true, undefined, decision.filename);
 }
 
 export function isSafeAssetName(name: string): boolean {

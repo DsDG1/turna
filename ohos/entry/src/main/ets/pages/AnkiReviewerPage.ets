@@ -5,31 +5,12 @@
 // Layout is the whole interaction design here, so it is worth stating: the
 // `Web` holds the card (question or answer, never both), the typed-answer
 // field sits under it while the question is showing, and the bottom row is
-// either one "show answer" button, the four rating buttons, or — once the
-// queue finishes — the completion row with its stats. ADR 0047 estimated
-// 5–8 person-days against an embedded PlatformView, which would have kept
-// the Flutter chrome; route E gives that chrome up and puts it here, and the
-// visible cost is losing the scrolling card list — every card is its own
-// present.
+// either one "show answer" button, the four rating buttons, the two preview
+// buttons, or — once the queue finishes — the completion row with its stats.
 //
-// The typed answer is native, and that is the architecture rather than a
-// HarmonyOS accommodation: `card-frame.js`'s `applyTyped` renders `[[type:…]]`
-// as an empty placeholder span, so the frame never held an input to begin
-// with. Every platform's input has always been native; route E moved the
-// card, not the field.
-//
-// B8: the system back gesture has a defined meaning — a two-step confirm
-// that ends the ability with `verdict=early_exit`, which the Flutter page
-// settles on. Before this, back destroyed-or-backgrounded the ability by
-// system default and the exposed Flutter page had a spinner where the card
-// was and toolbar actions that presented into a closed ability.
-//
-// UI: brand chrome mirrors the Turna palette (`lib/core/theme.dart` — the
-// peacock teal family) instead of default controls, follows the card's
-// day/night theme, and keeps a 16 vp page margin with the navigation bar
-// explicitly avoided. The four rating buttons carry Anki's semantics
-// (again red / hard orange / good the brand-filled hero / easy sky) with
-// Chinese labels.
+// R2: visual chrome tokens, palette helpers, and the header/status/typed/bottom
+// subcomponents live in `../anki/AnkiReviewerChrome.ets` so this page stays
+// focused on ability lifecycle, session boot, and MethodChannel orchestration.
 
 import { webview } from '@kit.ArkWeb';
 import { common, Want } from '@kit.AbilityKit';
@@ -42,110 +23,26 @@ import {
 } from '../anki/AnkiReviewerSession';
 import { reviewerSession } from '../anki/AnkiReviewerSessionStore';
 import {
+  AnkiChromePalette,
+  AnkiReviewerBottomBar,
+  AnkiReviewerHeaderBar,
+  AnkiReviewerSettlement,
+  AnkiReviewerStatusArea,
+  AnkiReviewerTypedBar,
+  EXIT_CONFIRM_WINDOW_MS,
+  paletteForTheme,
+} from '../anki/AnkiReviewerChrome';
+import {
   FATAL_CODES,
-  RATING_AGAIN,
-  RATING_EASY,
-  RATING_GOOD,
-  RATING_HARD,
   RECEIPT_ADVANCE_FAILED,
   RECEIPT_ANSWER_NOT_READY,
   RECEIPT_OK,
   RECEIPT_OK_COMPLETE,
   RECEIPT_SCHEDULER_BUSY,
   THEME_DAY,
-  THEME_NIGHT,
   VERDICT_COMPLETED,
   VERDICT_EARLY_EXIT,
 } from '../anki/AnkiReviewerProtocol';
-
-const RATINGS: Array<string> = [RATING_AGAIN, RATING_HARD, RATING_GOOD, RATING_EASY];
-
-const EXIT_CONFIRM_WINDOW_MS: number = 2000;
-
-/// Brand chrome (UI-1/UI-5): Turna's peacock tokens mirrored from
-/// `lib/core/theme.dart` — brandTeal #1F727E, brandSky #4A95A8, error
-/// #E74C3C. `hard` has no brand token and uses a neutral orange.
-const COLOR_AGAIN: string = '#E74C3C';
-const COLOR_HARD: string = '#E67E22';
-const COLOR_GOOD: string = '#1F727E';
-const COLOR_EASY: string = '#4A95A8';
-
-interface ChromePalette {
-  bg: string;
-  surface: string;
-  textPrimary: string;
-  textSecondary: string;
-  textHint: string;
-  divider: string;
-  errorTint: string;
-}
-
-function dayPalette(): ChromePalette {
-  const palette: ChromePalette = {
-    bg: '#F4F7F7',
-    surface: '#FFFFFF',
-    textPrimary: '#1C2B2E',
-    textSecondary: '#5A6B6E',
-    textHint: '#8A9A9D',
-    divider: '#E1E8E9',
-    errorTint: '#FDEDEB',
-  };
-  return palette;
-}
-
-function nightPalette(): ChromePalette {
-  const palette: ChromePalette = {
-    bg: '#10181B',
-    surface: '#1A2327',
-    textPrimary: '#E6EDEE',
-    textSecondary: '#A5B4B7',
-    textHint: '#71807F',
-    divider: '#2A3438',
-    errorTint: '#3A2321',
-  };
-  return palette;
-}
-
-function ratingLabel(rating: string): string {
-  if (rating === RATING_AGAIN) {
-    return '重来';
-  }
-  if (rating === RATING_HARD) {
-    return '困难';
-  }
-  if (rating === RATING_GOOD) {
-    return '良好';
-  }
-  return '简单';
-}
-
-function ratingColor(rating: string): string {
-  if (rating === RATING_AGAIN) {
-    return COLOR_AGAIN;
-  }
-  if (rating === RATING_HARD) {
-    return COLOR_HARD;
-  }
-  if (rating === RATING_GOOD) {
-    return COLOR_GOOD;
-  }
-  return COLOR_EASY;
-}
-
-interface ReviewerSettlement {
-  total?: number;
-  remembered?: number;
-  forgotten?: number;
-  seconds?: number;
-  xp?: number;
-}
-
-function settlementSecondsText(seconds: number): string {
-  const minutes: number = Math.floor(seconds / 60);
-  const rest: number = seconds % 60;
-  const minuteText: string = minutes > 0 ? String(minutes) + '分' : '';
-  return minuteText + String(rest) + '秒';
-}
 
 @Entry
 @Component
@@ -191,8 +88,8 @@ struct AnkiReviewerPage {
   /// message per keypress made fast typing a channel flood.
   private static readonly TYPED_DEBOUNCE_MS: number = 150;
 
-  private palette(): ChromePalette {
-    return this.theme === THEME_NIGHT ? nightPalette() : dayPalette();
+  private palette(): AnkiChromePalette {
+    return paletteForTheme(this.theme);
   }
 
   aboutToAppear(): void {
@@ -256,14 +153,7 @@ struct AnkiReviewerPage {
     }, EXIT_CONFIRM_WINDOW_MS + 50);
   }
 
-  /// Boots chrome and the asset preload the moment the session exists. Called
-  /// from `aboutToAppear`, i.e. before the Web builds and asks the origin for
-  /// the shell, so the preload has its head start over the kernel-driven
-  /// initial load (the Web's `src` is the shell URL; no `loadUrl` is ever
-  /// issued from here — every explicit-load timing tried on device lost a race
-  /// to the initial navigation). A short poll covers the prebuild gap; past
-  /// it, the error banner says so and offers a retry that re-polls (S4) —
-  /// the pre-fix page just printed a line and had no way out.
+  /// Boots chrome and the asset preload the moment the session exists.
   private bootWhenSessionArrives(): void {
     if (!this.alive || this.booted) {
       return;
@@ -299,18 +189,10 @@ struct AnkiReviewerPage {
       this.hasAudio = state.hasAudio;
       this.avHint = state.avHint;
       if (!state.presentPending) {
-        // A present landing resolves whatever the previous face left behind:
-        // the loading hint, a retryable status, and an error banner whose
-        // retry already succeeded. Fresh failures are reported by the failure
-        // listener AFTER this call, so nothing set here can erase them.
         this.errorCode = '';
         this.errorFatal = false;
         this.status = '';
       }
-      // Every present re-arms the rating row: the interlock that disables the
-      // buttons on tap only ever lifts for a present or a retryable receipt,
-      // never for time. Without this the second tap of a double-tap reaches
-      // Dart inside the card-switch window and is rejected as not ready.
       this.ratingSent = false;
     });
     session.setFailureListener((code: string): void => {
@@ -366,11 +248,6 @@ struct AnkiReviewerPage {
     session.channel().retryPresent();
   }
 
-  /// Resolves the session when the kernel asks, not when the page builds:
-  /// `interceptFor(session)` captures its argument, and a build that happens
-  /// before the session exists would freeze an undefined handle into the Web's
-  /// request path. A thrown interceptor escapes a native callback and takes the
-  /// process down as a RuntimeError, so absence becomes a 503 instead.
   private intercept(event: OnInterceptRequestEvent): WebResourceResponse {
     const session: AnkiReviewerSession | undefined = reviewerSession();
     if (session === undefined) {
@@ -411,8 +288,6 @@ struct AnkiReviewerPage {
       return;
     }
     this.typedFrozen = true;
-    // The flip carries the full text; whatever the debounce still holds is
-    // redundant from here on.
     this.cancelTypedFlush();
     this.presentPending = true;
     session.channel().showAnswer(this.typed);
@@ -440,10 +315,6 @@ struct AnkiReviewerPage {
     });
   }
 
-  /// Disables the row the instant a button is tapped, then waits for Dart's
-  /// receipt. The receipt is the only thing that distinguishes "committed,
-  /// next card coming" from "refused" — before it existed, every refusal
-  /// looked exactly like a button that does nothing.
   private onRate(rating: string): void {
     const session: AnkiReviewerSession | undefined = this.session();
     if (session === undefined) {
@@ -462,8 +333,6 @@ struct AnkiReviewerPage {
 
   private onRateReceipt(code: string): void {
     if (code === RECEIPT_OK || code === RECEIPT_OK_COMPLETE) {
-      // Stay disabled: the next present (or, on ok_complete, the completion
-      // row below) is what re-arms the page.
       if (code === RECEIPT_OK_COMPLETE) {
         this.complete = true;
         this.fetchSettlement();
@@ -471,9 +340,6 @@ struct AnkiReviewerPage {
       return;
     }
     if (code === RECEIPT_ANSWER_NOT_READY || code === RECEIPT_SCHEDULER_BUSY) {
-      // Retryable. answer_not_ready also means Dart is flipping the card back
-      // to the question face (reveal state that survived a card switch); the
-      // present that follows swaps this row for "Show answer".
       this.ratingSent = false;
       this.status = code === RECEIPT_SCHEDULER_BUSY
         ? '调度器忙，请再点一次'
@@ -481,9 +347,6 @@ struct AnkiReviewerPage {
       return;
     }
     if (code === RECEIPT_ADVANCE_FAILED) {
-      // The rating committed; only the move to the next card failed. The
-      // four buttons must NOT come back (a re-rate would double-answer) —
-      // the explicit retry-advance entry below is the only way forward.
       this.advanceStuck = true;
       this.showError('已评分，但进入下一张失败', false);
       return;
@@ -511,9 +374,6 @@ struct AnkiReviewerPage {
     session.channel().requestUndo();
   }
 
-  /// UI-7: the completion row's statistics. An empty or malformed reply
-  /// keeps the plain completion row — the Flutter completion screen behind
-  /// the ability still holds the full summary.
   private fetchSettlement(): void {
     const session: AnkiReviewerSession | undefined = this.session();
     if (session === undefined) {
@@ -524,7 +384,7 @@ struct AnkiReviewerPage {
         return;
       }
       try {
-        const parsed: ReviewerSettlement = JSON.parse(json) as ReviewerSettlement;
+        const parsed: AnkiReviewerSettlement = JSON.parse(json) as AnkiReviewerSettlement;
         this.settleTotal = parsed.total ?? 0;
         this.settleRemembered = parsed.remembered ?? 0;
         this.settleForgotten = parsed.forgotten ?? 0;
@@ -547,7 +407,6 @@ struct AnkiReviewerPage {
     context
       .terminateSelfWithResult(result)
       .catch((): void => {
-        // Still leave the page even when the verdict could not be carried.
         context.terminateSelf().catch((e2: BusinessError): void => {
           this.showError('close failed: ' + e2.message, false);
         });
@@ -560,64 +419,26 @@ struct AnkiReviewerPage {
 
   build() {
     Column() {
-      Progress({
-        value: this.progressTotal > 0 ? this.progressIndex : 0,
-        total: this.progressTotal > 0 ? this.progressTotal : 1,
-        type: ProgressType.Linear,
+      AnkiReviewerHeaderBar({
+        themeName: this.theme,
+        progressIndex: this.progressIndex,
+        progressTotal: this.progressTotal,
+        previewOnly: this.previewOnly,
+        hasAudio: this.hasAudio,
+        booted: this.booted,
+        presentPending: this.presentPending,
+        isComplete: this.complete,
+        advanceStuck: this.advanceStuck,
+        onReplayAudio: (): void => {
+          this.onReplayAudio();
+        },
+        onUndo: (): void => {
+          this.onUndo();
+        },
+        onRequestExit: (): void => {
+          this.requestExit();
+        },
       })
-        .color(COLOR_GOOD)
-        .backgroundColor(this.palette().divider)
-        .height(3)
-        .margin({ left: 16, right: 16, top: 8 })
-        .width('100%')
-
-      Row() {
-        Text(this.previewOnly
-          ? '预览'
-          : (this.progressTotal > 0
-            ? String(this.progressIndex) + '/' + String(this.progressTotal)
-            : '—'))
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.palette().textSecondary)
-        Blank()
-        if (this.hasAudio) {
-          Button('重播')
-            .fontSize(13)
-            .fontColor(this.palette().textSecondary)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 8 })
-            .height(32)
-            .enabled(this.booted && !this.presentPending && !this.complete)
-            .onClick((): void => {
-              this.onReplayAudio();
-            })
-        }
-        if (!this.previewOnly) {
-          Button('撤销')
-            .fontSize(13)
-            .fontColor(this.palette().textSecondary)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 8 })
-            .height(32)
-            .enabled(this.booted && !this.complete && !this.advanceStuck)
-            .onClick(() => {
-              this.onUndo();
-            })
-        }
-        Button('✕')
-          .fontSize(15)
-          .fontColor(this.palette().textSecondary)
-          .backgroundColor(Color.Transparent)
-          .padding({ left: 8, right: 8 })
-          .height(32)
-          .onClick(() => {
-            this.requestExit();
-          })
-      }
-      .width('100%')
-      .padding({ left: 16, right: 8 })
-      .margin({ top: 4, bottom: 2 })
 
       Web({ src: 'https://anki.local/assets/reviewer.html', controller: this.controller })
         .textZoomRatio(this.textZoom)
@@ -637,291 +458,81 @@ struct AnkiReviewerPage {
         .margin({ left: 12, right: 12 })
         .backgroundColor(this.palette().surface)
 
-      if (this.presentPending && !this.complete && this.errorCode.length === 0) {
-        Row() {
-          LoadingProgress().width(16).height(16).color(this.palette().textHint)
-          Text('正在加载…')
-            .fontSize(12)
-            .fontColor(this.palette().textHint)
-            .margin({ left: 6 })
-        }
-        .width('100%')
-        .justifyContent(FlexAlign.Center)
-        .margin({ top: 8 })
-      }
-
-      if (this.confirmExit && !this.complete) {
-        Text(this.previewOnly
-          ? '再按一次返回或 ✕ 结束预览'
-          : '再按一次返回或 ✕ 结束复习（已评分的卡片会保留）')
-          .fontSize(12)
-          .fontColor(this.palette().textSecondary)
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .margin({ top: 6 })
-      }
-
-      if (this.avHint.length > 0 && this.errorCode.length === 0) {
-        Text(this.avHint)
-          .fontSize(12)
-          .fontColor(this.palette().textSecondary)
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .margin({ top: 4 })
-      }
-
-      if (this.errorCode.length > 0) {
-        Column() {
-          Text(this.status)
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(COLOR_AGAIN)
-            .width('100%')
-          if (this.debugChrome && this.errorCode.length > 0) {
-            Text(this.errorCode)
-              .fontSize(11)
-              .fontColor(this.palette().textHint)
-              .width('100%')
-              .margin({ top: 2 })
+      AnkiReviewerStatusArea({
+        themeName: this.theme,
+        presentPending: this.presentPending,
+        isComplete: this.complete,
+        confirmExit: this.confirmExit,
+        previewOnly: this.previewOnly,
+        avHint: this.avHint,
+        errorCode: this.errorCode,
+        errorFatal: this.errorFatal,
+        statusText: this.status,
+        debugChrome: this.debugChrome,
+        advanceStuck: this.advanceStuck,
+        booted: this.booted,
+        onRetryOrReconnect: (): void => {
+          if (this.booted) {
+            this.retryRender();
+          } else {
+            this.retryBoot();
           }
-          if (
-            !this.advanceStuck &&
-            (this.booted || this.errorCode === 'reviewer session missing')
-          ) {
-            Row() {
-              if (!this.errorFatal) {
-                Button(this.booted ? '重试' : '重新连接')
-                  .fontSize(14)
-                  .fontColor(COLOR_GOOD)
-                  .backgroundColor(Color.Transparent)
-                  .borderRadius(8)
-                  .height(36)
-                  .layoutWeight(1)
-                  .onClick(() => {
-                    if (this.booted) {
-                      this.retryRender();
-                    } else {
-                      this.retryBoot();
-                    }
-                  })
-              }
-              Button('退出复习')
-                .fontSize(14)
-                .fontColor(this.palette().textSecondary)
-                .backgroundColor(Color.Transparent)
-                .borderRadius(8)
-                .height(36)
-                .layoutWeight(1)
-                .onClick(() => {
-                  this.endReview(VERDICT_EARLY_EXIT);
-                })
-            }
-            .width('100%')
-            .margin({ top: 6 })
-          }
-        }
-        .width('100%')
-        .padding(12)
-        .margin({ left: 16, right: 16, top: 8 })
-        .borderRadius(10)
-        .backgroundColor(this.palette().errorTint)
-      } else if (this.status.length > 0) {
-        Text(this.status)
-          .fontSize(12)
-          .fontColor(this.palette().textHint)
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .margin({ top: 6 })
-      }
+        },
+        onExitEarly: (): void => {
+          this.endReview(VERDICT_EARLY_EXIT);
+        },
+      })
 
       if (this.typedVisible && !this.answerLanded && !this.complete) {
-        Column() {
-          Divider()
-            .color(this.palette().divider)
-            .margin({ left: 16, right: 16 })
-          TextInput({ text: this.typed, placeholder: '输入你的答案' })
-            .enabled(!this.typedFrozen && !this.presentPending)
-            .fontSize(Math.round(15 * this.textZoom / 100))
-            .enterKeyType(EnterKeyType.Done)
-            .onSubmit(() => {
-              if (!this.typedFrozen) {
-                this.onShowAnswer();
-              }
-            })
-            .onChange((value: string) => {
-              this.typed = value;
-              this.scheduleTypedFlush();
-            })
-            .backgroundColor(this.palette().surface)
-            .borderRadius(10)
-            .height(44)
-            .margin({ left: 16, right: 16, top: 10 })
-        }
-        .width('100%')
+        AnkiReviewerTypedBar({
+          themeName: this.theme,
+          typedText: this.typed,
+          typedFrozen: this.typedFrozen,
+          presentPending: this.presentPending,
+          textZoom: this.textZoom,
+          onTypedChange: (nextText: string): void => {
+            this.typed = nextText;
+            this.scheduleTypedFlush();
+          },
+          onSubmitAnswer: (): void => {
+            this.onShowAnswer();
+          },
+        })
       }
 
-      if (this.complete) {
-        Column() {
-          Text('复习完成')
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.palette().textPrimary)
-            .margin({ top: 14 })
-          if (this.settleTotal >= 0) {
-            Text('共 ' + String(this.settleTotal) + ' 张 · 记住 '
-              + String(this.settleRemembered) + ' · 忘记 '
-              + String(this.settleForgotten))
-              .fontSize(13)
-              .fontColor(this.palette().textSecondary)
-              .margin({ top: 6 })
-            Text('用时 ' + settlementSecondsText(this.settleSeconds)
-              + (this.settleXp > 0 ? ' · +' + String(this.settleXp) + ' XP' : ''))
-              .fontSize(13)
-              .fontColor(this.palette().textSecondary)
-              .margin({ top: 2 })
-          }
-          Button('完成')
-            .width('100%')
-            .height(50)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .backgroundColor(COLOR_GOOD)
-            .fontColor(Color.White)
-            .borderRadius(12)
-            .margin({ top: 12, bottom: 16 })
-            .onClick(() => {
-              this.onClose();
-            })
-        }
-        .width('100%')
-        .padding({ left: 16, right: 16 })
-      } else if (this.advanceStuck) {
-        Column() {
-          Text(this.status)
-            .fontSize(12)
-            .fontColor(this.palette().textSecondary)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .margin({ top: 6 })
-          Row() {
-            Button('重试进入下一张')
-              .layoutWeight(1)
-              .height(48)
-              .fontSize(15)
-              .backgroundColor(COLOR_GOOD)
-              .fontColor(Color.White)
-              .borderRadius(12)
-              .margin({ right: 6 })
-              .onClick(() => {
-                this.onRetryAdvance();
-              })
-            Button('结束复习')
-              .layoutWeight(1)
-              .height(48)
-              .fontSize(15)
-              .fontColor(this.palette().textSecondary)
-              .borderRadius(12)
-              .border({ width: 1, color: this.palette().divider })
-              .margin({ left: 6 })
-              .onClick(() => {
-                this.endReview(VERDICT_EARLY_EXIT);
-              })
-          }
-          .width('100%')
-          .margin({ top: 10, bottom: 16 })
-          .padding({ left: 16, right: 16 })
-        }
-        .width('100%')
-      } else if (!this.answerLanded) {
-        Button(this.presentPending ? '正在显示答案…' : '显示答案')
-          .width('100%')
-          .height(52)
-          .fontSize(16)
-          .fontWeight(FontWeight.Medium)
-          .backgroundColor(this.presentPending ? this.palette().divider : COLOR_GOOD)
-          .fontColor(this.presentPending ? this.palette().textHint : Color.White)
-          .borderRadius(12)
-          .animation({ duration: 150, curve: Curve.EaseOut })
-          .margin({ left: 16, right: 16, top: 10, bottom: 16 })
-          .enabled(!this.presentPending)
-          .onClick(() => {
-            this.onShowAnswer();
-          })
-      } else if (this.previewOnly) {
-        Row() {
-          Button(this.presentPending ? '正在翻回…' : '显示正面')
-            .layoutWeight(1)
-            .height(48)
-            .fontSize(15)
-            .fontColor(this.palette().textPrimary)
-            .backgroundColor(Color.Transparent)
-            .borderRadius(12)
-            .border({ width: 1, color: this.palette().divider })
-            .margin({ right: 6 })
-            .enabled(!this.presentPending)
-            .onClick((): void => {
-              this.onShowQuestion();
-            })
-          Button('完成预览')
-            .layoutWeight(1)
-            .height(48)
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
-            .backgroundColor(COLOR_GOOD)
-            .fontColor(Color.White)
-            .borderRadius(12)
-            .margin({ left: 6 })
-            .onClick((): void => {
-              this.endReview(VERDICT_COMPLETED);
-            })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .padding({ left: 16, right: 16 })
-        .margin({ top: 10, bottom: 16 })
-      } else if (this.ratingSent) {
-        // UI-8: one honest "submitted, loading" state instead of four dead
-        // buttons that give no reason.
-        Button('已提交，加载中…')
-          .width('100%')
-          .height(50)
-          .fontSize(15)
-          .fontColor(this.palette().textHint)
-          .backgroundColor(this.palette().divider)
-          .borderRadius(12)
-          .margin({ left: 16, right: 16, top: 10, bottom: 16 })
-          .enabled(false)
-      } else {
-        Row() {
-          ForEach(RATINGS, (rating: string) => {
-            Button(ratingLabel(rating))
-              .layoutWeight(rating === RATING_GOOD ? 1.25 : 1)
-              .height(rating === RATING_GOOD ? 50 : 46)
-              .fontSize(rating === RATING_GOOD ? 15 : 14)
-              .fontWeight(rating === RATING_GOOD ? FontWeight.Medium : FontWeight.Normal)
-              .backgroundColor(rating === RATING_GOOD
-                ? ratingColor(rating)
-                : Color.Transparent)
-              .fontColor(rating === RATING_GOOD
-                ? Color.White
-                : ratingColor(rating))
-              .borderRadius(12)
-              .border({
-                width: 1,
-                color: rating === RATING_GOOD ? ratingColor(rating) : this.palette().divider,
-              })
-              .margin({ right: 8 })
-              .animation({ duration: 150, curve: Curve.EaseOut })
-              .onClick(() => {
-                this.onRate(rating);
-              })
-          }, (rating: string) => rating)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .padding({ left: 16, right: 8 })
-        .margin({ top: 10, bottom: 16 })
-      }
+      AnkiReviewerBottomBar({
+        themeName: this.theme,
+        isComplete: this.complete,
+        advanceStuck: this.advanceStuck,
+        answerLanded: this.answerLanded,
+        previewOnly: this.previewOnly,
+        ratingSent: this.ratingSent,
+        presentPending: this.presentPending,
+        statusText: this.status,
+        settleTotal: this.settleTotal,
+        settleRemembered: this.settleRemembered,
+        settleForgotten: this.settleForgotten,
+        settleSeconds: this.settleSeconds,
+        settleXp: this.settleXp,
+        onShowAnswer: (): void => {
+          this.onShowAnswer();
+        },
+        onShowQuestion: (): void => {
+          this.onShowQuestion();
+        },
+        onRate: (rating: string): void => {
+          this.onRate(rating);
+        },
+        onRetryAdvance: (): void => {
+          this.onRetryAdvance();
+        },
+        onFinishComplete: (): void => {
+          this.onClose();
+        },
+        onExitEarly: (): void => {
+          this.endReview(VERDICT_EARLY_EXIT);
+        },
+      })
     }
     .width('100%')
     .height('100%')

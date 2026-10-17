@@ -387,7 +387,7 @@ class OfficialAnkiOhosReviewerBinding {
       if (_pending != key || _closed) return;
       try {
         final names = mediaNamesIn(
-          '${card.questionDisplayHtml}\n${card.answerDisplayHtml}\n${comparisonHtml ?? ''}',
+          '${card.questionDisplayHtml}\n${card.answerDisplayHtml}\n${card.css}\n${comparisonHtml ?? ''}',
         ).toSet();
         if (_pushedMediaCardId != card.cardId) {
           // The origin server evicts the previous card's media on this

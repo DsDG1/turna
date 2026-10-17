@@ -107,6 +107,12 @@ function bodyOf(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
+/// Small media files read directly from disk on a full-file (200) request are
+/// promoted into the per-card memory map so repeat requests on the same card
+/// do not re-open the descriptor. Multi-megabyte audio/video Range slices stay
+/// uncached so a single large file cannot blow the ability's heap.
+const DIRECT_READ_CACHE_LIMIT_BYTES: number = 256 * 1024;
+
 export class AnkiOriginServer {
   private readonly assets: Map<string, Uint8Array> = new Map();
   private readonly mediaRoot: string;
@@ -116,29 +122,18 @@ export class AnkiOriginServer {
     this.mediaRoot = mediaRoot;
   }
 
-  /// Dart pushes the current card's media here before the present that will
-  /// request it. Base64 because a MethodChannel carries strings, and because
-  /// this SDK's standard codec has no byte-array mapping — the same reason
-  /// AudioPlugin.stageBytes and the RDB BLOB bridge base64.
+  /// Warms the per-card in-memory media cache for small files pushed from Dart
+  /// before `present`.
   ///
-  /// **Why a push and not a read.** Two independent gaps in this platform's
-  /// file API force it, and neither is a style choice:
-  ///
-  /// 1. `fileIo.openSync` (since 12) returns a `File`, `fileIo.readSync` (since
-  ///    11) still takes a `number` descriptor, and `readFileSync` does not
-  ///    exist at all — so there is **no synchronous binary read that accepts the
-  ///    handle `openSync` returns**. Guessing the runtime would accept a `File`
-  ///    where the type says `number` is the kind of assumption that compiles
-  ///    nowhere and fails only on device.
-  /// 2. `respond` cannot await (see `interceptFor`), and a MethodChannel call
-  ///    is a promise — so a callback into Dart at request time would need the
-  ///    bytes before the response object has to be returned.
-  ///
-  /// The push-then-serve-sync arrangement is therefore the same one the eight
-  /// assets already use. What survives of the abandoned callback design is the
-  /// map below, which is a cache lookup and nothing else. (R1 removed the
-  /// `MediaProvider` function type that used to sit here: nothing ever
-  /// constructed one, so it was documentation wearing a type's clothes.)
+  /// O1 two-tier media serving:
+  /// 1. Small files (`<= 256 KB`) are pre-pushed into `this.media` so the
+  ///    synchronous `onInterceptRequest` callback serves icons and short clips
+  ///    from memory without opening a descriptor per request.
+  /// 2. Larger files (`> 256 KB`, such as multi-megabyte audio/video) and
+  ///    references not pre-pushed by Dart (e.g. CSS `@font-face` / `url(...)`)
+  ///    bypass Base64 + MethodChannel transfer and are read on demand in
+  ///    `mediaResponse` via positioned `fs.openSync` + `fs.readSync(file.fd,
+  ///    buffer, { offset, length })` + `fs.closeSync(file)`.
   public cacheMedia(name: string, base64: string): void {
     // `decodeSync` is an instance method on `Base64Helper`, not a static one —
     // asking for it off the class type is a compile error, and guessing wrong
@@ -314,14 +309,23 @@ export class AnkiOriginServer {
       response.setResponseData('');
     } else {
       const cached: Uint8Array | undefined = this.media.get(name);
-      if (cached === undefined) {
-        // Distinct from `escape` and `missing`: the name passed every rule, and
-        // the bytes are absent because Dart has not pushed them yet. Answering
-        // 403 here would blame the card for a push that has not happened.
-        return denied(503, 'MEDIA_NOT_PUSHED');
+      if (cached !== undefined && cached.byteLength === length) {
+        const slice: Uint8Array = cached.slice(range.start, range.start + range.contentLength);
+        response.setResponseData(bodyOf(slice));
+      } else {
+        const sliceBuffer: ArrayBuffer | undefined = readFileSlice(
+          path,
+          range.start,
+          range.contentLength,
+        );
+        if (sliceBuffer === undefined) {
+          return denied(503, 'MEDIA_NOT_PUSHED');
+        }
+        if (range.status === 200 && length <= DIRECT_READ_CACHE_LIMIT_BYTES) {
+          this.media.set(name, new Uint8Array(sliceBuffer));
+        }
+        response.setResponseData(sliceBuffer);
       }
-      const slice: Uint8Array = cached.slice(range.start, range.start + range.contentLength);
-      response.setResponseData(bodyOf(slice));
     }
     response.setResponseCode(range.status);
     response.setReasonMessage(range.status === 206 ? 'Partial Content' : 'OK');
@@ -421,6 +425,39 @@ function denied(code: number, reason: string): WebResourceResponse {
   headers.push({ headerKey: 'X-Content-Type-Options', headerValue: 'nosniff' });
   response.setResponseHeader(headers);
   return response;
+}
+
+function readFileSlice(
+  path: string,
+  offset: number,
+  length: number,
+): ArrayBuffer | undefined {
+  let file: fs.File | undefined = undefined;
+  try {
+    file = fs.openSync(path, fs.OpenMode.READ_ONLY);
+    const buffer: ArrayBuffer = new ArrayBuffer(length);
+    const read: number = fs.readSync(file.fd, buffer, {
+      offset: offset,
+      length: length,
+    });
+    if (read === length) {
+      return buffer;
+    }
+    if (read > 0 && read < length) {
+      return buffer.slice(0, read);
+    }
+    return undefined;
+  } catch (e) {
+    return undefined;
+  } finally {
+    if (file !== undefined) {
+      try {
+        fs.closeSync(file);
+      } catch (e) {
+        // Best-effort descriptor cleanup on the synchronous intercept path.
+      }
+    }
+  }
 }
 
 function findHeader(headers: Array<Header>, name: string): string {

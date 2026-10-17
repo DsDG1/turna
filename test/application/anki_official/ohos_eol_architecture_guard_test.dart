@@ -733,6 +733,7 @@ const _requiredOhosFiles = <String>[
   // plugin and the page must all see.
   'ohos/entry/src/main/ets/entryability/AnkiReviewerAbility.ets',
   'ohos/entry/src/main/ets/pages/AnkiReviewerPage.ets',
+  'ohos/entry/src/main/ets/anki/AnkiReviewerChrome.ets',
   'ohos/entry/src/main/ets/anki/AnkiReviewerSession.ets',
   'ohos/entry/src/main/ets/anki/AnkiReviewerSessionStore.ets',
   'ohos/entry/src/main/ets/anki/AnkiReviewerBridge.ets',
@@ -742,6 +743,8 @@ const _requiredOhosFiles = <String>[
   // but the symmetry guard, so it is a required file like the rest.
   'ohos/entry/src/main/ets/anki/AnkiReviewerProtocol.ets',
   'ohos/entry/src/main/ets/anki/AnkiOriginServer.ets',
+  'ohos/entry/src/main/ets/anki/AnkiMediaPath.ets',
+  'ohos/entry/src/main/ets/anki/AnkiHttp.ets',
   'ohos/entry/src/main/resources/base/media/icon.png',
 ];
 
