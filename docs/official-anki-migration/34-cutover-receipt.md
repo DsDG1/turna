@@ -250,7 +250,7 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   5. **能力矩阵 `officialReviewer` 对齐**：`OfficialAnkiCapabilityMatrix.forPlatform('ohos').officialReviewer` 改为 `resolved.allowsOfficialRenderer`。
 - **O1 媒体分层直读与 `AnkiMediaPath.ets` 缺陷修复**：修复 `AnkiMediaPath.ets` 中 `classifyEncodedPath` 对合法 `/media/<name>` 误返 `false` 与 `decodeOnce` 非 UTF-8 解码两处缺陷；`AnkiOriginServer.ets` 新增 `readFileSlice`（`fs.openSync` + `fs.readSync(file.fd, buffer, { offset, length })`）按 Range 偏移同步直读沙箱媒体文件；`OfficialAnkiReviewerChannel.pushMedia` 对 `> 256 KB` 大媒体跳过 Base64 推送，直走原生按需切片读，同时扩展 `mediaNamesIn` 扫描 `card.css` 与相对 `/media/...` URL。
 - **R2 `AnkiReviewerPage.ets` 拆分减重与 T1 跨语言测试补面**：抽离 `ohos/entry/src/main/ets/anki/AnkiReviewerChrome.ets`（464 行，承载昼夜调色板与顶栏/状态区/输入栏/底栏 4 个子组件），将 `AnkiReviewerPage.ets` 从 932 行减重至 480 行；新增 `AnkiMediaPath.ets` / `AnkiHttp.ets` 对全部 45 条 `media_path_vectors.json` 的跨语言实跑对比测试及 `OfficialAnkiOhosReviewerBinding` 的 `rebind`/`detach`/256KB 绕行单测。
-  验证收据见 `test/BASELINE.md` 2026-10-17 各条目。
+- **HAP 编译与门禁验证**：全仓 `dart analyze` **No issues found**；Official Anki / 架构 / 复习视图单测 **405 passed / 0 failed**，Python 工具链单测 **60 passed**；OHOS fork SDK（`flutter_ohos_344`）`flutter build hap --debug` **构建转绿**（产出 `build/ohos/hap/entry-default-signed.hap`），构建后恢复官方 SDK `package_config`。验证收据见 `test/BASELINE.md` 2026-10-17 各条目。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
