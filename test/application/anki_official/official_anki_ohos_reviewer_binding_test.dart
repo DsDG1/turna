@@ -835,6 +835,76 @@ void main() {
     expect(second.openCalls, 1);
   });
 
+  test('an unadopted warm-up closes itself when the idle deadline passes (P0-1)',
+      () async {
+    // On device a warm-up that no caller cancelled stayed on screen as an
+    // empty reviewer: the ability was up, no card was ever sent, and the only
+    // thing that could close it was a caller remembering to. A path that threw
+    // before reaching `attach` has no such caller.
+    final transport = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+      idleLimit: const Duration(milliseconds: 20),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(transport.closeCalls, 1,
+        reason: 'the deadline is the net under the cancel contract');
+
+    // The slot is free again: the next attach opens its own reviewer instead
+    // of adopting one that just closed itself.
+    final second = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: second,
+    );
+    expect(second.openCalls, 1);
+  });
+
+  test('adopting a warm-up disarms the idle deadline (P0-1)', () async {
+    final transport = _FakeTransport();
+    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+      idleLimit: const Duration(milliseconds: 20),
+    );
+    await warmUp.ready;
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(transport.closeCalls, 0,
+        reason: 'a card can take a while to load; a deadline that fires after '
+            'adoption closes the reviewer the learner is looking at');
+  });
+
+  test('cancel disarms the idle deadline so nothing closes twice (P0-1)',
+      () async {
+    final transport = _FakeTransport();
+    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+      idleLimit: const Duration(milliseconds: 20),
+    );
+    await warmUp.ready;
+    await warmUp.cancel();
+    expect(transport.closeCalls, 1);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(transport.closeCalls, 1,
+        reason: 'a second close would hit whatever reviewer opened next');
+  });
+
   test('a warm-up refuses a rating because no host is attached yet (P0-1)',
       () async {
     final transport = _FakeTransport();

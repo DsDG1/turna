@@ -212,6 +212,52 @@ class OfficialAnkiOhosReviewerBinding {
   /// A warm-up resolves this before any controller exists; [attach] awaits the
   /// same future instead of opening a second ability.
   late Future<void> _ready;
+
+  /// How long a speculative open may sit with no card before it closes itself.
+  ///
+  /// 20 s is deliberately generous: the batch load plus the first render can
+  /// legitimately take several seconds on a cold collection, and closing a
+  /// warm-up that was about to be adopted would turn a slow start into a
+  /// flash-and-vanish. It is short enough that a failed path does not leave
+  /// the learner staring at an empty reviewer.
+  static const defaultWarmUpIdleLimit = Duration(seconds: 20);
+
+  Timer? _idleDeadline;
+
+  void _armIdleDeadline(Duration limit) {
+    _idleDeadline?.cancel();
+    _idleDeadline = Timer(limit, () {
+      if (_closed) return;
+      logger.w('[OhosReviewer] warm-up deadline hit; closing an unused '
+          'reviewer (no card was presented in ${limit.inSeconds}s)');
+      unawaited(_abandon());
+    });
+  }
+
+  void _disarmIdleDeadline() {
+    _idleDeadline?.cancel();
+    _idleDeadline = null;
+  }
+
+  /// Closes a reviewer nobody adopted: marks it closed, drops it from the live
+  /// slot, and asks ArkTS to close the ability — but only if one was actually
+  /// opened (see [_openIssued]).
+  Future<void> _abandon() async {
+    _disarmIdleDeadline();
+    if (_closed) return;
+    _closed = true;
+    if (identical(OfficialAnkiOhosReviewerBinding._live, this)) {
+      OfficialAnkiOhosReviewerBinding._live = null;
+    }
+    if (!_openIssued) return;
+    try {
+      await transport.close();
+    } catch (error) {
+      // Best-effort: the ability may already be gone, and the page closes
+      // itself on the pending-cancel flag.
+      logger.w('[OhosReviewer] warm-up cancel dropped', error: error);
+    }
+  }
   DateTime? _answerShownAt;
   (int, String, int)? _pending;
   (int, String, int)? _scheduled;
@@ -331,10 +377,18 @@ class OfficialAnkiOhosReviewerBinding {
   /// [OfficialAnkiOhosReviewerWarmUp.cancel] — otherwise the learner is left on
   /// a full-screen reviewer with nothing to show, which is worse than the
   /// spinner this replaces.
+  ///
+  /// **The deadline is the net under that contract.** On device, a warm-up that
+  /// nothing adopted was left on screen as an empty reviewer (`progress —`,
+  /// "正在加载…"): the page was up, the ability alive, and no card was ever
+  /// sent, because the only thing that closes a stranded warm-up is a caller
+  /// remembering to. A path that throws before reaching `attach` has no such
+  /// caller, so the binding closes itself after [idleLimit].
   static Future<OfficialAnkiOhosReviewerWarmUp> warmUp({
     required String mediaRoot,
     OfficialAnkiOhosReviewerTransport? transport,
     int textZoom = 100,
+    Duration idleLimit = defaultWarmUpIdleLimit,
   }) async {
     final existing = _live;
     if (existing != null && !existing._closed) {
@@ -368,6 +422,7 @@ class OfficialAnkiOhosReviewerBinding {
       logger.w('[OhosReviewer] warm-up boot failed',
           error: error, stackTrace: stack);
     }));
+    binding._armIdleDeadline(idleLimit);
     return OfficialAnkiOhosReviewerWarmUp._(binding, binding._ready);
   }
 
@@ -410,6 +465,12 @@ class OfficialAnkiOhosReviewerBinding {
     Future<OfficialNativeMutation> Function()? onBury,
     Future<OfficialNativeMutation> Function()? onSuspend,
   }) {
+    // Someone adopted this reviewer. That is the ownership signal the idle
+    // deadline was waiting for: from here on, closing it is the stage's call.
+    // Presenting also disarms it, but a card can legitimately take a while to
+    // load, and a warm-up that is adopted just before the deadline would
+    // otherwise be torn down between rebind and the first present.
+    _disarmIdleDeadline();
     if (!identical(_controller, controller)) {
       _controller?.removeListener(_onController);
       _controller = controller;
@@ -537,6 +598,9 @@ class OfficialAnkiOhosReviewerBinding {
         : OfficialAnkiReviewerProtocol.sideQuestion;
     final key = (card.cardId, side, generation);
     _pending = key;
+    // A card is being sent: this warm-up was adopted, so the idle deadline has
+    // done its job and must not close the reviewer mid-present.
+    _disarmIdleDeadline();
     _queue = _queue.catchError((Object _) {}).then((_) async {
       if (_pending != key || _closed) return;
       try {
@@ -896,19 +960,9 @@ class OfficialAnkiOhosReviewerWarmUp {
   /// **No `close` when the boot never issued an `open`.** The native side
   /// remembers a cancel that arrives with no session and the next reviewer
   /// consumes it, which would close a session the learner had just started.
-  Future<void> cancel() async {
-    if (_binding._closed) return;
-    _binding._closed = true;
-    if (identical(OfficialAnkiOhosReviewerBinding._live, _binding)) {
-      OfficialAnkiOhosReviewerBinding._live = null;
-    }
-    if (!_binding._openIssued) return;
-    try {
-      await _binding.transport.close();
-    } catch (error) {
-      // Best-effort. The ability may never have started (that is the race this
-      // path exists for), and the page closes itself on the pending flag.
-      logger.w('[OhosReviewer] warm-up cancel dropped', error: error);
-    }
-  }
+  /// Delegates to the binding's own abandon path so the caller-driven cancel
+  /// and the idle-deadline cancel cannot drift apart — two copies of "close it,
+  /// but only if it was opened" is exactly how one of them ends up sending a
+  /// `close` for an ability that never existed.
+  Future<void> cancel() => _binding._abandon();
 }
