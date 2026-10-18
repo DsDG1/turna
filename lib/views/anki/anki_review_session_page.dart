@@ -94,6 +94,16 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
   bool _reviewAllComplete = false;
   final _settlement = AnkiReviewSessionSettlement();
 
+  /// One pop per review session, not per close callback.
+  ///
+  /// Two bindings can exist for one ability — a warm-up that failed its ready
+  /// wait still had `openReviewer` in flight, and the stage's own attach then
+  /// opened again. When that ability finally closes, both `opened` futures
+  /// resolve and both call `onClosed`, which used to walk the navigator back
+  /// twice. The learner sees the review page leave and the page *under* it
+  /// leave too.
+  bool _nativeClosedHandled = false;
+
   /// Wave 2 (§8.4): a Blocked load — the scheduler owes cards but none
   /// could be rendered. Surfaced with retry / continue-later; never
   /// silently ends the source.
@@ -127,6 +137,13 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
   void dispose() {
     // Leaving before a card arrived must not leave a reviewer on screen (P0-1).
     unawaited(_abandonOhosWarmUp());
+    if (isHarmonyOsTarget) {
+      // …and leaving *after* one arrived must close the ability the stage
+      // adopted. The warm-up handle above is null by then (the page drops it on
+      // the success path), so the binding's own shutdown is the only reachable
+      // exit. Idempotent: a reviewer that closed itself is already gone.
+      unawaited(OfficialAnkiOhosReviewerBinding.shutdown());
+    }
     _controller?.removeListener(_onController);
     _controller?.dispose();
     _officialSessionLiveQueue?.removeListener(_onLiveQueueRebuilt);
@@ -374,7 +391,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     // Cancel-on-failure is the whole contract: a reviewer left open with no
     // card is worse than the spinner this replaces.
     await _warmOhosReviewer();
-    final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;    final OfficialFormalReviewLoadResult? loadResult;
+    final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;
+    final OfficialFormalReviewLoadResult? loadResult;
     if (builder != null) {
       loadResult = await builder(importId: importId, courseId: courseId);
     } else {
@@ -458,6 +476,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     }
     // The stage adopts the warmed reviewer on attach; this page stops owning it.
     _ohosWarmUp = null;
+    // A new session is a new ability lifetime: the close callback for the
+    // previous one (if it ever arrives late) must not pop this one.
+    _nativeClosedHandled = false;
     setState(() {
       _controller = controller;
       // Fidelity HTML faces from production renderCard (fidelity-first
@@ -528,7 +549,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
   /// presenting into a closed ability (B8). A completed session needs
   /// nothing: the completion view behind the ability is already correct.
   void _onNativeAbilityClosed(String verdict) {
-    if (!mounted) return;
+    if (!mounted || _nativeClosedHandled) return;
+    _nativeClosedHandled = true;
     final controller = _controller;
     if (controller != null && !controller.isComplete) {
       unawaited(_recordSessionCompletion(
@@ -570,13 +592,16 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
 
   Future<OfficialNativeMutation> _onNativeBury() {
     return _applyNativeMutation(
-      () => _controller?.buryCurrent(onMutated: _rebuildLiveQueue) ?? Future.value(false),
+      () =>
+          _controller?.buryCurrent(onMutated: _rebuildLiveQueue) ??
+          Future.value(false),
     );
   }
 
   Future<OfficialNativeMutation> _onNativeSuspend() {
     return _applyNativeMutation(
-      () => _controller?.suspendCurrent(onMutated: _rebuildLiveQueue) ??
+      () =>
+          _controller?.suspendCurrent(onMutated: _rebuildLiveQueue) ??
           Future.value(false),
     );
   }

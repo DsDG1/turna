@@ -310,11 +310,31 @@ export class AnkiReviewerSession {
     this.cancel = listener;
   }
 
+  /// A cancel that arrived before the page subscribed.
+  ///
+  /// The store's own `cancelPending` covers "no session yet"; this one covers
+  /// the other half of the boot — the session exists (created in
+  /// `onWindowStageCreate`) but the page's `setCancelListener` runs a moment
+  /// later. Dropping the request in that window left a reviewer nobody wanted
+  /// on screen until the learner backed out of it by hand.
+  private cancelPending: boolean = false;
+
+  /// Reads and clears the cached cancel. The page calls this right after
+  /// installing its listener; calling the listener from inside
+  /// [setCancelListener] would re-enter `endReview` in the middle of boot.
+  public consumeCancelRequest(): boolean {
+    const pending: boolean = this.cancelPending;
+    this.cancelPending = false;
+    return pending;
+  }
+
   public requestCancel(): void {
     const listener: (() => void) | undefined = this.cancel;
     if (listener !== undefined) {
       listener();
+      return;
     }
+    this.cancelPending = true;
   }
 
   /// A present body that cannot name its generation never reaches the frame.

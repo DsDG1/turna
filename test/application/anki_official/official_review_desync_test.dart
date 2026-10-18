@@ -423,6 +423,89 @@ void main() {
     expect(h.controller.rememberedCount, 1,
         reason: 'the retry-advance path replays the commit deduped');
   });
+
+  test(
+      'a committed rating whose next card is missing throws instead of '
+      'claiming ok', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    AnkiStudySessionHost.presentBothSides(h.controller);
+    await AnkiStudySessionHost.revealAndPresentAnswer(
+      h.controller,
+      onOfficialShowAnswer: h.session.showAnswer,
+    );
+    await h.session.answerAndConfirm('good', expectedCardId: 1);
+    // The rebuilt batch no longer holds the scheduler's current card. On
+    // device this is what a stale/throttled live-queue rebuild produces.
+    h.controller.replaceItems(const []);
+
+    await expectLater(
+      advanceFromNativeRating(
+        controller: h.controller,
+        officialSession: h.session,
+        liveQueue: null,
+        rating: 'good',
+      ),
+      throwsStateError,
+      reason: 'ok would leave the page waiting for a present the presenter '
+          'de-duplicates away; ok_complete would claim the queue finished',
+    );
+    expect(h.controller.phase, StudyCardPhase.recoverableError);
+  });
+
+  test(
+      'replaying a committed mutation takes the session out of a desync '
+      'so the advance can retry', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    AnkiStudySessionHost.presentBothSides(h.controller);
+    await AnkiStudySessionHost.revealAndPresentAnswer(
+      h.controller,
+      onOfficialShowAnswer: h.session.showAnswer,
+    );
+    await h.session.answerAndConfirm('good', expectedCardId: 1);
+    final eventId = h.session.lastClientMutationId!;
+    h.controller.acceptExternalOfficialCommit(
+      outcome: RecallOutcome.remembered,
+      eventId: eventId,
+    );
+    expect(h.controller.phase, StudyCardPhase.readyForNext);
+
+    h.controller.reportSchedulerDesync(2);
+    expect(h.controller.phase, StudyCardPhase.recoverableError);
+
+    // The page's "retry the advance" replays the same mutation id. Without
+    // the phase reset that replay is a permanent no-op — advanceTo() only
+    // accepts readyForNext — so even a reconciled batch could never move.
+    h.controller.acceptExternalOfficialCommit(
+      outcome: RecallOutcome.remembered,
+      eventId: eventId,
+    );
+    expect(h.controller.phase, StudyCardPhase.readyForNext);
+    expect(h.controller.lastError, isNull);
+    expect(h.controller.rememberedCount, 1,
+        reason: 'the replay is deduped by mutation id');
+  });
+
+  test('advanceAfterNativeMutation throws on a desync too', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    h.controller.replaceItems(const []);
+
+    await expectLater(
+      advanceAfterNativeMutation(
+        controller: h.controller,
+        officialSession: h.session,
+        liveQueue: null,
+      ),
+      throwsStateError,
+      reason: 'a refused mutation receipt is recoverable; a fake completion '
+          'row over a queue that still owes cards is not',
+    );
+  });
 }
 
 /// The native OHOS rating flow: the grades bridge commits straight into the
@@ -441,8 +524,8 @@ class _NativeRatingFlow {
       h.controller,
       onOfficialShowAnswer: h.session.showAnswer,
     );
-    await h.session.answerAndConfirm(rating,
-        expectedCardId: h.session.current!.cardId);
+    await h.session
+        .answerAndConfirm(rating, expectedCardId: h.session.current!.cardId);
     return advanceFromNativeRating(
       controller: h.controller,
       officialSession: h.session,
@@ -451,4 +534,3 @@ class _NativeRatingFlow {
     );
   }
 }
-

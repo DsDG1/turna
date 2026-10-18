@@ -183,7 +183,9 @@ ability 冷启动、窗口创建、shell 预读全部排在 loader 之后。
 4. `_grades` 从 `final` 改可空；未挂接时 `_rate` 回 `scheduler_unavailable`，
    防止预热期误评分。
 5. boot 失败时把 `_live` 清掉（`_ready` 的 `onError` 里），下一次 attach 重新 open，
-   不会继承一个半启动的 binding。
+   不会继承一个半启动的 binding。**2026-10-18 补**：清槽位的同时必须
+   `_abandon(force: true)` 关掉这次 boot 已经拉起的 ability——否则空页留在屏上，
+   下一次 attach 会在它上面再开一页（见 §5.4）。
 
 **数据流**：
 
@@ -483,7 +485,10 @@ review` 选最大。
    `ReviewProgressHeader` 也在那里——这个分工是刻意的。预览态整行隐藏
    （预览没有可变更的会话，回执会全是「不可用」）。
 5. **互斥**：`mutating` 与 `ratingSent` 一样是页面级互锁。两者都改同一个
-   调度器，放行共存等于让两次推进赛跑一次队列。
+   调度器，放行共存等于让两次推进赛跑一次队列。三个顶栏入口的 `enabled`
+   显式读 `!ratingSent`（2026-10-18 补记）；`ratingSent` 的解除点是「下一张
+   问题面落地」（`presentPending=false && answerLanded=false`），不是回执本身
+   ——回执一到就解除会让同一张卡被评两次。
 
 **数据流**：
 
@@ -635,6 +640,64 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 
 施工落点与关键判断见 §3.8。
 
+### 5.3 回执兜底与评分互斥（UI-8）——已施工（2026-10-18）
+
+真机症状：复习页卡在「已提交，加载中…」。根因是**回执的失败面没有出口**：
+`onRateReceipt` 只对 `answer_not_ready` / `scheduler_busy` 复位 `ratingSent`，
+兜底分支（`session_closed` / `no_card` / `engine_error` /
+`scheduler_unavailable` / `card_mismatch` / `channel_error_*` /
+`bridge_detached`）与 `advance_failed` 分支只 `showError`，按钮永久禁用。
+
+第二条链更隐蔽：`advanceFromScheduler` 在调度器 current 不在批次里时调
+`reportSchedulerDesync`（phase → `recoverableError`），而
+`advanceFromNativeRating` 用 `phase != readyForNext` 判「已前进」→ 回执 `ok`。
+但 desync 路径 **generation 不自增**，外层 `_boot()` 不重跑，
+`_scheduled` 的 `(cardId, side, presentGeneration)` 三元组不变 → present 永不
+发出 → 页面等一张不会来的卡。
+
+**三条硬结论**：
+
+1. `ok` 与 `advance_failed` **不解除** `ratingSent`：两者都代表提交已落库，
+   解除等于允许同一张卡二次提交。解除点是「下一张问题面落地」
+   （`!presentPending && !answerLanded`）。
+2. 推进失败**抛 `StateError`**，不返回 `false`：后者会被
+   `_runAdvance` 翻成 `ok_complete`，在调度器还欠卡时显示「复习完成」。
+   抛错落在既有 `advance_failed` 上，不新增回执码。
+3. desync 之后的重试必须先把 phase 拨回 `readyForNext`
+   （`acceptExternalOfficialCommit` 的幂等重放分支），否则重试是永久
+   no-op（`advanceTo` 只接受 `readyForNext`）。
+
+兜底看门狗 20s：覆盖引擎提交 + 推进（P0-2 窗口最多补渲染 8 张）+ 媒体推送
++ present 自身的 12s ack 超时。到期转 `advanceStuck` 的重试/结束行。
+
+### 5.4 reviewer 生命周期幂等——已施工（2026-10-18）
+
+真机症状：页面重复跳转。三条独立成因，都在 ability / session 生命周期上：
+
+1. **重复 open**：`OfficialAnkiOhosReviewerBinding.attach` 在 `await _ready`
+   期间不占 `_live`（`warmUp` 会占）。并发 attach 各建一个 binding 各发一次
+   `openReviewer`；singleton ability 的第二次启动走 `onNewWant`，那里无条件
+   `beginReviewerSession` + `loadContent` → **整页重载**。
+2. **误关**：`_abandon()` 不看是否已被 Stage 接管。Review All 换源到 blocked
+   源时 `_abandonOhosWarmUp()` 会关掉正在显示的 reviewer，页面随即
+   `maybePop()`。
+3. **绑旧会话**：`onNewWant` 换掉 session 后，页面 `booted` 闩锁使其无法重绑，
+   listener 全留在旧对象上；`aboutToDisappear` 又按「当前」`reviewerSession()`
+   清监听，可能清掉新页面的。
+
+**修法**：
+
+- `attach` 同步占 `_live`，boot 失败 `_abandon` 关掉已拉起的 ability。
+- 新增 `_adopted`：加载器句柄的 `cancel()` 不再关已接管的 reviewer；页面离开
+  走静态 `shutdown()`（`force: true`）。
+- `onNewWant` 按 mediaRoot 分流：同 root + 活会话 → `noteReviewerWantDelivered`
+  后直接返回（不重建、不重载）；异 root 才重建。
+- epoch 从「session 世代」改为「已服务请求数」`wantEpoch`，插件在
+  `startAbilityForResult` **之前**捕获 —— 否则复用路径的 `awaitReviewerReady`
+  会空等 8s。
+- 页面记 `boundSession`，`onPageShow` 校验重绑；`aboutToDisappear` 只解绑自己
+  绑的那个；`requestCancel` 在未订阅时缓存。
+
 ## 6. 验收方式
 
 每一条都要能在真机上给收据，不接受推断。**P2-5 / P2-6 不在本表**——它们本轮
@@ -650,6 +713,8 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 | D7 二档 | 同卡同评级两平台落库 rating 一致（`again`/`good`）；标签与语义色一致；评分行切换不跳布局 | 真机过卡 + 两平台对拍 |
 | D8 工具 | bury / suspend / redo 产生与安卓相同的调度效果 | 真机 + 调度前后队列对比 |
 | D9 退出确认 | 两步确认的第一跳文案报出剩余张数，且与 `remainingCount` 同口径 | 真机 + 对照 `progressIndex/progressTotal` |
+| UI-8 回执兜底 | 注入 desync（把 current 卡从批次过滤）后评分，底栏出「重试进入下一张 / 结束复习」，不停在「已提交，加载中…」；重试一次可前进 | 真机 + debug chrome 的 `errorCode` |
+| 生命周期幂等 | 连续进入复习 ×20 不出现整页重载；Review All 含 blocked 源不被弹回复习外；返回只退一页 | 真机 + `hilog` 的 `reusing the live reviewer session` 计数 |
 
 **口径提醒**：本文任何一条施工完成，都不改变 34 收据的 Held 项
 （真机导入、课程学习解锁、步 6 首跑收据、互斥与三批修复的真机复验）。
@@ -676,3 +741,5 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 6. ~~**D9 退出确认文案**~~ **已施工（2026-10-18）**：补剩余张数，口径对齐安卓
    `remainingCount`（含当前这张），N 未知时回落原文案；见 §4.3
 7. **P2-5 / P2-6**（先测量，测完再决定是否立项）——排期里唯一剩下的两项
+8. ~~**UI-8 回执兜底与评分互斥**~~ **已施工（2026-10-18）**：见 §5.3。真机判据待取
+9. ~~**reviewer 生命周期幂等**~~ **已施工（2026-10-18）**：见 §5.4。真机判据待取

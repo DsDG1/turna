@@ -91,22 +91,53 @@ struct AnkiReviewerPage {
   private alive: boolean = true;
   private bootAttempts: number = 0;
   private booted: boolean = false;
+
+  /// The session object this page installed its listeners on. See
+  /// [bootWhenSessionArrives] for why identity matters here.
+  private boundSession: AnkiReviewerSession | undefined = undefined;
+
   private exitDeadline: number = 0;
   private lastRating: string = '';
   private typedTimer: number = -1;
+
+  /// UI-8 follow-up: `ok` deliberately does not release the rating interlock
+  /// (releasing it there let one card be rated twice), so the release comes
+  /// from the next question face instead. This timer is the net under that:
+  /// if the present never lands — a scheduler desync, a closed ability, a
+  /// frame that gave up before its own ack — the learner would be parked on
+  /// "已提交，加载中…" with no entry at all.
+  private ratingTimer: number = -1;
+
+  /// D8/UI-8: one `retryAdvance` at a time. The entry only appears after an
+  /// `advance_failed` receipt, and a double tap would race two advances
+  /// against one queue.
+  private advancePending: boolean = false;
 
   /// P4: keystrokes are debounced before crossing the MethodChannel — the
   /// comparison needs the text only when the answer is requested, and a
   /// message per keypress made fast typing a channel flood.
   private static readonly TYPED_DEBOUNCE_MS: number = 150;
 
+  /// How long a committed rating may go without a new question face before the
+  /// page stops believing one is coming.
+  ///
+  /// 20 s covers the whole legal path: the engine commit, the scheduler
+  /// advance (up to eight re-renders in the P0-2 window), the media push, and
+  /// the present's own 12 s ack timeout. Shorter trips on a cold collection
+  /// with large audio; longer leaves the learner on a dead button.
+  private static readonly RATING_STALL_MS: number = 20000;
+
   private palette(): AnkiChromePalette {
     return paletteForTheme(this.theme);
   }
 
   aboutToAppear(): void {
+    // `aboutToDisappear` clears this; a page that is shown again (the ability
+    // was backgrounded, not destroyed) must be able to boot. Leaving it false
+    // made `onPageShow`'s re-boot a permanent no-op.
+    this.alive = true;
     this.ackBridge.attach((row: string): void => {
-      const session: AnkiReviewerSession | undefined = reviewerSession();
+      const session: AnkiReviewerSession | undefined = this.boundSession;
       if (session === undefined) {
         return;
       }
@@ -140,7 +171,9 @@ struct AnkiReviewerPage {
   /// Belt to `aboutToAppear`: the page can be prebuilt before the ability
   /// creates the session, and a prebuilt page's `aboutToAppear` may have given
   /// up before the session existed. `booted` keeps the two triggers from
-  /// double-booting.
+  /// booting the same session twice; a *different* session still boots, which
+  /// is what catches an `onNewWant` swap that landed while this page was
+  /// hidden.
   onPageShow(): void {
     this.bootWhenSessionArrives();
   }
@@ -173,8 +206,15 @@ struct AnkiReviewerPage {
   }
 
   /// Boots chrome and the asset preload the moment the session exists.
+  ///
+  /// Binds to the session *object*, not to whatever `reviewerSession()` returns
+  /// later. `onNewWant` can replace the store's session while this page is
+  /// alive (a different media root), and a page still bound to the previous
+  /// object receives neither presents nor chrome updates: the card stays on
+  /// screen, nothing on it responds, and a rating looks submitted forever.
+  /// [onPageShow] re-runs this precisely to notice that swap.
   private bootWhenSessionArrives(): void {
-    if (!this.alive || this.booted) {
+    if (!this.alive) {
       return;
     }
     const session: AnkiReviewerSession | undefined = reviewerSession();
@@ -189,8 +229,24 @@ struct AnkiReviewerPage {
       this.showError('reviewer session missing', false);
       return;
     }
+    const previous: AnkiReviewerSession | undefined = this.boundSession;
+    if (this.booted && previous === session) {
+      return;
+    }
+    if (previous !== undefined && previous !== session) {
+      // Unbind the object this page bound, never the one currently in the
+      // store: that one belongs to the replacement page, and clearing its
+      // listeners would silence a live reviewer.
+      this.unbindSession(previous);
+      this.resetSessionState();
+    }
     this.booted = true;
+    this.bootAttempts = 0;
+    this.boundSession = session;
     session.setChromeListener((state: ReviewerChromeState): void => {
+      if (this.boundSession !== session) {
+        return;
+      }
       if (state.cardId !== this.seenCard) {
         this.seenCard = state.cardId;
         this.typed = '';
@@ -212,18 +268,35 @@ struct AnkiReviewerPage {
         this.errorFatal = false;
         this.status = '';
       }
-      this.ratingSent = false;
+      // Only an answerable question face proves the rating round-trip is over.
+      // This used to clear unconditionally, which meant the present-start
+      // notification (presentPending=true, answerLanded=false) released the
+      // interlock while the receipt was still in flight — and once that
+      // present finished, the rating row was back on a card that had already
+      // been graded, so a second tap graded it again.
+      if (!state.presentPending && !state.answerLanded) {
+        this.ratingSent = false;
+        this.advanceStuck = false;
+        this.disarmRatingWatchdog();
+      }
     });
     session.setFailureListener((code: string): void => {
+      if (this.boundSession !== session) {
+        return;
+      }
       this.showError(code, FATAL_CODES.indexOf(code) >= 0);
     });
     session.setCancelListener((): void => {
+      if (this.boundSession !== session) {
+        return;
+      }
       // P0-1: a speculative open that was abandoned before any card arrived.
       this.endReview(VERDICT_WARM_CANCELED);
     });
-    if (consumePendingReviewerCancel()) {
+    if (session.consumeCancelRequest() || consumePendingReviewerCancel()) {
       // The cancel landed before this page existed (the warm-up had not got
-      // here yet). Honour it now rather than booting a page nobody wants.
+      // here yet), or before this page's listener was installed. Honour it now
+      // rather than booting a page nobody wants.
       this.endReview(VERDICT_WARM_CANCELED);
       return;
     }
@@ -237,14 +310,51 @@ struct AnkiReviewerPage {
       });
   }
 
+  /// Detaches this page's listeners from one session object. Identity-checked
+  /// by the caller; never called with `reviewerSession()`.
+  private unbindSession(session: AnkiReviewerSession): void {
+    session.setChromeListener(undefined);
+    session.setFailureListener(undefined);
+    session.setCancelListener(undefined);
+  }
+
+  /// Clears everything that described the previous session's card. A new
+  /// session starts at card 0 with no faces: inheriting `answerLanded` or
+  /// `ratingSent` would render a rating row for a card that is not there.
+  private resetSessionState(): void {
+    this.seenCard = -1;
+    this.presentPending = false;
+    this.answerLanded = false;
+    this.typedVisible = false;
+    this.typed = '';
+    this.typedFrozen = false;
+    this.ratingSent = false;
+    this.advanceStuck = false;
+    this.complete = false;
+    this.previewOnly = false;
+    this.hasAudio = false;
+    this.avHint = '';
+    this.progressIndex = 0;
+    this.progressTotal = 0;
+    this.status = '';
+    this.errorCode = '';
+    this.errorFatal = false;
+    this.settleTotal = -1;
+    this.settleRemembered = -1;
+    this.settleForgotten = -1;
+    this.settleSeconds = -1;
+    this.settleXp = -1;
+    this.disarmRatingWatchdog();
+  }
+
   aboutToDisappear(): void {
     this.alive = false;
     this.cancelTypedFlush();
-    const session: AnkiReviewerSession | undefined = reviewerSession();
-    if (session !== undefined) {
-      session.setChromeListener(undefined);
-      session.setFailureListener(undefined);
-      session.setCancelListener(undefined);
+    this.disarmRatingWatchdog();
+    const bound: AnkiReviewerSession | undefined = this.boundSession;
+    this.boundSession = undefined;
+    if (bound !== undefined) {
+      this.unbindSession(bound);
     }
   }
 
@@ -264,6 +374,7 @@ struct AnkiReviewerPage {
     this.status = '';
     this.bootAttempts = 0;
     this.booted = false;
+    this.boundSession = undefined;
     this.bootWhenSessionArrives();
   }
 
@@ -347,7 +458,7 @@ struct AnkiReviewerPage {
 
   private onRate(rating: string): void {
     const session: AnkiReviewerSession | undefined = this.session();
-    if (session === undefined || this.mutating) {
+    if (session === undefined || this.mutating || this.ratingSent) {
       return;
     }
     this.status = '';
@@ -356,17 +467,32 @@ struct AnkiReviewerPage {
     this.advanceStuck = false;
     this.ratingSent = true;
     this.lastRating = rating;
+    this.armRatingWatchdog();
     session.channel().rate(rating, (code: string): void => {
       this.onRateReceipt(code);
     });
   }
 
+  /// One receipt, one decision. The page's whole rating interlock lives here,
+  /// and the two branches that keep `ratingSent` true are the ones where the
+  /// commit already happened: releasing it would let the same card be graded
+  /// a second time.
   private onRateReceipt(code: string): void {
+    this.disarmRatingWatchdog();
     if (code === RECEIPT_OK || code === RECEIPT_OK_COMPLETE) {
+      // A previous advance failure is resolved by this receipt: `ok` means the
+      // session moved on. Leaving `advanceStuck` set here parked the bottom
+      // bar on "重试进入下一张" for the rest of the review.
+      this.advanceStuck = false;
       if (code === RECEIPT_OK_COMPLETE) {
         this.complete = true;
         this.fetchSettlement();
+        return;
       }
+      // The next card is still on its way (media push + present). The chrome
+      // listener releases the interlock when its question face lands, and the
+      // watchdog covers a present that never does.
+      this.armRatingWatchdog();
       return;
     }
     if (code === RECEIPT_ANSWER_NOT_READY || code === RECEIPT_SCHEDULER_BUSY) {
@@ -377,22 +503,65 @@ struct AnkiReviewerPage {
       return;
     }
     if (code === RECEIPT_ADVANCE_FAILED) {
+      // The rating is in the scheduler; only the advance failed. Re-arming the
+      // row would submit the same card again, so the retry entry is the only
+      // way forward.
       this.advanceStuck = true;
-      this.showError('已评分，但进入下一张失败', false);
+      this.errorCode = 'advance_failed';
+      this.errorFatal = false;
+      this.status = '已评分，但进入下一张失败';
       return;
     }
-    this.showError('评分失败：' + (code.length > 0 ? code : '无回执'), false);
+    // Everything else means no commit happened — a committed failure always
+    // surfaces as `advance_failed` — so the row must be armed again. Leaving
+    // `ratingSent` true here is exactly the "已提交，加载中…" deadlock: the
+    // button is disabled and nothing will ever flip it back.
+    this.ratingSent = false;
+    this.errorCode = code.length > 0 ? code : 'rating_failed';
+    this.errorFatal = false;
+    this.status = '评分失败：' + (code.length > 0 ? code : '无回执');
   }
 
   private onRetryAdvance(): void {
     const session: AnkiReviewerSession | undefined = this.session();
-    if (session === undefined) {
+    if (session === undefined || this.advancePending) {
       return;
     }
+    this.advancePending = true;
     this.status = '';
     session.channel().retryAdvance(this.lastRating, (code: string): void => {
+      this.advancePending = false;
       this.onRateReceipt(code);
     });
+  }
+
+  /// Turns a silent stall into the same retry/exit row an `advance_failed`
+  /// receipt produces. See [RATING_STALL_MS] for the window.
+  private armRatingWatchdog(): void {
+    this.disarmRatingWatchdog();
+    this.ratingTimer = setTimeout((): void => {
+      this.ratingTimer = -1;
+      if (!this.ratingSent || this.complete) {
+        return;
+      }
+      if (this.presentPending) {
+        // A present is in flight and carries its own 12 s ack timeout: a card
+        // that is still rendering is not a stall. Give it one more window.
+        this.armRatingWatchdog();
+        return;
+      }
+      this.advanceStuck = true;
+      this.errorCode = 'rating_stalled';
+      this.errorFatal = false;
+      this.status = '评分已提交，但下一张卡片没有到达';
+    }, AnkiReviewerPage.RATING_STALL_MS);
+  }
+
+  private disarmRatingWatchdog(): void {
+    if (this.ratingTimer >= 0) {
+      clearTimeout(this.ratingTimer);
+      this.ratingTimer = -1;
+    }
   }
 
   private onUndo(): void {
@@ -425,7 +594,10 @@ struct AnkiReviewerPage {
   /// so the page must not special-case it.
   private requestCardAction(action: string, pendingText: string): void {
     const session: AnkiReviewerSession | undefined = this.session();
-    if (session === undefined || this.mutating) {
+    // A rating already in flight owns the scheduler. Letting a bury/suspend
+    // through here races two mutations against one queue and can move the
+    // session twice for one answer.
+    if (session === undefined || this.mutating || this.ratingSent) {
       return;
     }
     this.mutating = true;
@@ -511,6 +683,7 @@ struct AnkiReviewerPage {
         isComplete: this.complete,
         advanceStuck: this.advanceStuck,
         mutating: this.mutating,
+        ratingSent: this.ratingSent,
         onReplayAudio: (): void => {
           this.onReplayAudio();
         },

@@ -73,16 +73,22 @@ void main() {
         reason: 'the card-action row must sit directly inside the previewOnly '
             'guard',
       );
+      // `!ratingSent` is the UI-8 interlock: a committed rating and a queue
+      // mutation both write the same scheduler, so an entry that stays armed
+      // during a rating races two mutations against one queue. Pinned here
+      // because the page-level guard is unreachable from Dart.
       final mutations =
           RegExp(r'\.enabled\(this\.booted && !this\.isComplete && '
-                  r'!this\.mutating && !this\.presentPending\)')
+                  r'!this\.mutating && !this\.presentPending && '
+                  r'!this\.ratingSent\)')
               .allMatches(chrome)
               .length;
       expect(
         mutations,
         3,
         reason: 'all three entries must share one enable rule — a button that '
-            'stays armed during a mutation would race two advances',
+            'stays armed during a mutation or a rating would race two writes '
+            'against one scheduler',
       );
     });
 
@@ -220,6 +226,143 @@ void main() {
         isTrue,
         reason: 'during boot both progress fields are 0; without the clamp the '
             'line reads 还剩 -1 张',
+      );
+    });
+  });
+
+  // UI-8 follow-up: the rating interlock's release rules.
+  //
+  // The page cannot be driven from Dart (see the file header) and the defect
+  // these pin is a *deadlock*: `ratingSent` stays true, the bottom bar renders
+  // a disabled "已提交，加载中…", and no receipt ever flips it back. The only
+  // signal available here is the shape of the branch.
+  group('rating receipt interlock (UI-8)', () {
+    late final String page;
+
+    setUpAll(() {
+      page = _code(_pagePath);
+    });
+
+    /// The body of `onRateReceipt`, with the method's closing brace excluded.
+    String receiptBody() {
+      final body = RegExp(
+        r'private onRateReceipt\(code: string\): void \{([\s\S]{0,2200}?)\n  \}',
+      ).firstMatch(page)?.group(1);
+      expect(body, isNotNull, reason: 'onRateReceipt is gone from $_pagePath');
+      return body!;
+    }
+
+    /// One `if (code === …) { … }` arm of the receipt switch.
+    String? branch(String needle) {
+      return RegExp(
+        'if \\(code === $needle\\) \\{([\\s\\S]{0,900}?)\\n    \\}',
+      ).firstMatch(receiptBody())?.group(1);
+    }
+
+    test('a receipt that did not commit re-arms the rating row', () {
+      // The catch-all used to call `showError` only. Every code that lands
+      // there — bridge_detached, not_implemented, channel errors,
+      // session_closed, no_card, engine_error, card_mismatch,
+      // scheduler_unavailable — means no grade was written, so the two rating
+      // buttons must come back.
+      final body = receiptBody();
+      final anchor = body.indexOf("'rating_failed'");
+      expect(anchor, greaterThan(0),
+          reason: 'the catch-all receipt branch lost its diagnostic code');
+      final before = body.substring(anchor > 320 ? anchor - 320 : 0, anchor);
+      expect(
+        before.contains('this.ratingSent = false;'),
+        isTrue,
+        reason: 'the catch-all branch no longer clears ratingSent; a detached '
+            'bridge or a closed session would leave the rating row disabled '
+            'for the rest of the review — the reported 已提交，加载中… stall',
+      );
+    });
+
+    test('a committed rating keeps the interlock until the next card', () {
+      // `ok` and `advance_failed` both mean the grade is already in the
+      // scheduler. Re-arming there submits the same card twice.
+      final ok = branch('RECEIPT_OK \\|\\| code === RECEIPT_OK_COMPLETE');
+      expect(ok, isNotNull, reason: 'the ok / ok_complete arm is gone');
+      expect(
+        ok!.contains('this.ratingSent = false'),
+        isFalse,
+        reason: 'the ok arm must not re-arm the row: the next card has not '
+            'landed yet and the row returns as soon as answerLanded is true',
+      );
+      final failed = branch('RECEIPT_ADVANCE_FAILED');
+      expect(failed, isNotNull, reason: 'the advance_failed arm is gone');
+      expect(
+        failed!.contains('this.ratingSent = false'),
+        isFalse,
+        reason: 'advance_failed means the grade is committed; re-arming would '
+            'submit it again, so the retry entry is the only way forward',
+      );
+      expect(
+        failed.contains('this.advanceStuck = true'),
+        isTrue,
+        reason: 'advance_failed must swap in the retry / exit row',
+      );
+    });
+
+    test('an ok receipt clears a stale advance failure', () {
+      // `onRetryAdvance` replays the advance and a success answers `ok`. If
+      // the page does not clear `advanceStuck`, the bottom bar stays on
+      // "重试进入下一张" for the rest of the session even though the card moved.
+      final ok = branch('RECEIPT_OK \\|\\| code === RECEIPT_OK_COMPLETE');
+      expect(
+        ok!.contains('this.advanceStuck = false'),
+        isTrue,
+        reason: 'a successful retry must take the page out of the stuck row',
+      );
+    });
+
+    test('a stalled rating becomes the retry row, not a dead button', () {
+      expect(
+        RegExp(r'private armRatingWatchdog\(\): void \{').hasMatch(page),
+        isTrue,
+        reason: 'without the watchdog a present that never lands leaves the '
+            'page on a disabled button with no entry at all',
+      );
+      expect(
+        RegExp(r'private static readonly RATING_STALL_MS: number = 20000;')
+            .hasMatch(page),
+        isTrue,
+        reason: 'the stall window must stay above the present ack timeout '
+            '(12 s) plus the media push, or a slow card reads as a failure',
+      );
+      expect(
+        RegExp(r'this\.ratingTimer = setTimeout\(').hasMatch(page),
+        isTrue,
+      );
+      expect(
+        RegExp(r'private disarmRatingWatchdog\(\): void \{').hasMatch(page),
+        isTrue,
+        reason: 'the timer must be cancelled when the next card lands',
+      );
+    });
+
+    test('the chrome listener releases only on a question face', () {
+      // `presentPending` is true from the present call until its ack. Clearing
+      // `ratingSent` there re-armed the row while the receipt was still in
+      // flight — once the present finished, a second tap graded the same card.
+      expect(
+        RegExp(r'if \(!state\.presentPending && !state\.answerLanded\) \{')
+            .hasMatch(page),
+        isTrue,
+        reason: 'the chrome listener must not clear ratingSent while a present '
+            'is in flight or an answer face is showing',
+      );
+    });
+
+    test('the three queue mutations are gated on the rating interlock', () {
+      expect(
+        RegExp(r'if \(session === undefined \|\| this\.mutating \|\| '
+                r'this\.ratingSent\) \{')
+            .hasMatch(page),
+        isTrue,
+        reason: 'a bury / suspend that slips in during a rating races two '
+            'mutations against one scheduler',
       );
     });
   });

@@ -26,7 +26,7 @@ import { probeReviewerAssets } from '../probe/AnkiReviewerAssetProbe';
 import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
 import {
   reviewerSession,
-  reviewerSessionEpoch,
+  reviewerWantEpoch,
   requestReviewerCancel,
   shellReadyAfter,
   subscribeShellReady,
@@ -71,6 +71,16 @@ const REVIEWER_ABILITY = "AnkiReviewerAbility";
 export default class AnkiReviewerPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;
   private context: common.UIAbilityContext;
+
+  /// The store epoch captured at the last [openReviewer], i.e. the world
+  /// *before* that launch was served. `-1` means no launch is pending.
+  ///
+  /// Captured there rather than in [awaitReviewerReady] because `onNewWant`
+  /// runs on this same main thread and may serve the want by reusing the live
+  /// session — which bumps the epoch. A value captured later would already be
+  /// past the one it is waiting for, and `shellReadyAfter` (strict `>`) would
+  /// never turn true.
+  private pendingReadyEpoch: number = -1;
 
   // Injected rather than discovered: `startAbilityForResult` needs a real
   // UIAbilityContext, and a FlutterPluginBinding only hands out an
@@ -204,6 +214,9 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
       abilityName: REVIEWER_ABILITY,
       parameters: { mediaRoot: mediaRoot },
     };
+    // Before the launch, never after: `onNewWant` is dispatched on this same
+    // thread and increments the counter as soon as it serves the want.
+    this.pendingReadyEpoch = reviewerWantEpoch();
     this.context
       .startAbilityForResult(want)
       .then((abilityResult: common.AbilityResult): void => {
@@ -273,15 +286,18 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
   /// closes the ability. Presenting before the shell's script exists runs
   /// `OfficialReviewer.present` against a document that does not have it.
   ///
-  /// B3: only a session BEGUN AFTER this call counts. The previous
-  /// session used to satisfy the wait — destroyed ability, stale store entry,
+  /// B3: only a request served AFTER this call counts. The previous session
+  /// used to satisfy the wait — destroyed ability, stale store entry,
   /// `shellReady` still true — and Dart then presented onto a dead Web
-  /// controller as the "second review opens broken" bug. The epoch is
-  /// captured at entry, which is safe here by construction: this call is
-  /// issued milliseconds after `openReviewer`, while the ability still has a
-  /// whole page (and its Web) to load before any new session can be ready.
+  /// controller as the "second review opens broken" bug.
+  ///
+  /// The epoch is the one [openReviewer] captured before launching, not a
+  /// fresh read: `onNewWant` may have served this want already, and reading
+  /// the counter here would then wait for a second delivery that never comes.
   private awaitReviewerReady(result: MethodResult): void {
-    const wantEpoch: number = reviewerSessionEpoch();
+    const wantEpoch: number = this.pendingReadyEpoch >= 0
+      ? this.pendingReadyEpoch
+      : reviewerWantEpoch();
     let settled: boolean = false;
     let unsubscribe: () => void = (): void => {};
     let timer: number = -1;

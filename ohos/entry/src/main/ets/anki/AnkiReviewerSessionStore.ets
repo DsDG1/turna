@@ -12,26 +12,39 @@
 // one place the ability (writer), the plugin (Dart's entry) and the page
 // (reader) all agree on.
 //
-// B3: the store also hands out a monotonic epoch, one per session ever begun.
-// A destroyed ability's session is removed on destroy, and `awaitReviewerReady`
-// additionally refuses to accept any session from BEFORE its own call: the
-// second launch of a reviewer used to race its ready wait against the
-// previous session (still present, already shell-ready) and present onto a
-// destroyed page's Web controller. Shell readiness is pushed from
-// `markShellReady` through [notifyReviewerShellReady]; callers do not poll.
+// B3: the store also hands out a monotonic epoch, bumped once per **served open
+// request**. A destroyed ability's session is removed on destroy, and
+// `awaitReviewerReady` additionally refuses to accept any session whose request
+// was served before its own call: the second launch of a reviewer used to race
+// its ready wait against the previous session (still present, already
+// shell-ready) and present onto a destroyed page's Web controller. Shell
+// readiness is pushed from `markShellReady` through [notifyReviewerShellReady];
+// callers do not poll.
+//
+// The epoch counts requests, not session objects (it was `sessionEpoch` before
+// `onNewWant` learned to reuse a live session): a relaunch that keeps the same
+// media root serves its want without beginning a session, and the waiter for
+// that want must be released rather than time out after eight seconds.
 
 import { AnkiReviewerSession } from './AnkiReviewerSession';
 
 let currentSession: AnkiReviewerSession | undefined = undefined;
-let sessionEpoch: number = 0;
+let wantEpoch: number = 0;
 
 export function beginReviewerSession(mediaRoot: string): AnkiReviewerSession {
-  sessionEpoch += 1;
+  wantEpoch += 1;
   currentSession = new AnkiReviewerSession(mediaRoot);
   currentSession.setShellReadyHook((): void => {
     notifyReviewerShellReady();
   });
   return currentSession;
+}
+
+/// `onNewWant` served this request by keeping the live session: the page, its
+/// Web and its shell are already up, so nothing was begun — but the request has
+/// been handled and its `awaitReviewerReady` must stop waiting.
+export function noteReviewerWantDelivered(): void {
+  wantEpoch += 1;
 }
 
 /// Removes a session the ability is destroying. Identity-checked so a late
@@ -47,21 +60,22 @@ export function reviewerSession(): AnkiReviewerSession | undefined {
   return currentSession;
 }
 
-/// Monotonic count of sessions ever begun in this process. Callers capture it
-/// before launching a reviewer and only accept strictly newer sessions.
-export function reviewerSessionEpoch(): number {
-  return sessionEpoch;
+/// Monotonic count of open requests ever served in this process. Callers
+/// capture it before launching a reviewer and only accept a count that has
+/// moved past their own.
+export function reviewerWantEpoch(): number {
+  return wantEpoch;
 }
 
 type ShellReadyListener = () => void;
 
 let shellReadyListeners: Array<ShellReadyListener> = [];
 
-/// True only for a session begun after [wantEpoch] whose shell has loaded.
-/// A still-ready session from an earlier launch does not qualify (B3).
-export function shellReadyAfter(wantEpoch: number): boolean {
+/// True only for a request served after [want] whose session has a loaded
+/// shell. A still-ready session from an earlier launch does not qualify (B3).
+export function shellReadyAfter(want: number): boolean {
   const session: AnkiReviewerSession | undefined = currentSession;
-  return session !== undefined && sessionEpoch > wantEpoch && session.isShellReady();
+  return session !== undefined && wantEpoch > want && session.isShellReady();
 }
 
 export function subscribeShellReady(listener: ShellReadyListener): () => void {
@@ -100,6 +114,12 @@ export function notifyReviewerShellReady(): void {
 let cancelPending: boolean = false;
 
 /// Cancels the live session, or remembers the request until one exists.
+///
+/// The `session !== undefined` branch is not enough on its own: a session
+/// exists from `onWindowStageCreate`, but the page subscribes a moment later,
+/// and a cancel inside that window used to be dropped by
+/// `AnkiReviewerSession.requestCancel` (which had no listener to call). The
+/// session now caches it too, so both halves of the boot are covered.
 export function requestReviewerCancel(): void {
   const session: AnkiReviewerSession | undefined = currentSession;
   if (session === undefined) {

@@ -207,6 +207,18 @@ class OfficialAnkiOhosReviewerBinding {
   /// it — the learner would see the page they just opened flash and vanish.
   var _openIssued = false;
 
+  /// A stage has rebound to this binding — it is the reviewer the learner is
+  /// looking at, not a speculative open waiting to be adopted.
+  ///
+  /// The distinction decides who may close it. A warm-up handle is held by a
+  /// loader that can still fail (blocked source, empty batch, unmounted page),
+  /// and that loader must be able to abandon its own speculative open. But the
+  /// same handle outlives adoption: `AnkiReviewSessionPage` drops it only on
+  /// the success path, so a later `Review All` source that fails would cancel
+  /// a reviewer that is currently showing a card — the learner gets thrown out
+  /// of a live session. Once adopted, only [shutdown] closes it.
+  var _adopted = false;
+
   /// The boot sequence: [open] transport, bind callbacks, wait for the shell.
   ///
   /// A warm-up resolves this before any controller exists; [attach] awaits the
@@ -242,7 +254,15 @@ class OfficialAnkiOhosReviewerBinding {
   /// Closes a reviewer nobody adopted: marks it closed, drops it from the live
   /// slot, and asks ArkTS to close the ability — but only if one was actually
   /// opened (see [_openIssued]).
-  Future<void> _abandon() async {
+  ///
+  /// **Adopted reviewers are left alone** unless [force] is set. See [_adopted]
+  /// for why: the handle that asks for the cancel belongs to a loader, and a
+  /// loader failure must never close the page the learner is reading. The one
+  /// forced exit is [shutdown], called when the review page itself goes away.
+  Future<void> _abandon({bool force = false}) async {
+    if (!force && _adopted) {
+      return;
+    }
     _disarmIdleDeadline();
     if (_closed) return;
     _closed = true;
@@ -258,6 +278,27 @@ class OfficialAnkiOhosReviewerBinding {
       logger.w('[OhosReviewer] warm-up cancel dropped', error: error);
     }
   }
+
+  /// Closes the live reviewer no matter who adopted it — the review page's
+  /// exit path.
+  ///
+  /// Deliberately a static on the binding rather than a flag on
+  /// [OfficialAnkiOhosReviewerWarmUp.cancel]: the page drops its warm-up handle
+  /// as soon as a stage adopts the reviewer, so the handle is exactly the thing
+  /// that does *not* exist when the learner leaves. A `force` flag reachable
+  /// from the handle would also hand every failing loader a one-argument way to
+  /// close a live session, which is the defect this whole distinction exists to
+  /// remove.
+  ///
+  /// Idempotent: a second call finds no live binding, and a binding that has
+  /// already closed itself short-circuits on [_closed].
+  static Future<void> shutdown() async {
+    final live = _live;
+    _live = null;
+    if (live == null) return;
+    await live._abandon(force: true);
+  }
+
   DateTime? _answerShownAt;
   (int, String, int)? _pending;
   (int, String, int)? _scheduled;
@@ -296,10 +337,18 @@ class OfficialAnkiOhosReviewerBinding {
   }) async {
     final existing = _live;
     if (existing != null && !existing._closed) {
+      // Claim it before awaiting. A warm-up handle cancelled in this window
+      // must not close a reviewer that is being adopted right now.
+      existing._adopted = true;
       // A P0-1 warm-up may still be booting. Attaching before it settles would
       // present into a shell that does not exist yet; awaiting the same future
       // is what makes the warm-up free rather than merely early.
-      await existing._ready;
+      try {
+        await existing._ready;
+      } catch (_) {
+        existing._adopted = false;
+        rethrow;
+      }
       existing.rebind(
         controller: controller,
         grades: grades,
@@ -333,13 +382,25 @@ class OfficialAnkiOhosReviewerBinding {
       now: now,
     );
     binding._ready = binding._open(controller);
+    binding._adopted = true;
+    // Claim the slot synchronously, exactly like `warmUp` does. Two attaches
+    // that both waited for their own boot would each call `openReviewer`, and a
+    // second `startAbilityForResult` on a singleton ability lands in
+    // `onNewWant` — which rebuilds the session and reloads the page under the
+    // learner. That reload is the "page jumps again" report.
+    _live = binding;
     try {
       await binding._ready;
     } catch (error) {
-      _live = null;
+      binding._adopted = false;
+      // Dropping the slot alone leaves the ability this boot already launched
+      // on screen with no card; the next attach would then open a second one.
+      // `_abandon` still guards on `_openIssued`, so a failure before `open`
+      // never sends a close (which the native side would cache for the *next*
+      // reviewer).
+      await binding._abandon();
       rethrow;
     }
-    _live = binding;
     binding.rebind(
       controller: controller,
       grades: grades,
@@ -419,6 +480,10 @@ class OfficialAnkiOhosReviewerBinding {
       if (identical(_live, binding)) {
         _live = null;
       }
+      // …and whatever it managed to launch has to go: an ability left on
+      // screen with no card is exactly what makes the next attach open a
+      // second one on top of it.
+      unawaited(binding._abandon(force: true));
       logger.w('[OhosReviewer] warm-up boot failed',
           error: error, stackTrace: stack);
     }));
@@ -471,6 +536,7 @@ class OfficialAnkiOhosReviewerBinding {
     // load, and a warm-up that is adopted just before the deadline would
     // otherwise be torn down between rebind and the first present.
     _disarmIdleDeadline();
+    _adopted = true;
     if (!identical(_controller, controller)) {
       _controller?.removeListener(_onController);
       _controller = controller;

@@ -15,12 +15,17 @@
 // serve nothing or serve from the wrong collection.
 //
 // B6: the ability is declared `singleton` (the platform default, now stated
-// explicitly). A relaunch onto the living instance routes through
-// `onNewWant` instead of `onCreate`, and without this handler the new Want —
-// and its `mediaRoot` — was silently dropped, leaving the page serving the
-// previous collection's media from the background. The handler rebuilds the
-// session and reloads the page: a fresh page re-runs `onPageEnd`, which is
-// what marks the (new) session shell-ready.
+// explicitly). A relaunch onto the living instance routes through `onNewWant`
+// instead of `onCreate`, and without this handler the new Want — and its
+// `mediaRoot` — was silently dropped, leaving the page serving the previous
+// collection's media from the background.
+//
+// The handler is split on the media root, and that split is the fix for the
+// "page jumps again" report. A want for the SAME root is served by keeping the
+// live session: the page, its Web and its shell are already up, so beginning a
+// session would orphan the Web controller and `loadContent` would reload the
+// whole page under the learner. Only a different root — a genuinely different
+// collection — rebuilds the session and reloads, which is what B6 was about.
 
 import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
@@ -29,6 +34,7 @@ import { AnkiReviewerSession } from '../anki/AnkiReviewerSession';
 import {
   beginReviewerSession,
   endReviewerSession,
+  noteReviewerWantDelivered,
 } from '../anki/AnkiReviewerSessionStore';
 import { ARG_MEDIA_ROOT } from '../anki/AnkiReviewerProtocol';
 
@@ -65,6 +71,17 @@ export default class AnkiReviewerAbility extends UIAbility {
       // The instance is alive before its window: fall back to storing the
       // root; onWindowStageCreate will build the session from it.
       this.mediaRoot = given;
+      return;
+    }
+    const session: AnkiReviewerSession | undefined = this.session;
+    if (given === this.mediaRoot && session !== undefined) {
+      // Same collection, live session: the page, its Web and its shell are all
+      // still there. Beginning a session here would orphan that Web controller,
+      // and `loadContent` would reload the page — a full white flash, progress
+      // back to zero, for a want that changed nothing. Serving the want is all
+      // that is left to do, so the waiting `awaitReviewerReady` is released.
+      noteReviewerWantDelivered();
+      hilog.info(DOMAIN, TAG, 'reusing the live reviewer session, mediaRoot=%{public}s', given);
       return;
     }
     hilog.info(DOMAIN, TAG, 'relaunching reviewer session, mediaRoot=%{public}s', given);

@@ -429,8 +429,7 @@ void main() {
     expect(advanceCalls, 2);
   });
 
-  test(
-      'media is pushed once per card and re-pushed after a card switch (P2)',
+  test('media is pushed once per card and re-pushed after a card switch (P2)',
       () async {
     final transport = _FakeTransport();
     const card7 = OfficialAnkiRenderedCard(
@@ -655,7 +654,8 @@ void main() {
     final cachedNames = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      if (call.method == OfficialAnkiReviewerProtocol.methodCacheReviewerMedia) {
+      if (call.method ==
+          OfficialAnkiReviewerProtocol.methodCacheReviewerMedia) {
         final args = call.arguments as Map<Object?, Object?>;
         cachedNames.add(args[OfficialAnkiReviewerProtocol.argName] as String);
       }
@@ -780,8 +780,7 @@ void main() {
       generation: 2,
       dark: false,
     );
-    final pushes =
-        transport.calls.where((c) => c.startsWith('push:')).toList();
+    final pushes = transport.calls.where((c) => c.startsWith('push:')).toList();
     expect(pushes, hasLength(2), reason: 'cat.png must be retried');
     expect(pushes.last, 'push:cat.png');
   });
@@ -835,7 +834,8 @@ void main() {
     expect(second.openCalls, 1);
   });
 
-  test('an unadopted warm-up closes itself when the idle deadline passes (P0-1)',
+  test(
+      'an unadopted warm-up closes itself when the idle deadline passes (P0-1)',
       () async {
     // On device a warm-up that no caller cancelled stayed on screen as an
     // empty reviewer: the ability was up, no card was ever sent, and the only
@@ -962,6 +962,152 @@ void main() {
     expect(transport.openCalls, 0);
     expect(
       transport.closeCalls,
+      0,
+      reason: 'a close with nothing open poisons the next reviewer',
+    );
+  });
+
+  test('two overlapping attaches share one open (no second ability)', () async {
+    // The window is real: `attach` used to claim the live slot only after its
+    // boot resolved, so a second attach arriving during that await built its
+    // own binding and called `openReviewer` again. On a singleton ability the
+    // second launch lands in `onNewWant`, which rebuilds the session and
+    // reloads the page under the learner — the "page jumps again" report.
+    final transport = _FakeTransport();
+    final gate = Completer<void>();
+    transport.readyGate = gate;
+
+    Future<OfficialAnkiOhosReviewerBinding> attach() {
+      return OfficialAnkiOhosReviewerBinding.attach(
+        controller: controller,
+        grades: const OfficialAnkiCourseGradesBridgeImpl(),
+        mediaRoot: media.path,
+        resolver: OfficialAnkiMediaResolver(media),
+        sourceId: 'source-test',
+        dark: false,
+        transport: transport,
+      );
+    }
+
+    final first = attach();
+    final second = attach();
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      transport.openCalls,
+      1,
+      reason: 'both attaches are inside their boot; the slot must already hold '
+          'the first one',
+    );
+
+    gate.complete();
+    final a = await first;
+    final b = await second;
+    expect(identical(a, b), isTrue,
+        reason: 'the second attach joins the first');
+    expect(transport.openCalls, 1);
+  });
+
+  test('an adopted reviewer survives its loader handle being cancelled',
+      () async {
+    // Review All walks sources, and each source takes a warm-up handle. When a
+    // later source turns out blocked, the page cancels *that* handle — which
+    // may be the very binding currently showing a card. Closing it threw the
+    // learner out of a live session.
+    final transport = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+    );
+
+    final handle = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+    await handle.cancel();
+
+    expect(
+      transport.closeCalls,
+      0,
+      reason: 'an adopted reviewer belongs to the stage, not to whichever '
+          'loader happens to hold a handle',
+    );
+    expect(transport.openCalls, 1);
+  });
+
+  test('shutdown closes an adopted reviewer', () async {
+    final transport = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+    );
+
+    await OfficialAnkiOhosReviewerBinding.shutdown();
+    expect(
+      transport.closeCalls,
+      1,
+      reason: 'the page drops its warm-up handle on adoption, so shutdown is '
+          'the only exit left when the learner leaves',
+    );
+    await OfficialAnkiOhosReviewerBinding.shutdown();
+    expect(transport.closeCalls, 1, reason: 'shutdown is idempotent');
+  });
+
+  test('a boot that dies after open closes the ability it launched', () async {
+    final broken = _FakeTransport()..failReady = true;
+    await expectLater(
+      OfficialAnkiOhosReviewerBinding.attach(
+        controller: controller,
+        grades: const OfficialAnkiCourseGradesBridgeImpl(),
+        mediaRoot: media.path,
+        resolver: OfficialAnkiMediaResolver(media),
+        sourceId: 'source-test',
+        dark: false,
+        transport: broken,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(broken.openCalls, 1);
+    expect(
+      broken.closeCalls,
+      1,
+      reason: 'the ability is on screen with no card; leaving it there is what '
+          'makes the next attach stack a second page on top of it',
+    );
+
+    final dead = _FakeTransport()..failBind = true;
+    await expectLater(
+      OfficialAnkiOhosReviewerBinding.attach(
+        controller: controller,
+        grades: const OfficialAnkiCourseGradesBridgeImpl(),
+        mediaRoot: media.path,
+        resolver: OfficialAnkiMediaResolver(media),
+        sourceId: 'source-test',
+        dark: false,
+        transport: dead,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(dead.openCalls, 0);
+    expect(
+      dead.closeCalls,
       0,
       reason: 'a close with nothing open poisons the next reviewer',
     );
@@ -1236,7 +1382,9 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
     this.onRetryPresent = onRetryPresent;
     this.onReplayAudio = onReplayAudio;
     this.onCardAction = onCardAction;
-  }  @override
+  }
+
+  @override
   Future<String> open({required String mediaRoot}) {
     openCalls += 1;
     return _open.future;
@@ -1248,6 +1396,11 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
 
   /// When true, `waitUntilReady` throws — a shell that never loads.
   bool failReady = false;
+
+  /// Holds `waitUntilReady` open, so a test can put two `attach` calls inside
+  /// their boot at the same time. Without it the fake resolves instantly and
+  /// the concurrency window is unobservable.
+  Completer<void>? readyGate;
 
   /// When true, installing the outbound handlers throws — a boot that dies
   /// before `open` is ever issued.
@@ -1320,6 +1473,10 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   Future<void> waitUntilReady() async {
     if (failReady) {
       throw StateError('reviewer shell did not load');
+    }
+    final gate = readyGate;
+    if (gate != null) {
+      await gate.future;
     }
   }
 

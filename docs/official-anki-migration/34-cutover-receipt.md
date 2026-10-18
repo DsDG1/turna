@@ -1,6 +1,6 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
@@ -299,7 +299,9 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   `engine_error`），**不新增回执码**，故守卫的「十个互异值」断言不变。宿主三个钩子
   照抄安卓 `_AnkiSessionToolbar` 的序列（mutate → 重建实时队列 → 推进），返回
   `OfficialNativeMutation` 三态而非 `bool`（否则「完成」与「被拒」不可区分）。
-  ArkUI 顶栏加第二行右对齐三键，预览态隐藏，`mutating` 与 `ratingSent` 互斥。
+  ArkUI 顶栏加第二行右对齐三键，预览态隐藏，`mutating` 与 `ratingSent` 同为一页
+  级互锁（三键的 `enabled` 显式读 `!ratingSent`）。`ratingSent` 的解除条件在
+  2026-10-18 回执兜底批次改为「下一张问题面落地」，不再由回执直接解除。
   本地收据：`flutter analyze` **No issues**（54.5s → 36.6s）、新增 7 例 binding
   用例 + 6 例 chrome 源码守卫。**Dart 单测、ArkTS 编译、真机三者仍为零收据**，
   hap 未重编。细节见 `test/BASELINE.md` 同日首条与
@@ -322,6 +324,64 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   `ohpm` 依赖阶段已通（同因代理），现挂在 `hvigor` 的 `evaluateHvigorConfig`
   （本机 hvigor 6.26.1 vs `modelVersion 5.1.0` 的配置漂移，五个提交未碰 hvigor
   配置），**未进 `.ets` 编译**，ArkTS 仍无编译器收据；真机仍未验。
+
+## 鸿蒙回执兜底与评分互斥（2026-10-18，第一批）
+
+**问题（真机两条）**：①复习页卡在「已提交，加载中…」；②页面重复跳转。
+
+**回执兜底**：`AnkiReviewerPage.onRateReceipt` 的兜底分支（`session_closed` /
+`no_card` / `engine_error` / `scheduler_unavailable` / `card_mismatch` /
+`channel_error_*` / `bridge_detached`）与 `advance_failed` 分支都只 `showError`，
+**不复位 `ratingSent`** → 底栏永久停在禁用按钮。现改为：`ok` 与 `advance_failed`
+保持互锁（提交已落库，解除等于允许同一张卡二次提交），其余一律复位；`ok` 分支
+新增 20s 看门狗（present 自身 12s ack 超时 + media push 的余量），超时转
+`advanceStuck` 的重试 / 结束行。`onRetryAdvance` 成功后清 `advanceStuck`（此前
+一次成功重试也会永久停在「重试进入下一张」）。
+
+**推进语义**：`advanceFromScheduler` 改为返回「控制器是否真的换了面」（比较
+`controller.generation`，因为 `advanceTo` 在 `phase != readyForNext` 时是静默
+no-op）。`advanceFromNativeRating` / `advanceAfterNativeMutation` 在 desync 时
+**抛 `StateError`**，由 `_runAdvance` 翻译成 `advance_failed`——不新增回执码，
+不返回 `false`（那会变成 `ok_complete`，谎报复习完成并清掉重试入口）。
+`acceptExternalOfficialCommit` 的幂等重放分支补一次 phase 回拨
+（`recoverableError → readyForNext`），否则 desync 之后的重试永远是 no-op。
+
+**互斥**：`ratingSent` 期间三个顶栏入口（重做 / 搁置 / 暂停）一并禁用；chrome
+回调的复位条件从「无条件」收紧为 `!presentPending && !answerLanded`——present
+开始时的通知不再让评分行在回执到达前复活。
+
+**测试**：`ohos_card_action_chrome_guard_test.dart` 正则同步为五条件（仍断言 3
+次）+ 新增 6 例；`official_review_desync_test.dart` 新增 3 例（desync 抛错、重放
+拨回 phase、mutation 分支同样抛）。**ArkTS 仍无编译器收据，真机未验。**
+
+## 鸿蒙 reviewer 生命周期幂等（2026-10-18，第二批）
+
+**问题**：页面重复跳转。根因不在渲染层，在 ability / session 生命周期。
+
+**Dart 侧**：`attach` 改为同步占 `_live`（与 `warmUp` 一致），boot 失败时
+`_abandon` 关掉已拉起的 ability（`_openIssued` 守门，bind 阶段失败仍不发
+close）。新增 `_adopted`：被 Stage 接管的 binding 不接受加载器句柄的
+`cancel()`（Review All 换源到 blocked 源时曾把正在显示的 reviewer 关掉），
+页面离开时改走静态 `shutdown()`（`_abandon(force: true)`）。`onNativeClosed`
+加一次性 guard，避免两个 binding 各回调一次导致连退两页。
+
+**ArkTS 侧**：`onNewWant` 按 mediaRoot 分流——同 root 且 session 存活则**重用**
+（只 `noteReviewerWantDelivered`，不重建 session、不 `loadContent`），异 root
+才重建 + 重载。`AnkiReviewerSessionStore` 的 epoch 从「session 世代」改为
+「已服务的 open 请求数」（`wantEpoch`），插件在 `startAbilityForResult` **之前**
+捕获，`awaitReviewerReady` 用它——复用路径即时返回，不再空等 8s。
+`AnkiReviewerPage` 记录 `boundSession` 并在 `onPageShow` 校验重绑；
+`aboutToDisappear` 只解绑自己绑的那个 session（此前会清掉新页面刚装的监听）；
+`requestCancel` 在页面未订阅时缓存，页面装好监听后 `consumeCancelRequest` 兑现。
+
+**测试**：新增 `ohos_reviewer_lifecycle_guard_test.dart`（9 例源码守卫）；
+`official_anki_ohos_reviewer_binding_test.dart` 新增 4 例（并发 attach 只 open
+一次 / adopt 后 handle cancel 不关 / `shutdown` 关闭已 adopt / boot 失败关闭已
+拉起的 ability）。既有 8 个 P0-1 用例**一行未改**。
+
+**未验**：ArkTS 零编译器收据（本机 `hvigor` 仍卡 `evaluateHvigorConfig`）；
+真机未验——需连续进入复习 ×20（同 root 不闪）、Review All 含 blocked 源（不被
+弹回）、desync 注入（出重试行而非死按钮）。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 

@@ -140,6 +140,12 @@ export struct AnkiReviewerHeaderBar {
   /// `presentPending` because they answer different questions — that one means
   /// "a card is rendering", this one means "the queue is being mutated".
   @Prop mutating: boolean = false;
+
+  /// UI-8: a rating has been committed and the next card has not landed yet.
+  /// The three queue mutations above share the scheduler with that rating, so
+  /// they are gated on it exactly like `mutating` — letting a bury through
+  /// while a rating is in flight races two mutations against one queue.
+  @Prop ratingSent: boolean = false;
   onReplayAudio: () => void = (): void => {};
   onUndo: () => void = (): void => {};
   onRedo: () => void = (): void => {};
@@ -230,7 +236,7 @@ export struct AnkiReviewerHeaderBar {
             .backgroundColor(Color.Transparent)
             .padding({ left: 8, right: 8 })
             .height(30)
-            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending)
+            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending && !this.ratingSent)
             .onClick((): void => {
               this.onRedo();
             })
@@ -240,7 +246,7 @@ export struct AnkiReviewerHeaderBar {
             .backgroundColor(Color.Transparent)
             .padding({ left: 8, right: 8 })
             .height(30)
-            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending)
+            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending && !this.ratingSent)
             .onClick((): void => {
               this.onBury();
             })
@@ -250,7 +256,7 @@ export struct AnkiReviewerHeaderBar {
             .backgroundColor(Color.Transparent)
             .padding({ left: 8, right: 8 })
             .height(30)
-            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending)
+            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending && !this.ratingSent)
             .onClick((): void => {
               this.onSuspend();
             })

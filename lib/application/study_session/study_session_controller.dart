@@ -281,6 +281,17 @@ class StudySessionController extends ChangeNotifier {
       // The native page retries the advance when the first attempt failed
       // after the commit (B1): re-recording the same mutation would
       // double-count the answer, so the replay only re-advances.
+      //
+      // That advance needs `readyForNext`, and a failed one — scheduler
+      // desync, locked session — leaves the phase in `recoverableError`.
+      // Without this reset the retry is a permanent no-op: `advanceTo`
+      // returns silently at its guard, the card stays on screen, and even a
+      // reconciled batch cannot move the session.
+      if (phase == StudyCardPhase.recoverableError) {
+        lastError = null;
+        phase = StudyCardPhase.readyForNext;
+        notifyListeners();
+      }
       return;
     }
     final source = OfficialAnkiSource(
