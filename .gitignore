@@ -62,6 +62,7 @@ serviceAccountKey.json
 __pycache__/
 *.py[cod]
 *.pyo
+*.egg-info/
 
 # Flutter run logs
 flutter_run.log
