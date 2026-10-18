@@ -26,8 +26,6 @@ import type Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
 import {
   METHOD_RATE,
   METHOD_REPLAY_AUDIO,
-  METHOD_REQUEST_CARD_ACTION,
-  METHOD_REQUEST_UNDO,
   METHOD_RETRY_ADVANCE,
   METHOD_RETRY_PRESENT,
   METHOD_REVIEW_SETTLEMENT,
@@ -126,39 +124,6 @@ export class AnkiReviewerBridge {
   /// visible outcome.
   public retryPresent(): void {
     this.callDart(METHOD_RETRY_PRESENT, '');
-  }
-
-  /// The native header's undo entry (UI-4). Fire-and-forget: the rebuilt
-  /// present that follows the host's undo hooks is the visible outcome.
-  public requestUndo(): void {
-    this.callDart(METHOD_REQUEST_UNDO, '');
-  }
-
-  /// The header's redo / bury / suspend entries (D8).
-  ///
-  /// Carries a receipt back, unlike [requestUndo]: a refused bury has no
-  /// rebuilt present to fall back on, and the page has to say so instead of
-  /// leaving three buttons that visibly do nothing. `action` is the protocol's
-  /// own vocabulary (`redo` / `bury` / `suspend`), passed through unchanged so
-  /// the Dart switch is the single place that decides what each word means.
-  public requestCardAction(action: string, onResult: (code: string) => void): void {
-    const channel: MethodChannel | null = outbound;
-    if (channel === null) {
-      onResult('bridge_detached');
-      return;
-    }
-    const receiver: MethodResult = {
-      success: (result: Any): void => {
-        onResult(result === null || result === undefined ? '' : String(result));
-      },
-      error: (code: string): void => {
-        onResult('channel_error_' + code);
-      },
-      notImplemented: (): void => {
-        onResult('not_implemented');
-      },
-    };
-    channel.invokeMethod(METHOD_REQUEST_CARD_ACTION, action, receiver);
   }
 
   /// The completion row's statistics (UI-7). `onResult` receives the JSON

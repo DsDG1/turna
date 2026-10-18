@@ -57,7 +57,7 @@ abstract final class OfficialAnkiReviewerProtocol {
   /// Closes a reviewer that was opened speculatively (P0-1 warm-up) without a
   /// card ever being presented.
   ///
-  /// Distinct from `requestUndo`-style page-initiated calls: this one is
+  /// Distinct from the page-initiated calls above: this one is
   /// Dart-initiated and must work even before the ability has created its
   /// session — the whole point of a warm-up is that it starts before anything
   /// else is ready, so the cancel path has to survive the "not open yet" race
@@ -74,27 +74,8 @@ abstract final class OfficialAnkiReviewerProtocol {
   static const methodTypedChanged = 'typedChanged';
   static const methodRetryAdvance = 'retryAdvance';
   static const methodRetryPresent = 'retryPresent';
-  static const methodRequestUndo = 'requestUndo';
   static const methodReviewSettlement = 'reviewSettlement';
   static const methodReplayAudio = 'replayAudio';
-
-  /// The native header's redo / bury / suspend entries (D8). One method with
-  /// an action argument rather than three methods: all three share the same
-  /// receipt contract ("did the session move on, finish, or refuse") and the
-  /// same preconditions, so three separate methods would be three copies of
-  /// one switch with three chances to drift.
-  ///
-  /// Unlike [methodRequestUndo] this one answers. Undo is fire-and-forget
-  /// because its recovery is the rebuilt present; a bury that the scheduler
-  /// refuses has no such follow-up, and a button that nothing answers reads
-  /// on device as broken.
-  static const methodRequestCardAction = 'requestCardAction';
-
-  /// Argument / vocabulary for [methodRequestCardAction]. Declared on both
-  /// sides and pinned by the protocol guard as scalars.
-  static const cardActionRedo = 'redo';
-  static const cardActionBury = 'bury';
-  static const cardActionSuspend = 'suspend';
 
   // ------------------------------------------------- argument / field names
 
@@ -160,6 +141,47 @@ abstract final class OfficialAnkiReviewerProtocol {
   static const themeDay = 'day';
   static const themeNight = 'night';
 
+  /// The chrome theme token the ArkUI page paints its own bars with.
+  ///
+  /// Distinct from [themeDay]/[themeNight] on purpose: `theme` is read by the
+  /// card frame (which only knows day/night, since it drives the card's own
+  /// CSS), while these four name the Flutter theme variant the page sits on.
+  /// Turna ships four variants (`lib/core/theme.dart`), and collapsing the
+  /// two high-contrast ones into plain day/night is exactly the gap this
+  /// field closes — the native chrome used to lose high contrast entirely.
+  static const chromeLight = 'light';
+  static const chromeDark = 'dark';
+  static const chromeHighContrastLight = 'highContrastLight';
+  static const chromeHighContrastDark = 'highContrastDark';
+
+  /// Resolves the four-variant chrome token from the two inputs the Flutter
+  /// side actually has: app brightness and the accessibility high-contrast
+  /// flag.
+  ///
+  /// One mapping, two callers — the reviewer stage (which paints the chrome
+  /// on every rebind) and the page's pre-frame adoption path (which presents
+  /// the first card before that stage exists). Two copies would let the first
+  /// card arrive on a different palette than the one the stage would pick a
+  /// frame later, which is the visible flash UI-15 was about.
+  static String chromeThemeFor({
+    required bool dark,
+    required bool highContrast,
+  }) {
+    if (highContrast) {
+      return dark ? chromeHighContrastDark : chromeHighContrastLight;
+    }
+    return dark ? chromeDark : chromeLight;
+  }
+
+  /// Field names the ArkTS page reads off the present payload for its own
+  /// chrome (not for the card frame). Pinned here so a rename cannot land on
+  /// one side only.
+  static const payloadSourceProgress = 'sourceProgress';
+  static const payloadCanRedo = 'canRedo';
+  static const payloadCanMutate = 'canMutate';
+  static const payloadChromeTheme = 'chromeTheme';
+  static const payloadAutoComplete = 'autoComplete';
+
   // ------------------------------------------------------------------ ratings
   //
   // Anki's four buttons. The page sends the label itself; the mapping to a
@@ -220,6 +242,37 @@ abstract final class OfficialAnkiReviewerProtocol {
   /// exit and must not settle a session.
   static const verdictWarmCanceled = 'warm_canceled';}
 
+/// The chrome state the page owns and the native page cannot derive.
+///
+/// Every field has an Android counterpart on `_AnkiSessionToolbar` /
+/// `ReviewProgressHeader`; the point of the record is that a new chrome value
+/// is one field here plus one field in the payload, instead of a fifth set of
+/// positional parameters threaded through five widgets.
+typedef OfficialReviewerChromeSnapshot = ({
+  /// `currentIndex+1/targets.length · deckName` during Review All, else null.
+  /// Same string Android renders in the toolbar badge.
+  String? sourceProgress,
+
+  /// `ReviewSessionController.canRedo` — there is an undone receipt to replay.
+  bool canRedo,
+
+  /// `!isLocked && !isComplete` — the queue may be mutated right now.
+  bool canMutate,
+
+  /// Whether the native page may close itself the moment the queue finishes
+  /// (UI-16).
+  ///
+  /// True only for a single-source session. Under Review All a source can
+  /// finish while more sources remain, and the next source re-attaches to the
+  /// *same* ability (same `mediaRoot` → `onNewWant` reuses the session); an
+  /// auto-close timer armed by the finished source would then tear down the
+  /// page the next source is already using. Review All keeps the explicit
+  /// 「完成」 button; single-source sessions hand off automatically so the
+  /// learner lands straight on Flutter's `UnifiedReviewCompletion` — the same
+  /// completion screen Android shows.
+  bool autoComplete,
+});
+
 /// The present payload the reviewer shell understands on every platform:
 /// the ten fields both the Android/iOS view and the OHOS page consume.
 ///
@@ -269,6 +322,19 @@ Map<String, Object?> officialAnkiReviewerPayload({
 /// `previewOnly` switches the page from rating chrome to 0-write
 /// preview chrome, and `hasAudio`/`avHint` drive the manual audio replay
 /// entry and non-fatal AV status line.
+///
+/// `sourceProgress`/`canRedo`/`canMutate` are the three chrome-state values
+/// Android reads straight off `_AnkiSessionToolbar` (`controller.canRedo`,
+/// `!controller.isLocked && !controller.isComplete`, and the
+/// `currentIndex/targets.length · deckName` badge). The native page has no
+/// controller, so they have to ride the payload; before this they were
+/// simply absent — the three queue buttons looked live with no undo history,
+/// and Review All never said which deck it was in.
+///
+/// `chromeTheme` names the Flutter theme variant (`light`/`dark`/
+/// `highContrastLight`/`highContrastDark`). `theme` stays day/night because
+/// the card frame only understands those two — collapsing the high-contrast
+/// variants into day/night is the gap this field closes.
 Map<String, Object?> ohosReviewerPayload({
   required OfficialAnkiRenderedCard card,
   required int generation,
@@ -283,6 +349,11 @@ Map<String, Object?> ohosReviewerPayload({
   bool previewOnly = false,
   bool? hasAudio,
   String? avHint,
+  String? sourceProgress,
+  bool canRedo = false,
+  bool canMutate = false,
+  bool autoComplete = false,
+  String? chromeTheme,
 }) {
   final effectiveHasAudio = hasAudio ??
       (showingAnswer
@@ -305,5 +376,11 @@ Map<String, Object?> ohosReviewerPayload({
     'previewOnly': previewOnly,
     'hasAudio': effectiveHasAudio,
     'avHint': avHint ?? '',
+    OfficialAnkiReviewerProtocol.payloadSourceProgress: sourceProgress ?? '',
+    OfficialAnkiReviewerProtocol.payloadCanRedo: canRedo,
+    OfficialAnkiReviewerProtocol.payloadCanMutate: canMutate,
+    OfficialAnkiReviewerProtocol.payloadAutoComplete: autoComplete,
+    OfficialAnkiReviewerProtocol.payloadChromeTheme:
+        chromeTheme ?? (dark ? 'dark' : 'light'),
   };
 }

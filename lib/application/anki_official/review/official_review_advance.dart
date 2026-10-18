@@ -35,6 +35,22 @@ Future<bool> advanceFromScheduler({
     await controller.continueNext();
     return true;
   }
+  // Refresh the batch BEFORE resolving the target, not after.
+  //
+  // `rebuildFromLiveQueue` documents itself as "called after every answer / undo
+  // / bury / suspend"; on the Flutter path the session view does exactly that,
+  // which is why the move there never needed it. It replaces `controller.items`
+  // with a batch that STARTS at the scheduler's current card — so it has to run
+  // before the index lookup, not after: resolving first and rebuilding second
+  // leaves `_index` pointing into a list that just shifted under it.
+  //
+  // Without this, a successful native advance left the new item face-less
+  // (`controller.card` null), `_onController` returned before presenting, the
+  // rating interlock never released, and the page sat on "已提交，加载中…" until
+  // the watchdog turned it into a retry row (device, 2026-10-18).
+  if (liveQueue != null) {
+    await liveQueue.rebuildFromLiveQueue();
+  }
   final currentCardId = session.current?.cardId;
   if (currentCardId == null) {
     // The scheduler is empty: finishing the session is the move.
@@ -114,6 +130,17 @@ Future<bool> advanceFromNativeRating({
     liveQueue: liveQueue,
   );
   if (!advanced) {
+    // `advanceFromScheduler` returns false for two very different reasons — the
+    // scheduler's current is genuinely absent from the batch, or `advanceTo`
+    // refused because the controller was not `readyForNext`/was locked. The
+    // thrown message only describes the first, and on device (2026-10-18) the
+    // second is what actually fired: the assistant chasing "not in the assembled
+    // batch" would be looking for a card that was sitting in `items` all along.
+    logger.w('[OfficialAnki] native rating committed but the advance found no '
+        'target: scheduler=${officialSession.current?.cardId} '
+        'phase=${controller.phase.name} locked=${controller.isLocked} '
+        'current=${controller.currentItem?.cardKey.cardId} '
+        'items=${controller.items.map((item) => item.cardKey.cardId).toList()}');
     throw StateError(
       'scheduler current ${officialSession.current?.cardId} is not in the '
       'assembled batch after a committed native rating',

@@ -287,7 +287,15 @@ class StudySessionController extends ChangeNotifier {
       // Without this reset the retry is a permanent no-op: `advanceTo`
       // returns silently at its guard, the card stays on screen, and even a
       // reconciled batch cannot move the session.
-      if (phase == StudyCardPhase.recoverableError) {
+      //
+      // Resetting **only** `recoverableError` was too narrow. An advance that
+      // resolved to the card already on screen — which is what a learning card
+      // re-queued by the scheduler looks like — leaves `loadingQuestion`
+      // (`_beginCurrent`), not `recoverableError`. On device (2026-10-18) that
+      // made every retry answer `advance_failed` for a rating that had in fact
+      // committed. Any phase that is not already `readyForNext` must re-arm;
+      // the receipt is recorded, so this only re-opens the move.
+      if (phase != StudyCardPhase.readyForNext && !_locked && !isComplete) {
         lastError = null;
         phase = StudyCardPhase.readyForNext;
         notifyListeners();

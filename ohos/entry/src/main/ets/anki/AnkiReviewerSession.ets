@@ -75,6 +75,17 @@ interface ReviewerPresentPayload {
   previewOnly?: boolean;
   hasAudio?: boolean;
   avHint?: string;
+  /// Chrome state Android reads off `_AnkiSessionToolbar` directly. The native
+  /// page has no controller, so these have to ride the payload.
+  sourceProgress?: string;
+  canRedo?: boolean;
+  canMutate?: boolean;
+  /// Single-source session: the page may close itself once the queue
+  /// finishes. False under Review All, where the next source re-attaches to
+  /// this same ability.
+  autoComplete?: boolean;
+  /// One of CHROME_THEME_*. `theme` stays day/night for the card frame.
+  chromeTheme?: string;
 }
 
 /// One snapshot of the native chrome around the Web: what the bottom row
@@ -101,6 +112,16 @@ export interface ReviewerChromeState {
   previewOnly: boolean;
   hasAudio: boolean;
   avHint: string;
+  /// Review All badge text (`3/5 · deckName`), empty outside Review All.
+  /// Same string the Android toolbar renders.
+  sourceProgress: string;
+  /// There is an undone receipt to replay — the redo button is only live when
+  /// this is true (Android: `controller.canRedo`).
+  canRedo: boolean;
+  /// The queue may be mutated right now (Android: `!isLocked && !isComplete`).
+  canMutate: boolean;
+  /// UI-16: the page may close itself on completion (single-source sessions).
+  autoComplete: boolean;
 }
 
 type ChromeListener = (state: ReviewerChromeState) => void;
@@ -119,6 +140,10 @@ function chromeState(
   previewOnly: boolean,
   hasAudio: boolean,
   avHint: string,
+  sourceProgress: string,
+  canRedo: boolean,
+  canMutate: boolean,
+  autoComplete: boolean,
 ): ReviewerChromeState {
   const state: ReviewerChromeState = {
     presentPending: presentPending,
@@ -133,6 +158,10 @@ function chromeState(
     previewOnly: previewOnly,
     hasAudio: hasAudio,
     avHint: avHint,
+    sourceProgress: sourceProgress,
+    canRedo: canRedo,
+    canMutate: canMutate,
+    autoComplete: autoComplete,
   };
   return state;
 }
@@ -230,6 +259,10 @@ export class AnkiReviewerSession {
   private chromeDebug: boolean = false;
   private chromeTextZoom: number = 100;
   private chromePreviewOnly: boolean = false;
+  private chromeSourceProgress: string = '';
+  private chromeCanRedo: boolean = false;
+  private chromeCanMutate: boolean = false;
+  private chromeAutoComplete: boolean = false;
   private shellReadyHook: (() => void) | undefined = undefined;
   private pushedAck: ((row: string) => void) | undefined = undefined;
   private ackSerial: number = 0;
@@ -352,6 +385,10 @@ export class AnkiReviewerSession {
       this.chromePreviewOnly,
       false,
       '',
+      this.chromeSourceProgress,
+      this.chromeCanRedo,
+      this.chromeCanMutate,
+      this.chromeAutoComplete,
     ));
     this.notifyFailure(PRESENT_PAYLOAD_INVALID);
     return Promise.resolve(failedAck(ACK_TYPE_RENDER_ERROR, PRESENT_PAYLOAD_INVALID));
@@ -431,6 +468,10 @@ export class AnkiReviewerSession {
     let debug: boolean = this.chromeDebug;
     let textZoom: number = this.chromeTextZoom;
     let previewOnly: boolean = this.chromePreviewOnly;
+    let sourceProgress: string = this.chromeSourceProgress;
+    let canRedo: boolean = this.chromeCanRedo;
+    let canMutate: boolean = this.chromeCanMutate;
+    let autoComplete: boolean = this.chromeAutoComplete;
     let hasAudio: boolean = false;
     let avHint: string = '';
     let mediaNames: Array<string> = [];
@@ -443,6 +484,20 @@ export class AnkiReviewerSession {
     if (parsedTheme !== undefined && parsedTheme.length > 0) {
       theme = parsedTheme;
     }
+    // The chrome palette follows Turna's four variant names, not the frame's
+    // day/night pair: collapsing the two high-contrast variants into
+    // day/night is exactly how the native bars lost high contrast.
+    const parsedChromeTheme: string | undefined = parsed.chromeTheme;
+    if (parsedChromeTheme !== undefined && parsedChromeTheme.length > 0) {
+      theme = parsedChromeTheme;
+    }
+    const parsedSourceProgress: string | undefined = parsed.sourceProgress;
+    if (parsedSourceProgress !== undefined) {
+      sourceProgress = parsedSourceProgress;
+    }
+    canRedo = parsed.canRedo === true;
+    canMutate = parsed.canMutate === true;
+    autoComplete = parsed.autoComplete === true;
     const parsedIndex: number | undefined = parsed.progressIndex;
     if (parsedIndex !== undefined) {
       progressIndex = parsedIndex;
@@ -472,6 +527,10 @@ export class AnkiReviewerSession {
     this.chromeDebug = debug;
     this.chromeTextZoom = textZoom;
     this.chromePreviewOnly = previewOnly;
+    this.chromeSourceProgress = sourceProgress;
+    this.chromeCanRedo = canRedo;
+    this.chromeCanMutate = canMutate;
+    this.chromeAutoComplete = autoComplete;
     // P1: the arriving card's media replaces everyone else's. Dart has
     // already pushed these names; everything still cached belongs to the
     // previous card and is dead weight from here on.
@@ -494,6 +553,10 @@ export class AnkiReviewerSession {
       previewOnly,
       hasAudio,
       avHint,
+      sourceProgress,
+      canRedo,
+      canMutate,
+      autoComplete,
     ));
     const expression: string =
       'window.OfficialReviewer.present(' + payloadJson + ',' + JSON.stringify(side) + ')';
@@ -525,6 +588,10 @@ export class AnkiReviewerSession {
             previewOnly,
             hasAudio,
             avHint,
+            sourceProgress,
+            canRedo,
+            canMutate,
+            autoComplete,
           ));
           this.notifyFailure(ack.stableCode ?? RENDER_ERROR);
         } else {
@@ -541,6 +608,10 @@ export class AnkiReviewerSession {
             previewOnly,
             hasAudio,
             avHint,
+            sourceProgress,
+            canRedo,
+            canMutate,
+            autoComplete,
           ));
         }
         resolve(ack);

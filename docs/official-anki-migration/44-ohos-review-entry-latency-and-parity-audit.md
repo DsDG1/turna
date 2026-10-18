@@ -22,12 +22,18 @@
    安卓是二档（忘记 / 记住，`BinaryRecallBar`），鸿蒙原来是四档
    （重来 / 困难 / 良好 / 简单）。现在鸿蒙也出二档，发 `again` / `good`，
    与安卓的落库语义逐字等价。详见 §5.1，**真机复验收据待取**。
-5. **一处真实缺陷**：鸿蒙分支的 Flutter 错误态没有返回出口
-   （`OfficialAnkiReviewerStage._buildOhos` 的 error 分支只给「重试」，
-   `OfficialAnkiReviewerErrorView` 全屏，无 back）。ability 起不来时用户只能靠
-   系统手势脱身。
+5. **一处真实缺陷，已修（2026-10-18）**：鸿蒙分支的 Flutter 错误态原本没有返回
+   出口（`OfficialAnkiReviewerStage._buildOhos` 的 error 分支只给「重试」，
+   `OfficialAnkiReviewerErrorView` 全屏，无 back），ability 起不来时用户只能靠
+   系统手势脱身。现两分支均带 `onBack`，兜底 `maybePop`，见 §3.1；**真机复验
+   判据待取**。
 
 ## 1. 现状时序（代码级，逐段可核）
+
+> **这是 2026-10-18 上午施工前的快照，不要当现况读。** 当日施工后：#3 已改为
+> 首屏窗口 8 张（P0-2）、#6 已提前到用户点复习即预热（P0-1）、#8 已改单次 IO +
+> 4 路有界并发（P1-3）、#9 已加暖帧（P1-4）；#2/#4/#5/#7 未变。快照保留是为了
+> 让「为什么这么改」可回溯。
 
 点击复习 → 首卡可读，实际经过：
 
@@ -59,13 +65,15 @@
 ADR 0050 §3.7。2026-10-16 的评分回执、按钮互斥、末卡完成行、返回语义、
 三批流畅度与产品化 UI 均已代码落库。2026-10-17 的 R0/R1、五项功能对等性、
 O1 媒体分层、R2 拆分、T1 跨语言测试已施工且 hap 构建转绿；2026-10-18 的
-二档对齐已施工。这两批与 10-16 一样**只有本地门禁，真机复验收据待取**。
+二档对齐已施工。这些批次与 10-16 一样**只有本地门禁，真机复验收据待取**
+（10-18 当日共八批：二档对齐、入口三项 D1/P1-3/P1-4、P0-1 预热、P0-2 窗口、
+D8 工具栏、D9 退出确认、UI-8 回执兜底、生命周期幂等）。
 
 ### 2.2 本次审查新增的缺陷
 
 | # | 缺陷 | 落点 | 影响 |
 |---|---|---|---|
-| D1 | **鸿蒙错误态无返回出口** | `official_anki_reviewer_stage.dart` `_buildOhos` 的 `_ohosError != null` 分支；`OfficialAnkiReviewerErrorView` 未传 `onBack` | ability 起不来时全屏错误页，只能靠系统手势退出 |
+| D1 | ~~**鸿蒙错误态无返回出口**~~ **已施工（2026-10-18）** | 原：`official_anki_reviewer_stage.dart` `_buildOhos` 的 `_ohosError != null` 分支；`OfficialAnkiReviewerErrorView` 未传 `onBack` | 现：两分支均带 `onBack: _ohosBack`（兜底 `maybePop`），`!allowJs` 分支保持无 `onRetry`；真机复验收据待取 |
 | D2 | **整批渲染阻塞首屏** | `official_formal_review_production_loader.dart` 的 `for (final card in queue.cards)` | 首屏时间 ∝ 队列长度 |
 | D3 | **ability 冷启动未预热** | `official_anki_reviewer_stage.dart` `didChangeDependencies` → `_startOhos` | 白白串行几百 ms 到 1 s+ |
 | D4 | **媒体串行推送 + 重复 IO** | `official_anki_reviewer_channel.dart` `pushMediaForCard` / `pushMedia` | N 个媒体 = N 次串行往返 + 2N 次 IO |
@@ -80,15 +88,22 @@ O1 媒体分层、R2 拆分、T1 跨语言测试已施工且 hap 构建转绿；
 
 ### 2.3 本轮文档边界
 
-本轮**只写文档**：§3 的代码形状是设计，不是施工记录；本文标注「已施工」的
-只有 2026-10-18 的二档对齐，那是上一轮的既有事实。
+本文初稿（2026-10-18 上午）**只写审查与设计，零施工**。当日下午到深夜的施工
+批次已把 §3.1 / §3.2 / §3.3 / §3.4 / §3.5 / §3.8 与 §5.2–§5.4 全部落地，
+各节顶部「状态」行已改为施工后实况。
 
-本文任何设计落地前，34 收据的 Held 项不变；也不得据此写
+**仍未施工的只剩两类**：§3.6 / §3.7（P2-5 / P2-6，只到测量方案，测完再决策），
+以及 §5 表末尾 2026-10-18 审计登记的**四项形态差异**（Review All 源徽章、
+高对比度主题、完成两段式、工具栏启用判定）。
+
+无论施工与否，34 收据的 Held 项不变；也不得据此写
 「鸿蒙支持 Official Anki」（AGENTS §7.1 禁语）。
 
-## 3. 实施设计（P0/P1，本轮只设计，不施工）
+## 3. 实施设计（P0/P1）
 
-> §3 每一项都是**设计**，不是施工记录。任何一项落地前，34 收据的 Held 项不变。
+> §3 每一项的**设计**部分保持原样，但施工状态已在各小节顶部「状态」行标注：
+> §3.1 / §3.2 / §3.3 / §3.4 / §3.5 / §3.8 **已施工（2026-10-18）**；
+> §3.6 / §3.7 只到测量方案，未施工。任何一项落地前，34 收据的 Held 项不变。
 
 ### 3.0 统一模板与两个待拍板取舍
 
@@ -567,17 +582,21 @@ ArkUI ability 拉起走系统默认转场。可评估
 | 维度 | 安卓 | 鸿蒙 | 判定 |
 |---|---|---|---|
 | 评分档位 | 2 档（忘记 / 记住）`BinaryRecallBar` | 2 档（忘记 / 记住）原生底栏 | ✅ 2026-10-18 对齐 |
+| **评分后推进** | `submitRecall` 内部连推进 | `advanceFromNativeRating` → `advanceTo(调度器 current)` | ❌ **真机缺陷（2026-10-18 夜）**：评分已落库，推进抛 `advance_failed`；批次长度 2 而调度器 current 是另一张 → 更可能是 `advanceTo` 因 `phase != readyForNext` / `_locked` 静默 no-op，报错文案却只写「不在批次」。已在失败分支加结构化日志，根因待复现 |
 | 评分落库路径 | `submitRecall` → `OfficialStudyLedger.commit` | `_rate` → `answerOfficialCard` → `advanceFromNativeRating` | ✅ 同源不同入口 |
-| 语义折叠 | `RecallOutcome` 二态 | again/hard→forgotten，good/easy→remembered | ⚠️ 折叠规则只写在 `official_review_advance.dart`，安卓不经过它 |
+| 语义折叠 | `RecallOutcome` 二态（`submitRecall` 入口即二态） | again/hard→forgotten，good/easy→remembered | ✅ 两路等价：鸿蒙只发 again/good，折叠后经 `OfficialAnkiReviewLedger` 又发回 `again`/`good`，与安卓落库值逐字相同（2026-10-18 核对） |
 | 卡片渲染 | WebView + 同款 shell | ArkUI `Web` + 同款 shell | ✅ |
 | 翻面 | 「显示答案」按钮 | 原生底栏 / 输入框回车 | ✅ |
 | 音频重播 | Flutter 图标 | 原生「重播」+ avHint | ✅（对等性已补） |
 | 撤销 | Flutter 顶栏 | 原生顶栏 | ✅ |
-| 进度口径 | `currentIndex+1 / totalCount` | `answeredCount+1 / (answeredCount+items.length)` | ⚠️ 收缩口径不同，数字跳动方式不同 |
+| 进度口径 | `currentIndex+1 / totalCount`（`totalCount => items.length`） | `answeredCount+1 / (answeredCount+items.length)` | ✅ 正常路径数值一致（`currentIndex` 由 `advanceTo` 按调度器 current 设定、与 `answeredCount` 同步）；队列收缩时安卓分母跟着缩、会读出「3/2」，鸿蒙用「已答+剩余」不会——**差异方向是鸿蒙更稳，不是鸿蒙落后**（2026-10-18 订正） |
 | 返回确认 | AlertDialog（带剩余张数） | 两步按键 + 2 s 窗口（**2026-10-18 起也带剩余张数**） | ⚠️ 形态不同，信息量已一致 |
-| 完成 | Flutter `UnifiedReviewCompletion` | 原生完成行 → Close → Flutter 完成屏 | ⚠️ 两段式 |
+| 完成 | Flutter `UnifiedReviewCompletion` | 单源：原生行只做 0.6 s 收尾（「复习完成 / 正在打开结算…」，无统计无按钮）→ 自动关 → 落回**同一个** `UnifiedReviewCompletion`；Review All：保留「完成」按钮（下一源要复用同一个 ability，只能由 Dart 决定何时关），点后同样落到该组件 | ✅ 2026-10-18 施工（UI-16） |
 | 工具栏 | redo / bury / suspend | redo / bury / suspend（顶栏第二行） | ✅ 2026-10-18 对齐 |
-| 错误出口 | 页内错误 + 返回 | 原生有退出；Flutter 侧无返回 | ❌ 缺陷（D1） |
+| 工具栏启用判定 | redo 看 `controller.canRedo`；bury/suspend 看 `canMutate` | payload 下发 `canRedo` / `canMutate`，三键在共享互锁前缀后各自追加自己的谓词 | ✅ 2026-10-18 施工（UI-15） |
+| Review All 源进度 | `_AnkiSessionToolbar` 左侧「3/5 · Deck 名」徽章 | payload 新增 `sourceProgress`（与安卓同一字符串），原生顶栏第二行左侧渲染徽章，空串时不渲染 | ✅ 2026-10-18 施工（UI-15） |
+| 主题档位 | 四套：light / dark / highContrastLight / highContrastDark | payload 新增 `chromeTheme` 四值；`theme` 仍只给卡片 frame 用 day/night；ArkTS 增两套高对比色板 | ✅ 2026-10-18 施工（UI-15） |
+| 错误出口 | 页内错误 + 返回 | 两分支均带 `onBack`（兜底 `maybePop`） | ✅ 2026-10-18 修复（原为 ❌ D1），真机判据待取 |
 
 ### 5.1 评分档位：**已定案「对齐安卓」（二档），2026-10-18 施工**
 
@@ -722,7 +741,8 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 
 ## 7. 排期
 
-**本轮只完成文档，不动代码。** 施工顺序：
+**初稿是「本轮只完成文档，不动代码」；下表已按 2026-10-18 当日施工实况回填。**
+当前只剩第 7 项与第 10 项未动。
 
 1. ~~**D7 二档对齐**~~ **已施工（2026-10-18）**，只差真机过卡验证
 2. ~~**D1 + P1-3 + P1-4**~~ **已施工（2026-10-18）**：D1 错误出口、P1-3 单次 IO +
@@ -740,6 +760,20 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
    协议 + 三态回执，见 §3.8。真机判据待取
 6. ~~**D9 退出确认文案**~~ **已施工（2026-10-18）**：补剩余张数，口径对齐安卓
    `remainingCount`（含当前这张），N 未知时回落原文案；见 §4.3
-7. **P2-5 / P2-6**（先测量，测完再决定是否立项）——排期里唯一剩下的两项
+7. **P2-5 / P2-6**（先测量，测完再决定是否立项）——只到测量方案，未施工
 8. ~~**UI-8 回执兜底与评分互斥**~~ **已施工（2026-10-18）**：见 §5.3。真机判据待取
 9. ~~**reviewer 生命周期幂等**~~ **已施工（2026-10-18）**：见 §5.4。真机判据待取
+10. ~~**§5 表四项形态差异**~~ **全部施工（2026-10-18）**。
+    - **UI-15 三项**：Review All 源徽章 / 高对比度主题档位 / 工具栏启用判定。
+      落点：`ohosReviewerPayload` 新增 `sourceProgress`/`canRedo`/`canMutate`/
+      `chromeTheme`；`OfficialReviewerChromeSnapshot` 记录在页面与 binding 之间
+      传递三项（主题由 Stage 算，因为只有 widget 层能读无障碍 scope）；ArkTS 侧
+      `ReviewerChromeState` 同步字段，`paletteForTheme` 扩到四档，
+      `AnkiReviewerHeaderBar` 加源徽章与两套谓词。
+    - **UI-16 完成交棒**：原生完成行在单源会话下只做 600 ms 收尾即自动关闭，
+      让位给底下已经渲染好的 `UnifiedReviewCompletion`（安卓那张）。
+      **此前文档把这一项写成「两个完成屏」是错的**——真实形态是一个都不完整：
+      `_onNativeAbilityClosed` 无条件 pop，把底下那张完成屏直接弹掉了。所以这一项
+      不是"合并两屏"，而是"让那张一直没被看到的屏留下来"，顺带修掉
+      「完成态跳过结算导致 XP 恒为 0」。
+    - **ArkTS 编译器收据已取**（2026-10-18，build hap 成功，见 34 收据同节）。

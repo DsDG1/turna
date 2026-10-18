@@ -9,6 +9,9 @@
 // MethodChannel action dispatch.
 
 import {
+  CHROME_DARK,
+  CHROME_HIGH_CONTRAST_DARK,
+  CHROME_HIGH_CONTRAST_LIGHT,
   RATING_AGAIN,
   RATING_EASY,
   RATING_GOOD,
@@ -17,6 +20,16 @@ import {
 } from './AnkiReviewerProtocol';
 
 export const EXIT_CONFIRM_WINDOW_MS: number = 2000;
+
+/// UI-16: how long the native completion row stays on screen before it hands
+/// the summary back to Flutter's `UnifiedReviewCompletion` (the component
+/// Android shows).
+///
+/// Not zero: the ability vanishing the instant the last card is graded reads
+/// as a crash. Not long: past ~1 s the learner starts reading a summary that
+/// is about to be replaced, which is the two-completion-screens problem this
+/// fixes.
+export const COMPLETION_HANDOFF_MS: number = 600;
 
 /// Brand chrome (UI-1/UI-5): Turna's peacock tokens mirrored from
 /// `lib/core/theme.dart` — brandTeal #1F727E, brandSky #4A95A8, error
@@ -34,6 +47,21 @@ export const COLOR_AGAIN_TINT: string = '#1FE74C3C';
 export const COLOR_AGAIN_EDGE: string = '#59E74C3C';
 export const COLOR_GOOD_TINT: string = '#1F1F727E';
 export const COLOR_GOOD_EDGE: string = '#591F727E';
+
+/// The progress track behind the header bar, drawn in brandTeal at 15% — the
+/// same pair Android's `ReviewProgressHeader` passes to its
+/// `LinearProgressIndicator` (`brandTeal.withValues(alpha: 0.15)` on a
+/// `brandTeal` value color). On the dark palette a neutral divider reads as a
+/// dead grey line next to the teal fill instead of an unfilled remainder.
+export const COLOR_GOOD_TRACK: string = '#261F727E';
+
+/// True for the palettes whose surfaces are dark. Drives the system bar glyph
+/// color: white glyphs on a dark bar, black glyphs on a light one.
+export function isDarkTheme(themeName: string): boolean {
+  return themeName === CHROME_DARK ||
+    themeName === CHROME_HIGH_CONTRAST_DARK ||
+    themeName === THEME_NIGHT;
+}
 
 export interface AnkiChromePalette {
   bg: string;
@@ -58,21 +86,81 @@ export function dayPalette(): AnkiChromePalette {
   return palette;
 }
 
+/// Night chrome, taken from the app's own dark tokens rather than invented.
+///
+/// These four used to be `#10181B` / `#1A2327` / `#2A3438` / `#A5B4B7` — a
+/// blue-grey family that exists nowhere in `lib/core/theme.dart`. The reviewer
+/// was therefore the one screen whose night mode was a different colour from
+/// every page around it, and the drift was visible as a seam: the card shell
+/// paints `#111`, so a `#10181B` page made the card and its background
+/// indistinguishable and the whole screen read as one black void.
+///
+/// Now: `TurnaTheme.darkScaffold` for the page, `cardBg` for raised surfaces,
+/// `dividerBg` for rules, and the two text tokens the rest of the app uses.
 export function nightPalette(): AnkiChromePalette {
   const palette: AnkiChromePalette = {
-    bg: '#10181B',
-    surface: '#1A2327',
-    textPrimary: '#E6EDEE',
-    textSecondary: '#A5B4B7',
-    textHint: '#71807F',
-    divider: '#2A3438',
+    bg: '#0F2119',
+    surface: '#152B21',
+    textPrimary: '#E9F2EC',
+    textSecondary: '#B9CCC0',
+    textHint: '#84998C',
+    divider: '#2C453A',
     errorTint: '#3A2321',
   };
   return palette;
 }
 
+/// UI-15: high-contrast light. Values mirror
+/// `TurnaTheme._buildHighContrastLight` — pure white surfaces, pure black
+/// text, and the same 54%-black divider the Flutter theme uses. Before this
+/// the native chrome had two palettes, so turning on 高对比度 changed every
+/// screen except the reviewer.
+export function highContrastLightPalette(): AnkiChromePalette {
+  const palette: AnkiChromePalette = {
+    bg: '#FFFFFF',
+    surface: '#FFFFFF',
+    textPrimary: '#000000',
+    textSecondary: '#1A1A2E',
+    textHint: '#2D2D44',
+    divider: '#8A000000',
+    errorTint: '#FFE0DC',
+  };
+  return palette;
+}
+
+/// UI-15: high-contrast dark. Values mirror
+/// `TurnaTheme._buildHighContrastDark` — pure black surfaces, pure white
+/// text, white-38% divider.
+export function highContrastDarkPalette(): AnkiChromePalette {
+  const palette: AnkiChromePalette = {
+    bg: '#000000',
+    surface: '#000000',
+    textPrimary: '#FFFFFF',
+    textSecondary: '#E6E6E6',
+    textHint: '#CCCCCC',
+    divider: '#61FFFFFF',
+    errorTint: '#3A2321',
+  };
+  return palette;
+}
+
+/// Pick the palette for a theme token.
+///
+/// Accepts both vocabularies on purpose: `day`/`night` are the card frame's
+/// tokens and arrive on the first present before Dart has sent a
+/// `chromeTheme`, while `light`/`dark`/`highContrast*` are the four Flutter
+/// variants. An unknown token falls back to day, never to a crash.
 export function paletteForTheme(themeName: string): AnkiChromePalette {
-  return themeName === THEME_NIGHT ? nightPalette() : dayPalette();
+  if (themeName === CHROME_HIGH_CONTRAST_LIGHT) {
+    return highContrastLightPalette();
+  }
+  if (themeName === CHROME_HIGH_CONTRAST_DARK) {
+    return highContrastDarkPalette();
+  }
+  if (themeName === CHROME_DARK || themeName === THEME_NIGHT) {
+    return nightPalette();
+  }
+  return dayPalette();
 }
 
 /// Label wording follows Android's `AppStrings.reviewBinaryForgotten` /
@@ -134,23 +222,12 @@ export struct AnkiReviewerHeaderBar {
   @Prop booted: boolean = false;
   @Prop presentPending: boolean = false;
   @Prop isComplete: boolean = false;
-  @Prop advanceStuck: boolean = false;
 
-  /// D8: a redo / bury / suspend is in flight. Kept separate from
-  /// `presentPending` because they answer different questions — that one means
-  /// "a card is rendering", this one means "the queue is being mutated".
-  @Prop mutating: boolean = false;
+  /// UI-15: the Review All badge text (`3/5 · deckName`), empty outside
+  /// Review All. Same string the Android `_AnkiSessionToolbar` renders.
+  @Prop sourceProgress: string = '';
 
-  /// UI-8: a rating has been committed and the next card has not landed yet.
-  /// The three queue mutations above share the scheduler with that rating, so
-  /// they are gated on it exactly like `mutating` — letting a bury through
-  /// while a rating is in flight races two mutations against one queue.
-  @Prop ratingSent: boolean = false;
   onReplayAudio: () => void = (): void => {};
-  onUndo: () => void = (): void => {};
-  onRedo: () => void = (): void => {};
-  onBury: () => void = (): void => {};
-  onSuspend: () => void = (): void => {};
   onRequestExit: () => void = (): void => {};
 
   private palette(): AnkiChromePalette {
@@ -159,27 +236,46 @@ export struct AnkiReviewerHeaderBar {
 
   build() {
     Column() {
-      Progress({
-        value: this.progressTotal > 0 ? this.progressIndex : 0,
-        total: this.progressTotal > 0 ? this.progressTotal : 1,
-        type: ProgressType.Linear,
-      })
-        .color(COLOR_GOOD)
-        .backgroundColor(this.palette().divider)
-        .height(3)
-        .margin({ left: 16, right: 16, top: 8 })
-        .width('100%')
-
+      // Same single-row shape as Android's `ReviewProgressHeader`: close on the
+      // left, the bar taking the whole middle, the count on the right. The
+      // previous layout stacked a 3 vp bar above a row, which on a phone put
+      // the bar hard against the status bar and left the count and the close
+      // key floating on their own line — a header that was 2/3 empty and read
+      // as a stray teal dash rather than progress.
       Row() {
+        Button('✕')
+          .type(ButtonType.Circle)
+          .width(40)
+          .height(40)
+          .fontSize(17)
+          .fontColor(this.palette().textSecondary)
+          .backgroundColor(Color.Transparent)
+          .onClick((): void => {
+            this.onRequestExit();
+          })
+
+        Progress({
+          value: this.progressTotal > 0 ? this.progressIndex : 0,
+          total: this.progressTotal > 0 ? this.progressTotal : 1,
+          type: ProgressType.Linear,
+        })
+          .color(COLOR_GOOD)
+          .backgroundColor(COLOR_GOOD_TRACK)
+          .height(6)
+          .borderRadius(3)
+          .clip(true)
+          .layoutWeight(1)
+
         Text(this.previewOnly
           ? '预览'
           : (this.progressTotal > 0
-            ? String(this.progressIndex) + '/' + String(this.progressTotal)
+            ? String(this.progressIndex) + ' / ' + String(this.progressTotal)
             : '—'))
           .fontSize(13)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(FontWeight.Bold)
           .fontColor(this.palette().textSecondary)
-        Blank()
+          .margin({ left: 12 })
+
         if (this.hasAudio) {
           Button('重播')
             .fontSize(13)
@@ -187,83 +283,46 @@ export struct AnkiReviewerHeaderBar {
             .backgroundColor(Color.Transparent)
             .padding({ left: 8, right: 8 })
             .height(32)
+            .margin({ left: 4 })
             .enabled(this.booted && !this.presentPending && !this.isComplete)
             .onClick((): void => {
               this.onReplayAudio();
             })
         }
-        if (!this.previewOnly) {
-          Button('撤销')
-            .fontSize(13)
-            .fontColor(this.palette().textSecondary)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 8 })
-            .height(32)
-            .enabled(this.booted && !this.isComplete && !this.advanceStuck)
-            .onClick((): void => {
-              this.onUndo();
-            })
-        }
-        Button('✕')
-          .fontSize(15)
-          .fontColor(this.palette().textSecondary)
-          .backgroundColor(Color.Transparent)
-          .padding({ left: 8, right: 8 })
-          .height(32)
-          .onClick((): void => {
-            this.onRequestExit();
-          })
       }
       .width('100%')
-      .padding({ left: 16, right: 8 })
-      .margin({ top: 4, bottom: 2 })
+      .height(56)
+      .padding({ left: 8, right: 12 })
+      .alignItems(VerticalAlign.Center)
 
-      // D8: the three queue mutations Android puts in its session toolbar
-      // (`_AnkiSessionToolbar`), in its position — a strip above the card,
-      // right-aligned, plain text at the same weight as the rest of the
-      // chrome. Undo stays up in the count row because that is also where
-      // Android keeps it (`ReviewProgressHeader`); the split is deliberate,
-      // not an oversight.
+      // UI-15: the Review All source badge keeps the strip Android's
+      // `_AnkiSessionToolbar` gives it. The four queue mutations that used to
+      // share this row (undo / redo / bury / suspend) were removed; the badge
+      // renders only when Dart sent one, so a single-deck session has no
+      // empty strip.
       //
-      // Hidden in preview: a preview has no session to mutate, and the
-      // receipts would all come back "not available".
-      if (!this.previewOnly) {
+      // Restyled to Android's chip (`softTint(brandSky, 0.12)`, radius 12,
+      // hairline border, sky-coloured bold label): the old full-width grey
+      // pill used `textPrimary` on `divider`, which at night was the brightest
+      // object on the screen and outweighed the card itself.
+      if (!this.previewOnly && this.sourceProgress.length > 0) {
         Row() {
-          Blank()
-          Button('重做')
-            .fontSize(13)
-            .fontColor(this.palette().textSecondary)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 8 })
-            .height(30)
-            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending && !this.ratingSent)
-            .onClick((): void => {
-              this.onRedo();
-            })
-          Button('搁置')
-            .fontSize(13)
-            .fontColor(this.palette().textSecondary)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 8 })
-            .height(30)
-            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending && !this.ratingSent)
-            .onClick((): void => {
-              this.onBury();
-            })
-          Button('暂停')
-            .fontSize(13)
-            .fontColor(this.palette().textSecondary)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 8 })
-            .height(30)
-            .enabled(this.booted && !this.isComplete && !this.mutating && !this.presentPending && !this.ratingSent)
-            .onClick((): void => {
-              this.onSuspend();
-            })
+          Text(this.sourceProgress)
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(COLOR_EASY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .constraintSize({ maxWidth: '100%' })
+            .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+            .borderRadius(12)
+            .backgroundColor('#1F4A95A8')
+            .border({ width: 1, color: '#334A95A8' })
         }
         .width('100%')
-        .padding({ left: 16, right: 8 })
-        .margin({ bottom: 2 })
+        .padding({ left: 16, right: 16 })
+        .justifyContent(FlexAlign.Start)
+        .margin({ bottom: 6 })
       }
     }
     .width('100%')
@@ -453,6 +512,9 @@ export struct AnkiReviewerBottomBar {
   @Prop ratingSent: boolean = false;
   @Prop presentPending: boolean = false;
   @Prop statusText: string = '';
+  /// UI-16: single-source session — the completion row hands the summary back
+  /// to Flutter instead of showing its own and waiting for a tap.
+  @Prop autoComplete: boolean = false;
   @Prop settleTotal: number = -1;
   @Prop settleRemembered: number = -1;
   @Prop settleForgotten: number = -1;
@@ -478,7 +540,17 @@ export struct AnkiReviewerBottomBar {
             .fontWeight(FontWeight.Bold)
             .fontColor(this.palette().textPrimary)
             .margin({ top: 14 })
-          if (this.settleTotal >= 0) {
+          if (this.autoComplete) {
+            // UI-16: the authoritative summary is Flutter's
+            // `UnifiedReviewCompletion` — the same component Android shows,
+            // already rendered underneath this ability. Repeating the numbers
+            // here would be two summaries and a visible second screen; this
+            // row is only the hand-off beat before the timer closes us.
+            Text('正在打开结算…')
+              .fontSize(13)
+              .fontColor(this.palette().textSecondary)
+              .margin({ top: 6 })
+          } else if (this.settleTotal >= 0) {
             Text('共 ' + String(this.settleTotal) + ' 张 · 记住 '
               + String(this.settleRemembered) + ' · 忘记 '
               + String(this.settleForgotten))
@@ -491,18 +563,22 @@ export struct AnkiReviewerBottomBar {
               .fontColor(this.palette().textSecondary)
               .margin({ top: 2 })
           }
-          Button('完成')
-            .width('100%')
-            .height(50)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .backgroundColor(COLOR_GOOD)
-            .fontColor(Color.White)
-            .borderRadius(12)
-            .margin({ top: 12, bottom: 16 })
-            .onClick((): void => {
-              this.onFinishComplete();
-            })
+          // Review All keeps the explicit button: its next source reuses this
+          // ability, so only Dart may decide when to close.
+          if (!this.autoComplete) {
+            Button('完成')
+              .width('100%')
+              .height(50)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .backgroundColor(COLOR_GOOD)
+              .fontColor(Color.White)
+              .borderRadius(16)
+              .margin({ top: 12, bottom: 16 })
+              .onClick((): void => {
+                this.onFinishComplete();
+              })
+          }
         }
         .width('100%')
         .padding({ left: 16, right: 16 })
@@ -521,7 +597,7 @@ export struct AnkiReviewerBottomBar {
               .fontSize(15)
               .backgroundColor(COLOR_GOOD)
               .fontColor(Color.White)
-              .borderRadius(12)
+              .borderRadius(16)
               .margin({ right: 6 })
               .onClick((): void => {
                 this.onRetryAdvance();
@@ -531,7 +607,7 @@ export struct AnkiReviewerBottomBar {
               .height(48)
               .fontSize(15)
               .fontColor(this.palette().textSecondary)
-              .borderRadius(12)
+              .borderRadius(16)
               .border({ width: 1, color: this.palette().divider })
               .margin({ left: 6 })
               .onClick((): void => {
@@ -551,7 +627,7 @@ export struct AnkiReviewerBottomBar {
           .fontWeight(FontWeight.Medium)
           .backgroundColor(this.presentPending ? this.palette().divider : COLOR_GOOD)
           .fontColor(this.presentPending ? this.palette().textHint : Color.White)
-          .borderRadius(12)
+          .borderRadius(16)
           .animation({ duration: 150, curve: Curve.EaseOut })
           .margin({ left: 16, right: 16, top: 10, bottom: 16 })
           .enabled(!this.presentPending)
@@ -566,7 +642,7 @@ export struct AnkiReviewerBottomBar {
             .fontSize(15)
             .fontColor(this.palette().textPrimary)
             .backgroundColor(Color.Transparent)
-            .borderRadius(12)
+            .borderRadius(16)
             .border({ width: 1, color: this.palette().divider })
             .margin({ right: 6 })
             .enabled(!this.presentPending)
@@ -580,7 +656,7 @@ export struct AnkiReviewerBottomBar {
             .fontWeight(FontWeight.Medium)
             .backgroundColor(COLOR_GOOD)
             .fontColor(Color.White)
-            .borderRadius(12)
+            .borderRadius(16)
             .margin({ left: 6 })
             .onClick((): void => {
               this.onFinishComplete();
@@ -600,7 +676,7 @@ export struct AnkiReviewerBottomBar {
           .fontSize(15)
           .fontColor(this.palette().textHint)
           .backgroundColor(this.palette().divider)
-          .borderRadius(12)
+          .borderRadius(16)
           .margin({ left: 16, right: 16, top: 10, bottom: 16 })
           .enabled(false)
       } else {

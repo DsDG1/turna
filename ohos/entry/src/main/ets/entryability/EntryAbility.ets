@@ -33,10 +33,9 @@ export default class EntryAbility extends FlutterAbility {
     // reason as the other hand-written channels — no pubspec.yaml package to
     // declare, and `GeneratedPluginRegistrant` is regenerated from that list.
     flutterEngine.getPlugins()?.add(new SherpaTtsPlugin(this.context));
-    // ADR 0050 §6 step 5b. The Official Anki reviewer's channel, which during
-    // the probe batch only launches the capability probe ability. Needs the
-    // UIAbilityContext for the same reason as the other four: `startAbility`
-    // is an ability-level call and cannot be served by an ApplicationContext.
+    // Official Anki reviewer channel. `startAbility` is an ability-level call
+    // and cannot be served by an ApplicationContext. The step 5b probe methods
+    // stay on the plugin, but nothing invokes them during startup.
     flutterEngine.getPlugins()?.add(new AnkiReviewerPlugin(this.context));
   }
 }

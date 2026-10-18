@@ -13,25 +13,6 @@ import 'package:turna/application/anki_official/render/official_anki_reviewer_pr
 import 'package:turna/core/logger.dart';
 import 'package:turna/l10n/app_strings.dart';
 
-/// What a header mutation (redo / bury / suspend) did to the session.
-///
-/// Three states rather than a bool because the page needs to tell "moved on",
-/// "finished" and "refused" apart, and a bool cannot: `true` for both advanced
-/// and refused would re-arm the buttons on a card that never moved, and `false`
-/// for both finished and refused would show a completion row over a queue that
-/// still owes cards.
-enum OfficialNativeMutation {
-  /// Another card is on screen; the page re-arms its buttons.
-  advanced,
-
-  /// The mutation emptied the queue; the page swaps in its completion row.
-  completed,
-
-  /// Nothing happened (locked session, empty undo stack, finished queue). The
-  /// page keeps the card and reports the refusal.
-  refused,
-}
-
 /// The calls the HarmonyOS reviewer page can make. The real channel is one
 /// implementation; tests supply another so the order of media push and
 /// present can be asserted without a device.
@@ -43,13 +24,8 @@ abstract class OfficialAnkiOhosReviewerTransport {
     Future<void> Function()? onShowQuestion,
     Future<String> Function(String rating)? onRetryAdvance,
     Future<void> Function()? onRetryPresent,
-    Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     Future<String?> Function()? onReplayAudio,
-
-    /// Redo / bury / suspend from the native header, carrying the action word
-    /// (`redo` / `bury` / `suspend`) and answering with a receipt.
-    Future<String> Function(String action)? onCardAction,
   });
 
   Future<String> open({required String mediaRoot});
@@ -96,10 +72,8 @@ class OfficialAnkiReviewerChannelTransport
     Future<void> Function()? onShowQuestion,
     Future<String> Function(String rating)? onRetryAdvance,
     Future<void> Function()? onRetryPresent,
-    Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     Future<String?> Function()? onReplayAudio,
-    Future<String> Function(String action)? onCardAction,
   }) {
     return channel.bindOutbound(
       onShowAnswer: onShowAnswer,
@@ -108,10 +82,8 @@ class OfficialAnkiReviewerChannelTransport
       onShowQuestion: onShowQuestion,
       onRetryAdvance: onRetryAdvance,
       onRetryPresent: onRetryPresent,
-      onUndo: onUndo,
       onSettlement: onSettlement,
       onReplayAudio: onReplayAudio,
-      onCardAction: onCardAction,
     );
   }
 
@@ -182,19 +154,26 @@ class OfficialAnkiOhosReviewerBinding {
   void Function()? _onReveal;
   Future<bool> Function(String rating)? _onRated;
   void Function(String verdict)? _onClosed;
-  Future<void> Function()? _onUndo;
   Future<Map<String, Object?>?> Function()? _onSettlement;
   (int, int)? Function()? _onProgress;
 
-  /// D8: the host owns redo / bury / suspend — it holds the controller, the
-  /// official session and the live queue, and it is the only layer that can
-  /// rebuild after the queue changed. The binding's job is the receipt.
-  Future<OfficialNativeMutation> Function()? _onRedo;
-  Future<OfficialNativeMutation> Function()? _onBury;
-  Future<OfficialNativeMutation> Function()? _onSuspend;
+  /// The chrome values the native page cannot derive (source badge, which
+  /// undo is possible, whether the queue may be mutated, which theme variant
+  /// to paint). Read on every present, exactly like [_onProgress] — the page
+  /// holds the controller, the binding does not.
+  OfficialReviewerChromeSnapshot Function()? _onChrome;
   var _dark = false;
   var _textZoom = 100;
   var _previewOnly = false;
+
+  /// Which of the four Flutter theme variants the page sits on (UI-15).
+  ///
+  /// `_dark` alone cannot express this: Turna ships high-contrast light and
+  /// high-contrast dark as separate `ThemeData`s, and collapsing them into
+  /// day/night is how the native chrome used to lose high contrast entirely.
+  /// Stage-owned, because only the widget layer can read the accessibility
+  /// scope; the binding just carries it into the payload.
+  var _chromeTheme = OfficialAnkiReviewerProtocol.chromeLight;
   var _opened = false;
   var _closed = false;
 
@@ -227,12 +206,19 @@ class OfficialAnkiOhosReviewerBinding {
 
   /// How long a speculative open may sit with no card before it closes itself.
   ///
-  /// 20 s is deliberately generous: the batch load plus the first render can
-  /// legitimately take several seconds on a cold collection, and closing a
-  /// warm-up that was about to be adopted would turn a slow start into a
-  /// flash-and-vanish. It is short enough that a failed path does not leave
-  /// the learner staring at an empty reviewer.
-  static const defaultWarmUpIdleLimit = Duration(seconds: 20);
+  /// **60 s, measured on device (CMM-AL10 / HarmonyOS 7.0.0.109, debug build).**
+  /// The previous 20 s was shorter than a cold batch load: the reviewer opened at
+  /// the tap, the page needed 20.5 s to assemble the session, and the deadline
+  /// fired at exactly that moment — closing the reviewer the stage was about to
+  /// adopt, then reopening it. The learner paid two ability starts and saw an
+  /// empty page for 20 s. A warm second entry still took 8 s to open and ~2 s
+  /// more to the first card, so the limit has to clear that comfortably.
+  ///
+  /// This is a backstop, not the cleanup path: a load that fails calls
+  /// `cancel()` explicitly, and `rebind` disarms the deadline the moment a stage
+  /// adopts the reviewer. Widening it only delays the case where nobody ever
+  /// attaches.
+  static const defaultWarmUpIdleLimit = Duration(seconds: 60);
 
   Timer? _idleDeadline;
 
@@ -303,6 +289,11 @@ class OfficialAnkiOhosReviewerBinding {
   (int, String, int)? _pending;
   (int, String, int)? _scheduled;
   (String, int)? _reportedFailure;
+
+  /// `generation/presentGeneration` of the last "advanced but nothing to
+  /// present" state, so the warning fires once per move instead of on every
+  /// controller notification.
+  var _waitingFaceAt = '';
   Future<void> _queue = Future<void>.value();
 
   /// Media already sitting in the origin server, keyed by the card it was
@@ -323,23 +314,26 @@ class OfficialAnkiOhosReviewerBinding {
     required bool dark,
     int textZoom = 100,
     bool previewOnly = false,
+    String? chromeTheme,
     void Function()? onReveal,
     Future<bool> Function(String rating)? onRated,
     void Function(String verdict)? onClosed,
-    Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     (int, int)? Function()? onProgress,
-    Future<OfficialNativeMutation> Function()? onRedo,
-    Future<OfficialNativeMutation> Function()? onBury,
-    Future<OfficialNativeMutation> Function()? onSuspend,
+    OfficialReviewerChromeSnapshot Function()? onChrome,
     OfficialAnkiOhosReviewerTransport? transport,
     DateTime Function()? now,
   }) async {
     final existing = _live;
     if (existing != null && !existing._closed) {
+      logger.w('[OhosReviewer] attach joins the live binding '
+          '(ready already awaited=${existing._opened})');
       // Claim it before awaiting. A warm-up handle cancelled in this window
       // must not close a reviewer that is being adopted right now.
       existing._adopted = true;
+      // The deadline exists for a warm-up nothing picked up. This one is being
+      // picked up right now, and `rebind` is still an await away.
+      existing._disarmIdleDeadline();
       // A P0-1 warm-up may still be booting. Attaching before it settles would
       // present into a shell that does not exist yet; awaiting the same future
       // is what makes the warm-up free rather than merely early.
@@ -360,15 +354,14 @@ class OfficialAnkiOhosReviewerBinding {
         onReveal: onReveal,
         onRated: onRated,
         onClosed: onClosed,
-        onUndo: onUndo,
         onSettlement: onSettlement,
         onProgress: onProgress,
-        onRedo: onRedo,
-        onBury: onBury,
-        onSuspend: onSuspend,
+        onChrome: onChrome,
       );
+      logger.w('[OhosReviewer] attach rebound to card=${controller.card?.cardId}');
       return existing;
     }
+    logger.w('[OhosReviewer] attach opens a fresh binding');
     final binding = OfficialAnkiOhosReviewerBinding(
       transport: transport ??
           OfficialAnkiReviewerChannelTransport(
@@ -381,6 +374,13 @@ class OfficialAnkiOhosReviewerBinding {
       previewOnly: previewOnly,
       now: now,
     );
+    if (chromeTheme != null && chromeTheme.isNotEmpty) {
+      // Set before `_open`: the first present of a fresh binding happens inside
+      // that await, and it would otherwise carry the field's default.
+      binding._chromeTheme = chromeTheme;
+    }
+    // Same reason for the card frame's day/night: `rebind` is below `_open`.
+    binding._dark = dark;
     binding._ready = binding._open(controller);
     binding._adopted = true;
     // Claim the slot synchronously, exactly like `warmUp` does. Two attaches
@@ -412,12 +412,9 @@ class OfficialAnkiOhosReviewerBinding {
       onReveal: onReveal,
       onRated: onRated,
       onClosed: onClosed,
-      onUndo: onUndo,
       onSettlement: onSettlement,
       onProgress: onProgress,
-      onRedo: onRedo,
-      onBury: onBury,
-      onSuspend: onSuspend,
+      onChrome: onChrome,
     );
     return binding;
   }
@@ -500,6 +497,50 @@ class OfficialAnkiOhosReviewerBinding {
     _live = null;
   }
 
+  /// Loads [cardId] into the reviewer that is currently on screen and presents
+  /// it, without waiting for a Flutter rebuild.
+  ///
+  /// The reviewer is its own ability (route E), so while it is on top the
+  /// Flutter page below stops producing frames. Everything the next card needs
+  /// — a new `OfficialTemplateWebViewBody` boot, a new render controller, a
+  /// `present` — used to hang off that page rebuilding. After a rating the
+  /// session advanced, the receipt answered `ok`, and then nothing was ever
+  /// loaded: no rebuild, no present, and the page sat on "已提交，加载中…"
+  /// until its watchdog turned that into `rating_stalled` (device, 2026-10-18;
+  /// the frame that would have carried card 2 never arrived).
+  ///
+  /// Returns whether a present was issued. A no-op when nothing is attached, or
+  /// when the face is already the one that should be on screen.
+  static Future<bool> presentInPlace(int cardId) async {
+    final live = _live;
+    if (live == null || live._closed) return false;
+    final controller = live._controller;
+    if (controller == null || cardId <= 0) return false;
+    if (controller.card?.cardId == cardId && !controller.showingAnswer) {
+      logger.w('[OhosReviewer] in-place present skipped: card $cardId is '
+          'already showing its question face');
+      return false;
+    }
+    logger.w('[OhosReviewer] in-place present card=$cardId '
+        '(was ${controller.card?.cardId})');
+    try {
+      await controller.loadAndShowQuestion(cardId);
+      // `loadAndShowQuestion` returns normally on a render failure too: it
+      // parks the controller in `recoverableError` and notifies, and
+      // `_maybeReportFailure` has already told the page. Only a card object for
+      // [cardId] proves a face reached the reviewer, and only then may the
+      // caller record an acknowledgement for it.
+      return controller.card?.cardId == cardId && !controller.ui.isError;
+    } catch (error, stack) {
+      // A render failure already reached the page through
+      // `_maybeReportFailure`; a throw here would turn a committed rating into
+      // `advance_failed` and re-run an advance that has nothing left to do.
+      logger.w('[OhosReviewer] in-place present failed for card $cardId',
+          error: error, stackTrace: stack);
+      return false;
+    }
+  }
+
   void setDark(bool value) {
     _dark = value;
   }
@@ -512,6 +553,11 @@ class OfficialAnkiOhosReviewerBinding {
     _previewOnly = value;
   }
 
+  void setChromeTheme(String value) {
+    if (value.isEmpty || value == _chromeTheme) return;
+    _chromeTheme = value;
+  }
+
   void rebind({
     required OfficialAnkiReviewerController controller,
     required OfficialAnkiCourseGradesBridge grades,
@@ -520,15 +566,13 @@ class OfficialAnkiOhosReviewerBinding {
     required bool dark,
     int? textZoom,
     bool? previewOnly,
+    String? chromeTheme,
     void Function()? onReveal,
     Future<bool> Function(String rating)? onRated,
     void Function(String verdict)? onClosed,
-    Future<void> Function()? onUndo,
     Future<Map<String, Object?>?> Function()? onSettlement,
     (int, int)? Function()? onProgress,
-    Future<OfficialNativeMutation> Function()? onRedo,
-    Future<OfficialNativeMutation> Function()? onBury,
-    Future<OfficialNativeMutation> Function()? onSuspend,
+    OfficialReviewerChromeSnapshot Function()? onChrome,
   }) {
     // Someone adopted this reviewer. That is the ownership signal the idle
     // deadline was waiting for: from here on, closing it is the stage's call.
@@ -549,15 +593,15 @@ class OfficialAnkiOhosReviewerBinding {
     _dark = dark;
     if (textZoom != null) _textZoom = textZoom;
     if (previewOnly != null) _previewOnly = previewOnly;
+    if (chromeTheme != null && chromeTheme.isNotEmpty) {
+      _chromeTheme = chromeTheme;
+    }
     _onReveal = onReveal;
     _onRated = onRated;
     _onClosed = onClosed;
-    _onUndo = onUndo;
     _onSettlement = onSettlement;
     _onProgress = onProgress;
-    _onRedo = onRedo;
-    _onBury = onBury;
-    _onSuspend = onSuspend;
+    _onChrome = onChrome;
     if (_opened && !_closed) {
       _onController();
     }
@@ -583,12 +627,8 @@ class OfficialAnkiOhosReviewerBinding {
       },
       onRetryAdvance: _retryAdvance,
       onRetryPresent: _retryPresent,
-      onUndo: () async {
-        await _onUndo?.call();
-      },
       onSettlement: _onSettlement,
       onReplayAudio: _replayAudio,
-      onCardAction: _cardAction,
     );
     // Cancelled while the outbound handlers were being installed: nothing was
     // opened, so there is nothing to close and nothing to leave on screen.
@@ -625,15 +665,33 @@ class OfficialAnkiOhosReviewerBinding {
     // would otherwise sit on its shell forever (B2).
     _maybeReportFailure(controller);
     final card = controller.card;
-    if (card == null) return;
+    if (card == null) {
+      // The controller moved (a rating advanced the session) but no face is
+      // attached to the new item yet, so there is nothing to push. Without this
+      // line the page simply keeps the previous card and the rating interlock
+      // never releases — on device that read as "已提交，加载中…" until the
+      // watchdog fired, with no error anywhere.
+      final stamp = '${controller.generation}/${controller.presentGeneration}';
+      if (stamp != _waitingFaceAt) {
+        _waitingFaceAt = stamp;
+        logger.w('[OhosReviewer] no card to present at generation $stamp '
+            '(renderError=${controller.isRenderError})');
+      }
+      return;
+    }
+    _waitingFaceAt = '';
     final side = controller.showingAnswer
         ? OfficialAnkiReviewerProtocol.sideAnswer
         : OfficialAnkiReviewerProtocol.sideQuestion;
     final key = (card.cardId, side, controller.presentGeneration);
     // A render ack notifies this same controller. Scheduling that face again
     // would present twice and, on a failed ack, retry without bound.
-    if (_scheduled == key) return;
+    if (_scheduled == key) {
+      logger.w('[OhosReviewer] present suppressed as a duplicate: $key');
+      return;
+    }
     _scheduled = key;
+    logger.w('[OhosReviewer] present card=$key');
     unawaited(presentCard(
       controller: controller,
       card: card,
@@ -691,6 +749,7 @@ class OfficialAnkiOhosReviewerBinding {
         }
         if (_pending != key || _closed) return;
         final progress = _onProgress?.call();
+        final chrome = _onChrome?.call();
         final payload = ohosReviewerPayload(
           card: card,
           generation: generation,
@@ -708,6 +767,11 @@ class OfficialAnkiOhosReviewerBinding {
             card,
             showingAnswer: showingAnswer,
           ),
+          sourceProgress: chrome?.sourceProgress,
+          canRedo: chrome?.canRedo ?? false,
+          canMutate: chrome?.canMutate ?? false,
+          autoComplete: chrome?.autoComplete ?? false,
+          chromeTheme: _chromeTheme,
         );
         final ack = await transport.present(payload: payload, side: side);
         if (_pending != key || _closed) return;
@@ -834,59 +898,6 @@ class OfficialAnkiOhosReviewerBinding {
       return OfficialAnkiReviewerProtocol.receiptOk;
     }
     return _runAdvance(rated, rating);
-  }
-
-  /// D8: the header's redo / bury / suspend entries.
-  ///
-  /// Mirrors [_rate]'s gating and receipt shape, but the mutation itself lives
-  /// in the host: only it can rebuild the live queue and re-derive the batch,
-  /// and doing it here would duplicate the controller/session plumbing the
-  /// session page already owns.
-  ///
-  /// No new receipt vocabulary: `refused` answers `scheduler_unavailable`
-  /// (which is literally true — the scheduler will not take this action right
-  /// now) and a throw answers `engine_error`. How the page words those is the
-  /// page's business; inventing two more codes would mean two more branches on
-  /// both sides of the channel for the same three states.
-  Future<String> _cardAction(String action) async {
-    if (_closed) return OfficialAnkiReviewerProtocol.receiptSessionClosed;
-    if (_previewOnly) {
-      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
-    }
-    final Future<OfficialNativeMutation> Function()? run;
-    if (action == OfficialAnkiReviewerProtocol.cardActionRedo) {
-      run = _onRedo;
-    } else if (action == OfficialAnkiReviewerProtocol.cardActionBury) {
-      run = _onBury;
-    } else if (action == OfficialAnkiReviewerProtocol.cardActionSuspend) {
-      run = _onSuspend;
-    } else {
-      // Protocol drift, not a user mistake: answer instead of throwing so the
-      // page's button stack survives an unknown verb from a newer shell.
-      logger.w('[OhosReviewer] unknown card action: $action');
-      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
-    }
-    if (run == null || _controller == null) {
-      // Warm-up: the page is up but no host has attached, exactly like the
-      // rating path. There is no session to mutate.
-      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
-    }
-    try {
-      final outcome = await run();
-      if (outcome == OfficialNativeMutation.completed) {
-        return OfficialAnkiReviewerProtocol.receiptOkComplete;
-      }
-      return outcome == OfficialNativeMutation.advanced
-          ? OfficialAnkiReviewerProtocol.receiptOk
-          : OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
-    } catch (error, stack) {
-      // The mutation may or may not have landed in the engine. Claiming
-      // progress would be a lie the page cannot recover from; a failure
-      // receipt leaves the card on screen and the button armed for a retry.
-      logger.w('[OhosReviewer] card action failed: $action',
-          error: error, stackTrace: stack);
-      return OfficialAnkiReviewerProtocol.receiptEngineError;
-    }
   }
 
   /// Runs the host's advance callback, translating any throw into the

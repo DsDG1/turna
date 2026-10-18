@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
-import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -36,12 +36,9 @@ class StudyCardSurface extends StatefulWidget {
     this.onNativeRated,
     this.onNativeClosed,
     this.renderedCard,
-    this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
-    this.onNativeRedo,
-    this.onNativeBury,
-    this.onNativeSuspend,
+    this.onNativeChrome,
   });
 
   final CardPresentation? presentation;
@@ -68,12 +65,9 @@ class StudyCardSurface extends StatefulWidget {
   final OfficialAnkiRenderedCard? renderedCard;
 
   /// OHOS native-reviewer hooks — see [OfficialAnkiReviewerStage].
-  final Future<void> Function()? onNativeUndo;
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
   final (int, int)? Function()? onNativeProgress;
-  final Future<OfficialNativeMutation> Function()? onNativeRedo;
-  final Future<OfficialNativeMutation> Function()? onNativeBury;
-  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
+  final OfficialReviewerChromeSnapshot Function()? onNativeChrome;
 
   @override
   State<StudyCardSurface> createState() => _StudyCardSurfaceState();
@@ -179,12 +173,9 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         onNativeRated: widget.onNativeRated,
         onNativeClosed: widget.onNativeClosed,
         renderedCard: widget.renderedCard,
-        onNativeUndo: widget.onNativeUndo,
         onNativeSettlement: widget.onNativeSettlement,
         onNativeProgress: widget.onNativeProgress,
-        onNativeRedo: widget.onNativeRedo,
-        onNativeBury: widget.onNativeBury,
-        onNativeSuspend: widget.onNativeSuspend,
+        onNativeChrome: widget.onNativeChrome,
       );
     }
     if (content is StandardCourseCardContent) {

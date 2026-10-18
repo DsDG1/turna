@@ -31,13 +31,12 @@ import {
   AnkiReviewerSettlement,
   AnkiReviewerStatusArea,
   AnkiReviewerTypedBar,
+  COMPLETION_HANDOFF_MS,
   EXIT_CONFIRM_WINDOW_MS,
+  isDarkTheme,
   paletteForTheme,
 } from '../anki/AnkiReviewerChrome';
 import {
-  CARD_ACTION_BURY,
-  CARD_ACTION_REDO,
-  CARD_ACTION_SUSPEND,
   FATAL_CODES,
   RECEIPT_ADVANCE_FAILED,
   RECEIPT_ANSWER_NOT_READY,
@@ -67,10 +66,6 @@ struct AnkiReviewerPage {
   @State private ratingSent: boolean = false;
   @State private advanceStuck: boolean = false;
 
-  /// D8: one of redo / bury / suspend is in flight. Mutually exclusive with
-  /// the rating interlock — both mutate the same scheduler, so allowing them
-  /// together would race two advances against one queue.
-  @State private mutating: boolean = false;
   @State private complete: boolean = false;
   @State private confirmExit: boolean = false;
   @State private theme: string = THEME_DAY;
@@ -81,16 +76,33 @@ struct AnkiReviewerPage {
   @State private previewOnly: boolean = false;
   @State private hasAudio: boolean = false;
   @State private avHint: string = '';
+  /// UI-15: chrome state Dart sends because the native page holds no
+  /// controller — the Review All badge. The undo / redo / mutate predicates
+  /// were only read by the header's queue-mutation entries and left with them.
+  @State private sourceProgress: string = '';
+  /// UI-16: single-source session — the completion row closes itself and hands
+  /// the summary over to Flutter's `UnifiedReviewCompletion`. False under
+  /// Review All, where the next source reuses this same ability.
+  @State private autoComplete: boolean = false;
   @State private settleTotal: number = -1;
   @State private settleRemembered: number = -1;
   @State private settleForgotten: number = -1;
   @State private settleSeconds: number = -1;
   @State private settleXp: number = -1;
+  /// Insets the edge-to-edge window overlaps, measured in vp.
+  @State private topAvoid: number = 0;
   @State private bottomAvoid: number = 0;
 
   private alive: boolean = true;
   private bootAttempts: number = 0;
   private booted: boolean = false;
+
+  /// UI-16: the completion hand-off timer is armed at most once per session,
+  /// and `terminating` keeps `endReview` idempotent — the auto-close and the
+  /// learner's own tap can race, and two `terminateSelfWithResult` calls on a
+  /// dying ability only produce noise.
+  private autoCloseScheduled: boolean = false;
+  private terminating: boolean = false;
 
   /// The session object this page installed its listeners on. See
   /// [bootWhenSessionArrives] for why identity matters here.
@@ -143,29 +155,104 @@ struct AnkiReviewerPage {
       }
       session.acceptPushedAck(row);
     });
-    this.measureBottomAvoid();
+    this.configureWindowChrome();
     this.bootWhenSessionArrives();
   }
 
-  /// UI-2: keep the action rows clear of the navigation indicator. The page
-  /// itself does not expand into the safe area, so without this the bottom
-  /// margin sat under the system gesture bar on gesture-nav devices.
-  private measureBottomAvoid(): void {
+  /// Take the window edge to edge, then hand the safe-area insets to the page.
+  ///
+  /// Measured on device (CMM-AL10 / HarmonyOS 7.0.0.109): `statusBarColor` is
+  /// honoured, `navigationBarColor` is not — the navigation strip stayed white
+  /// under a black page no matter what was sent. So the fix cannot be "paint
+  /// both bars"; the window has to reach underneath the strip and let the
+  /// page's own background show through, with the inset handed back as
+  /// padding. Same conclusion the Flutter side reached long before: content
+  /// lives inside the safe area, decoration lives outside it.
+  ///
+  /// Glyphs still come from the theme, because a white-on-white status bar is
+  /// unreadable even when the fill is right. Re-applied on every `chromeTheme`
+  /// change: the first present of a session arrives before Dart has said
+  /// whether this is day or night.
+  ///
+  /// Best-effort throughout: a window that is not there yet must not break the
+  /// page, and the layout runs fine on whatever insets it has.
+  private configureWindowChrome(): void {
     window
       .getLastWindow(getContext(this) as common.UIAbilityContext)
       .then((win: window.Window): void => {
-        const area: window.AvoidArea =
-          win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
-        try {
-          this.bottomAvoid = this.getUIContext().px2vp(area.bottomRect.height);
-        } catch (e) {
-          // Prebuilt page before attach: the default margin stays — the
-          // avoid area only refines spacing, it never gates the layout.
-        }
+        win
+          .setWindowLayoutFullScreen(true)
+          .catch((_e: BusinessError): void => {
+            // Inset layout still works; only the two bands come back.
+          })
+          .then((): void => {
+            this.applySystemBars(win);
+            this.measureSafeAreas(win);
+          });
       })
       .catch((_e: Object): void => {
-        // Best-effort layout refinement only; the default margin is usable.
+        // A missing window is a launch-timing fact, not a page failure.
       });
+  }
+
+  /// Transparent bars + theme-matched glyphs. See [configureWindowChrome] for
+  /// why the fill is transparent rather than a colour.
+  private applySystemBars(win: window.Window): void {
+    const dark: boolean = isDarkTheme(this.theme);
+    // `statusBarContentColor` is the glyph colour and `isStatusBarLightIcon`
+    // the older boolean for the same thing; both are sent because they were
+    // introduced in different API levels and some devices honour only one.
+    const glyph: string = dark ? '#FFFFFF' : '#000000';
+    const props: window.SystemBarProperties = {
+      statusBarColor: '#00000000',
+      statusBarContentColor: glyph,
+      isStatusBarLightIcon: dark,
+      navigationBarColor: '#00000000',
+      navigationBarContentColor: glyph,
+      isNavigationBarLightIcon: dark,
+    };
+    win.setWindowSystemBarProperties(props).catch((_e: BusinessError): void => {
+      // Cosmetic only — the page stays usable with system defaults.
+    });
+  }
+
+  /// Repaint the glyphs after a theme flip, against the live window.
+  private refreshSystemBarGlyphs(): void {
+    window
+      .getLastWindow(getContext(this) as common.UIAbilityContext)
+      .then((win: window.Window): void => {
+        this.applySystemBars(win);
+      })
+      .catch((_e: Object): void => {
+        // Next theme change retries.
+      });
+  }
+
+  /// UI-2: read the insets the edge-to-edge window now overlaps.
+  ///
+  /// The status bar height was never needed before (the platform inset the
+  /// content for us); now that the window fills the screen it does. The bottom
+  /// is the larger of the two reports on purpose: gesture navigation publishes
+  /// `TYPE_NAVIGATION_INDICATOR`, three-button navigation publishes the same
+  /// strip under `TYPE_SYSTEM`, and taking the max clears both without needing
+  /// to know which mode the device is in.
+  private measureSafeAreas(win: window.Window): void {
+    try {
+      const system: window.AvoidArea =
+        win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      const indicator: window.AvoidArea =
+        win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
+      const bottom: number = Math.max(
+        system.bottomRect.height,
+        indicator.bottomRect.height,
+      );
+      const context = this.getUIContext();
+      this.topAvoid = context.px2vp(system.topRect.height);
+      this.bottomAvoid = context.px2vp(bottom);
+    } catch (e) {
+      // Prebuilt page before attach: the defaults stay — the avoid area only
+      // refines spacing, it never gates the layout.
+    }
   }
 
   /// Belt to `aboutToAppear`: the page can be prebuilt before the ability
@@ -255,7 +342,13 @@ struct AnkiReviewerPage {
       this.presentPending = state.presentPending;
       this.answerLanded = state.answerLanded;
       this.typedVisible = state.typedVisible;
-      this.theme = state.theme;
+      if (state.theme !== this.theme) {
+        this.theme = state.theme;
+        // Day/night changes what the system bars have to be painted with —
+        // the bars follow the page, so a theme flip that skipped this left a
+        // light-theme bar over a dark page until the ability was rebuilt.
+        this.refreshSystemBarGlyphs();
+      }
       this.progressIndex = state.progressIndex;
       this.progressTotal = state.progressTotal;
       this.debugChrome = state.debug;
@@ -263,6 +356,8 @@ struct AnkiReviewerPage {
       this.previewOnly = state.previewOnly;
       this.hasAudio = state.hasAudio;
       this.avHint = state.avHint;
+      this.sourceProgress = state.sourceProgress;
+      this.autoComplete = state.autoComplete;
       if (!state.presentPending) {
         this.errorCode = '';
         this.errorFatal = false;
@@ -334,6 +429,8 @@ struct AnkiReviewerPage {
     this.previewOnly = false;
     this.hasAudio = false;
     this.avHint = '';
+    this.sourceProgress = '';
+    this.autoComplete = false;
     this.progressIndex = 0;
     this.progressTotal = 0;
     this.status = '';
@@ -344,6 +441,10 @@ struct AnkiReviewerPage {
     this.settleForgotten = -1;
     this.settleSeconds = -1;
     this.settleXp = -1;
+    // UI-16: a new session may arm its own hand-off. `terminating` is
+    // deliberately NOT reset — it guards the ability, not the session, and a
+    // page that is closing must never close twice.
+    this.autoCloseScheduled = false;
     this.disarmRatingWatchdog();
   }
 
@@ -458,7 +559,7 @@ struct AnkiReviewerPage {
 
   private onRate(rating: string): void {
     const session: AnkiReviewerSession | undefined = this.session();
-    if (session === undefined || this.mutating || this.ratingSent) {
+    if (session === undefined || this.ratingSent) {
       return;
     }
     this.status = '';
@@ -564,15 +665,6 @@ struct AnkiReviewerPage {
     }
   }
 
-  private onUndo(): void {
-    const session: AnkiReviewerSession | undefined = this.session();
-    if (session === undefined) {
-      return;
-    }
-    this.status = '正在撤销…';
-    session.channel().requestUndo();
-  }
-
   /// D9: cards still owed, matching Android's `remainingCount` shape — the
   /// current card counts, because it is still unanswered. `progressIndex` is
   /// `answered + 1` (clamped) and `progressTotal` is `answered + owed`, so the
@@ -585,46 +677,6 @@ struct AnkiReviewerPage {
     }
     const owed: number = this.progressTotal - this.progressIndex + 1;
     return owed > 0 ? owed : 0;
-  }
-
-  /// D8: redo / bury / suspend. All three share one path because all three
-  /// share one contract — mutate, then tell the page whether the session moved
-  /// on, finished, or refused. Worded generically on purpose: "评分失败" would
-  /// be a lie for a bury, and the receipt is the same vocabulary as a rating's
-  /// so the page must not special-case it.
-  private requestCardAction(action: string, pendingText: string): void {
-    const session: AnkiReviewerSession | undefined = this.session();
-    // A rating already in flight owns the scheduler. Letting a bury/suspend
-    // through here races two mutations against one queue and can move the
-    // session twice for one answer.
-    if (session === undefined || this.mutating || this.ratingSent) {
-      return;
-    }
-    this.mutating = true;
-    this.status = pendingText;
-    this.errorCode = '';
-    this.errorFatal = false;
-    session.channel().requestCardAction(action, (code: string): void => {
-      this.mutating = false;
-      this.onMutationReceipt(code);
-    });
-  }
-
-  private onMutationReceipt(code: string): void {
-    if (code === RECEIPT_OK) {
-      this.status = '';
-      return;
-    }
-    if (code === RECEIPT_OK_COMPLETE) {
-      this.status = '';
-      this.complete = true;
-      this.fetchSettlement();
-      return;
-    }
-    this.status = '';
-    // A refusal is not an engine failure and must not raise the fatal banner:
-    // the card is still on screen and the entry is armed again.
-    this.showError('操作未生效：' + (code.length > 0 ? code : '无回执'), false);
   }
 
   private fetchSettlement(): void {
@@ -647,10 +699,48 @@ struct AnkiReviewerPage {
         // Stats are cosmetic here; the authoritative summary is the Flutter
         // completion screen this row hands back to.
       }
+      this.scheduleAutoClose();
     });
   }
 
+  /// UI-16: hand the completion screen back to Flutter.
+  ///
+  /// Before this the native row was the only summary the learner ever saw:
+  /// tapping 「完成」 closed the ability, and Dart's `_onNativeAbilityClosed`
+  /// immediately popped the page — so `UnifiedReviewCompletion`, which is
+  /// already rendered underneath the ability the moment the queue finishes
+  /// (and is the exact component Android shows), was torn down before it was
+  /// ever visible.
+  ///
+  /// Only single-source sessions arm this. Under Review All the next source
+  /// re-attaches to this same ability (same `mediaRoot` → `onNewWant` reuses
+  /// the session), and a timer armed by the finished source would close the
+  /// page the next source is already using. Review All keeps the explicit
+  /// button and lets Dart decide.
+  ///
+  /// The button stays as a fallback: if the ability is not in the foreground
+  /// when the timer fires (`alive` false, or the window already went away),
+  /// the learner still has a way out.
+  private scheduleAutoClose(): void {
+    if (!this.autoComplete || this.autoCloseScheduled) {
+      return;
+    }
+    this.autoCloseScheduled = true;
+    setTimeout((): void => {
+      // `complete` is reset when a new session binds, so a source hand-off in
+      // the meantime disarms this timer without any extra bookkeeping.
+      if (!this.alive || !this.complete) {
+        return;
+      }
+      this.endReview(VERDICT_COMPLETED);
+    }, COMPLETION_HANDOFF_MS);
+  }
+
   private endReview(verdict: string): void {
+    if (this.terminating) {
+      return;
+    }
+    this.terminating = true;
     const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
     const want: Want = { parameters: { verdict: verdict } };
     const result: common.AbilityResult = {
@@ -661,6 +751,7 @@ struct AnkiReviewerPage {
       .terminateSelfWithResult(result)
       .catch((): void => {
         context.terminateSelf().catch((e2: BusinessError): void => {
+          this.terminating = false;
           this.showError('close failed: ' + e2.message, false);
         });
       });
@@ -681,23 +772,9 @@ struct AnkiReviewerPage {
         booted: this.booted,
         presentPending: this.presentPending,
         isComplete: this.complete,
-        advanceStuck: this.advanceStuck,
-        mutating: this.mutating,
-        ratingSent: this.ratingSent,
+        sourceProgress: this.sourceProgress,
         onReplayAudio: (): void => {
           this.onReplayAudio();
-        },
-        onUndo: (): void => {
-          this.onUndo();
-        },
-        onRedo: (): void => {
-          this.requestCardAction(CARD_ACTION_REDO, '正在重做…');
-        },
-        onBury: (): void => {
-          this.requestCardAction(CARD_ACTION_BURY, '正在搁置…');
-        },
-        onSuspend: (): void => {
-          this.requestCardAction(CARD_ACTION_SUSPEND, '正在暂停…');
         },
         onRequestExit: (): void => {
           this.requestExit();
@@ -723,9 +800,9 @@ struct AnkiReviewerPage {
         })
         .layoutWeight(1)
         .width('100%')
-        .borderRadius(12)
+        .borderRadius(16)
         .clip(true)
-        .margin({ left: 12, right: 12 })
+        .margin({ left: 12, right: 12, top: 6, bottom: 6 })
         .backgroundColor(this.palette().surface)
 
       AnkiReviewerStatusArea({
@@ -774,6 +851,7 @@ struct AnkiReviewerPage {
       AnkiReviewerBottomBar({
         themeName: this.theme,
         isComplete: this.complete,
+        autoComplete: this.autoComplete,
         advanceStuck: this.advanceStuck,
         answerLanded: this.answerLanded,
         previewOnly: this.previewOnly,
@@ -808,6 +886,6 @@ struct AnkiReviewerPage {
     .width('100%')
     .height('100%')
     .backgroundColor(this.palette().bg)
-    .padding({ bottom: this.bottomAvoid })
+    .padding({ top: this.topAvoid, bottom: this.bottomAvoid })
   }
 }

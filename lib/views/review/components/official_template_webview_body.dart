@@ -9,8 +9,8 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
-import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
@@ -39,12 +39,9 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
     this.onNativeRated,
     this.onNativeClosed,
     this.renderedCard,
-    this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
-    this.onNativeRedo,
-    this.onNativeBury,
-    this.onNativeSuspend,
+    this.onNativeChrome,
   });
 
   final OfficialTemplateContent content;
@@ -71,12 +68,9 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
   final OfficialAnkiRenderedCard? renderedCard;
 
   /// OHOS header hooks — see [OfficialAnkiReviewerStage].
-  final Future<void> Function()? onNativeUndo;
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
   final (int, int)? Function()? onNativeProgress;
-  final Future<OfficialNativeMutation> Function()? onNativeRedo;
-  final Future<OfficialNativeMutation> Function()? onNativeBury;
-  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
+  final OfficialReviewerChromeSnapshot Function()? onNativeChrome;
 
   @override
   State<OfficialTemplateWebViewBody> createState() =>
@@ -116,6 +110,10 @@ class _OfficialTemplateWebViewBodyState
     if (oldWidget.presentation?.cardKey != widget.presentation?.cardKey ||
         oldWidget.generation != widget.generation ||
         oldWidget.controller != widget.controller) {
+      logger.w('[OhosReviewer] body rebuild: card '
+          '${oldWidget.presentation?.cardKey.cardId} -> '
+          '${widget.presentation?.cardKey.cardId} '
+          '(gen ${oldWidget.generation} -> ${widget.generation})');
       unawaited(_boot());
     } else if (oldWidget.isRevealed != widget.isRevealed) {
       unawaited(_syncSide());
@@ -124,9 +122,12 @@ class _OfficialTemplateWebViewBodyState
 
   Future<void> _boot() async {
     final request = ++_request;
+    final started = DateTime.now();
     _detach();
     _lastReceipt = null;
     _error = null;
+    logger.w('[OhosReviewer] body boot #$request card='
+        '${widget.presentation?.cardKey.cardId} gen=${widget.generation}');
     final unavailable = _unavailable;
     if (unavailable != null) {
       _report(ok: false, code: unavailable);
@@ -140,6 +141,8 @@ class _OfficialTemplateWebViewBodyState
         paths: paths,
         controller: widget.controller,
       );
+      logger.w('[OhosReviewer] body boot #$request controller ready after '
+          '${DateTime.now().difference(started).inMilliseconds}ms');
       if (!mounted || request != _request) {
         if (widget.controller == null) await controller.dispose();
         return;
@@ -159,6 +162,11 @@ class _OfficialTemplateWebViewBodyState
       } else {
         await controller.loadAndShowQuestion(widget.presentation!.cardKey.cardId);
       }
+      logger.w('[OhosReviewer] body boot #$request card loaded: '
+          'card=${controller.card?.cardId} '
+          'gen=${controller.presentGeneration} '
+          'side=${controller.showingAnswer ? 'answer' : 'question'} '
+          'after ${DateTime.now().difference(started).inMilliseconds}ms');
       if (!mounted || request != _request) return;
       await _syncSide();
     } catch (error, stack) {
@@ -309,12 +317,9 @@ class _OfficialTemplateWebViewBodyState
       onNativeReveal: widget.onNativeReveal,
       onNativeRated: widget.onNativeRated,
       onNativeClosed: widget.onNativeClosed,
-      onNativeUndo: widget.onNativeUndo,
       onNativeSettlement: widget.onNativeSettlement,
       onNativeProgress: widget.onNativeProgress,
-      onNativeRedo: widget.onNativeRedo,
-      onNativeBury: widget.onNativeBury,
-      onNativeSuspend: widget.onNativeSuspend,
+      onNativeChrome: widget.onNativeChrome,
     );
   }
 }

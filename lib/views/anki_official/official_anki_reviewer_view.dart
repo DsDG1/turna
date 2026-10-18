@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
-import 'package:turna/application/anki_official/render/official_anki_reviewer_probe.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
@@ -74,15 +73,6 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
   @override
   void initState() {
     super.initState();
-    // ADR 0050 §6 step 5b. On HarmonyOS the reviewer is a native page (route
-    // E), so the two builds below — the pending-renderer error and the probe
-    // that decides whether step 5b can be built at all — share one trigger:
-    // a user opening a card. That is deliberate, because the pending error was
-    // previously only ever exercised in code, and a receipt that requires a
-    // separate build switch is a receipt nobody ever takes.
-    if (isHarmonyOsTarget && kDebugMode) {
-      unawaited(logOfficialAnkiReviewerProbe());
-    }
     _reportUnsupportedRenderer();
     if (!Platform.isAndroid) {
       _hcpp = false;

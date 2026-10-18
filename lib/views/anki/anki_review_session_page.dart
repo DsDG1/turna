@@ -9,20 +9,20 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
-import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/review/formal_review_source_coordinator.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/anki_official/review/official_review_advance.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/study_session/anki_review_content.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
+import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
@@ -37,11 +37,62 @@ import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/core/ohos_target.dart';
-import 'package:turna/core/logger.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+
+/// Puts the session's current card on the native reviewer right away.
+///
+/// The reviewer is its own ability, so while it is on screen the Flutter page
+/// underneath stops producing frames: the widget rebuild that normally carries
+/// the next card (new body boot, new render controller, `present`) never runs.
+/// Left to that rebuild, every advance on this platform answered its receipt
+/// and then presented nothing — the page sat on "已提交，加载中…" until the
+/// native watchdog replaced it with a retry row (device, 2026-10-18).
+///
+/// The acknowledgement is filed here as well, not left to the card body: that
+/// body still carries the *previous* card's presentation (it never rebuilt), so
+/// its receipts are rejected by the controller's card-key guard. Without this
+/// the session never records a question receipt for the new card, which is what
+/// `canReveal` reads — the next reveal would silently no-op in Flutter while
+/// the native face flipped.
+Future<void> _presentSessionCardInPlace(StudySessionController controller) async {
+  final item = controller.currentItem;
+  if (item == null) return;
+  final presented =
+      await OfficialAnkiOhosReviewerBinding.presentInPlace(item.cardKey.cardId);
+  if (!presented) return;
+  controller.acceptPresentation(PresentationReceipt(
+    cardKey: item.cardKey,
+    generation: controller.generation,
+    side: PresentationSide.question,
+    renderer: PresentationRendererKind.officialTemplate,
+    presentedAt: DateTime.now(),
+  ));
+}
+
+/// Advance after a committed native rating, then put the next card on the
+/// ability without waiting for a rebuild.
+///
+/// Kept out of the card surface so the ordering — advance first, present
+/// second — is stated once and can be guarded at the source level:
+/// presenting first would show the card the session has not moved to yet.
+Future<bool> _advanceAndPresentAfterNativeRating({
+  required StudySessionController controller,
+  required OfficialReviewSession officialSession,
+  required OfficialFormalReviewLiveQueue? liveQueue,
+  required String rating,
+}) async {
+  final advanced = await advanceFromNativeRating(
+    controller: controller,
+    officialSession: officialSession,
+    liveQueue: liveQueue,
+    rating: rating,
+  );
+  if (advanced) await _presentSessionCardInPlace(controller);
+  return advanced;
+}
 
 /// Shared formal-review session for Official-owned Anki cards.
 ///
@@ -96,12 +147,12 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
 
   /// One pop per review session, not per close callback.
   ///
-  /// Two bindings can exist for one ability — a warm-up that failed its ready
-  /// wait still had `openReviewer` in flight, and the stage's own attach then
-  /// opened again. When that ability finally closes, both `opened` futures
-  /// resolve and both call `onClosed`, which used to walk the navigator back
-  /// twice. The learner sees the review page leave and the page *under* it
-  /// leave too.
+  /// Two bindings can exist for one ability: a boot that failed after its
+  /// `openReviewer` was already in flight still has that open resolving later,
+  /// and the stage's retry opens again. When the ability finally closes, both
+  /// `opened` futures resolve and both call `onClosed`, which used to walk the
+  /// navigator back twice. The learner sees the review page leave and the page
+  /// *under* it leave too.
   bool _nativeClosedHandled = false;
 
   /// Wave 2 (§8.4): a Blocked load — the scheduler owes cards but none
@@ -135,13 +186,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
 
   @override
   void dispose() {
-    // Leaving before a card arrived must not leave a reviewer on screen (P0-1).
-    unawaited(_abandonOhosWarmUp());
     if (isHarmonyOsTarget) {
-      // …and leaving *after* one arrived must close the ability the stage
-      // adopted. The warm-up handle above is null by then (the page drops it on
-      // the success path), so the binding's own shutdown is the only reachable
-      // exit. Idempotent: a reviewer that closed itself is already gone.
+      // Leaving must close the ability the stage adopted. Idempotent: a
+      // reviewer that closed itself is already gone.
       unawaited(OfficialAnkiOhosReviewerBinding.shutdown());
     }
     _controller?.removeListener(_onController);
@@ -289,7 +336,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       });
       return;
     } catch (error) {
-      await _abandonOhosWarmUp();
       final coordinator = _sourceCoordinator;
       if (coordinator?.current != null) {
         coordinator!.recordFailure(
@@ -340,57 +386,19 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     await _start();
   }
 
-  /// Official owners: FormalReviewLauncher + OfficialStudyLedger only.
-  /// Typed load results (maintainability plan §8.4): NoDue advances Review
-  /// All, Blocked waits for an explicit user action — never a silent end.
-  /// The speculative reviewer opened by [_warmOhosReviewer], until a stage
-  /// adopts it or this page abandons it.
-  OfficialAnkiOhosReviewerWarmUp? _ohosWarmUp;
-
-  /// Opens the HarmonyOS reviewer ahead of the batch (P0-1).
-  ///
-  /// Returns null on every other platform, when the JS off-switch would make
-  /// the reviewer fail closed anyway, and on any warm-up error. A warm-up that
-  /// cannot start must not become a review failure: the stage opens the
-  /// reviewer itself and surfaces the real error there.
-  Future<void> _warmOhosReviewer() async {
-    if (!isHarmonyOsTarget || !mounted) return;
-    final forceDisableJs =
-        context.read<SettingsProvider?>()?.ankiForceDisableJs ?? false;
-    if (forceDisableJs) return;
-    try {
-      final paths = await OfficialAnkiCourseEntry.resolveDefaultPaths();
-      final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-        mediaRoot: paths.mediaFolder.path,
-      );
-      if (!mounted) {
-        await warmUp.cancel();
-        return;
-      }
-      _ohosWarmUp = warmUp;
-    } catch (error, stack) {
-      logger.w('[OhosReviewer] warm-up failed; the stage will open instead',
-          error: error, stackTrace: stack);
-    }
-  }
-
-  /// Drops the speculative reviewer. Safe when none was opened; the handle's
-  /// own cancel is idempotent.
-  Future<void> _abandonOhosWarmUp() async {
-    final warmUp = _ohosWarmUp;
-    _ohosWarmUp = null;
-    await warmUp?.cancel();
-  }
-
   Future<void> _startOfficialOwned({
     required String importId,
     required String courseId,
   }) async {
-    // P0-1: the reviewer's ability, window and shell do not depend on the card,
-    // so they start now rather than after the batch has loaded and rendered.
-    // Cancel-on-failure is the whole contract: a reviewer left open with no
-    // card is worse than the spinner this replaces.
-    await _warmOhosReviewer();
+    // The reviewer ability is opened by `OfficialAnkiReviewerStage` once the
+    // batch is on screen. It used to be warmed up here, before the load, on
+    // the theory that its boot was on the critical path — but the reviewer is
+    // a separate ability and covers this page, so Flutter stops producing
+    // frames while it is up: the stage that would present the first card is
+    // never built, and the learner was left on an empty reviewer until the
+    // 60 s idle deadline closed it (device, 2026-10-18; doc 34 records the
+    // same "waiting for a frame" root cause). Opening it after the batch keeps
+    // the frame that presents card 1.
     final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;
     final OfficialFormalReviewLoadResult? loadResult;
     if (builder != null) {
@@ -414,7 +422,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         code:
             result.failures.isNotEmpty ? result.failures.first.code : 'unknown',
       );
-      await _abandonOhosWarmUp();
       setState(() {
         _blockedLoad = result;
         _loading = false;
@@ -426,7 +433,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       batch = result.batch;
     }
     if (batch == null || batch.items.isEmpty) {
-      await _abandonOhosWarmUp();
       if (_sourceCoordinator != null) {
         await _advanceReviewAll(recordSession: false);
         return;
@@ -470,12 +476,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     liveQueue?.itemsSink = controller.replaceItems;
     controller.addListener(_onController);
     await controller.start();
-    if (!mounted) {
-      await _abandonOhosWarmUp();
-      return;
-    }
-    // The stage adopts the warmed reviewer on attach; this page stops owning it.
-    _ohosWarmUp = null;
+    if (!mounted) return;
     // A new session is a new ability lifetime: the close callback for the
     // previous one (if it ever arrives late) must not pop this one.
     _nativeClosedHandled = false;
@@ -552,83 +553,41 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     if (!mounted || _nativeClosedHandled) return;
     _nativeClosedHandled = true;
     final controller = _controller;
-    if (controller != null && !controller.isComplete) {
+    final answered = controller?.answeredCount ?? 0;
+    // Settle on every exit, a finished queue included. The old guard skipped
+    // settlement exactly when the session had actually completed, so the
+    // completion view behind the ability always reported 0 XP.
+    if (controller != null && !_settlement.isRecorded && answered > 0) {
       unawaited(_recordSessionCompletion(
-        total: controller.answeredCount,
+        total: answered,
         remembered: controller.rememberedCount,
         forgotten: controller.forgottenCount,
         elapsed: DateTime.now().difference(controller.startedAt),
       ));
     }
-    Navigator.of(context).maybePop();
-  }
-
-  /// OHOS native reviewer's header undo (UI-4). Same path as the Flutter
-  /// progress header: the host's `onEffectsUndone` rebuilds the live queue
-  /// and the present chain follows from the rebuilt presentation.
-  Future<void> _onNativeUndo() async {
-    await _controller?.undoLast();
-  }
-
-  /// OHOS header redo / bury / suspend (D8).
-  ///
-  /// Android's `_AnkiSessionToolbar` runs exactly this sequence — mutate, let
-  /// the live queue rebuild, then let the scheduler say which card is next —
-  /// and these three hooks exist so the native page is not the one place
-  /// missing it.
-  ///
-  /// The answer is a three-state outcome, not a bool: the page re-arms its
-  /// buttons on `advanced`, swaps in its completion row on `completed`, and
-  /// keeps the card on `refused`. A bool would make the last two
-  /// indistinguishable, which is how a refused bury would end a session with
-  /// cards still owed.
-  Future<OfficialNativeMutation> _onNativeRedo() {
-    return _applyNativeMutation(() async {
-      final redone = await _controller?.redoLast() ?? false;
-      if (redone) await _officialSessionLiveQueue?.rebuildFromLiveQueue();
-      return redone;
-    });
-  }
-
-  Future<OfficialNativeMutation> _onNativeBury() {
-    return _applyNativeMutation(
-      () =>
-          _controller?.buryCurrent(onMutated: _rebuildLiveQueue) ??
-          Future.value(false),
-    );
-  }
-
-  Future<OfficialNativeMutation> _onNativeSuspend() {
-    return _applyNativeMutation(
-      () =>
-          _controller?.suspendCurrent(onMutated: _rebuildLiveQueue) ??
-          Future.value(false),
-    );
-  }
-
-  Future<void> Function()? get _rebuildLiveQueue {
-    final queue = _officialSessionLiveQueue;
-    return queue == null ? null : () => queue.rebuildFromLiveQueue();
-  }
-
-  Future<OfficialNativeMutation> _applyNativeMutation(
-    Future<bool> Function() mutate,
-  ) async {
-    final controller = _controller;
-    final session = _officialSession;
-    if (controller == null || session == null) {
-      return OfficialNativeMutation.refused;
+    // UI-16: a finished queue hands the completion screen back to Flutter
+    // instead of popping.
+    //
+    // This pop is why the OHOS build never showed `UnifiedReviewCompletion`:
+    // the ability's own summary row was the only completion surface the
+    // learner ever saw, and the screen underneath — which already renders the
+    // Android completion component the moment `isComplete` flips — was torn
+    // down the instant the ability closed. Android shows one completion
+    // screen; this makes OHOS show the same one.
+    if (verdict == OfficialAnkiReviewerProtocol.verdictCompleted &&
+        controller != null &&
+        controller.isComplete &&
+        answered > 0) {
+      if (_sourceCoordinator != null && !_reviewAllComplete) {
+        // Review All still owes sources: show the source hand-off spinner,
+        // not a completion screen for the source that just ended.
+        setState(() => _loading = true);
+      } else {
+        setState(() {});
+      }
+      return;
     }
-    final committed = await mutate();
-    if (!committed) return OfficialNativeMutation.refused;
-    final advanced = await advanceAfterNativeMutation(
-      controller: controller,
-      officialSession: session,
-      liveQueue: _officialSessionLiveQueue,
-    );
-    return advanced
-        ? OfficialNativeMutation.advanced
-        : OfficialNativeMutation.completed;
+    Navigator.of(context).maybePop();
   }
 
   /// OHOS completion-row statistics (UI-7): answered / remembered /
@@ -656,6 +615,39 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     if (total <= 0) return null;
     final index = (controller.answeredCount + 1).clamp(1, total);
     return (index, total);
+  }
+
+  /// OHOS chrome state (UI-15): the three values the native page cannot
+  /// derive because it holds no controller.
+  ///
+  /// `canRedo`/`canMutate` mirror `_AnkiSessionToolbar`'s two rules exactly
+  /// (`controller.canRedo` for redo, `!isLocked && !isComplete` for bury /
+  /// suspend). Before this the native buttons were gated on the rating
+  /// interlock alone, so "重做" looked available with no undo history and
+  /// answered with `scheduler_unavailable` when tapped.
+  OfficialReviewerChromeSnapshot _onNativeChrome() {
+    final controller = _controller;
+    return (
+      sourceProgress: _sourceProgressLabel,
+      canRedo: controller?.canRedo ?? false,
+      canMutate: controller != null &&
+          !controller.isLocked &&
+          !controller.isComplete,
+      // UI-16: only a single-source session may close itself on completion.
+      // Under Review All the next source re-attaches to the same ability, and
+      // a timer armed by the finished one would tear down the live page.
+      autoComplete: _sourceCoordinator == null,
+    );
+  }
+
+  /// Review All badge text, byte-identical to what the Android toolbar
+  /// renders (`currentIndex/targets.length · deckName`).
+  String? get _sourceProgressLabel {
+    final reviewAll = _sourceCoordinator;
+    final current = reviewAll?.current;
+    if (reviewAll == null || current == null) return null;
+    return '${reviewAll.currentIndex + 1}/${reviewAll.targets.length} · '
+        '${current.displayName}';
   }
 
   @override
@@ -749,16 +741,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         liveQueue: _officialSessionLiveQueue,
         onRetryBlockedCard: _retryBlockedCurrentCard,
         onNativeClosed: _onNativeAbilityClosed,
-        onNativeUndo: _onNativeUndo,
         onNativeSettlement: _onNativeSettlement,
         onNativeProgress: _onNativeProgress,
-        onNativeRedo: _onNativeRedo,
-        onNativeBury: _onNativeBury,
-        onNativeSuspend: _onNativeSuspend,
-        sourceProgress: reviewAll?.current == null
-            ? null
-            : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
-                '${reviewAll.current!.displayName}',
+        onNativeChrome: _onNativeChrome,
+        sourceProgress: _sourceProgressLabel,
         earnedXp: _settlement.earnedXp,
       );
     }
@@ -982,12 +968,9 @@ class _AnkiStudySessionView extends StatelessWidget {
     this.liveQueue,
     this.onRetryBlockedCard,
     this.onNativeClosed,
-    this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
-    this.onNativeRedo,
-    this.onNativeBury,
-    this.onNativeSuspend,
+    this.onNativeChrome,
     this.sourceProgress,
     this.earnedXp = 0,
   });
@@ -1007,16 +990,14 @@ class _AnkiStudySessionView extends StatelessWidget {
   /// cards — settle the answered part and pop (B8).
   final void Function(String verdict)? onNativeClosed;
 
-  /// OHOS native chrome hooks (undo / completion stats / progress).
-  final Future<void> Function()? onNativeUndo;
+  /// OHOS native chrome hooks (completion stats / progress).
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
   final (int, int)? Function()? onNativeProgress;
 
-  /// OHOS header redo / bury / suspend (D8). Same three-state contract as the
-  /// binding's `OfficialNativeMutation`.
-  final Future<OfficialNativeMutation> Function()? onNativeRedo;
-  final Future<OfficialNativeMutation> Function()? onNativeBury;
-  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
+  /// OHOS chrome state the native page cannot derive: the Review All source
+  /// badge and the theme variant (UI-15).
+  final OfficialReviewerChromeSnapshot Function()? onNativeChrome;
+
   final String? sourceProgress;
   final int earnedXp;
 
@@ -1267,12 +1248,9 @@ class _AnkiStudySessionView extends StatelessWidget {
       grades: _ohosGrades(session),
       onNativeClosed: onNativeClosed,
       renderedCard: liveQueue?.renderedCardFor(item.cardKey.cardId),
-      onNativeUndo: onNativeUndo,
       onNativeSettlement: onNativeSettlement,
       onNativeProgress: onNativeProgress,
-      onNativeRedo: onNativeRedo,
-      onNativeBury: onNativeBury,
-      onNativeSuspend: onNativeSuspend,
+      onNativeChrome: onNativeChrome,
       onNativeReveal: session == null
           ? null
           : () {
@@ -1283,7 +1261,7 @@ class _AnkiStudySessionView extends StatelessWidget {
             },
       onNativeRated: session == null
           ? null
-          : (rating) => advanceFromNativeRating(
+          : (rating) => _advanceAndPresentAfterNativeRating(
                 controller: controller,
                 officialSession: session,
                 liveQueue: liveQueue,

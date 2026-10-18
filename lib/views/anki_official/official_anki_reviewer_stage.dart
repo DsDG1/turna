@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/render/official_anki_answer_pres
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
 import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -35,12 +36,9 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
     this.onNativeReveal,
     this.onNativeRated,
     this.onNativeClosed,
-    this.onNativeUndo,
     this.onNativeSettlement,
     this.onNativeProgress,
-    this.onNativeRedo,
-    this.onNativeBury,
-    this.onNativeSuspend,
+    this.onNativeChrome,
   });
 
   final OfficialAnkiReviewerController controller;
@@ -63,10 +61,6 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
   /// Flutter page shows a spinner where the card was (B8).
   final void Function(String verdict)? onNativeClosed;
 
-  /// OHOS header undo entry (UI-4): runs the page's own undo path; the
-  /// rebuild/present chain follows from the host hooks.
-  final Future<void> Function()? onNativeUndo;
-
   /// OHOS completion-row statistics (UI-7): answered/remembered/forgotten/
   /// seconds/xp, delivered to the native page when the queue finishes.
   final Future<Map<String, Object?>?> Function()? onNativeSettlement;
@@ -74,13 +68,9 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
   /// OHOS header progress (UI-4): `(index, total)` for the count and bar.
   final (int, int)? Function()? onNativeProgress;
 
-  /// OHOS header redo / bury / suspend (D8). Each answers with what the
-  /// mutation did — moved on, finished, or was refused — because the page
-  /// decides from that whether to re-arm its buttons or show its completion
-  /// row.
-  final Future<OfficialNativeMutation> Function()? onNativeRedo;
-  final Future<OfficialNativeMutation> Function()? onNativeBury;
-  final Future<OfficialNativeMutation> Function()? onNativeSuspend;
+  /// OHOS chrome state the native page cannot derive (UI-15): the Review All
+  /// source badge and which of the four theme variants to paint.
+  final OfficialReviewerChromeSnapshot Function()? onNativeChrome;
 
   @override
   State<OfficialAnkiReviewerStage> createState() =>
@@ -97,6 +87,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   var _ohosStarting = false;
   var _ohosClosed = false;
   var _dark = false;
+  var _chromeTheme = OfficialAnkiReviewerProtocol.chromeLight;
   var _textZoom = 100;
 
   OfficialAnkiCourseGradesBridge get _grades =>
@@ -122,10 +113,30 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     _controller.addListener(_onChanged);
   }
 
+  /// Reads the three chrome values the native page cannot derive.
+  ///
+  /// Called from `didChangeDependencies` **before** the binding is attached, not
+  /// only from `build`. `attach` presents the first card, and the payload for
+  /// that present is built from these fields; computing them in `build` alone
+  /// meant the first present of every session carried the constructor defaults
+  /// (`dark: false`, `chromeTheme: 'light'`). On a dark app that showed as a
+  /// dark card inside a light native chrome — or, on a freshly created Stage
+  /// that had not built yet, a light card inside a dark app.
+  void _syncChrome() {
+    _dark = Theme.of(context).brightness == Brightness.dark;
+    _textZoom = cardTextScaleOf(context);
+    // `accessibilityOf` is the crash-free reader (it falls back to neutral
+    // defaults when the provider is absent, which is every widget test).
+    _chromeTheme = OfficialAnkiReviewerProtocol.chromeThemeFor(
+      dark: _dark,
+      highContrast: accessibilityOf(context).highContrast,
+    );
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _textZoom = cardTextScaleOf(context);
+    _syncChrome();
     if (isHarmonyOsTarget &&
         _effectiveAllowJs(context) &&
         _ohos == null &&
@@ -158,6 +169,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   Future<void> _startOhos() async {
     if (_ohosStarting) return;
     _ohosStarting = true;
+    final started = DateTime.now();
+    logger.w('[OhosReviewer] stage attach card=${_controller.card?.cardId}');
     try {
       final binding = await OfficialAnkiOhosReviewerBinding.attach(
         controller: _controller,
@@ -168,20 +181,20 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         dark: _dark,
         textZoom: _textZoom,
         previewOnly: widget.showPreviewControls,
+        chromeTheme: _chromeTheme,
         onReveal: widget.onNativeReveal,
         onRated: widget.onNativeRated,
         onClosed: _onAbilityClosed,
-        onUndo: widget.onNativeUndo,
         onSettlement: widget.onNativeSettlement,
         onProgress: widget.onNativeProgress,
-        onRedo: widget.onNativeRedo,
-        onBury: widget.onNativeBury,
-        onSuspend: widget.onNativeSuspend,
+        onChrome: widget.onNativeChrome,
       );
       if (!mounted || !_effectiveAllowJs(context)) {
         binding.detach(_controller);
         return;
       }
+      logger.w('[OhosReviewer] stage attached in '
+          '${DateTime.now().difference(started).inMilliseconds}ms');
       setState(() {
         _ohos = binding;
         _ohosError = null;
@@ -222,15 +235,13 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       dark: _dark,
       textZoom: _textZoom,
       previewOnly: widget.showPreviewControls,
+      chromeTheme: _chromeTheme,
       onReveal: widget.onNativeReveal,
       onRated: widget.onNativeRated,
       onClosed: _onAbilityClosed,
-      onUndo: widget.onNativeUndo,
       onSettlement: widget.onNativeSettlement,
       onProgress: widget.onNativeProgress,
-      onRedo: widget.onNativeRedo,
-      onBury: widget.onNativeBury,
-      onSuspend: widget.onNativeSuspend,
+      onChrome: widget.onNativeChrome,
     );
   }
 
@@ -269,12 +280,12 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       (settings) => settings?.ankiForceDisableJs ?? false,
     );
     final allowJs = widget.allowJs && !forceDisableJs;
-    _dark = Theme.of(context).brightness == Brightness.dark;
-    _textZoom = cardTextScale;
+    _syncChrome();
     _ohos
       ?..setDark(_dark)
       ..setTextZoom(cardTextScale)
-      ..setPreviewOnly(widget.showPreviewControls);
+      ..setPreviewOnly(widget.showPreviewControls)
+      ..setChromeTheme(_chromeTheme);
     if (isHarmonyOsTarget) {
       return _buildOhos(controller, allowJs: allowJs);
     }

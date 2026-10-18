@@ -107,6 +107,15 @@ const _dartOnly = <String, String>{
   'ackFieldSide': 'Same reason as ackFieldType.',
   'ackFieldGeneration': 'Same reason as ackFieldType.',
   'ackFieldStableCode': 'Same reason as ackFieldType.',
+  'payloadSourceProgress':
+      'ArkTS reads payload keys as ReviewerPresentPayload interface members in '
+      'AnkiReviewerSession.ets, because a typed interface cannot be indexed by '
+      'a constant. The field names are therefore needle-checked there instead '
+      'of being mirrored as constants.',
+  'payloadCanRedo': 'Same reason as payloadSourceProgress.',
+  'payloadCanMutate': 'Same reason as payloadSourceProgress.',
+  'payloadChromeTheme': 'Same reason as payloadSourceProgress.',
+  'payloadAutoComplete': 'Same reason as payloadSourceProgress.',
 };
 
 /// Constants that exist only on the ArkTS side, each with why.

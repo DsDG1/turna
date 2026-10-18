@@ -1,6 +1,5 @@
 // Dart imports:
 import 'dart:async';
-import 'dart:io';
 
 // Flutter imports:
 import 'package:flutter/foundation.dart';
@@ -8,18 +7,14 @@ import 'package:flutter/foundation.dart';
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/render/official_anki_reviewer_probe.dart';
-import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/core/ohos_target.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
@@ -28,8 +23,6 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/course_scope.dart';
-import 'package:turna/service/audio_backend.dart';
-import 'package:turna/service/sherpa_tts_probe.dart';
 import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
@@ -106,61 +99,6 @@ Future<void> _hydrateAfterSeed() async {
   await getIt<GrammarReviewProvider>().setLanguageFilter(srsLanguage);
 
   await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
-  // ADR 0050 §3, step 0: turn the OHOS platform-identity assumptions into a
-  // receipt instead of leaving them to be inferred from a code comment. Every
-  // branch below is read off `dart:io` and `defaultTargetPlatform` rather than
-  // reasoned about, because `Platform.is*` is all-false on HarmonyOS and a
-  // wrong assumption here silently reroutes the official Anki wiring later.
-  // Safe to keep permanently: it logs once at startup and opens no handle.
-  unawaited(() async {
-    try {
-      logger.i(
-        '[OhosProbe] operatingSystem=${Platform.operatingSystem} '
-        'osVersion=${Platform.operatingSystemVersion} '
-        'defaultTargetPlatform=${defaultTargetPlatform.name} '
-        'isHarmonyOsTarget=$isHarmonyOsTarget '
-        'isAndroid=${Platform.isAndroid} isIOS=${Platform.isIOS} '
-        'isLinux=${Platform.isLinux} isMacOS=${Platform.isMacOS} '
-        'isWindows=${Platform.isWindows} '
-        'degradations=${activeDegradations.map((e) => e.name).join(",")}',
-      );
-      // The catalog open is the one assertion that can actually fail here, and
-      // on HarmonyOS it fails for a different reason than on every other
-      // platform (no `libsqlite3.so`), so it is probed separately rather than
-      // folded into the capability matrix.
-      final probe = OfficialAnkiCompositionRoot.probe();
-      logger.i(
-        '[OhosProbe] ankiLibraryResolved='
-        '${resolveOfficialAnkiLibraryPath() ?? "<null>"} '
-        'runtimeOk=${probe.ok} reason=${probe.reason} '
-        'abi=${probe.abiVersion} '
-        'catalog=${probeOfficialAnkiSqlite()} '
-        'catalogLocatorReady=${OfficialAnkiCompositionRoot.readOnlyCatalog != null} '
-        'dlopen=${OfficialAnkiNativeTransport.probeDlopen()}',
-      );
-    } catch (e) {
-      // A probe that throws is itself the receipt. Swallowing it keeps a
-      // diagnostic from taking down the cold start it was measuring.
-      logger.w('[OhosProbe] skipped: $e');
-    }
-    // ADR 0050 §6 step 5b, probe batch only — REMOVE when the native reviewer
-    // lands. The reviewer probe needs a native page on screen, which means it
-    // cannot ride the lines above: those are safe to keep permanently because
-    // they "open no handle", and this one puts a full-screen ArkUI page in
-    // front of the user. Debug-gated so a release build never sees it, and the
-    // permanent trigger stays where it belongs — on the card-open path in
-    // `OfficialAnkiReviewerView`, which is what exercises the real thing.
-    if (isHarmonyOsTarget && kDebugMode) {
-      // Same batch, different question: the capability probe opens a screen to
-      // test the `Web` component, this one only tests whether the asset bytes
-      // the card frame asks for can be read back. It needs no screen, so it runs
-      // alongside rather than after — queued behind the capability probe it
-      // waited out the whole 30 s no-gesture fallback, which is a long time to
-      // have already-known answer sitting in a coroutine.
-      unawaited(logOfficialAnkiReviewerAssetProbe());
-      await logOfficialAnkiReviewerProbe();
-    }
-  }());
   await getIt<CourseProvider>().load();
 
   unawaited(() async {
@@ -197,23 +135,6 @@ Future<void> _hydrateAfterSeed() async {
 
   if (!kIsWeb) {
     await getIt<TtsAvailabilityChecker>().configureSystemEngine();
-    // Ahead of the reminder block and outside its try: a channel with no
-    // handler is silent on this platform, so this is the only place the log
-    // learns whether the audio channel is wired at all.
-    await probeAudioChannel();
-    // After the audio probe, not beside it: this one synthesises a file and then
-    // plays it through that same backend, so the audio channel has to be known
-    // good first or a failure here would be ambiguous between the two.
-    unawaited(() async {
-      final speaker = getIt<AudioBackend>(instanceName: 'speechAudio');
-      final result = await probeSherpaTts(speaker: speaker);
-      if (result is SherpaProbeOk) {
-        logger.d('[Sherpa] startup probe ok');
-      } else if (result is SherpaProbeFailed) {
-        logger.w(
-            '[Sherpa] startup probe failed at ${result.stage}: ${result.detail}');
-      }
-    }());
     try {
       final settings = getIt<SettingsProvider>();
       await getIt<LocalReminderService>().applyFromSettings(

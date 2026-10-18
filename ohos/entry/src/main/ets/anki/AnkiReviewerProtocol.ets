@@ -46,22 +46,8 @@ export const METHOD_RATE: string = 'rate';
 export const METHOD_TYPED_CHANGED: string = 'typedChanged';
 export const METHOD_RETRY_ADVANCE: string = 'retryAdvance';
 export const METHOD_RETRY_PRESENT: string = 'retryPresent';
-export const METHOD_REQUEST_UNDO: string = 'requestUndo';
 export const METHOD_REVIEW_SETTLEMENT: string = 'reviewSettlement';
 export const METHOD_REPLAY_AUDIO: string = 'replayAudio';
-
-/// The header's redo / bury / suspend entries (D8). One method with an action
-/// argument: all three share one receipt contract and one set of
-/// preconditions, so three methods would be three copies of a single switch.
-/// Unlike `requestUndo` this one answers — a refused bury has no rebuilt
-/// present to fall back on, and an unanswered button reads as broken.
-export const METHOD_REQUEST_CARD_ACTION: string = 'requestCardAction';
-
-/// Action vocabulary for `requestCardAction`; mirror of the Dart constants,
-/// pinned by the protocol guard.
-export const CARD_ACTION_REDO: string = 'redo';
-export const CARD_ACTION_BURY: string = 'bury';
-export const CARD_ACTION_SUSPEND: string = 'suspend';
 
 // --------------------------------------------------------- argument names
 
@@ -108,6 +94,19 @@ export const SIDE_QUESTION: string = 'question';
 export const SIDE_ANSWER: string = 'answer';
 export const THEME_DAY: string = 'day';
 export const THEME_NIGHT: string = 'night';
+
+// ------------------------------------------------------- native chrome tokens
+//
+// Which of Turna's four Flutter theme variants the page sits on. The card
+// frame keeps using THEME_DAY / THEME_NIGHT (it drives the card's own CSS and
+// knows nothing else); these four only paint the native bars. Before this the
+// chrome had two palettes, so both high-contrast variants fell back to the
+// plain ones.
+
+export const CHROME_LIGHT: string = 'light';
+export const CHROME_DARK: string = 'dark';
+export const CHROME_HIGH_CONTRAST_LIGHT: string = 'highContrastLight';
+export const CHROME_HIGH_CONTRAST_DARK: string = 'highContrastDark';
 
 // ------------------------------------------------------------------ ratings
 

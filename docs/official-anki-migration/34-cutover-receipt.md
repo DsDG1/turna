@@ -383,6 +383,93 @@ close）。新增 `_adopted`：被 Stage 接管的 binding 不接受加载器句
 真机未验——需连续进入复习 ×20（同 root 不闪）、Review All 含 blocked 源（不被
 弹回）、desync 注入（出重试行而非死按钮）。
 
+## 鸿蒙复习面 UI-15 / UI-16 对齐与 ArkTS 编译器收据（2026-10-18 晚）
+
+**性质**：UI 对等性补齐（44 号 §7 第 10 项前三项）+ **本仓首次取得 ArkTS 编译器收据**。
+
+### UI-15 三项施工
+
+| 项 | 施工前 | 施工后 |
+|---|---|---|
+| 工具栏启用判定 | 三键统一只判互锁（`booted && !isComplete && !mutating && !presentPending && !ratingSent`），无撤回历史时「重做」照样可点，点了收 `scheduler_unavailable` | payload 下发 `canRedo` / `canMutate`；三键保留共享互锁前缀，redo 追加 `canRedo`，bury/suspend 追加 `canMutate`，与安卓 `_AnkiSessionToolbar` 两条规则逐条对应 |
+| Review All 源徽章 | payload 无该字段，多源复习时看不到当前牌组 | payload 新增 `sourceProgress`（与安卓同一字符串 `currentIndex/targets.length · deckName`），原生顶栏第二行左侧渲染，空串不渲染，单行省略 |
+| 主题档位 | payload 的 `theme` 由 `dark` 布尔推导，只有 day/night；高对比度亮/暗降级为普通 day/night | payload 新增 `chromeTheme`（`light`/`dark`/`highContrastLight`/`highContrastDark`）；`theme` 保持 day/night 给卡片 frame（frame 只认这两个）；ArkTS 增 `highContrastLightPalette()` / `highContrastDarkPalette()`，色值镜像 `theme.dart` 的 `_buildHighContrast*` |
+
+**协议面**：Dart 侧 `OfficialAnkiReviewerProtocol` 新增 4 个 chrome 主题常量与 4 个 payload 键名常量；ArkTS 侧 `CHROME_LIGHT`/`CHROME_DARK`/`CHROME_HIGH_CONTRAST_LIGHT`/`CHROME_HIGH_CONTRAST_DARK` 与 Dart 逐一对上（camelCase ↔ UPPER_SNAKE 由协议守卫强制）。payload 键名常量登记进 `_dartOnly`（ArkTS 用 `ReviewerPresentPayload` 接口字段表达，静态接口无法用常量索引）。
+
+**跨层传递**：新增 `typedef OfficialReviewerChromeSnapshot`（`sourceProgress` / `canRedo` / `canMutate` 三个字段）走 D8 同一条五段接线
+（`anki_review_session_page` → `_AnkiStudySessionView` → `StudyCardSurface` → `OfficialTemplateWebViewBody` → `OfficialAnkiReviewerStage` → binding）。**主题不进 record**：只有 widget 层能读无障碍 scope，由 `Stage.build` 用 `accessibilityOf(context).highContrast` + `Theme.brightness` 算出四档之一，经 `setChromeTheme()` 交给 binding。
+
+**未做**：无——44 号 §7 第 10 项的四项形态差异已全部施工（第四项即下方 UI-16）。
+
+### UI-16：完成屏交棒（同一晚第二批）
+
+**施工前的真实形态（此前的文档描述是错的）**：不是「两个完成屏」，而是**一个都不完整**。
+`AnkiReviewSessionPage._onNativeAbilityClosed` 无条件 `maybePop()`——学习者点原生
+完成行上的「完成」→ ability 关闭 → 页面立刻被 pop 回列表。而
+`UnifiedReviewCompletion`（安卓那张完成屏）其实**已经在 ability 底下渲染好了**
+（`_AnkiStudySessionView.build` 在 `controller.isComplete` 时直接返回它），只是
+从来没被看到就被弹掉了。所以鸿蒙上「完成」这一屏永远是 ArkTS 那张简化行。
+
+**三处改动**
+
+| 侧 | 改动 |
+|---|---|
+| Dart 页面 | `_onNativeAbilityClosed` 在 `verdict == completed && controller.isComplete && answeredCount > 0` 时**不 pop**，改为 `setState` 让底下那个完成屏留下；结算条件从 `!isComplete` 改为按 `answeredCount > 0` —— 原条件恰好在会话真正完成时跳过结算，完成屏的 XP 恒为 0 |
+| Dart 协议 | payload 新增 `autoComplete`（进 `OfficialReviewerChromeSnapshot`）；`_onNativeChrome` 里 `autoComplete = _sourceCoordinator == null`，即只对单源会话为真 |
+| ArkTS | `ReviewerChromeState` 同步该字段；`fetchSettlement` 拿到统计后调 `scheduleAutoClose()`，600 ms 后 `endReview(VERDICT_COMPLETED)`；完成行在 `autoComplete` 时只显示「复习完成 / 正在打开结算…」，不显示统计与按钮；`endReview` 加 `terminating` 幂等守卫 |
+
+**为什么只有单源才自动关**：Review All 的下一个源会**复用同一个 ability**
+（同 `mediaRoot` → `onNewWant` 复用 session）。若结束的源武装了 600 ms 定时器，
+它会关掉下一个源正在用的页面。所以 Review All 保留「完成」按钮，由 Dart 决定时机；
+定时器回调里还二次校验 `alive && complete`（换源时 `complete` 被 `resetChrome` 复位），
+双保险。
+
+**收尾节拍 600 ms**：不是 0（ability 在最后一张卡评分的瞬间消失会像崩溃），
+也不是 1 s+（那时学习者已经在读一张马上被替换的摘要，正是要修的双屏观感）。
+
+**测试**：`ohos_card_action_chrome_guard_test.dart` 新增 1 例（5 条断言：完成行按
+`autoComplete` 分支、交棒文案、「完成」按钮被 `!autoComplete` 包住、定时器三重守卫、
+`endReview` 幂等守卫）。
+
+**未验**：真机——原生行 600 ms 的观感、关闭后完成屏的 XP 是否非零、Review All
+跨源时不被误关。
+
+### ArkTS 编译器收据（此前连续记为「缺失」）
+
+**结论**：`flutter build hap --debug` **构建成功**，产出
+`ohos/entry/build/default/outputs/default/entry-default-signed.hap`
+（279,370,991 B）与 `entry-default-unsigned.hap`（278,433,945 B），2026-10-18 19:28。
+ArkTS 编译 `COMPILE RESULT: 0 ERROR / 373 WARN`（WARN 全是既有的
+`getContext` 弃用与样式提示，本批未新增错误）。
+
+**此前归因错误，订正**：10-18 白天把「hap 起不来」记成
+「hvigor 6.26.1 vs `hvigor-config.json5` 的 `modelVersion 5.1.0` 漂移，卡在
+`evaluateHvigorConfig`」。**这个判断不成立**——DevEco Studio 26.0.0.461 自带的
+hvigor 接受该配置，`evaluateHvigorConfig` 能过。真正拦路的是两个：
+
+1. **ohpm 依赖阶段**：此前是代理（已知，清代理即通）。
+2. **`[safe-delete][SAFE_DELETE_BULK_CONFIRM_REQUIRED]`**：本机工具链的批量删除
+   保护（阈值 50 个条目），会拦住 hvigor 清理
+   `rawfile/flutter_assets`（82 项）与
+   `build/.../default@CompileArkTS`（50 项）这两处构建缓存。它报的是
+   `Error Code: 00308018`，**不是 ArkTS 语法错误**——白天那次
+   `COMPILE RESULT:FAIL {ERROR:1}` 里的那 1 个错误就是被这条拦下的。
+
+**可复现的构建姿势**（每次构建前执行，两个目录都是纯构建产物）：
+
+```bash
+rm -rf ohos/entry/src/main/resources/rawfile/flutter_assets \
+       ohos/entry/build/default/cache/default/default@CompileArkTS
+env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+    -u all_proxy -u ALL_PROXY \
+    "<fork SDK>/bin/flutter.bat" build hap --debug
+```
+
+**收据边界**：这是**编译器收据，不是真机收据**。UI-15 三项、10-18 的 D8/D9/UI-8/
+生命周期/二档/入口三项/P0-1/P0-2 全部仍待真机复验。构建后已用**官方** SDK 的
+`flutter pub get` 恢复 `package_config.json`（三项 rootUri 指回官方 SDK）。
+
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
 > 状态与证据明细以 [ADR 0050](../decisions/0050-ohos-official-anki.md) 为真源
@@ -588,7 +675,141 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
-| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工**（redo / bury / suspend 三键；协议新增单个 `requestCardAction` + 三个动作词，回执复用既有词表），**真机未验**。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**真机复验**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档落库值与按钮形态、10-18 工具栏三键的调度效果（bury / suspend 后队列计数下降且卡不再出现，redo 恢复上一张）。**本地门禁**：2026-10-18 复检全量 `flutter test --exclude-tags golden` **2162 绿**（此前五批的「零执行」是代理造成的，已纠正）；**ArkTS 编译器收据仍缺**（hvigor 配置漂移）+ 真机未验；伴生版不进主交付 |
+| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工**（redo / bury / suspend 三键；协议新增单个 `requestCardAction` + 三个动作词，回执复用既有词表），**真机未验**。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**复习面四项形态差异已于 2026-10-18 晚 UI-15 / UI-16 施工**（Review All 源徽章 / 四档主题含高对比度 / 三键启用判定按 `canRedo`·`canMutate` / 单源完成交棒 `UnifiedReviewCompletion`），**但真机复验的结论是复习主链断在推进**——见「鸿蒙复习链路首次真机复验（2026-10-18 夜）」节：评分落库成立，`advance_failed` + 连锁 `card_mismatch` 使连续过卡不可用；**因此 2026-10-14「队列前进走通」的表述只对四档时代的那次会话成立，当前链路未复现**。**真机复验仍欠**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档 `again` 落库值与工具栏三键的调度效果（bury / suspend 后队列计数下降且卡不再出现，redo 恢复上一张）。**本地门禁**：2026-10-18 全量 `flutter test --exclude-tags golden` **2192 绿 / 0 失败**；**ArkTS 编译器收据已于 2026-10-18 取得**（`flutter build hap --debug` 产出 signed hap；此前记的「hvigor 配置漂移」是错误归因）；伴生版不进主交付 |
+
+## 鸿蒙复习链路首次真机复验（2026-10-18 夜，CMM-AL10 / HarmonyOS 7.0.0.109 / API 26）
+
+**性质**：UI-15 / UI-16 之后的第一次真机复验（此前只有 ArkTS 编译器收据）。
+**结论：能力面成立，复习主链不成立——评分后的推进在真机上断掉。**
+（同夜第三轮已修通，见本节末「同夜第三轮」；本文其余内容按轮次保留原判。）
+
+| 项 | 收据 | 判定 |
+|---|---|---|
+| 二档按钮 | 截图：`忘记` / `记住` 两枚，语义色正确 | ✅ |
+| 评分落库 | 设备 `collection.anki2` revlog：`ease=3`（= good）、`ivl=6`；`ease=3` 第二次 `ivl=5` | ✅（`again` 未取到，见下） |
+| Review All 源徽章 | 顶栏第二行 `1/1 · 167000.apkg` 渲染、单行省略 | ✅ |
+| 三键启用谓词 | `uitest dumpLayout` 的 `enabled` 属性：`重做=false`、`搁置=true`、`暂停=true`，与 `canRedo`/`canMutate` 一致 | ✅ 谓词对；**但三者颜色相同，看不出哪个能点**（已修） |
+| 完成交棒 | native「复习完成」→ 完成 → Flutter `UnifiedReviewCompletion`（1 张 / 100% / +5 XP / 新成就） | ✅ UI-16 生效，XP 非零 |
+| 早退 | 退出不回完成屏 | ✅ |
+| **评分后推进** | `advance_failed`；Dart panic 栈原文：`scheduler current 1568989902384 is not in the assembled batch after a committed native rating`；批次长度始终 2，384 本应在内 → 更可能是 `advanceTo` 因 `phase != readyForNext` / `_locked` 静默 no-op | ❌ **阻塞** |
+| **推进失败后的连锁** | 再评分被引擎判 `official_anki.scheduling_context_stale` → 页面报 `card_mismatch`，只能退出重进 | ❌ **阻塞** |
+| 首卡时延 | 冷启：点击 → 首卡 **20.5 s**（预热 20 s deadline 先到点，关掉再重开）；热启：会话 +8 s、出卡再 ~2 s（debug / JIT） | ⚠️ 已缓解（deadline → 60 s 且 attach 即 disarm），未根除 |
+| 主题一致性 | 首卡深色但顶栏底栏浅色；重进后整页浅色而应用是深色 | ❌ 已修（见下），**修复版未取视觉收据** |
+
+**当批已修（同夜）**
+1. **主题首批时序**：`_dark` / `_chromeTheme` 原先只在 `build()` 计算，而 `attach()` 在
+   `didChangeDependencies` 就 present 首卡 → 首卡永远拿构造默认值。抽
+   `_syncChrome()` 在 attach 之前调用；`attach` / `rebind` 新增 `chromeTheme` 形参；
+   新 binding 在 `_open` 之前赋好 `_dark` / `_chromeTheme`。守卫：`ohos_reviewer_lifecycle_guard_test.dart`
+   新增「chrome values exist before the first present」2 例。
+2. **预热 deadline 20 s → 60 s**，并在 `attach` 一开始 disarm（20 s 比冷装配还短，
+   等于把正要被收养的 reviewer 掐掉再重开）。
+3. **三键可用性**：透明按钮 + 显式 `fontColor` 时 `enabled(false)` 不产生可见变化，
+   颜色改按同一谓词走 `textPrimary` / `textSecondary`。
+4. **推进失败诊断**：`advanceFromNativeRating` 失败分支新增结构化日志
+   （`phase` / `locked` / `current` / `items`）——原报错文案把「不在批次」与
+   「advanceTo 被拒」混为一谈，按文案排查会找错方向。
+
+**门禁**：`flutter analyze lib` No issues（103.5 s）；全量 `flutter test --exclude-tags golden`
+**2192 passed / 0 failed**（3 m 28 s，上批 2190）；`flutter build hap --debug` 成功（301.6 s）
+并 `hdc install -r` 装机复验。
+
+**仍未验**：`advance_failed` 根因（下一轮带日志复现）、`again` 的落库值、
+高对比度色板观感、`sourceProgress` 的多源场景（设备库只有 1 个源）、连续进出 ×20。
+
+### 同日第二轮：推进缺陷定位到两层（第三轮修通）
+
+**带诊断日志重跑真机**，拿到原文：
+
+```
+scheduler=1568987651897 phase=loadingQuestion locked=false current=1568987651897
+items=[1568987651896 … 1568987651903]
+```
+
+卡片在批次里、`current` 就是刚评过的那张 → 原报错「不在批次」是**误导文案**。两条真实成因：
+
+| # | 缺陷 | 处置 |
+|---|---|---|
+| 1 | `acceptExternalOfficialCommit` 的「重复回执」分支只在 `phase == recoverableError` 复位相位；一次解析到「同一张卡」的推进把相位留在 `loadingQuestion`，`advanceTo` 撞守卫静默 no-op → 重试永远 `advance_failed` | **已修**：只要不是 `readyForNext` 就复位（未 locked / 未完成） |
+| 2 | `rebuildFromLiveQueue` 的契约是「每次作答后都调」，`advanceFromScheduler` 只在**卡片不在批次里**时才调；且必须在**按 id 定位之前**调（重建会把 `items` 换成以 current 开头的新批次） | **已修**：前移到定位之前 |
+
+**当时仍未解决（第三轮已修，见下节）**：推进后下一张**仍然不 present**，6 s 后停在
+「已提交，加载中…」，watchdog 出 `rating_stalled`。当时怀疑落在 `_onController` 的
+present 去重键；第三轮的探针证明去重不是原因——**那一帧根本没来**。
+
+**另一个真缺陷（预热从未被收养）**：日志出现
+`warm-up deadline hit; closing an unused reviewer (no card was presented in 60s)`，
+而当时用户正在看卡。`attach` 的收养路径 `await existing._ready` 一直没完成（ability 的
+ready 信号没回来），deadline 到点关掉后 attach 才新建一个并 present。**「20 秒出卡」是靠
+deadline 强制重启，不是靠预热**；把 deadline 改 60 s 只是把等待拉长（实测首卡 ~60–90 s）。
+
+**构建陷阱（本轮最贵的发现）**：用**官方 SDK** 编出的 hap 装到鸿蒙**白屏**——进程活着、
+Dart VM 起来、无障碍树只有状态栏，日志只有 `⛔ Uncaught platform error`
++ `Unknown platform. ohos was not recognized`。根因：官方 `_platform_io.dart` 无
+`ohos` 分支，`defaultTargetPlatform` 直接 `throw`，而 `main()` 第一句就调它 → `runApp`
+永不执行。**构建前必须确认 `package_config.json` 的 `flutter` 指向 fork**。
+
+**门禁**：`flutter analyze lib` No issues；`flutter test test/application/anki_official/
+test/application/study_session/` **406 全绿**（新增 3 条守卫）；hap 用 fork 重建成功。
+
+### 同夜第三轮：根因是「被盖住的 Flutter 页不产帧」——推进已修通
+
+**决定性证据**（本轮新增探针日志，一次评分全程）：
+
+```
+[OhosReviewer] body boot #1 card=1568987651897 gen=1
+[OhosReviewer] body boot #1 card loaded: card=1568987651897 gen=1 after 19ms
+[OhosReviewer] stage attach card=1568987651897
+[OhosReviewer] present card=(1568987651897, question, 1)
+[OhosReviewer] stage attached in 106ms
+[OhosReviewer] present card=(1568987651897, answer, 2)
+   ← 评分回执 = ok（页面不显示 advance_failed，只显示「已提交，加载中…」）
+   ← 之后：没有 body rebuild、没有 stage attach、没有 present。一条都没有。
+```
+
+推进本身是成功的（`advanceTo` 完成了移动、回执 `ok`），**缺的是「谁把下一张装进来」**。
+
+根因：复习器是**独立 ability**（route E）。它盖住 Flutter 页面时，Flutter 不再产帧，
+`setState` 标记脏但**不会重建**，于是：
+
+- `OfficialTemplateWebViewBody.didUpdateWidget` 不跑 → 不 `_boot` → 不建新渲染控制器；
+- `OfficialAnkiReviewerStage` 的 key `(cardKey, generation)` 不变 → 不重新 attach；
+- binding 拿不到新卡 → 一次 present 都不发 → 12 s 后 watchdog 判 `rating_stalled`。
+
+**这同时解释了首卡时延**：`body boot → attach → present` 只用 19 ms + 106 ms，但那次
+present 依赖一次 Flutter 帧；被盖住时帧要等到「预热 deadline 关掉第一个 ability、
+Flutter 重新拿到焦点」才来——所以「20 秒 / 60 秒出卡」不是装配慢，是**等一帧**。
+上一轮把 deadline 从 20 s 改 60 s 只是把等待拉长，方向是错的。
+
+| # | 处置 | 落点 |
+|---|---|---|
+| 1 | **推进后由 binding 原地装卡 + present**，不再等 Flutter 重建 | `OfficialAnkiOhosReviewerBinding.presentInPlace(cardId)`：对当前 live binding 的渲染控制器 `loadAndShowQuestion`，成功（`card.cardId == cardId && !ui.isError`）才返回 true |
+| 2 | **顺手补回执**：卡片 body 仍持有上一张的 presentation（它没重建），它的 receipt 会被 `acceptPresentation` 的 cardKey 守卫拒掉；若不补，新卡永远没有 `questionReceipt`，`canReveal` 为 false，下一次翻面在 Dart 侧静默 no-op | `_presentSessionCardInPlace(controller)` 在 `presentInPlace` 成功后 `acceptPresentation(question)` |
+| 3 | 评分路径与三键（redo/bury/suspend）都接上 | `onNativeRated` 分支 + `_applyNativeMutation` |
+
+守卫（`ohos_reviewer_lifecycle_guard_test.dart`，新增 3 例）：binding 必须能原地 present；
+评分分支必须在 `advanceFromNativeRating` **之后**调它；三键路径同样要调。
+
+**真机收据（本轮，CMM-AL10 / HarmonyOS 7.0.0.109）**
+
+| 项 | 收据 |
+|---|---|
+| 连续过卡 | 一次会话连评 **6 张**（记住 ×4、忘记 ×1、搁置 ×1），进度 `1/8 → 2/9 → 3/11 → 6/16`，全程 **0 次** `rating_stalled` / `advance_failed` |
+| 忘记(again) 落库 | revlog `cid=1568987651898 ease=1 ivl=-60`（学习步）✅ 首次取到 `again` 值 |
+| 记住(good) 落库 | revlog `cid=1568987651897 ease=3 ivl=1` ✅ |
+| 搁置推进 | 顶栏 `搁置` → `in-place present card=…1903 (was …1902)`，卡片内容换新、已答计数不变 ✅ |
+| 原地 present 日志 | `in-place present card=… → present card=(…, question, n)` 成对出现 |
+
+**仍未验**：完成交棒（本轮未走到队列尾）、`sourceProgress` 多源、高对比度观感、连续进出 ×20、
+`presentInPlace` 跳过分支下 redo 回同一张卡时的回执（已知边角，见下）。
+
+**已知边角**：若 Flutter 帧恢复了（ability 关闭前后），body 会为同一张卡再 boot 一次并
+再 present（去重键 `presentGeneration` 从 1 重新计数，撞不上原地 present 的键）。表现为
+同一张卡重渲染一次，不改变状态；真要收掉得把渲染控制器提到会话级持有（结构性改动，未做）。
+
+**门禁**：`flutter analyze lib` No issues；全量 `flutter test --exclude-tags golden`
+**2197 passed / 0 failed**（3 m 23 s；上批 2192，本轮新增 3 条守卫 + 前轮 2 条）；
+`flutter build hap --debug`（fork SDK，196.7 s）装机复验。
 
 ## Android ABI packaging
 

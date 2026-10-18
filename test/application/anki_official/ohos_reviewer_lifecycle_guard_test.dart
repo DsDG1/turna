@@ -19,6 +19,11 @@ const _pluginPath = 'ohos/entry/src/main/ets/plugins/AnkiReviewerPlugin.ets';
 const _bindingPath =
     'lib/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 const _reviewPagePath = 'lib/views/anki/anki_review_session_page.dart';
+const _stagePath = 'lib/views/anki_official/official_anki_reviewer_stage.dart';
+const _advancePath =
+    'lib/application/anki_official/review/official_review_advance.dart';
+const _controllerPath =
+    'lib/application/study_session/study_session_controller.dart';
 
 /// Drops `//` and `///` lines before needle-matching.
 ///
@@ -289,6 +294,144 @@ void main() {
               'back twice');
       expect(pop, greaterThan(guard),
           reason: 'the guard must run before the pop');
+    });
+  });
+
+  // The first present of every session is built from the binding's chrome
+  // fields, and on device (CMM-AL10, 2026-10-18) they were still the
+  // constructor defaults at that moment: a dark app showed a dark card inside a
+  // light native chrome, and a freshly created stage showed a light card in a
+  // dark app. Both come from computing the values in `build` and nowhere else.
+  group('chrome values exist before the first present', () {
+    test('the stage reads them before it attaches', () {
+      final stage = _code(_stagePath);
+      final deps = _block(stage, 'void didChangeDependencies() {');
+      expect(deps, isNotNull);
+      final sync = deps!.indexOf('_syncChrome()');
+      final start = deps.indexOf('_startOhos()');
+      expect(sync, greaterThanOrEqualTo(0),
+          reason: '`dark` and `chromeTheme` must be read from the theme and '
+              'the accessibility scope before the binding is created');
+      expect(sync, lessThan(start),
+          reason: 'attach presents the first card; computing the values after '
+              'it hands that present the defaults');
+      expect(
+        stage.contains('chromeTheme: _chromeTheme,'),
+        isTrue,
+        reason: 'attach must receive the palette variant, not just the '
+            'day/night boolean',
+      );
+    });
+
+    test('the binding applies it before the ability opens', () {
+      final binding = _code(_bindingPath);
+      final theme = binding.indexOf('binding._chromeTheme = chromeTheme;');
+      final open = binding.indexOf('binding._ready = binding._open(controller);');
+      expect(theme, greaterThanOrEqualTo(0));
+      expect(open, greaterThan(theme),
+          reason: 'the first present can happen inside `_open`; a theme set '
+              'after it only fixes the second card');
+    });
+  });
+
+  // Device run 2026-10-18: rating a card committed the answer, advanced the
+  // session, and then nothing happened — "已提交，加载中…" until the watchdog.
+  // Two independent causes, both invisible without a native device.
+  group('native rating advance', () {
+    test('the batch is rebuilt before the target is resolved', () {
+      final advance = _code(_advancePath);
+      final rebuild = advance.indexOf('await liveQueue.rebuildFromLiveQueue();');
+      final lookup = advance.indexOf('for (final item in controller.items)');
+      expect(rebuild, greaterThanOrEqualTo(0),
+          reason: 'the live queue owns rendering; the host must ask it for a '
+              'batch after every commit, exactly like the Flutter session view');
+      expect(rebuild, lessThan(lookup),
+          reason: 'the rebuild replaces `controller.items` with a batch that '
+              'STARTS at the scheduler current, so resolving the target first '
+              'leaves the index pointing into a list that just shifted');
+    });
+
+    test('a retry re-arms any stale phase, not just recoverableError', () {
+      final controller = _code(_controllerPath);
+      final start = controller.indexOf('void acceptExternalOfficialCommit({');
+      final end = controller.indexOf('Future<void> continueNext(', start);
+      expect(start, greaterThanOrEqualTo(0));
+      expect(end, greaterThan(start));
+      expect(
+        controller.substring(start, end).contains(
+              'phase != StudyCardPhase.readyForNext',
+            ),
+        isTrue,
+        reason: 'an advance that resolves to the card already on screen leaves '
+            '`loadingQuestion`, not `recoverableError`; resetting only the '
+            'latter made every retry answer advance_failed for a rating that '
+            'had committed',
+      );
+    });
+  });
+
+  // The reviewer is its own ability, so the Flutter page under it produces no
+  // frames. Everything the next card needs — new body boot, new render
+  // controller, present — hung off that page rebuilding, which on device never
+  // happened: the advance answered `ok` and no present was ever sent
+  // (2026-10-18, rating then `rating_stalled`).
+  group('advance presents without a Flutter frame', () {
+    test('the binding can drive a present in place', () {
+      final binding = _code(_bindingPath);
+      expect(binding.contains('static Future<bool> presentInPlace(int cardId)'),
+          isTrue,
+          reason: 'the covered Flutter page cannot carry the next card, so the '
+              'binding has to load and present it itself');
+      final start = binding.indexOf('static Future<bool> presentInPlace(');
+      final end = binding.indexOf('\n  }', start);
+      expect(start, greaterThanOrEqualTo(0));
+      expect(binding.substring(start, end).contains('loadAndShowQuestion'),
+          isTrue,
+          reason: 'without loading the face there is nothing to present');
+    });
+
+    test('the rating path calls it after a successful advance', () {
+      final page = _code(_reviewPagePath);
+      final rated = page.indexOf('onNativeRated: session == null');
+      final end = page.indexOf('onReveal: () {', rated);
+      expect(rated, greaterThanOrEqualTo(0));
+      expect(end, greaterThan(rated));
+      final arm = page.substring(rated, end);
+      expect(arm.contains('_advanceAndPresentAfterNativeRating'), isTrue,
+          reason: 'a rating that advanced must put the next card on the native '
+              'reviewer without waiting for a rebuild that never comes');
+
+      // The ordering lives in the shared helper: the card surface and the
+      // page's own native hooks both go through it, so the two paths cannot
+      // drift into "present first, advance later".
+      final helper =
+          page.indexOf('Future<bool> _advanceAndPresentAfterNativeRating({');
+      expect(helper, greaterThanOrEqualTo(0),
+          reason: 'the shared native-rating helper is gone');
+      final helperEnd = page.indexOf('\n}\n', helper);
+      expect(helperEnd, greaterThan(helper));
+      final body = page.substring(helper, helperEnd);
+      expect(body.indexOf('advanceFromNativeRating'),
+          lessThan(body.indexOf('_presentSessionCardInPlace')),
+          reason: 'presenting before the advance would show the card the '
+              'session has not moved to yet');
+    });
+
+    test('the page does not open the reviewer before the batch is loaded', () {
+      // The 2026-10-19 report: tapping review showed a full-screen white
+      // reviewer with only 「显示答案」, and nothing on it responded. The
+      // warm-up had opened the ability before the batch existed; while it
+      // covered the page Flutter produced no frames, so the stage that
+      // presents card 1 was never built and the learner sat on an empty shell
+      // until the 60 s deadline closed it. Opening it from the stage keeps the
+      // frame that carries the first present.
+      final page = _code(_reviewPagePath);
+      expect(page.contains('_warmOhosReviewer'), isFalse,
+          reason: 'a warm-up opened ahead of the batch leaves the first card '
+              'waiting for a frame that cannot arrive under the ability');
+      expect(page.contains('OfficialAnkiOhosReviewerBinding.warmUp'), isFalse,
+          reason: 'same reason — the stage is the only opener that can present '
+              'card 1 without waiting for a new frame');
     });
   });
 }
