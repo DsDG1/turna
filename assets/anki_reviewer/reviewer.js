@@ -40,20 +40,50 @@
   // HarmonyOS only. Android keeps polling __turnaLastRender and has no
   // TurnaOhosReviewer object, so this is a no-op there. The row matches the
   // ArkTS one-shot read: type|generation|side|stableCode|height|cardId|ok.
+  //
+  // The bridge is installed as a `javaScriptProxy` on the ArkUI `Web`, and
+  // ArkWeb registers that object **asynchronously** — a present that lands
+  // right after page load reaches this line while `window.TurnaOhosReviewer`
+  // still does not exist (hilog: "native proxy object not found, name:
+  // TurnaOhosReviewer"). Dropping the ack there is invisible to JS and fatal
+  // to the page: the card did render, ArkTS never hears `renderComplete`, and
+  // the reviewer sits on "正在加载…" until the 12 s timeout. Warm-up made this
+  // the common case rather than a rare one, because the first present now
+  // arrives within a few hundred ms of the page load.
+  //
+  // So: retry instead of dropping. Two seconds of 50 ms polls is far longer
+  // than registration takes and far shorter than the ArkTS present timeout,
+  // so a retried ack still lands inside the window that is waiting for it.
+  var ackRetryBudget = 40;
   function notifyOhosAck() {
-    var bridge = window.TurnaOhosReviewer;
-    if (!bridge || typeof bridge.onAck !== "function" || !lastAck) return;
+    if (!lastAck) return;
     var type = lastAck.type || "";
     if (type !== "renderComplete" && type !== "renderError") return;
-    bridge.onAck([
-      lastAck.type,
-      lastAck.generation,
-      lastAck.side,
-      lastAck.stableCode,
-      lastAck.height,
-      lastAck.cardId,
-      lastAck.ok
-    ].join("|"));
+    var bridge = window.TurnaOhosReviewer;
+    if (!bridge || typeof bridge.onAck !== "function") {
+      if (ackRetryBudget > 0) {
+        ackRetryBudget -= 1;
+        setTimeout(notifyOhosAck, 50);
+      }
+      return;
+    }
+    ackRetryBudget = 40;
+    try {
+      bridge.onAck([
+        lastAck.type,
+        lastAck.generation,
+        lastAck.side,
+        lastAck.stableCode,
+        lastAck.height,
+        lastAck.cardId,
+        lastAck.ok
+      ].join("|"));
+    } catch (error) {
+      // The ability can be torn down between the budget check and this call
+      // (the learner pressed back). A throwing timer would surface as an
+      // uncaught page error with no owner, so swallow it: the page is closing
+      // and nothing is waiting for this ack.
+    }
   }
 
   function postToFrame(message) {
@@ -222,6 +252,9 @@
     lastAck = null;
     window.__turnaLastRender = null;
     postedTypes = [];
+    // A fresh present gets a fresh ack budget: the retry exists for the
+    // page-load race and must not be spent by an earlier card.
+    ackRetryBudget = 40;
     applyShellTheme(payload.theme || "day");
     if (newCard) {
       lastFrameCardId = incomingCardId;
