@@ -1,6 +1,6 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等；2026-10-19 补记鸿蒙复习页白屏修复与顶栏精简（撤除 P0-1 预热与 D8 顶栏四键，真机通过））
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
@@ -142,6 +142,12 @@ begin / commit / rollback、连接隔离和事务错误传播；正式复习统�
 伴生版不进主交付。
 
 ## 鸿蒙步 6 独立 CI workflow 施工（2026-10-15）
+
+> **口径提示（2026-10-19）**：本文自本节起的所有「P0-1 预热」「D8 工具栏 / redo·bury·suspend /
+> 三键 / 撤销」表述，**均已是历史**——预热在 2026-10-19 整体撤除（它是入口白屏的根因），
+> 四键连同 `requestCardAction` / `requestUndo` 一并移除。当前状态只看
+> 「鸿蒙复习页白屏修复与顶栏精简（2026-10-19，真机通过）」一节；其余各节保留原轮次原判，
+> 用于回溯「当时为什么这么改」。
 
 ADR 0047 承诺、ADR 0050 §6 列为唯一余步的**独立 CI workflow** 落库：
 `.github/workflows/ohos_ci.yml` + `tool/ohos_ci_prepare.py`。鸿蒙构建仍
@@ -386,6 +392,9 @@ close）。新增 `_adopted`：被 Stage 接管的 binding 不接受加载器句
 ## 鸿蒙复习面 UI-15 / UI-16 对齐与 ArkTS 编译器收据（2026-10-18 晚）
 
 **性质**：UI 对等性补齐（44 号 §7 第 10 项前三项）+ **本仓首次取得 ArkTS 编译器收据**。
+
+> **2026-10-19 补注**：本节「工具栏启用判定」一项（三键 `canRedo` / `canMutate`）随四键一起
+> **已于 2026-10-19 撤除**；源徽章与四档主题两项保留并真机通过。
 
 ### UI-15 三项施工
 
@@ -675,13 +684,21 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
-| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工**（redo / bury / suspend 三键；协议新增单个 `requestCardAction` + 三个动作词，回执复用既有词表），**真机未验**。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**复习面四项形态差异已于 2026-10-18 晚 UI-15 / UI-16 施工**（Review All 源徽章 / 四档主题含高对比度 / 三键启用判定按 `canRedo`·`canMutate` / 单源完成交棒 `UnifiedReviewCompletion`），**但真机复验的结论是复习主链断在推进**——见「鸿蒙复习链路首次真机复验（2026-10-18 夜）」节：评分落库成立，`advance_failed` + 连锁 `card_mismatch` 使连续过卡不可用；**因此 2026-10-14「队列前进走通」的表述只对四档时代的那次会话成立，当前链路未复现**。**真机复验仍欠**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档 `again` 落库值与工具栏三键的调度效果（bury / suspend 后队列计数下降且卡不再出现，redo 恢复上一张）。**本地门禁**：2026-10-18 全量 `flutter test --exclude-tags golden` **2192 绿 / 0 失败**；**ArkTS 编译器收据已于 2026-10-18 取得**（`flutter build hap --debug` 产出 signed hap；此前记的「hvigor 配置漂移」是错误归因）；伴生版不进主交付 |
+| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**2026-10-17 协议与对等性批次已施工**（R0 双侧协议单一来源 + 对称守卫；R1 探针迁入 `ets/probe/`；预览模式 / JS 禁用 / 卡片字号 / 手动音频重播与 `avHint` / 能力矩阵五项对等；O1 `> 256 KB` 大媒体绕开 Base64 走原生 Range 直读；R2 拆出 `AnkiReviewerChrome.ets`；T1 跨语言媒体路径向量与绑定边界单测。hap 构建转绿——**这是编译器收据，不是真机收据**；见上方「鸿蒙复习链路协议门禁、探针隔离、5 项功能对等性补齐与 O1/R2/T1 施工（2026-10-17）」节）。**2026-10-18 评分档二档对齐已施工**（四档 → 忘记 / 记住，只发 `again` / `good`，与安卓 `BinaryRecallBar` 同语义；协议层四词保留；见「鸿蒙评分档对齐安卓（2026-10-18）」节）。**2026-10-18 D8 工具栏已施工、2026-10-19 已撤除**（redo / bury / suspend 三键连同撤销一并移除，`requestCardAction` / `requestUndo` 协议方法同步删除），**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）；**复习面四项形态差异已于 2026-10-18 晚 UI-15 / UI-16 施工**（Review All 源徽章 / 四档主题含高对比度 / 三键启用判定按 `canRedo`·`canMutate` / 单源完成交棒 `UnifiedReviewCompletion`），**但真机复验的结论是复习主链断在推进**——见「鸿蒙复习链路首次真机复验（2026-10-18 夜）」节：评分落库成立，`advance_failed` + 连锁 `card_mismatch` 使连续过卡不可用；**因此 2026-10-14「队列前进走通」的表述只对四档时代的那次会话成立，当前链路未复现**。**真机复验仍欠**——10-16 评分互斥 + 三批缺陷修复验收矩阵（返回手势两态 / 异常注入 / 连续两轮进复习 / 大卡翻面时序，见上方「鸿蒙复习页缺陷与优化三批施工」节）、10-17 五项功能对等性与大媒体直读、10-18 二档 `again` 落库值（工具栏三键的调度效果已随四键撤除而结案，不再复验）。**本地门禁**：2026-10-18 全量 `flutter test --exclude-tags golden` **2192 绿 / 0 失败**；2026-10-19 撤预热与四键两批 `flutter test` **430 passed / 0 失败**，`flutter build hap --debug` rc=0；**入口白屏修复与顶栏精简已真机通过**（2026-10-19 01:45–02:12，见上方「鸿蒙复习页白屏修复与顶栏精简（2026-10-19，真机通过）」节）；**ArkTS 编译器收据已于 2026-10-18 取得**（`flutter build hap --debug` 产出 signed hap；此前记的「hvigor 配置漂移」是错误归因）；伴生版不进主交付 |
 
 ## 鸿蒙复习链路首次真机复验（2026-10-18 夜，CMM-AL10 / HarmonyOS 7.0.0.109 / API 26）
 
 **性质**：UI-15 / UI-16 之后的第一次真机复验（此前只有 ArkTS 编译器收据）。
 **结论：能力面成立，复习主链不成立——评分后的推进在真机上断掉。**
 （同夜第三轮已修通，见本节末「同夜第三轮」；本文其余内容按轮次保留原判。）
+
+> **2026-10-19 补注**：本节与「同夜第三轮」中所有涉及**顶栏四键**（撤销 / 重做 / 搁置 / 暂停、
+> `requestCardAction` / `requestUndo` / `canRedo` / `canMutate` 的 UI 侧）的证据，均为
+> **2026-10-19 之前的历史记录**——四键已于 2026-10-19 从鸿蒙复习页及协议中移除，见下方
+> 「鸿蒙复习页白屏修复与顶栏精简（2026-10-19，真机通过）」。连评 6 张、三键 `enabled` 谓词、
+> 搁置推进（`in-place present`）三条收据只作为「当时调度链路可用」的证明，不代表当前 UI 仍有这些入口。
+> 同节里「预热 deadline 20 s→60 s」「预热从未被收养」「首卡 20.5 s / 60–90 s」等围绕**预热**的记录，
+> 同样只作历史：预热已于 2026-10-19 整体撤除，当前入口是「点复习才开 ability、attach 时 present 首卡」。
 
 | 项 | 收据 | 判定 |
 |---|---|---|
@@ -811,7 +828,113 @@ Flutter 重新拿到焦点」才来——所以「20 秒 / 60 秒出卡」不是
 **2197 passed / 0 failed**（3 m 23 s；上批 2192，本轮新增 3 条守卫 + 前轮 2 条）；
 `flutter build hap --debug`（fork SDK，196.7 s）装机复验。
 
-## Android ABI packaging
+## 鸿蒙复习页白屏修复与顶栏精简（2026-10-19，真机通过）
+
+**性质**：入口缺陷修复 + 产品面精简。**这是 2026-10-18 批次里 P0-1（预热）与 D8（工具栏三键）
+两项的回滚**，不是新增能力。提交 `9f41ed25`。
+
+### 现象与根因（死锁，不是渲染 bug）
+
+点「Anki 复习」→ 原生全屏页只有「显示答案」、点它无反应；**不点、不动，约 60 s 自己恢复**；
+返回退出重进也正常。
+
+根因链（逐句可核）：
+
+1. `anki_review_session_page.dart` 的 `_startOfficialOwned` 第一句 `await _warmOhosReviewer()`，
+   `official_anki_ohos_reviewer_binding.dart` 的 `warmUp()` → `_openWarm()` 里 `transport.open()`
+   **立刻拉起 `AnkiReviewerAbility`**（全屏覆盖 Flutter），此时 batch 还没开始加载。
+2. `AnkiReviewerAbility.ets` 在 `loadContent` 之前就 `beginReviewerSession`，页面 `aboutToAppear`
+   必定拿到 session（`booted=true`）；`AnkiReviewerSession.start()` 只预载资产、不 present 任何卡 → 空壳。
+3. `AnkiReviewerPage.ets` 底栏判 `!answerLanded` → 只渲染「显示答案」；`theme` 默认 `THEME_DAY`，
+   Web 底色是浅色 → **白/空白**。
+4. 首卡 present 只能由 `OfficialAnkiReviewerStage.didChangeDependencies → _startOhos → attach` 触发，
+   而 Stage 挂在 `_AnkiStudySessionView` 里，只有 `_loading=false` 之后的 build 才出现。
+5. 独立 ability 覆盖时 **Flutter 不产帧**（2026-10-18 深夜已确证的平台事实）→ `_loading=false`
+   的 `setState` 不落地 → Stage 永不 mount → attach 永不发生 → binding 的 `_controller == null`。
+6. 点「显示答案」→ Dart `_flip` 见 `_controller == null` 直接 return，无回执 → 按钮永久灰在
+   「正在显示答案…」。
+7. 返回键第二次 `terminateSelfWithResult` → Flutter 恢复帧 → Stage mount → 旧 binding 已 `_closed`
+   → attach 新建 binding → 重新拉起 ability 并 present 首卡 → 「一退就正常」。
+   唯一自动解锁是 60 s idle deadline。
+
+**结论**：预热与「首卡必须由 widget 树 attach 时 present」互斥。预热赢了时序，就挖掉了
+present 的唯一触发点。
+
+### 改法（含走过的死路）
+
+- **死路**：「批次就绪后由页面直接 adopt + present」。`attach` 要的是
+  `OfficialAnkiReviewerController`（渲染控制器），它**只在 widget 树里由
+  `OfficialTemplateWebViewBody` 创建**；页面只有 `StudySessionController`，
+  `presentInPlace` 也必须先 rebind 才有 controller → 无帧路径拿不到首卡。
+- **落地**：**页面不再预热**。删 `_warmOhosReviewer` / `_abandonOhosWarmUp` / `_ohosWarmUp` /
+  `_ohosPaths` / `_adoptOhosReviewer` 及全部调用；`_startOfficialOwned` 只负责加载 batch 与
+  `controller.start()`，由 `OfficialAnkiReviewerStage.didChangeDependencies → attach` 在
+  **Flutter 仍在前台时**打开 ability 并 present 首卡（present 在 attach 的 rebind 里同步触发，
+  不需要新帧）。**绑定层 `OfficialAnkiOhosReviewerBinding.warmUp` / `OfficialAnkiOhosReviewerWarmUp` 定义有意保留**（调用点已删、生产零引用），作为守卫测试的防回归锚——lifecycle 守卫新增「页面源码不得出现 `Binding.warmUp`」断言（见 `test/BASELINE.md` 2026-10-19 条；若将来要找回预热收益，先解决「无帧路径怎么拿到渲染控制器」，否则白屏必然复发）。
+- **顺序修正**：`onNativeRated` 的「先 advance 再 present」抽成顶层
+  `_advanceAndPresentAfterNativeRating`，守卫测试改查这个 helper 的内部顺序。
+- **附带**：`official_anki_reviewer_protocol.dart` 新增 `chromeThemeFor({dark, highContrast})`，
+  stage 的 `_syncChrome` 改用它（四变体映射单一来源）。
+
+### 顶栏精简：撤除撤销 / 重做 / 搁置 / 暂停
+
+- 决策：**四入口全删（含「搁置」）**；Android `_AnkiSessionToolbar` 与 `ReviewProgressHeader`
+  不动。理由：二档评分（2026-10-18 定案）下这四项与产品口径不符，且入口一致性由 Flutter 侧承担。
+- ArkTS：`AnkiReviewerChrome.ets` 删四个 `Button`（源徽章迁到独立 `Row`，仅
+  `!previewOnly && sourceProgress.length > 0` 时渲染）；`AnkiReviewerPage.ets` 删
+  `onUndo` / `requestCardAction` / `onMutationReceipt` / `mutating` / `canRedo` / `canMutate`；
+  `AnkiReviewerBridge.ets` 删 `requestUndo` / `requestCardAction`；`AnkiReviewerProtocol.ets`
+  删 5 个常量。
+- Dart：protocol / channel / binding / stage / study_card_surface /
+  official_template_webview_body / anki_review_session_page 全链路删除
+  `OfficialNativeMutation`、`onCardAction`、`onUndo`、`onNativeRedo·Bury·Suspend`。
+- 测试：`ohos_card_action_chrome_guard_test.dart` 改为**反向守卫**（四词 Button 不得回归 +
+  handler 不得存在），保留徽章 / 主题 / UI-16 断言；binding 测试删 D8 组；lifecycle 守卫
+  删 `_applyNativeMutation` 断言。
+- 残留（有意）：`AnkiReviewerSession.ets` 的 `ReviewerChromeState.canRedo/canMutate` 仍保留
+  （chrome payload 契约字段），页面已不消费。
+
+### 附带：debug 启动探针不再自启
+
+`lib/service/app_startup.dart` 不再拉起 `AnkiReviewerProbeAbility`，也不再播音频/语音探针。
+探针代码仍留在 `ohos/entry/src/main/ets/probe/`，需要时手动 `aa start`。
+**此前「debug 每次启动全屏占屏 30 s、验收前必须按 Back 退掉」的行为已不存在。**
+
+### 真机收据（2026-10-19 01:45–02:12，真机通过）
+
+截图存于仓库根的 `.ohos-tmp/`（未入库）。
+
+| 项 | 证据 | 判定 |
+|---|---|---|
+| 启动不再自启探针 | `s1`（01:45）是旧构建的探针页「Anki reviewer probe — ADR 0050 step 5b」；换装后从 `n1`（01:47）起不再出现 | ✅ |
+| 白屏复现（改前） | `s2`（01:46）整屏纯色空壳，无卡片、无按钮 | ✅ 对照 |
+| 入口不白屏 | `n1`（01:47）首卡「55. No, nobody's body is noble, nor is his.」正常渲染，进度 `1/8`，源徽章 `1/1 · 167000.apkg` | ✅ |
+| 翻面 | `p1`（02:01）答案行出现，底部二档 `忘记` / `记住` | ✅ |
+| 评分后推进 | `p2`（02:01）新卡「58. The lump jumped off…」，进度 `2/10` | ✅ |
+| 二次会话复现 | `q1`（02:11）`1/8` 翻面 → `q2`（02:12）`2/10` 下一张 | ✅ |
+| 顶栏已精简 | 全部截图的顶栏只有 `X`（退出）+ 进度（条 / `n/m`）+ 源徽章，**无撤销 / 重做 / 搁置 / 暂停** | ✅ |
+| 深色主题 | 全流程深色卡片 + 深色 chrome，无「深卡浅 chrome」 | ✅ |
+
+**未验**：首卡时延数值（撤预热后是否比原 20 s 短）、连续过卡 ≥6 张、Review All 跨源、
+高对比度观感、`presentInPlace` 跳过分支的已知边角。
+
+### 门禁
+
+| 批次 | 收据 |
+|---|---|
+| 撤除四键 | `flutter analyze lib test/application/anki_official test/views/anki_official` → 0 issue；两目录 `flutter test` **429 passed**；fork `flutter build hap --debug` **rc=0**（298.6 s，产出 `entry-default-signed.hap`） |
+| 撤除预热 | analyze **0 issue**；两目录 `flutter test` **430 passed**；fork `flutter build hap --debug` **rc=0**（Hvigor 206.0 s，签名 hap） |
+| 构建后处理 | 已用**官方** SDK `flutter pub get` 恢复 `package_config.json` |
+
+条目已前插 `test/BASELINE.md`（2026-10-19）。
+
+### 代价
+
+首卡时延 = batch 加载 + ability 启动（不再被预热的空壳掩盖）。换来的是不再白屏、
+不再等 60 s deadline。**若将来要找回预热的时延收益，必须先解决「无帧路径怎么拿到渲染控制器」，
+否则白屏必然复发。**
+
+
 
 Doc 34 §14.2 option 1: **arm64-v8a only** for Official native (`libturna_anki.so`).
 Release command: `flutter build apk --release --split-per-abi --target-platform android-arm64`.
