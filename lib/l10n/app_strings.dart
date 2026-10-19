@@ -382,8 +382,7 @@ class AppStrings {
   static String get externalLinkOpenFailed => '打开链接失败';
   static String get externalLinkCopyAddress => '复制地址';
   static String get externalLinkDisabledSuffix => '（未配置）';
-  static String get aboutLinksNotConfiguredNote =>
-      '项目主页、问题反馈、发布页与 GUI 平台的正式地址尚未确认；'
+  static String get aboutLinksNotConfiguredNote => '项目主页、问题反馈与发布页的正式地址尚未确认；'
       '确认后会在此提供。当前不会打开任何未经验证的链接。';
 
   // ── Remote backup (WebDAV) ──
@@ -738,10 +737,10 @@ class AppStrings {
   static String get aboutHighlightInteractionsTitle => '11 种交互';
   static String get aboutHighlightInteractionsSubtitle => '练习所有技能';
   static String get aboutPrivacyTitle => '隐私与本地优先';
+  static String get aboutPrivacySummary => '无账号、无云端、无追踪，数据不出本机。';
   static String get aboutPrivacyBody =>
       '你学习的一切都保留在本设备上。Turna 没有云端后端、没有账户、没有追踪——你的进度、错题和设置永不离开手机。卸载应用会删除所有数据。唯一的网络访问是可选的（打开外部链接或你自己配置的 AI 工具）。';
-  static String get aboutVersionTitle => '版本与更新日志';
-  static String get aboutLinksTitle => '链接';
+  static String get aboutLinksTitle => '链接与资源';
   static String get aboutUpstreamTitle => '上游项目';
   static String get aboutUpstreamSubtitle => 'github.com/rshrc/Varnamala';
   static String get aboutReportIssueTitle => '报告问题';
@@ -753,28 +752,13 @@ class AppStrings {
   static String get aboutCreditsOriginal =>
       '原始框架由 Rishi Banerjee 和 Varnamala 开源社区构建。';
   static String get aboutCreditsFork =>
-      '本构建是一个本地优先的分叉版本，增加了无障碍设置，并在 tool/gui/ 中提供了面向创作者的桌面端课程编辑器。';
-  static String get aboutToolGuiLinkTitle => '课程编辑器（桌面端）';
-  static String get aboutToolGuiLinkSubtitle => '可视化课程编辑 · AI 课程工坊 · 一键发布';
-  static String get aboutToolsTitle => '配套工具';
-  static String get aboutToolGuiName => 'GUI 课程编辑器';
-  static String get aboutToolGuiDesc => 'PySide6 桌面应用，课程树 / AI 工坊 / 校验与发布';
-  static String get aboutToolCliName => '课程内容 CLI';
-  static String get aboutToolCliDesc =>
-      'course_cli.py：校验 / lint / CSV / 音频清单 / diff';
-  static String get aboutToolDocsName => '项目文档';
-  static String get aboutToolDocsDesc => 'project-guide 与 authoring/ 下的创作者指南';
+      '本构建是一个本地优先的分叉版本，增加了无障碍设置、多语言课程与离线优先的数据层。';
   static String get aboutLicense => '基于 GNU 通用公共许可证 v3.0 授权。';
   static String aboutCopyright(String year) => '© $year Turna';
   static String get aboutBrandName => 'Turna';
   static String get aboutTagline => '学习语言，一步步来。';
-  static String aboutVersionLabel(String version) => '版本 $version';
-  static String aboutVersionWithBuild(String version, String buildNumber) =>
-      '版本 $version（$buildNumber）';
   static String get aboutShareText =>
       '看看 Turna——一款免费、开源的语言学习应用！https://github.com/rshrc/Varnamala';
-  static String aboutVersionShort(String version) => '版本 $version';
-  static String aboutVersionBuild(String buildNumber) => '（$buildNumber）';
   static String get aboutHideChangelog => '隐藏';
   static String get aboutShowChangelog => '显示更新日志';
   static String get aboutOpenChangelog => '查看完整更新日志';
@@ -861,7 +845,7 @@ class AppStrings {
   static String get privacyDetailsContactIntro => '如有问题,通过这里反馈';
   static String get privacyDetailsContactBody =>
       '如对本政策或数据实践有任何疑问，欢迎通过 GitHub Issues 反馈：github.com/rshrc/Varnamala/issues。';
-  static String get aboutPrivacyOpenDetails => '查看完整隐私详情 →';
+  static String get aboutPrivacyOpenDetails => '查看完整隐私详情';
 
   // ── Transparency log (隐私详情页底部 pill 跳的页面)──
   static String get transparencyPillHint => '一般的 app 会读什么？';
