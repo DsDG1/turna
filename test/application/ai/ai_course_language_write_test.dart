@@ -24,6 +24,7 @@ import 'package:turna/data/course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 
+import '../../helpers/fixture_language_bundle.dart';
 import '../../helpers/in_memory_course_db.dart';
 
 Map<String, dynamic> _sectionPayload({
@@ -111,7 +112,11 @@ void main() {
   late db.CourseDatabase database;
 
   setUp(() async {
-    database = await seedInMemoryCourseDb();
+    // The write paths below are exercised against a non-Turkish row language;
+    // 0.9 ships Turkish alone, so the second language comes from the fixture
+    // overlay.
+    database =
+        await seedInMemoryCourseDb(bundle: await frenchCourseFixtureBundle());
     if (getIt.isRegistered<db.CourseDatabase>()) {
       await getIt.unregister<db.CourseDatabase>();
     }

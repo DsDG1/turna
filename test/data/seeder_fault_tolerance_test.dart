@@ -41,9 +41,10 @@ const _manifestPath = 'assets/courses/manifest.json';
 /// must trip the cross-language id validation.
 _MapBundle _collidingBundle() {
   final frenchVocab =
-      File('assets/courses/french/vocab.json').readAsStringSync();
-  final frenchSection = File('assets/courses/french/sections/fr-section1.json')
-      .readAsStringSync();
+      File('test/fixtures/french_course/vocab.json').readAsStringSync();
+  final frenchSection =
+      File('test/fixtures/french_course/sections/fr-section1.json')
+          .readAsStringSync();
 
   String indexFor(String code) => jsonEncode({
         'language': code,
@@ -127,7 +128,7 @@ void main() {
     // expression pools — 'cc' reuses the same id in both pools and must be
     // skipped; 'dd' (clean French fixture) still seeds.
     final frenchSection =
-        File('assets/courses/french/sections/fr-section1.json')
+        File('test/fixtures/french_course/sections/fr-section1.json')
             .readAsStringSync();
     final bundle = _MapBundle({
       _manifestPath: jsonEncode({
@@ -181,7 +182,7 @@ void main() {
         ],
       }),
       'assets/courses/dd/vocab.json':
-          File('assets/courses/french/vocab.json').readAsStringSync(),
+          File('test/fixtures/french_course/vocab.json').readAsStringSync(),
       'assets/courses/dd/sections/s1.json': frenchSection,
     });
     final db = CourseDatabase(NativeDatabase.memory());

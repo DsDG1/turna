@@ -54,6 +54,16 @@ class DatabaseSeeder {
   /// failure and assert the outer transaction leaves zero residue.
   Future<void> Function()? debugAfterLanguageTablesCleared;
 
+  /// Test hook: bundle used when the caller did not pass one.
+  ///
+  /// Exists for the retired-language fixtures: code paths that build their own
+  /// seeder (the builtin reinstall path, for one) have no seam to inject an
+  /// asset source, so a test that needs a language the shipped manifest no
+  /// longer declares would otherwise be unable to exercise them. Mirrors
+  /// [LanguageManifest.debugBundle].
+  @visibleForTesting
+  static AssetBundle? debugBundle;
+
   static const String metaContentVersion = 'contentVersion';
   static String metaContentVersionFor(String languageCode) =>
       '$metaContentVersion:${LanguageCodes.canonicalize(languageCode)}';
@@ -85,7 +95,7 @@ class DatabaseSeeder {
         throw StateError('Course pack is missing $key');
       }
     }
-    return (bundle ?? rootBundle).loadString(key);
+    return (bundle ?? debugBundle ?? rootBundle).loadString(key);
   }
 
   bool _importingFromSource = false;

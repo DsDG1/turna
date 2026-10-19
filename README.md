@@ -82,7 +82,10 @@ python tool/build_release.py --version 0.8.0
 课程内容是 JSON 文件，放在 `assets/courses/` 里，由程序读进本地数据库。当前清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)（自动生成，不要手改）。
 
 - **土耳其语**：正式课程，A1 到 B2 共 8 节。
-- **法语**：只有一个很小的样例课程（1 节 / 5 个词），用来测试"多门语言装在同一个 App 里互不干扰"这个功能，不是真的课程。
+
+0.9 起不再随包分发第二门语言：原先作为「多语言并存」验收样例的法语课程已移入
+`test/fixtures/french_course/`，只作为测试 fixture 存在。多语言机制本身保留，
+导入的 `.turnapack` 课程包仍可与土耳其语共存。
 
 要加新课程，参考 [`docs/authoring/`](./docs/authoring/) 里的格式说明，或者用上面的桌面编辑器。
 

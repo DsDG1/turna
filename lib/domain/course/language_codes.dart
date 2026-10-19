@@ -8,15 +8,17 @@ class LanguageCodes {
 
   static const String turkish = 'tr';
 
-  /// 法语课程是多语言并存机制的验收 fixture，不是正式课程，不在开发
-  /// 计划内（见 pubspec.yaml 的资产注释）。
+  /// French is **not** a packed course any more (0.9): its assets live in
+  /// `test/fixtures/french_course/` as the multi-language test fixture. The
+  /// code stays here because old installs, imported course packs and saved
+  /// scopes can still carry `fr`, and canonicalising them must not invent a
+  /// different code.
   static const String french = 'fr';
 
   /// Packed-asset directory for a canonical code when the manifest is not
   /// loaded yet. Manifest [dir] wins at runtime.
   static const Map<String, String> packedDirs = {
     turkish: 'turkish',
-    french: 'french',
   };
 
   /// Azerbaijani shares Turkish's dotted/dotless-I casing rules (ASCII `I`

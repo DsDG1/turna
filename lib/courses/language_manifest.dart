@@ -70,8 +70,8 @@ class LanguageManifest {
 
   static const String assetPath = 'assets/courses/manifest.json';
 
-  /// Fallback list matching the packed manifest. 法语条目是多语言并存
-  /// 机制的验收 fixture，不是正式课程，不在开发计划内。
+  /// Fallback list matching the packed manifest (Turkish only since 0.9 —
+  /// French moved to `test/fixtures/` and is no longer a packed language).
   static const List<LanguageDescriptor> packedFallback = [
     LanguageDescriptor(
       code: LanguageCodes.turkish,
@@ -80,14 +80,6 @@ class LanguageManifest {
       dir: 'turkish',
       nativeLabel: 'Türkçe öğren',
       signatureChars: 'ğĞıİşŞ',
-    ),
-    LanguageDescriptor(
-      code: LanguageCodes.french,
-      displayName: 'French',
-      ttsLocale: 'fr-FR',
-      dir: 'french',
-      nativeLabel: 'Apprendre le français',
-      signatureChars: 'àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ',
     ),
   ];
 

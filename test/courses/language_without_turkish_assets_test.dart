@@ -37,15 +37,16 @@ void main() {
 
   test('seed and registry work when turkish assets are omitted', () async {
     final frenchIndex =
-        File('assets/courses/french/index.json').readAsStringSync();
+        File('test/fixtures/french_course/index.json').readAsStringSync();
     final frenchVocab =
-        File('assets/courses/french/vocab.json').readAsStringSync();
+        File('test/fixtures/french_course/vocab.json').readAsStringSync();
     final frenchGrammar =
-        File('assets/courses/french/grammar_points.json').readAsStringSync();
+        File('test/fixtures/french_course/grammar_points.json')
+            .readAsStringSync();
     final frenchExpr =
-        File('assets/courses/french/expressions.json').readAsStringSync();
+        File('test/fixtures/french_course/expressions.json').readAsStringSync();
     final frenchSection =
-        File('assets/courses/french/sections/fr-section1.json')
+        File('test/fixtures/french_course/sections/fr-section1.json')
             .readAsStringSync();
 
     final bundle = _MapBundle({

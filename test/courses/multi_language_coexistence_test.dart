@@ -1,6 +1,7 @@
-// 双语言并存验收测试。法语课程（assets/courses/french/）是多语言并存
-// 机制的验收 fixture，不是真的课程，不在开发计划内——它在这里只充当
-// "第二门内置语言"，用来逼出目录并排、队列隔离、卸载级联等跨语言行为。
+// 双语言并存验收测试。法语课程自 0.9 起不再随包分发，它的 JSON 移到了
+// test/fixtures/french_course/，由 fixture 覆盖 bundle 提供——它在这里只
+// 充当「第二门内置语言」，用来逼出目录并排、队列隔离、卸载级联等跨语言
+// 行为。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -32,10 +33,12 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/courses/language_manifest.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/data/study_log_repository.dart';
 
+import '../helpers/fixture_language_bundle.dart';
 import '../helpers/in_memory_course_db.dart';
 
 void main() {
@@ -47,10 +50,18 @@ void main() {
   setUp(() async {
     LanguageContentStore.resetForTest();
     CourseLoader.clearDatabaseOverride();
-    db = await seedInMemoryCourseDb();
+    // Turkish comes from the shipped bundle, French from the fixture overlay.
+    // The static hook also covers code paths that build their own seeder
+    // (builtin reinstall), which have no bundle parameter to inject.
+    final fixture = await frenchCourseFixtureBundle();
+    LanguageManifest.debugBundle = fixture;
+    DatabaseSeeder.debugBundle = fixture;
+    db = await seedInMemoryCourseDb(bundle: fixture);
   });
 
   tearDown(() async {
+    LanguageManifest.debugBundle = null;
+    DatabaseSeeder.debugBundle = null;
     LanguageContentStore.resetForTest();
     CourseLoader.clearDatabaseOverride();
     await db.close();
@@ -495,8 +506,14 @@ void main() {
     expect(all.length, 2, reason: 'no filter keeps the legacy cross view');
   });
 
-  test('packed registry resolves french TTS locale and display name', () async {
-    await LanguageRegistry.instance.load();
+  test('fixture registry resolves french TTS locale and display name',
+      () async {
+    // The packed manifest now carries Turkish alone; the descriptor comes from
+    // the fixture bundle, which is the same contract a future second language
+    // would have to satisfy.
+    await LanguageRegistry.instance.load(
+      bundle: await frenchCourseFixtureBundle(),
+    );
     expect(LanguageRegistry.instance.displayName('fr'), 'French');
     expect(LanguageRegistry.instance.ttsLocale('fr'), 'fr-FR');
     expect(LanguageRegistry.instance.ttsLanguageCode('fr'), 'fr');

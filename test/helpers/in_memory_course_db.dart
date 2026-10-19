@@ -14,6 +14,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart' show AssetBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqlite3/src/ffi/load_library.dart' show OperatingSystem, open;
@@ -67,11 +68,16 @@ void ensureSqliteLibForTestHost() {
 /// Creates an in-memory [CourseDatabase], seeds it from the bundled Turkish
 /// JSON assets, and injects it into [CourseLoader] via [overrideDatabase] so
 /// the static loader resolves to this DB. Returns the DB for direct queries.
-Future<CourseDatabase> seedInMemoryCourseDb() async {
+///
+/// [bundle] overrides the asset source for the seed only — tests that need a
+/// second packed language pass a fixture overlay (see
+/// `fixture_language_bundle.dart`), because the shipped manifest carries
+/// Turkish alone.
+Future<CourseDatabase> seedInMemoryCourseDb({AssetBundle? bundle}) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();
   final db = CourseDatabase(NativeDatabase.memory());
-  await DatabaseSeeder(db).seedIfNeeded();
+  await DatabaseSeeder(db, bundle: bundle).seedIfNeeded();
   CourseLoader.overrideDatabase(() => db);
   return db;
 }

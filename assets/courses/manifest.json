@@ -7,14 +7,6 @@
       "dir": "turkish",
       "nativeLabel": "Türkçe öğren",
       "signatureChars": "ğĞıİşŞ"
-    },
-    {
-      "code": "fr",
-      "displayName": "French",
-      "ttsLocale": "fr-FR",
-      "dir": "french",
-      "nativeLabel": "Apprendre le français",
-      "signatureChars": "àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ"
     }
   ]
 }
