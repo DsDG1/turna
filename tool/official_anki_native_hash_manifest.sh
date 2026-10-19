@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # Compute the four-segment official native identity chain.
 # Does not hand-fill hashes. Any mismatch exits 1.
+#
+# Output is a build artifact, not source: it embeds a timestamp and a dirty
+# count, so writing it into a version-controlled docs/ path would dirty the
+# worktree on every run. The default therefore lands in build/ (gitignored);
+# override with OFFICIAL_ANKI_HASH_OUT.
+#
+# The 2026-10-19 docs cleanup removed the old default
+# (docs/official-anki-migration/artifacts/p4r2/...) because that directory was
+# moved into docs/official-anki-migration/archive/artifacts/ on 2026-09-27 and
+# the path was never updated. The historical snapshot at
+# docs/official-anki-migration/archive/artifacts/p4r2/native-hash-manifest.txt
+# is deliberately left untouched — this script must not overwrite it.
 set -euo pipefail
 
 project="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,7 +22,7 @@ so_name="libturna_anki.so"
 built="$core/target/aarch64-linux-android/release/$so_name"
 jni="$project/android/app/src/main/jniLibs/$abi/$so_name"
 apk="${OFFICIAL_ANKI_APK:-}"
-out="${OFFICIAL_ANKI_HASH_OUT:-$project/docs/official-anki-migration/artifacts/p4r2/native-hash-manifest.txt}"
+out="${OFFICIAL_ANKI_HASH_OUT:-$project/build/official_anki/native-hash-manifest.txt}"
 package="${OFFICIAL_ANKI_PACKAGE:-me.dsdogs.turna}"
 ndk="${ANDROID_NDK_HOME:-${ANDROID_HOME:-}/ndk/28.2.13676358}"
 strip_bin="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"

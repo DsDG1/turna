@@ -112,7 +112,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 2. 分阶段课程生成流水线 (Phased Course Generator & Pipeline)
 
-* **核心模块文件**：[ai_generator_dialog.py](../src/dialogs/ai_generator_dialog.py)、[ai_pipeline.py](../src/backend/ai_pipeline.py)、[ai_phased.py](../src/backend/ai_phased.py)。
+* **核心模块文件**：[design_controller.py](../src/dialogs/ai/design_controller.py)、[ai_pipeline.py](../src/backend/ai_pipeline.py)、[ai_phased.py](../src/backend/ai_phased.py)。
 * **功能描述**：
   根据教师输入的课程主题或教学大纲，自动生成符合 Turna 规格的多 Unit/Lesson/Stage 完整课程 JSON。
 

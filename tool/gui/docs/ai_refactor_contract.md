@@ -556,8 +556,8 @@ polish / measure 成本正比于**进程中全部存活控件**，而非新建�
 
 ## 18. tool/gui 侧 AI 遗留退役（2026-09-27）
 
-App 侧「伴学持久化与离线推理簇」19 文件 / 1,834 行已整体退役（记录见仓库根
-`docs/ai_companion_implementation.md`）。本节记录 **tool/gui 侧**的对应处置。
+App 侧「伴学持久化与离线推理簇」19 文件 / 1,834 行已整体退役（退役边界与仍存活的
+伴学功能见仓库根 `docs/project-guide.md` §7.4–§7.5）。本节记录 **tool/gui 侧**的对应处置。
 
 **backend 15 个 `ai_*` 模块 + `ai/` 子包：全部在役，不动。** 逐一做过入边检测：
 `ai_pipeline` / `ai_phased` 是被 facade 收口的实现细节（门禁规则 6 强制 dialogs

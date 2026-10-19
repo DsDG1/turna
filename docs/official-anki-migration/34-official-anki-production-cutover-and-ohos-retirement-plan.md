@@ -4,9 +4,9 @@
 >
 > 日期：2026-08-24
 >
-> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除已按 doc 35（L0–L3）于 2026-08-27 施工。**不得写「迁移完成」。**
+> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 34-remaining 的 R0–R8 返工（该方案原文已归档删除，结论速查见 [`archive/README.md`](./archive/README.md)）；W9 物理删除已按 doc 35（L0–L3）于 2026-08-27 施工。**不得写「迁移完成」。**
 >
-> 前置：[`31`](./archive/31-anki-product-experience-plan.md)、[`32`](./archive/32-official-anki-experience-parity-plan.md)、[`33`](./archive/33-official-first-import-construction-plan.md)（均已由本文件接管）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
+> 前置：doc 31 / 32 / 33（均已由本文件接管；原文已归档删除，结论速查见 [`archive/README.md`](./archive/README.md)）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
 >
 > 目标：停止产品级 OHOS 支持；Android Anki 全量切换到 Official Collection / Scheduler；清除 Legacy 与 Official 混合 owner；在完成用户数据迁移和一个正式版本观察后退役自研 Anki importer / scheduler。
 
@@ -100,7 +100,7 @@
 **生产仍可读的 dart-define（opt-in / 暂停闸）：** `TURNA_OFFICIAL_ANKI_CUTOVER`（`LegacyAnkiMigrationFlags.cutoverEnabled`，默认 true，暂停闸）、`TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`、`TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`（此二者为 `OfficialAnkiFeatureFlags.fromEnvironment` 唯一读取的 opt-in）；`TURNA_OFFICIAL_ANKI_DIAGNOSTICS` 是 release 诊断路由守卫、非 feature 字段。
 （早期版本此处列出的 `MIGRATION_PILOT` / `LEGACY_MIRROR` **已不存在**于 `OfficialAnkiFeatureFlags`，随 Legacy 退出一并消失。）
 
-**下一刀：** R0→R8 返工已由 2026-08-25 一次性施工完成（host 门禁全绿，见 [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) §18）；**W9-B..E 的 host 侧已由 2026-09-24 架构简化批次完成**（读退役 + course.db v27 表删除，W9-E 破例已记档）；剩余为真机 §15.3 矩阵与 W8 真实用户库跑批。
+**下一刀：** R0→R8 返工已由 2026-08-25 一次性施工完成（host 门禁全绿，收据见 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的「Done」节；原 34-remaining §18 原文已归档删除）；**W9-B..E 的 host 侧已由 2026-09-24 架构简化批次完成**（读退役 + course.db v27 表删除，W9-E 破例已记档）；剩余为真机 §15.3 矩阵与 W8 真实用户库跑批。
 
 ### 1.2 开工病理：默认导入会形成混合半状态（已修复，保留作回归说明）
 
@@ -156,7 +156,7 @@ Canonical owner                                official
 
 ### 1.7 文档入口
 
-活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`35-duplicate-legacy-layer-cleanup-plan.md`](./archive/35-duplicate-legacy-layer-cleanup-plan.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
+活跃施工只认本文件 + [`34-cutover-receipt.md`](./34-cutover-receipt.md)。`28/30/31/32/33/34-remaining/35`–`40` 已标历史规格，勿按它们开波次（原文已归档删除，结论速查见 [`archive/README.md`](./archive/README.md)）。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
 
 ---
 
@@ -769,10 +769,21 @@ census cleanLegacy
 - schema 不与 writer 删除同一 PR；
 - 先停止写至少一个版本，再 drop 表；
 - drop 前备份恢复必须能读取上一版本数据并完成升级；
-- 历史 archive/test artifact 不因代码删除而抹除。
+- **发布合规证据链不因代码删除而抹除**（原表述为「历史 archive/test artifact 不因代码删除而抹除」，2026-10-19 收窄，见下方批注）。
 
 > **⚠ W9-E 前两条已被实际执行方式取代（2026-09-24）：** 「先停止写至少一个版本，再 drop 表」在 2026-09-24 架构简化批次 P2 中**未被满足即执行** —— course.db v27 在同一次迁移中直接 DROP `anki_notetypes` / `anki_notes` / `anki_cards_meta`，中间没有插入任何正式发版。豁免依据为「存量用户数为零、从未有过正式发版」，该前置条件在物理上无作用对象。
-> **本节其余规则（`rg` 零引用证明、独立 PR、schema 不与 writer 同行、drop 前备份恢复、历史 artifact 保留）仍全部有效。** 破例事实、依据与责任口径记于 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的「W9-E 破例记录（2026-09-24）」一节。
+> **本节其余规则（`rg` 零引用证明、独立 PR、schema 不与 writer 同行、drop 前备份恢复、合规证据链保留）仍全部有效。** 破例事实、依据与责任口径记于 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的「W9-E 破例记录（2026-09-24）」一节。
+
+> **⚠ artifact 保留条款已收窄（2026-10-19，文档精简批次）：** 原条款「历史 archive/test artifact 不因代码删除而抹除」的字面范围覆盖 `docs/official-anki-migration/archive/artifacts/` 下全部 173 个构建与真机证据文件。**本批已删除其中 169 个**，保留 4 个有仓库内真实引用方的文件（`apk-sha256.txt` / `native-hash-manifest.txt` / `recognizer-diff-report-2026-08-29.md` / `p5f/README.md`）。
+>
+> **收窄依据**——本条约束的目的是保护**发布合规证据链**，而合规证据链的实际载体从来不是 `docs/`：
+>
+> 1. AGPL 对应源码义务由 [`native/turna_anki_core/licenses/`](../../../native/turna_anki_core/licenses/) 承载（ANKI-LICENSE / SOURCE-OFFER.md / THIRD-PARTY-NOTICES-DRAFT.md / inventory_lockfile.py）；
+> 2. 该义务由门禁 `test/application/anki_official/official_anki_license_test.dart` **强制**——它校验 license notice 注册、pinned Anki commit `967aa0d5…`、SOURCE-OFFER 摘要与 forbidden-import 门禁，**不读取 `docs/archive` 任何文件**；
+> 3. 被删的 169 个文件全部只被 `docs/official-anki-migration/archive/` 内部互引，CI、门禁脚本、活跃文档**零依赖**；其中 52 张真机截图无人引用，117 个 txt/xml/json 仅被同批已删文档引用；
+> 4. 全部 43 篇已删的阶段施工文档的**结论**已浓缩进 [`archive/README.md`](./archive/README.md) 的速查表，并已在 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 与 `CHANGELOG.md` 中承载。
+>
+> **本条款收窄后仍禁止删除**：`native/turna_anki_core/licenses/` 全部内容、`test/archive/` 全部内容、以及 `docs/official-anki-migration/archive/` 下 4 个保留证据文件。原文可经 git tag `docs-cleanup-backup-2026-10-19` 完整恢复。
 
 ### 13.3 Forbidden-import/forbidden-write 门禁
 
@@ -964,7 +975,7 @@ W1/W2 可与 W3–W5 并行，但 W9 必须同时等 W2 和 W8 完成。
 
 只有以下全部成立，才能宣称“自研 Anki 已切到 Official，OHOS 已退役”。
 勾选必须以仓库/发布证据为准；本会话未伪造设备证明。未满足项保持未勾选。
-W9 物理删除执行版见 [`35-duplicate-legacy-layer-cleanup-plan.md`](./archive/35-duplicate-legacy-layer-cleanup-plan.md)（2026-08-27 已施工）；「一个正式版本观察」被 2026-08-27 负责人决策豁免；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
+W9 物理删除执行版为 doc 35 L0–L3（2026-08-27 已施工；原文已归档删除，结论速查见 [`archive/README.md`](./archive/README.md)）；「一个正式版本观察」被 2026-08-27 负责人决策豁免；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
 
 - [x] 仓库不再包含 OHOS product target、fork 依赖或构建补丁；（证据：`ohos/`、`tool/apply_patches.sh`、`tool/patches/` 已不存在；活跃构建说明改官方 Flutter）
 - [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`AGENTS.md` → ADR 0041 / EOL）

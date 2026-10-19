@@ -1,8 +1,0 @@
-# P5-C Fixture Allowlist
-# Only sources with these SHA256 hashes or p5c-fixture- prefixes are allowed in pilot saga.
-# User decks (non-allowlist sources) MUST NOT be added here.
-
-bbe354db3925f4b4d7e8d66b0770e83f2ce38586e1071398e762d821636cad58  test/application/anki_official/fixtures/p5c/basic-cloze.apkg  # anki21b stub; Legacy!=Official
-65dfa64e305edaab6bae7690c66e54918a5d944dc702f2b6fe2821f27f170570  test/fixtures/anki_official/packages/01-basic-unicode.apkg
-1d2f1284644961ac713c1ebcd8225d464cc156339f42665a0b6bd3c65168cd84  test/fixtures/anki_official/packages/02-basic-reversed.apkg
-28d89bb7bf41df25513e148e96acbdac93bcc71fadcee8e552b57d4413394d02  test/application/anki_official/fixtures/p5c/classic-basic.apkg  # Device A observing 2026-08-19

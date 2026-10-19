@@ -1,5 +1,0 @@
-date: 2026-08-25T17:04:47+08:00
-command: flutter test --exclude-tags golden --reporter compact
-result: All tests passed! 1852 passed / 0 failed
-duration: ~01:00
-note: includes mixed-owner Review All, W8 forward recovery, exact browser/stats/uninstall, and in-place media transaction + process-kill recovery regressions

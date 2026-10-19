@@ -1,2 +1,0 @@
-UNAVAILABLE: release APK not built; packaged jniLibs .so still contract 1.2 P3FIX hash
-1f0391bd31b925e13db0d27e4f6b7ee040a3372eb5804f697484157aa7d73c0c

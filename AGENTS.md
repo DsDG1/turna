@@ -258,6 +258,7 @@ rm -rf ohos/entry/src/main/resources/rawfile/flutter_assets \
 
 | 要找什么 | 去哪 |
 |---|---|
+| 全部文档在哪、哪篇管什么 | `docs/README.md`（文档索引） |
 | 教学法 / 课程体系设计 | `docs/project-guide.md` §1–§2 |
 | 分层 / 架构树 / 关键模式 / 领域模型 | `docs/project-guide.md` §3–§4 |
 | 各子系统实现状态 | `docs/project-guide.md` §4–§7（AI 功能清单 §7.3） |

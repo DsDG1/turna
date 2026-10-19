@@ -1,9 +1,9 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等；2026-10-19 补记鸿蒙复习页白屏修复与顶栏精简（撤除 P0-1 预热与 D8 顶栏四键，真机通过））
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等；2026-10-19 补记鸿蒙复习页白屏修复与顶栏精简（撤除 P0-1 预热与 D8 顶栏四键，真机通过）；**2026-10-19 晚补记文档树精简批次**——见下方「文档树精简（2026-10-19）」一节）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
-> 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
+> 剩余波次：34-remaining 的 R0–R8（已全部闭环；该方案原文已归档删除，结论速查见 [`archive/README.md`](./archive/README.md)）
 > W9 HOLD 解除记录与证据台账：见本收据「W9 HOLD 解除记录与证据台账（2026-08-27）」一节（原独立文件 `34-w9-legacy-deletion-hold.md` 已于 2026-09-27 并入该节并删除）
 > OHOS EOL ADR：[ADR 0041](../decisions/0041-ohos-product-eol.md)（草案曾写 0038；0038 已占用）
 
@@ -934,11 +934,68 @@ present 的唯一触发点。
 不再等 60 s deadline。**若将来要找回预热的时延收益，必须先解决「无帧路径怎么拿到渲染控制器」，
 否则白屏必然复发。**
 
+### 续（2026-10-19）：预热 API 与推进补救的落点
+
+上文「绑定层 `warmUp` 定义有意保留」到此为止。`OfficialAnkiOhosReviewerBinding.warmUp`、
+`OfficialAnkiOhosReviewerWarmUp` 和只为它服务的 idle deadline 已删除。`_openWarm` 仍由
+`attach` 的 `_open` 调用。lifecycle 守卫仍断言页面源码不含 `Binding.warmUp`，理由改为
+API 已不存在。`advanceAndPresentAfterNativeRating` 与 `presentSessionCardInPlace` 挪到
+`lib/application/anki_official/review/official_review_advance.dart`：先 advance，再
+present，present 成功才 `acceptPresentation`。底栏 `ratingLabel` 只映射 again→忘记、
+good→记住，未知档返回空串；源徽章字色由 `COLOR_EASY` 改名为 `COLOR_SOURCE_BADGE`。
+
 
 
 Doc 34 §14.2 option 1: **arm64-v8a only** for Official native (`libturna_anki.so`).
 Release command: `flutter build apk --release --split-per-abi --target-platform android-arm64`.
 A fat multi-ABI APK without matching `.so` is forbidden (fail-closed, never Legacy fallback).
+
+## 活跃文档分工（41 / 42 / 44 与本收据的权威边界）
+
+> **2026-10-19 补记。** 本收据是 `docs/official-anki-migration/` 的**唯一状态真源**；但同目录下还有三篇活跃文档，它们的**自身进度**由各自文件承载，本收据只做**索引与边界声明**。此前本收据完全不提这三篇，属口径裂缝（活跃计划不在状态真源里），本节补齐。
+
+| 文档 | 自身进度口径 | 与本收据的关系 | 覆盖范围 |
+|---|---|---|---|
+| [`41-official-anki-lifecycle-and-storage-remediation-plan.md`](./41-official-anki-lifecycle-and-storage-remediation-plan.md) | 状态行 + §16 门禁 + §18 收据 | 本收据**不重复**其进度；本收据的「Held」表覆盖它对外可见的未验收项 | 删除与物理回收（S3/S4/S5/S7）+ 存量善后（S8/§7.4/§11.4） |
+| [`42-staging-first-official-import-lifecycle-plan.md`](./42-staging-first-official-import-lifecycle-plan.md) | 状态行 + §10 门禁 + §12 收据 | 同上；**P4 已施工**（2026-08-31），导入链路修复部分已取代 41 | staging-first 导入生命周期（取代 41 的 S1/S2 导入分支/S6 checkpoint） |
+| [`44-ohos-review-entry-latency-and-parity-audit.md`](./44-ohos-review-entry-latency-and-parity-audit.md) | 审查与实施设计 + 施工记录 | **不改本收据口径**；其结论与施工结果反向引用本收据（「鸿蒙评分档对齐安卓」§5.1、「同夜第三轮」） | 鸿蒙复习入口时延与两平台形态差异（P2-5 / P2-6 剩余） |
+
+**边界规则**：
+
+1. **验收口径与 Held 条目只在本收据改**；41/42/44 不自改状态。
+2. **41/42/44 的施工细节与门禁结果只改各自文件**；本收据不复制，避免两处漂移。
+3. 41 与 42 的范围交接是**互补**而非叠加：导入链路修复归 42，删除与物理回收归 41（交接说明见 41 的状态行与 42 的状态行；41 的 S8 UI 收据在其 §13.3.1）。
+
+## 文档树精简（2026-10-19 晚，纯文档，零代码行为改动）
+
+> **性质**：文档治理批次。目标是让 `docs/` 不再背着 9.7 MB 已闭环的历史施工文档。**不改变任何验收口径、不改变任何 Held 条目**——本节不新增、不关闭任何待办。
+
+### 处置内容
+
+| 对象 | 处置 | 依据 |
+|---|---|---|
+| `docs/official-anki-migration/archive/artifacts/` 169 个文件（8.07 MB） | **删除** | 全部只被 archive 内部互引；CI、门禁脚本、活跃文档零依赖。52 张真机截图无人引用，117 个 txt/xml/json 仅被同批已删文档引用 |
+| `docs/official-anki-migration/archive/` 43 篇阶段施工文档（942 KB） | **删除** | Phase 0–4 / P5 全部已施工；结论均已被本收据与 `CHANGELOG.md` 取代；文中的阶段性 NO-GO 措辞只对当时有效 |
+| `docs/official-anki-migration/archive/README.md` | **重写** | 保留 43 篇的**结论速查表**（决策溯源不丢），并显式声明「发布合规证据链不在本目录」 |
+| `artifacts/` 4 个文件 | **保留** | `apk-sha256.txt`（本收据 R8 行 + `test/archive/BASELINE-pre-2026-09-20.md`）、`native-hash-manifest.txt`（`tool/official_anki_native_hash_manifest.sh`）、`recognizer-diff-report-2026-08-29.md`（同上）、`p5f/README.md` |
+
+**净效果**：`docs/` 由 9.74 MB 降至约 1.7 MB；`archive/` 由 217 个文件（8.99 MB）降至 5 个文件（约 78 KB）。
+
+### §13.2 artifact 保留条款的收窄
+
+34 主计划 §13.2 原条款「历史 archive/test artifact 不因代码删除而抹除」的字面范围覆盖全部 173 个 artifacts 文件，与本批删除**直接冲突**。已按 AGPL §0 的冲突裁决顺序显式收窄为「**发布合规证据链**不因代码删除而抹除」，收窄依据与被禁止删除的清单记在 34 主计划 §13.2 的 2026-10-19 批注中。
+
+核心事实：**合规证据链的载体从来不是 `docs/`**——AGPL 对应源码义务由 `native/turna_anki_core/licenses/` 承载，并由门禁 `test/application/anki_official/official_anki_license_test.dart` **强制**（该测试只校验 license notice 注册、pinned commit `967aa0d5…`、SOURCE-OFFER 摘要与 forbidden-import 门禁，**不读取 `docs/archive` 任何文件**）。本批删除的 169 个文件不承载任何合规义务。
+
+### 恢复方式
+
+- 恢复点：git tag **`docs-cleanup-backup-2026-10-19`**（指向 `f715fccd`，本批之前 HEAD）。
+- 逐文件恢复：`git show docs-cleanup-backup-2026-10-19:docs/official-anki-migration/archive/<路径>`。
+- 整目录恢复：`git checkout docs-cleanup-backup-2026-10-19 -- docs/official-anki-migration/archive/`。
+
+### 同步修的断链
+
+61 处指向已删文档的相对链接已改为指向本收据 / [`archive/README.md`](./archive/README.md) 的结论速查表，涉及 `official-anki-migration/README.md`、34 主计划、34 收据、41、42、`CHANGELOG.md`。全仓相对链接断链复查：**0**（代码正则误报除外）。
 
 ## Accurate status line
 

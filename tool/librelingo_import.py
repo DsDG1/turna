@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Convert a LibreLingo YAML course into a Turna ``.turnapack`` file.
 
-See ``docs/course-pack-import-plan.md`` §3–§4. App-side import never reads
+See ``docs/authoring/course-pack-format.md`` §1–§2. App-side import never reads
 YAML — this tool is the only LibreLingo adapter.
 
 v1 is a JSON document (no media). When image/audio files are found, the
