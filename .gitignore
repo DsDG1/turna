@@ -85,7 +85,9 @@ pubspec_overrides.yaml.disabled
 # AI-assistant / IDE session state (plans, memory dumps, tool caches)
 **/.zcode/plans/
 **/.deveco/
-**/.workbuddy/*.txt
+**/.workbuddy/
+# Qoder MCP config holds machine-local CLI paths, not project content.
+.factory/
 
 # Teacher-tool local textbook workspaces
 tool/var/
@@ -155,3 +157,13 @@ logs/crash-hunt/*
 # `ohos/.hvigor` is covered separately by `ohos/.gitignore`.
 ohos/.codegenie/
 /.hvigor/
+
+# Flutter crash reports. The Dart VM writes `flutter_<pid>.log` into the
+# working directory on an uncaught framework error; 41 of them had piled up
+# in the repo root. They are machine-local diagnostics, not project content —
+# the distilled facts belong in docs/project-guide.md.
+flutter_*.log
+
+# Scratch directory for OHOS device captures (screenshots pulled off a phone
+# while debugging the native reviewer). Machine-local, never project content.
+.ohos-tmp/
