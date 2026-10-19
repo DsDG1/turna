@@ -224,7 +224,7 @@ void main() {
       final claim = binding.indexOf('_live = binding;', attachStart);
       final wait = binding.indexOf('await binding._ready;', attachStart);
       expect(claim, greaterThanOrEqualTo(0),
-          reason: 'attach must claim _live synchronously, exactly like warmUp');
+          reason: 'attach must claim _live synchronously, before the boot');
       expect(
         claim,
         lessThan(wait),
@@ -326,7 +326,8 @@ void main() {
     test('the binding applies it before the ability opens', () {
       final binding = _code(_bindingPath);
       final theme = binding.indexOf('binding._chromeTheme = chromeTheme;');
-      final open = binding.indexOf('binding._ready = binding._open(controller);');
+      final open =
+          binding.indexOf('binding._ready = binding._open(controller);');
       expect(theme, greaterThanOrEqualTo(0));
       expect(open, greaterThan(theme),
           reason: 'the first present can happen inside `_open`; a theme set '
@@ -340,7 +341,8 @@ void main() {
   group('native rating advance', () {
     test('the batch is rebuilt before the target is resolved', () {
       final advance = _code(_advancePath);
-      final rebuild = advance.indexOf('await liveQueue.rebuildFromLiveQueue();');
+      final rebuild =
+          advance.indexOf('await liveQueue.rebuildFromLiveQueue();');
       final lookup = advance.indexOf('for (final item in controller.items)');
       expect(rebuild, greaterThanOrEqualTo(0),
           reason: 'the live queue owns rendering; the host must ask it for a '
@@ -385,8 +387,8 @@ void main() {
       final start = binding.indexOf('static Future<bool> presentInPlace(');
       final end = binding.indexOf('\n  }', start);
       expect(start, greaterThanOrEqualTo(0));
-      expect(binding.substring(start, end).contains('loadAndShowQuestion'),
-          isTrue,
+      expect(
+          binding.substring(start, end).contains('loadAndShowQuestion'), isTrue,
           reason: 'without loading the face there is nothing to present');
     });
 
@@ -397,41 +399,41 @@ void main() {
       expect(rated, greaterThanOrEqualTo(0));
       expect(end, greaterThan(rated));
       final arm = page.substring(rated, end);
-      expect(arm.contains('_advanceAndPresentAfterNativeRating'), isTrue,
+      expect(arm.contains('advanceAndPresentAfterNativeRating'), isTrue,
           reason: 'a rating that advanced must put the next card on the native '
               'reviewer without waiting for a rebuild that never comes');
 
-      // The ordering lives in the shared helper: the card surface and the
-      // page's own native hooks both go through it, so the two paths cannot
-      // drift into "present first, advance later".
-      final helper =
-          page.indexOf('Future<bool> _advanceAndPresentAfterNativeRating({');
+      // The ordering lives in the advance helper, next to the rating move.
+      final advance = _code(_advancePath);
+      final helper = advance.indexOf(
+        'Future<bool> advanceAndPresentAfterNativeRating({',
+      );
       expect(helper, greaterThanOrEqualTo(0),
-          reason: 'the shared native-rating helper is gone');
-      final helperEnd = page.indexOf('\n}\n', helper);
+          reason: 'the native-rating present helper lives with the advance');
+      final helperEnd = advance.indexOf('\n}\n', helper);
       expect(helperEnd, greaterThan(helper));
-      final body = page.substring(helper, helperEnd);
-      expect(body.indexOf('advanceFromNativeRating'),
-          lessThan(body.indexOf('_presentSessionCardInPlace')),
-          reason: 'presenting before the advance would show the card the '
-              'session has not moved to yet');
+      final body = advance.substring(helper, helperEnd);
+      expect(
+        body.indexOf('advanceFromNativeRating'),
+        lessThan(body.indexOf('presentSessionCardInPlace')),
+        reason: 'presenting before the advance would show the card the '
+            'session has not moved to yet',
+      );
     });
 
     test('the page does not open the reviewer before the batch is loaded', () {
       // The 2026-10-19 report: tapping review showed a full-screen white
-      // reviewer with only 「显示答案」, and nothing on it responded. The
-      // warm-up had opened the ability before the batch existed; while it
-      // covered the page Flutter produced no frames, so the stage that
-      // presents card 1 was never built and the learner sat on an empty shell
-      // until the 60 s deadline closed it. Opening it from the stage keeps the
-      // frame that carries the first present.
+      // reviewer with only 「显示答案」, and nothing on it responded. Opening
+      // the ability before the batch existed covered the page, Flutter
+      // produced no frames, and the stage that presents card 1 was never
+      // built. The warm-up API is gone; the stage is the opener.
       final page = _code(_reviewPagePath);
       expect(page.contains('_warmOhosReviewer'), isFalse,
           reason: 'a warm-up opened ahead of the batch leaves the first card '
               'waiting for a frame that cannot arrive under the ability');
       expect(page.contains('OfficialAnkiOhosReviewerBinding.warmUp'), isFalse,
-          reason: 'same reason — the stage is the only opener that can present '
-              'card 1 without waiting for a new frame');
+          reason: 'the warm-up API is gone; the stage is the only opener that '
+              'can present card 1 without waiting for a new frame');
     });
   });
 }

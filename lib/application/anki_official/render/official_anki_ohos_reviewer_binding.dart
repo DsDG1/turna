@@ -30,11 +30,10 @@ abstract class OfficialAnkiOhosReviewerTransport {
 
   Future<String> open({required String mediaRoot});
 
-  /// Abandons a reviewer opened speculatively, before any card was presented.
+  /// Closes the reviewer ability.
   ///
-  /// Best-effort by contract: the ability may not exist yet (the warm-up starts
-  /// before everything else), and the ArkTS side remembers the request so a
-  /// late arrival still closes.
+  /// Best-effort by contract: the ability may not exist yet, and the ArkTS
+  /// side remembers the request so a late arrival still closes.
   Future<void> close();
 
   Future<void> waitUntilReady();
@@ -133,9 +132,8 @@ class OfficialAnkiOhosReviewerBinding {
     bool previewOnly = false,
     DateTime Function()? now,
   })  : _grades = grades,
-        // A warm-up has no `OfficialAnkiPaths` in hand — only the media root it
-        // was handed. Deriving the resolver here keeps the two callers from
-        // having to agree on how to build one.
+        // Deriving the resolver from the media root keeps callers that do not
+        // pass one from having to agree on how to build it.
         _resolver = resolver ?? OfficialAnkiMediaResolver(Directory(mediaRoot)),
         _textZoom = textZoom,
         _previewOnly = previewOnly,
@@ -187,69 +185,30 @@ class OfficialAnkiOhosReviewerBinding {
   var _openIssued = false;
 
   /// A stage has rebound to this binding — it is the reviewer the learner is
-  /// looking at, not a speculative open waiting to be adopted.
+  /// looking at.
   ///
-  /// The distinction decides who may close it. A warm-up handle is held by a
-  /// loader that can still fail (blocked source, empty batch, unmounted page),
-  /// and that loader must be able to abandon its own speculative open. But the
-  /// same handle outlives adoption: `AnkiReviewSessionPage` drops it only on
-  /// the success path, so a later `Review All` source that fails would cancel
-  /// a reviewer that is currently showing a card — the learner gets thrown out
-  /// of a live session. Once adopted, only [shutdown] closes it.
+  /// Once adopted, a failed boot must not close it. The one forced exit is
+  /// [shutdown], called when the review page itself goes away.
   var _adopted = false;
 
-  /// The boot sequence: [open] transport, bind callbacks, wait for the shell.
+  /// The boot sequence: open the transport, bind callbacks, wait for the shell.
   ///
-  /// A warm-up resolves this before any controller exists; [attach] awaits the
-  /// same future instead of opening a second ability.
+  /// A second [attach] awaits this same future instead of opening another
+  /// ability.
   late Future<void> _ready;
-
-  /// How long a speculative open may sit with no card before it closes itself.
-  ///
-  /// **60 s, measured on device (CMM-AL10 / HarmonyOS 7.0.0.109, debug build).**
-  /// The previous 20 s was shorter than a cold batch load: the reviewer opened at
-  /// the tap, the page needed 20.5 s to assemble the session, and the deadline
-  /// fired at exactly that moment — closing the reviewer the stage was about to
-  /// adopt, then reopening it. The learner paid two ability starts and saw an
-  /// empty page for 20 s. A warm second entry still took 8 s to open and ~2 s
-  /// more to the first card, so the limit has to clear that comfortably.
-  ///
-  /// This is a backstop, not the cleanup path: a load that fails calls
-  /// `cancel()` explicitly, and `rebind` disarms the deadline the moment a stage
-  /// adopts the reviewer. Widening it only delays the case where nobody ever
-  /// attaches.
-  static const defaultWarmUpIdleLimit = Duration(seconds: 60);
-
-  Timer? _idleDeadline;
-
-  void _armIdleDeadline(Duration limit) {
-    _idleDeadline?.cancel();
-    _idleDeadline = Timer(limit, () {
-      if (_closed) return;
-      logger.w('[OhosReviewer] warm-up deadline hit; closing an unused '
-          'reviewer (no card was presented in ${limit.inSeconds}s)');
-      unawaited(_abandon());
-    });
-  }
-
-  void _disarmIdleDeadline() {
-    _idleDeadline?.cancel();
-    _idleDeadline = null;
-  }
 
   /// Closes a reviewer nobody adopted: marks it closed, drops it from the live
   /// slot, and asks ArkTS to close the ability — but only if one was actually
   /// opened (see [_openIssued]).
   ///
   /// **Adopted reviewers are left alone** unless [force] is set. See [_adopted]
-  /// for why: the handle that asks for the cancel belongs to a loader, and a
-  /// loader failure must never close the page the learner is reading. The one
-  /// forced exit is [shutdown], called when the review page itself goes away.
+  /// for why: a loader failure must never close the page the learner is
+  /// reading. The one forced exit is [shutdown], called when the review page
+  /// itself goes away.
   Future<void> _abandon({bool force = false}) async {
     if (!force && _adopted) {
       return;
     }
-    _disarmIdleDeadline();
     if (_closed) return;
     _closed = true;
     if (identical(OfficialAnkiOhosReviewerBinding._live, this)) {
@@ -268,13 +227,9 @@ class OfficialAnkiOhosReviewerBinding {
   /// Closes the live reviewer no matter who adopted it — the review page's
   /// exit path.
   ///
-  /// Deliberately a static on the binding rather than a flag on
-  /// [OfficialAnkiOhosReviewerWarmUp.cancel]: the page drops its warm-up handle
-  /// as soon as a stage adopts the reviewer, so the handle is exactly the thing
-  /// that does *not* exist when the learner leaves. A `force` flag reachable
-  /// from the handle would also hand every failing loader a one-argument way to
-  /// close a live session, which is the defect this whole distinction exists to
-  /// remove.
+  /// Deliberately a static on the binding. A `force` flag reachable from a
+  /// loader handle would hand every failing loader a one-argument way to close
+  /// a live session.
   ///
   /// Idempotent: a second call finds no live binding, and a binding that has
   /// already closed itself short-circuits on [_closed].
@@ -328,15 +283,11 @@ class OfficialAnkiOhosReviewerBinding {
     if (existing != null && !existing._closed) {
       logger.w('[OhosReviewer] attach joins the live binding '
           '(ready already awaited=${existing._opened})');
-      // Claim it before awaiting. A warm-up handle cancelled in this window
-      // must not close a reviewer that is being adopted right now.
+      // Claim it before awaiting. A boot that fails in this window must not
+      // close a reviewer that is being adopted right now.
       existing._adopted = true;
-      // The deadline exists for a warm-up nothing picked up. This one is being
-      // picked up right now, and `rebind` is still an await away.
-      existing._disarmIdleDeadline();
-      // A P0-1 warm-up may still be booting. Attaching before it settles would
-      // present into a shell that does not exist yet; awaiting the same future
-      // is what makes the warm-up free rather than merely early.
+      // The first attach may still be booting. Attaching before it settles
+      // would present into a shell that does not exist yet.
       try {
         await existing._ready;
       } catch (_) {
@@ -358,7 +309,8 @@ class OfficialAnkiOhosReviewerBinding {
         onProgress: onProgress,
         onChrome: onChrome,
       );
-      logger.w('[OhosReviewer] attach rebound to card=${controller.card?.cardId}');
+      logger.w(
+          '[OhosReviewer] attach rebound to card=${controller.card?.cardId}');
       return existing;
     }
     logger.w('[OhosReviewer] attach opens a fresh binding');
@@ -383,11 +335,11 @@ class OfficialAnkiOhosReviewerBinding {
     binding._dark = dark;
     binding._ready = binding._open(controller);
     binding._adopted = true;
-    // Claim the slot synchronously, exactly like `warmUp` does. Two attaches
-    // that both waited for their own boot would each call `openReviewer`, and a
-    // second `startAbilityForResult` on a singleton ability lands in
-    // `onNewWant` — which rebuilds the session and reloads the page under the
-    // learner. That reload is the "page jumps again" report.
+    // Claim the slot synchronously, before the boot. Two attaches that both
+    // waited for their own boot would each call `openReviewer`, and a second
+    // `startAbilityForResult` on a singleton ability lands in `onNewWant` —
+    // which rebuilds the session and reloads the page under the learner.
+    // That reload is the "page jumps again" report.
     _live = binding;
     try {
       await binding._ready;
@@ -417,75 +369,6 @@ class OfficialAnkiOhosReviewerBinding {
       onChrome: onChrome,
     );
     return binding;
-  }
-
-  /// Opens the reviewer before a card exists (P0-1).
-  ///
-  /// The ability, its window, the shell preload and the Web's first navigation
-  /// do not depend on the card, but they used to start only after the batch had
-  /// loaded and rendered. Starting them at the click collapses that wait into
-  /// whatever the loader is doing anyway.
-  ///
-  /// **Returns without waiting for the shell.** Awaiting here would put the
-  /// boot back on the loader's critical path and defeat the point; the handle
-  /// exposes [OfficialAnkiOhosReviewerWarmUp.ready] for callers that need it,
-  /// and [attach] awaits the same future before presenting.
-  ///
-  /// The caller owns the handle: if the batch turns out empty or fails, it must
-  /// [OfficialAnkiOhosReviewerWarmUp.cancel] — otherwise the learner is left on
-  /// a full-screen reviewer with nothing to show, which is worse than the
-  /// spinner this replaces.
-  ///
-  /// **The deadline is the net under that contract.** On device, a warm-up that
-  /// nothing adopted was left on screen as an empty reviewer (`progress —`,
-  /// "正在加载…"): the page was up, the ability alive, and no card was ever
-  /// sent, because the only thing that closes a stranded warm-up is a caller
-  /// remembering to. A path that throws before reaching `attach` has no such
-  /// caller, so the binding closes itself after [idleLimit].
-  static Future<OfficialAnkiOhosReviewerWarmUp> warmUp({
-    required String mediaRoot,
-    OfficialAnkiOhosReviewerTransport? transport,
-    int textZoom = 100,
-    Duration idleLimit = defaultWarmUpIdleLimit,
-  }) async {
-    final existing = _live;
-    if (existing != null && !existing._closed) {
-      return OfficialAnkiOhosReviewerWarmUp._(existing, existing._ready);
-    }
-    final binding = OfficialAnkiOhosReviewerBinding(
-      transport: transport ??
-          OfficialAnkiReviewerChannelTransport(
-            OfficialAnkiReviewerChannel.instance,
-          ),
-      // No grades yet: nothing can be rated before a card exists, and a null
-      // bridge makes that path answer `scheduler_unavailable` instead of
-      // dereferencing an absent host.
-      grades: null,
-      mediaRoot: mediaRoot,
-      textZoom: textZoom,
-    );
-    binding._ready = binding._openWarm();
-    // Claim the slot immediately so a concurrent attach or a second warm-up
-    // joins this boot instead of launching a second ability.
-    _live = binding;
-    unawaited(binding._ready.then<void>((_) {}, onError: (
-      Object error,
-      StackTrace stack,
-    ) {
-      // A boot that failed must not stay adoptable. The stage will open the
-      // reviewer itself and surface the real error there.
-      if (identical(_live, binding)) {
-        _live = null;
-      }
-      // …and whatever it managed to launch has to go: an ability left on
-      // screen with no card is exactly what makes the next attach open a
-      // second one on top of it.
-      unawaited(binding._abandon(force: true));
-      logger.w('[OhosReviewer] warm-up boot failed',
-          error: error, stackTrace: stack);
-    }));
-    binding._armIdleDeadline(idleLimit);
-    return OfficialAnkiOhosReviewerWarmUp._(binding, binding._ready);
   }
 
   static void resetForTest() {
@@ -574,12 +457,6 @@ class OfficialAnkiOhosReviewerBinding {
     (int, int)? Function()? onProgress,
     OfficialReviewerChromeSnapshot Function()? onChrome,
   }) {
-    // Someone adopted this reviewer. That is the ownership signal the idle
-    // deadline was waiting for: from here on, closing it is the stage's call.
-    // Presenting also disarms it, but a card can legitimately take a while to
-    // load, and a warm-up that is adopted just before the deadline would
-    // otherwise be torn down between rebind and the first present.
-    _disarmIdleDeadline();
     _adopted = true;
     if (!identical(_controller, controller)) {
       _controller?.removeListener(_onController);
@@ -613,8 +490,7 @@ class OfficialAnkiOhosReviewerBinding {
     _controller = null;
   }
 
-  /// Boots the transport. Split from [_open] so a warm-up can run it without a
-  /// controller — that is the entire point of warming up.
+  /// Boots the transport. [_open] adds the controller once this returns.
   Future<void> _openWarm() async {
     await transport.bindOutbound(
       onShowAnswer: (typed) {
@@ -722,9 +598,6 @@ class OfficialAnkiOhosReviewerBinding {
         : OfficialAnkiReviewerProtocol.sideQuestion;
     final key = (card.cardId, side, generation);
     _pending = key;
-    // A card is being sent: this warm-up was adopted, so the idle deadline has
-    // done its job and must not close the reviewer mid-present.
-    _disarmIdleDeadline();
     _queue = _queue.catchError((Object _) {}).then((_) async {
       if (_pending != key || _closed) return;
       try {
@@ -1011,35 +884,4 @@ class OfficialAnkiOhosReviewerBinding {
       generation: ackGeneration,
     );
   }
-}
-
-/// Handle on a speculative reviewer open (P0-1).
-///
-/// Deliberately not a `Future`: the batch loader keeps working while the
-/// reviewer boots, and it needs one place to say "never mind". [cancel] is the
-/// only required call, and it must be safe to skip — a warm-up that gets
-/// attached is simply adopted by the stage.
-class OfficialAnkiOhosReviewerWarmUp {
-  OfficialAnkiOhosReviewerWarmUp._(this._binding, this._ready);
-
-  final OfficialAnkiOhosReviewerBinding _binding;
-  final Future<void> _ready;
-
-  /// Resolves when the shell has loaded (or the boot threw).
-  Future<void> get ready => _ready;
-
-  /// Abandons the speculative open. Idempotent and best-effort.
-  ///
-  /// Sets `_closed` before talking to ArkTS so a concurrent [attach] cannot
-  /// adopt a reviewer that is already being torn down — the worst outcome here
-  /// would be presenting a card into a page that is closing.
-  ///
-  /// **No `close` when the boot never issued an `open`.** The native side
-  /// remembers a cancel that arrives with no session and the next reviewer
-  /// consumes it, which would close a session the learner had just started.
-  /// Delegates to the binding's own abandon path so the caller-driven cancel
-  /// and the idle-deadline cancel cannot drift apart — two copies of "close it,
-  /// but only if it was opened" is exactly how one of them ends up sending a
-  /// `close` for an ability that never existed.
-  Future<void> cancel() => _binding._abandon();
 }

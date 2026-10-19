@@ -22,7 +22,6 @@ import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
-import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
@@ -41,58 +40,6 @@ import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
-
-/// Puts the session's current card on the native reviewer right away.
-///
-/// The reviewer is its own ability, so while it is on screen the Flutter page
-/// underneath stops producing frames: the widget rebuild that normally carries
-/// the next card (new body boot, new render controller, `present`) never runs.
-/// Left to that rebuild, every advance on this platform answered its receipt
-/// and then presented nothing — the page sat on "已提交，加载中…" until the
-/// native watchdog replaced it with a retry row (device, 2026-10-18).
-///
-/// The acknowledgement is filed here as well, not left to the card body: that
-/// body still carries the *previous* card's presentation (it never rebuilt), so
-/// its receipts are rejected by the controller's card-key guard. Without this
-/// the session never records a question receipt for the new card, which is what
-/// `canReveal` reads — the next reveal would silently no-op in Flutter while
-/// the native face flipped.
-Future<void> _presentSessionCardInPlace(StudySessionController controller) async {
-  final item = controller.currentItem;
-  if (item == null) return;
-  final presented =
-      await OfficialAnkiOhosReviewerBinding.presentInPlace(item.cardKey.cardId);
-  if (!presented) return;
-  controller.acceptPresentation(PresentationReceipt(
-    cardKey: item.cardKey,
-    generation: controller.generation,
-    side: PresentationSide.question,
-    renderer: PresentationRendererKind.officialTemplate,
-    presentedAt: DateTime.now(),
-  ));
-}
-
-/// Advance after a committed native rating, then put the next card on the
-/// ability without waiting for a rebuild.
-///
-/// Kept out of the card surface so the ordering — advance first, present
-/// second — is stated once and can be guarded at the source level:
-/// presenting first would show the card the session has not moved to yet.
-Future<bool> _advanceAndPresentAfterNativeRating({
-  required StudySessionController controller,
-  required OfficialReviewSession officialSession,
-  required OfficialFormalReviewLiveQueue? liveQueue,
-  required String rating,
-}) async {
-  final advanced = await advanceFromNativeRating(
-    controller: controller,
-    officialSession: officialSession,
-    liveQueue: liveQueue,
-    rating: rating,
-  );
-  if (advanced) await _presentSessionCardInPlace(controller);
-  return advanced;
-}
 
 /// Shared formal-review session for Official-owned Anki cards.
 ///
@@ -630,9 +577,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     return (
       sourceProgress: _sourceProgressLabel,
       canRedo: controller?.canRedo ?? false,
-      canMutate: controller != null &&
-          !controller.isLocked &&
-          !controller.isComplete,
+      canMutate:
+          controller != null && !controller.isLocked && !controller.isComplete,
       // UI-16: only a single-source session may close itself on completion.
       // Under Review All the next source re-attaches to the same ability, and
       // a timer armed by the finished one would tear down the live page.
@@ -1261,7 +1207,7 @@ class _AnkiStudySessionView extends StatelessWidget {
             },
       onNativeRated: session == null
           ? null
-          : (rating) => _advanceAndPresentAfterNativeRating(
+          : (rating) => advanceAndPresentAfterNativeRating(
                 controller: controller,
                 officialSession: session,
                 liveQueue: liveQueue,

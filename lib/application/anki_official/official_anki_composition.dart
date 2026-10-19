@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -148,6 +149,12 @@ class OfficialAnkiCompositionRoot {
     bool useFake = false,
     bool allowInProcessFallback = false,
   }) async {
+    if (kReleaseMode && useFake) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.flag_fail_closed',
+      );
+    }
     final flags = OfficialAnkiFeatureFlags.current;
     if (!flags.allowsOfficialImport && !useFake) {
       throw const OfficialAnkiException(

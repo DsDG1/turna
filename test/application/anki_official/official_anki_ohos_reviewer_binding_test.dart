@@ -785,188 +785,6 @@ void main() {
     expect(pushes.last, 'push:cat.png');
   });
 
-  test('a warm-up is adopted by the first attach, not opened twice (P0-1)',
-      () async {
-    final transport = _FakeTransport();
-    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
-    await warmUp.ready;
-    expect(transport.openCalls, 1);
-
-    final binding = await OfficialAnkiOhosReviewerBinding.attach(
-      controller: controller,
-      grades: const OfficialAnkiCourseGradesBridgeImpl(),
-      mediaRoot: media.path,
-      resolver: OfficialAnkiMediaResolver(media),
-      sourceId: 'source-test',
-      dark: false,
-      transport: transport,
-    );
-    expect(identical(binding.transport, transport), isTrue);
-    expect(transport.openCalls, 1,
-        reason: 'attaching to a warmed reviewer must not launch a second one');
-  });
-
-  test('cancel closes the speculative reviewer and frees the slot (P0-1)',
-      () async {
-    final transport = _FakeTransport();
-    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
-    await warmUp.cancel();
-    expect(transport.closeCalls, 1);
-
-    // The abandoned binding is gone: the next attach opens its own reviewer
-    // instead of adopting a page that is already closing.
-    final second = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.attach(
-      controller: controller,
-      grades: const OfficialAnkiCourseGradesBridgeImpl(),
-      mediaRoot: media.path,
-      resolver: OfficialAnkiMediaResolver(media),
-      sourceId: 'source-test',
-      dark: false,
-      transport: second,
-    );
-    expect(second.openCalls, 1);
-  });
-
-  test(
-      'an unadopted warm-up closes itself when the idle deadline passes (P0-1)',
-      () async {
-    // On device a warm-up that no caller cancelled stayed on screen as an
-    // empty reviewer: the ability was up, no card was ever sent, and the only
-    // thing that could close it was a caller remembering to. A path that threw
-    // before reaching `attach` has no such caller.
-    final transport = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-      idleLimit: const Duration(milliseconds: 20),
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(transport.closeCalls, 1,
-        reason: 'the deadline is the net under the cancel contract');
-
-    // The slot is free again: the next attach opens its own reviewer instead
-    // of adopting one that just closed itself.
-    final second = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.attach(
-      controller: controller,
-      grades: const OfficialAnkiCourseGradesBridgeImpl(),
-      mediaRoot: media.path,
-      resolver: OfficialAnkiMediaResolver(media),
-      sourceId: 'source-test',
-      dark: false,
-      transport: second,
-    );
-    expect(second.openCalls, 1);
-  });
-
-  test('adopting a warm-up disarms the idle deadline (P0-1)', () async {
-    final transport = _FakeTransport();
-    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-      idleLimit: const Duration(milliseconds: 20),
-    );
-    await warmUp.ready;
-    await OfficialAnkiOhosReviewerBinding.attach(
-      controller: controller,
-      grades: const OfficialAnkiCourseGradesBridgeImpl(),
-      mediaRoot: media.path,
-      resolver: OfficialAnkiMediaResolver(media),
-      sourceId: 'source-test',
-      dark: false,
-      transport: transport,
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(transport.closeCalls, 0,
-        reason: 'a card can take a while to load; a deadline that fires after '
-            'adoption closes the reviewer the learner is looking at');
-  });
-
-  test('cancel disarms the idle deadline so nothing closes twice (P0-1)',
-      () async {
-    final transport = _FakeTransport();
-    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-      idleLimit: const Duration(milliseconds: 20),
-    );
-    await warmUp.ready;
-    await warmUp.cancel();
-    expect(transport.closeCalls, 1);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(transport.closeCalls, 1,
-        reason: 'a second close would hit whatever reviewer opened next');
-  });
-
-  test('a warm-up refuses a rating because no host is attached yet (P0-1)',
-      () async {
-    final transport = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
-
-    final receipt = await transport.onRate!('good');
-    expect(receipt, OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable,
-        reason: 'a speculative open has no grades bridge; a rating there would '
-            'silently vanish or crash on a null dereference');
-  });
-
-  test('a failed warm-up does not become the live binding (P0-1)', () async {
-    final broken = _FakeTransport()..failReady = true;
-    // `warmUp` returns the handle without waiting for the shell — awaiting it
-    // here would put the boot back on the loader's critical path, which is the
-    // whole thing the warm-up exists to avoid. So the failure surfaces on
-    // `ready`, not on the call itself.
-    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: broken,
-    );
-    await expectLater(warmUp.ready, throwsA(isA<StateError>()));
-
-    // Whatever went wrong, the next real attempt must open its own reviewer
-    // rather than inherit a half-booted one.
-    final healthy = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.attach(
-      controller: controller,
-      grades: const OfficialAnkiCourseGradesBridgeImpl(),
-      mediaRoot: media.path,
-      resolver: OfficialAnkiMediaResolver(media),
-      sourceId: 'source-test',
-      dark: false,
-      transport: healthy,
-    );
-    expect(healthy.openCalls, 1);
-  });
-
-  test('a cancel with no ability behind it never sends close (P0-1)', () async {
-    // The native side remembers a cancel that arrives with no session
-    // (`cancelPending`) and the NEXT reviewer consumes it. So a boot that died
-    // before `open` must not send one — otherwise the learner's next reviewer
-    // flashes open and closes itself, which looks exactly like a crash.
-    final transport = _FakeTransport()..failBind = true;
-    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
-    await expectLater(warmUp.ready, throwsA(isA<StateError>()));
-    await warmUp.cancel();
-
-    expect(transport.openCalls, 0);
-    expect(
-      transport.closeCalls,
-      0,
-      reason: 'a close with nothing open poisons the next reviewer',
-    );
-  });
-
   test('two overlapping attaches share one open (no second ability)', () async {
     // The window is real: `attach` used to claim the live slot only after its
     // boot resolved, so a second attach arriving during that await built its
@@ -1007,48 +825,8 @@ void main() {
     expect(transport.openCalls, 1);
   });
 
-  test('an adopted reviewer survives its loader handle being cancelled',
-      () async {
-    // Review All walks sources, and each source takes a warm-up handle. When a
-    // later source turns out blocked, the page cancels *that* handle — which
-    // may be the very binding currently showing a card. Closing it threw the
-    // learner out of a live session.
-    final transport = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
-    await OfficialAnkiOhosReviewerBinding.attach(
-      controller: controller,
-      grades: const OfficialAnkiCourseGradesBridgeImpl(),
-      mediaRoot: media.path,
-      resolver: OfficialAnkiMediaResolver(media),
-      sourceId: 'source-test',
-      dark: false,
-      transport: transport,
-    );
-
-    final handle = await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
-    await handle.cancel();
-
-    expect(
-      transport.closeCalls,
-      0,
-      reason: 'an adopted reviewer belongs to the stage, not to whichever '
-          'loader happens to hold a handle',
-    );
-    expect(transport.openCalls, 1);
-  });
-
   test('shutdown closes an adopted reviewer', () async {
     final transport = _FakeTransport();
-    await OfficialAnkiOhosReviewerBinding.warmUp(
-      mediaRoot: media.path,
-      transport: transport,
-    );
     await OfficialAnkiOhosReviewerBinding.attach(
       controller: controller,
       grades: const OfficialAnkiCourseGradesBridgeImpl(),
@@ -1063,8 +841,7 @@ void main() {
     expect(
       transport.closeCalls,
       1,
-      reason: 'the page drops its warm-up handle on adoption, so shutdown is '
-          'the only exit left when the learner leaves',
+      reason: 'leaving the review page is the exit that closes the ability',
     );
     await OfficialAnkiOhosReviewerBinding.shutdown();
     expect(transport.closeCalls, 1, reason: 'shutdown is idempotent');
@@ -1193,7 +970,6 @@ void main() {
       reason: 'detached controller must no longer schedule presents',
     );
   });
-
 }
 
 class _FakeTransport implements OfficialAnkiOhosReviewerTransport {

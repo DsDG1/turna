@@ -1,7 +1,9 @@
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 
@@ -148,6 +150,59 @@ Future<bool> advanceFromNativeRating({
   }
   return !controller.isComplete &&
       controller.phase != StudyCardPhase.readyForNext;
+}
+
+/// Puts the session's current card on the native reviewer right away.
+///
+/// The reviewer is its own ability, so while it is on screen the Flutter page
+/// underneath stops producing frames: the widget rebuild that normally carries
+/// the next card (new body boot, new render controller, `present`) never runs.
+/// Left to that rebuild, every advance on this platform answered its receipt
+/// and then presented nothing — the page sat on "已提交，加载中…" until the
+/// native watchdog replaced it with a retry row (device, 2026-10-18).
+///
+/// The acknowledgement is filed here as well, not left to the card body: that
+/// body still carries the *previous* card's presentation (it never rebuilt), so
+/// its receipts are rejected by the controller's card-key guard. Without this
+/// the session never records a question receipt for the new card, which is what
+/// `canReveal` reads — the next reveal would silently no-op in Flutter while
+/// the native face flipped.
+Future<void> presentSessionCardInPlace(
+    StudySessionController controller) async {
+  final item = controller.currentItem;
+  if (item == null) return;
+  final presented =
+      await OfficialAnkiOhosReviewerBinding.presentInPlace(item.cardKey.cardId);
+  if (!presented) return;
+  controller.acceptPresentation(PresentationReceipt(
+    cardKey: item.cardKey,
+    generation: controller.generation,
+    side: PresentationSide.question,
+    renderer: PresentationRendererKind.officialTemplate,
+    presentedAt: DateTime.now(),
+  ));
+}
+
+/// Advance after a committed native rating, then put the next card on the
+/// ability without waiting for a rebuild.
+///
+/// Ordering is advance first, present second: presenting first would show the
+/// card the session has not moved to yet. [acceptPresentation] runs only when
+/// the in-place present succeeded.
+Future<bool> advanceAndPresentAfterNativeRating({
+  required StudySessionController controller,
+  required OfficialReviewSession officialSession,
+  required OfficialFormalReviewLiveQueue? liveQueue,
+  required String rating,
+}) async {
+  final advanced = await advanceFromNativeRating(
+    controller: controller,
+    officialSession: officialSession,
+    liveQueue: liveQueue,
+    rating: rating,
+  );
+  if (advanced) await presentSessionCardInPlace(controller);
+  return advanced;
 }
 
 /// Advance after a scheduler mutation the native OHOS page asked for (redo /

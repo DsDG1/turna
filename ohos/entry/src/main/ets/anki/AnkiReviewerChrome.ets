@@ -13,9 +13,7 @@ import {
   CHROME_HIGH_CONTRAST_DARK,
   CHROME_HIGH_CONTRAST_LIGHT,
   RATING_AGAIN,
-  RATING_EASY,
   RATING_GOOD,
-  RATING_HARD,
   THEME_NIGHT,
 } from './AnkiReviewerProtocol';
 
@@ -33,11 +31,10 @@ export const COMPLETION_HANDOFF_MS: number = 600;
 
 /// Brand chrome (UI-1/UI-5): Turna's peacock tokens mirrored from
 /// `lib/core/theme.dart` — brandTeal #1F727E, brandSky #4A95A8, error
-/// #E74C3C. `hard` has no brand token and uses a neutral orange.
+/// #E74C3C. The sky token paints the source badge, not a rating.
 export const COLOR_AGAIN: string = '#E74C3C';
-export const COLOR_HARD: string = '#E67E22';
 export const COLOR_GOOD: string = '#1F727E';
-export const COLOR_EASY: string = '#4A95A8';
+export const COLOR_SOURCE_BADGE: string = '#4A95A8';
 
 /// Tint + edge pair for the two rating buttons, mirroring Android's
 /// `_RecallButton`: one hue drives both, at 12% fill and 35% border. Written as
@@ -88,24 +85,25 @@ export function dayPalette(): AnkiChromePalette {
 
 /// Night chrome, taken from the app's own dark tokens rather than invented.
 ///
-/// These four used to be `#10181B` / `#1A2327` / `#2A3438` / `#A5B4B7` — a
-/// blue-grey family that exists nowhere in `lib/core/theme.dart`. The reviewer
-/// was therefore the one screen whose night mode was a different colour from
-/// every page around it, and the drift was visible as a seam: the card shell
-/// paints `#111`, so a `#10181B` page made the card and its background
-/// indistinguishable and the whole screen read as one black void.
+/// Night is a **neutral black ramp**, not a green one. The page is
+/// `TurnaTheme.darkScaffold` (`#000000`), raised surfaces are `cardBg`
+/// (`#141414`), rules are `dividerBg` (`#2A2A2A`), and the error tint matches
+/// Flutter's `dangerSurface`. Brand hue stays in the accents.
 ///
-/// Now: `TurnaTheme.darkScaffold` for the page, `cardBg` for raised surfaces,
-/// `dividerBg` for rules, and the two text tokens the rest of the app uses.
+/// History: these four used to be `#10181B` / `#1A2327` / `#2A3438` /
+/// `#A5B4B7` — a blue-grey family that existed nowhere in
+/// `lib/core/theme.dart`, so the reviewer's night mode was a different colour
+/// from every page around it. They were then aligned to the old green-tinted
+/// tokens and are now aligned to the neutral black ramp in one move.
 export function nightPalette(): AnkiChromePalette {
   const palette: AnkiChromePalette = {
-    bg: '#0F2119',
-    surface: '#152B21',
+    bg: '#000000',
+    surface: '#141414',
     textPrimary: '#E9F2EC',
     textSecondary: '#B9CCC0',
     textHint: '#84998C',
-    divider: '#2C453A',
-    errorTint: '#3A2321',
+    divider: '#2A2A2A',
+    errorTint: '#1A1212',
   };
   return palette;
 }
@@ -164,37 +162,16 @@ export function paletteForTheme(themeName: string): AnkiChromePalette {
 }
 
 /// Label wording follows Android's `AppStrings.reviewBinaryForgotten` /
-/// `reviewBinaryRemembered` for the two ratings that are offered. The `hard` /
-/// `easy` branches are unreachable from the UI and kept only so a future
-/// four-rating surface cannot silently inherit the wrong word.
+/// `reviewBinaryRemembered`. The bottom bar only offers again and good.
+/// Anything else has no label.
 export function ratingLabel(rating: string): string {
   if (rating === RATING_AGAIN) {
     return '忘记';
   }
-  if (rating === RATING_HARD) {
-    return '困难';
-  }
   if (rating === RATING_GOOD) {
     return '记住';
   }
-  return '简单';
-}
-
-/// Hue for one rating token. The two-rating bottom bar no longer calls this —
-/// it uses the explicit `COLOR_AGAIN*` / `COLOR_GOOD*` pairs — but the mapping
-/// stays because a four-rating surface would need exactly this and nothing else
-/// in the file knows the engine's four tokens map onto these four hues.
-export function ratingColor(rating: string): string {
-  if (rating === RATING_AGAIN) {
-    return COLOR_AGAIN;
-  }
-  if (rating === RATING_HARD) {
-    return COLOR_HARD;
-  }
-  if (rating === RATING_GOOD) {
-    return COLOR_GOOD;
-  }
-  return COLOR_EASY;
+  return '';
 }
 
 export interface AnkiReviewerSettlement {
@@ -310,7 +287,7 @@ export struct AnkiReviewerHeaderBar {
           Text(this.sourceProgress)
             .fontSize(12)
             .fontWeight(FontWeight.Bold)
-            .fontColor(COLOR_EASY)
+            .fontColor(COLOR_SOURCE_BADGE)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .constraintSize({ maxWidth: '100%' })
