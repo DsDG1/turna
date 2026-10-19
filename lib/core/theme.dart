@@ -17,6 +17,13 @@ import 'package:flutter/services.dart';
 ///
 /// **Single source of truth** with GUI `tool/gui/src/theme_tokens.py` (BRAND_*).
 /// Scheme A locked: brandTeal = `#1F727E`. Brand tokens only — no legacy color aliases.
+///
+/// **Dark mode is neutral black, not tinted.** The night background stack is a
+/// pure black → neutral-grey ramp ([darkScaffold] `#000000`, [darkAppBar]
+/// `#0F0F0F`, cards `#141414`, elevated `#1E1E1E`, rules `#2A2A2A`). Brand hue
+/// is carried by accents only. Do **not** reintroduce green-tinted surfaces
+/// (`#0F2119` / `#152B21` / `#12261C` / `#1B3529` / `#2C453A` are retired);
+/// a tinted page fill makes every screen read as a different colour family.
 class TurnaTheme {
   TurnaTheme._();
 
@@ -75,10 +82,17 @@ class TurnaTheme {
   static const Color divider = Color(0xFFE5E7E5);
 
   /// Dark scaffold / window chrome (≡ Android `turna_scaffold_dark`).
-  static const Color darkScaffold = Color(0xFF0F2119);
+  ///
+  /// Neutral black — dark mode carries **no colour hue** in its background
+  /// stack. Brand colour lives in accents (teal / clay), never in the page
+  /// fill, so night mode reads as black rather than as a green-tinted theme.
+  static const Color darkScaffold = Color(0xFF000000);
 
   /// Dark AppBar / status bar surface (≡ Android `turna_appbar_dark`).
-  static const Color darkAppBar = Color(0xFF152B21);
+  ///
+  /// One neutral step above [darkScaffold] so the bar still separates from
+  /// the page without reintroducing a hue.
+  static const Color darkAppBar = Color(0xFF0F0F0F);
 
   // TEXT COLORS
   static const Color textPrimary = Color(0xFF1C2730);
@@ -127,9 +141,9 @@ class TurnaTheme {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0F2119),
-                Color(0xFF12261C),
-                Color(0xFF152B21),
+                Color(0xFF000000),
+                Color(0xFF121212),
+                Color(0xFF141414),
               ],
               stops: [0.0, 0.5, 1.0],
             )
@@ -325,6 +339,15 @@ class TurnaTheme {
   static const double radiusXLarge = 24.0;
   static const double radiusRound = 100.0;
 
+  // CHROME
+  /// Height of the four root-tab app bars (Learn / Play / Profile / Settings).
+  ///
+  /// The tabs used to disagree — Learn carried a 60 dp bar to fit its chip
+  /// row while the other three fell back to the framework's 56 dp, so the
+  /// title baseline jumped when switching tabs. One token, four consumers.
+  /// Sub-pages keep the default 56 dp; they are pushed routes, not peers.
+  static const double tabAppBarHeight = 60.0;
+
   // SEMANTIC TINT TOKENS
   // Common alpha-blended fills & borders used across feature widgets.
   // Non-const because `withValues` is computed at runtime.
@@ -440,7 +463,7 @@ class TurnaTheme {
       _isDark(context)
           ? Color.alphaBlend(
               accent.withValues(alpha: alpha),
-              const Color(0xFF152B21),
+              const Color(0xFF141414),
             )
           : Color.alphaBlend(
               accent.withValues(alpha: alpha),
@@ -595,13 +618,13 @@ class TurnaTheme {
       Theme.of(context).scaffoldBackgroundColor;
 
   static Color cardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF152B21) : Colors.white;
+      _isDark(context) ? const Color(0xFF141414) : Colors.white;
 
   static Color elevatedCardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1B3529) : const Color(0xFFFFFFFF);
+      _isDark(context) ? const Color(0xFF1E1E1E) : const Color(0xFFFFFFFF);
 
   static Color dividerBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2C453A) : divider;
+      _isDark(context) ? const Color(0xFF2A2A2A) : divider;
 
   static Color textPrimaryColor(BuildContext context) =>
       Theme.of(context).colorScheme.onSurface;
@@ -613,20 +636,20 @@ class TurnaTheme {
       _isDark(context) ? const Color(0xFF84998C) : textHint;
 
   static Color inputFillColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF12261C) : const Color(0xFFF5F6F5);
+      _isDark(context) ? const Color(0xFF121212) : const Color(0xFFF5F6F5);
 
   static Color statCardBorder(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2C453A) : divider;
+      _isDark(context) ? const Color(0xFF2A2A2A) : divider;
 
   static Color bottomNavBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF152B21) : Colors.white;
+      _isDark(context) ? const Color(0xFF141414) : Colors.white;
 
   /// Translucent frosted fill for the floating home tab bar. Paired with the
   /// capsule's backdrop blur: transparent enough for the blur to read, opaque
   /// enough to keep labels legible over worst-case content scrolling
   /// underneath.
   static Color floatingBarFill(BuildContext context) => _isDark(context)
-      ? const Color(0xFF152B21).withValues(alpha: 0.60)
+      ? const Color(0xFF141414).withValues(alpha: 0.60)
       : Colors.white.withValues(alpha: 0.65);
 
   /// Single-layer drop under the floating tab capsule. No accent glow —
@@ -725,17 +748,17 @@ class TurnaTheme {
   /// settings sub-pages. Dark variant is a low-alpha warm brown that won't
   /// "贴亮块" on the dark scaffold.
   static Color warningSurface(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF3A2A14) : const Color(0xFFFFF3E0);
+      _isDark(context) ? const Color(0xFF1A1510) : const Color(0xFFFFF3E0);
 
   /// Tinted surface for success / safe-state banners (cache cleared,
   /// database intact, etc.). Dark variant is a low-alpha deep green.
   static Color successSurface(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1F3A2A) : const Color(0xFFE8F5E9);
+      _isDark(context) ? const Color(0xFF131A15) : const Color(0xFFE8F5E9);
 
   /// Tinted surface for danger / destructive-state banners (safe mode,
   /// critical alert, etc.). Dark variant is a low-alpha deep red.
   static Color dangerSurface(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF3A1414) : const Color(0xFFFFEBEE);
+      _isDark(context) ? const Color(0xFF1A1212) : const Color(0xFFFFEBEE);
 
   /// Error text/icon color readable on the current surface: dark red on
   /// light fills, light red on dark fills.
@@ -997,7 +1020,7 @@ class TurnaTheme {
         ),
         cardTheme: CardThemeData(
           elevation: 0,
-          color: const Color(0xFF152B21),
+          color: const Color(0xFF141414),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
@@ -1052,7 +1075,7 @@ class TurnaTheme {
           ),
         ),
         dialogTheme: DialogThemeData(
-          backgroundColor: const Color(0xFF152B21),
+          backgroundColor: const Color(0xFF141414),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
@@ -1060,7 +1083,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF12261C),
+          fillColor: const Color(0xFF121212),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -1090,21 +1113,21 @@ class TurnaTheme {
           elevation: 0,
         ),
         chipTheme: expressiveChipTheme(
-          background: const Color(0xFF12261C),
+          background: const Color(0xFF121212),
           selectedFill: brandTeal.withValues(alpha: 0.28),
           label: const Color(0xFFB9CCC0),
           selectedLabel: brandReed,
-          outline: const Color(0xFF2C453A),
+          outline: const Color(0xFF2A2A2A),
         ),
         segmentedButtonTheme: expressiveSegmentedTheme(
           selectedFill: brandTeal.withValues(alpha: 0.28),
           selectedForeground: brandReed,
           foreground: const Color(0xFFB9CCC0),
-          outline: const Color(0xFF2C453A),
+          outline: const Color(0xFF2A2A2A),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: brandTealLight,
-          linearTrackColor: Color(0xFF2C453A),
+          linearTrackColor: Color(0xFF2A2A2A),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: brandTeal,
@@ -1117,7 +1140,7 @@ class TurnaTheme {
             borderRadius: BorderRadius.circular(radiusXLarge),
             side: const BorderSide(color: Color(0x3D78C7B8), width: 1),
           ),
-          backgroundColor: const Color(0xF2152B21),
+          backgroundColor: const Color(0xF2141414),
           contentTextStyle: const TextStyle(
             color: Colors.white,
             fontSize: 14,
@@ -1127,7 +1150,7 @@ class TurnaTheme {
           insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
         dividerTheme: const DividerThemeData(
-          color: Color(0xFF2C453A),
+          color: Color(0xFF2A2A2A),
           thickness: 1,
         ),
         textTheme: const TextTheme(

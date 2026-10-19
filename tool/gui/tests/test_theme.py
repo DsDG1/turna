@@ -339,7 +339,7 @@ class LayoutTokenTest(unittest.TestCase):
 
     def test_bg_chrome_per_theme(self) -> None:
         for theme, expected in (
-            ("dark", "#0A1A14"),
+            ("dark", "#000000"),
             ("light", "#EDF0EE"),
             ("high-contrast-dark", "#000000"),
             ("high-contrast-light", "#FFFFFF"),

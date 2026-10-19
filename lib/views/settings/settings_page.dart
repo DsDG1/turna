@@ -54,14 +54,14 @@ class SettingsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
-        backgroundColor: TurnaTheme.scaffoldBg(context),
+        toolbarHeight: TurnaTheme.tabAppBarHeight,
         elevation: 0,
         centerTitle: false,
         titleSpacing: 16,
         title: Text(
           AppStrings.settingsTitle,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
         ),
       ),

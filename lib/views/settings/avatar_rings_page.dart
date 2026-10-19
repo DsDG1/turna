@@ -86,9 +86,8 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
     return DefaultTabController(
       length: _visibleSlots.length,
       child: Scaffold(
-        backgroundColor: TurnaTheme.surfaceColor(context),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
         appBar: AppBar(
-          backgroundColor: TurnaTheme.surfaceColor(context),
           elevation: 0,
           centerTitle: true,
           title: Text(AppStrings.cosmeticsTitle),

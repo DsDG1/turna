@@ -157,20 +157,21 @@ def resource_type_color(resource_type: str) -> str:
 
 _DARK_PALETTE: dict[str, str] = {
     # Surfaces
-    "bg": "#0F2119",
-    "bg_secondary": "#152B21",
-    "bg_input": "#12261C",
-    "bg_elevated": "#1B3529",
-    "bg_disabled": "#1C2A28",
-    # Chrome surfaces (activity bar / status bar / view headers): one step
-    # darker than bg so the window frame reads as chrome, not content.
-    "bg_chrome": "#0A1A14",
+    "bg": "#000000",
+    "bg_secondary": "#141414",
+    "bg_input": "#121212",
+    "bg_elevated": "#1E1E1E",
+    "bg_disabled": "#1A1A1A",
+    # Chrome surfaces (activity bar / status bar / view headers). Light mode
+    # steps one shade below bg; dark mode already sits at pure black, so chrome
+    # matches the content black and separates via `border` instead.
+    "bg_chrome": "#000000",
     # Text
     "text": "#E8EAF0",
     "text_secondary": "#B9CCC0",
     "text_disabled": "#84998C",
     # Borders
-    "border": "#2C453A",
+    "border": "#2A2A2A",
     "border_hover": BRAND_REED,
     # Accent (Turna teal family - was Tailwind blue)
     "accent": BRAND_TEAL,
@@ -189,23 +190,23 @@ _DARK_PALETTE: dict[str, str] = {
     "error_text": "#FF6B6B",
     "info": BRAND_SKY,
     # Scrollbars (Turna-tinted)
-    "scrollbar": "#3A5A55",
-    "scrollbar_hover": "#5A7A75",
+    "scrollbar": "#3A3A3A",
+    "scrollbar_hover": "#5A5A5A",
     # Depth / brand
-    "surface_elevated": "#1B3529",
+    "surface_elevated": "#1E1E1E",
     "shadow": "#000000",
     "glow": BRAND_REED,
     "accent_gradient_start": BRAND_TEAL,
     "accent_gradient_end": BRAND_TEAL_LIGHT,
-    "toolbar_gradient_start": "#152B21",
-    "toolbar_gradient_end": "#0F2119",
+    "toolbar_gradient_start": "#141414",
+    "toolbar_gradient_end": "#000000",
     "ai_orbit_glow": BRAND_REED,
     # AI dialog semantic colors (Turna-aligned)
-    "ai_chat_bg": "#12261C",
-    "ai_bubble_bg": "#1B3529",
+    "ai_chat_bg": "#121212",
+    "ai_bubble_bg": "#1E1E1E",
     "ai_user_bubble": BRAND_TEAL,
-    "ai_card_bg": "#152B21",
-    "ai_chip_bg": "#12261C",
+    "ai_card_bg": "#141414",
+    "ai_chip_bg": "#121212",
     "ai_accent": BRAND_REED,
     "ai_accent_border": BRAND_TEAL,
     "ai_beta_bg": "#664400",

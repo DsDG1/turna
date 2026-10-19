@@ -168,8 +168,8 @@ void main() {
           File('android/app/src/main/res/values/colors.xml').readAsStringSync();
       expect(colors.contains('turna_scaffold_light">#FFFFFF'), isTrue);
       expect(colors.contains('turna_appbar_light">#FFFFFF'), isTrue);
-      expect(colors.contains('turna_scaffold_dark">#0F2119'), isTrue);
-      expect(colors.contains('turna_appbar_dark">#152B21'), isTrue);
+      expect(colors.contains('turna_scaffold_dark">#000000'), isTrue);
+      expect(colors.contains('turna_appbar_dark">#0F0F0F'), isTrue);
     });
 
     test('Android light styles wire statusBar to turna_appbar_light', () {
