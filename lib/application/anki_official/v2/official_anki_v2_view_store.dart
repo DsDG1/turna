@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+import 'package:sqlite3/common.dart' show SqliteException;
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
 
 /// `anki_course_tree_view` 的一行：一张卡在课程树中的位置（D3）。
@@ -12,6 +14,7 @@ class OfficialAnkiV2ViewRow {
     required this.sectionKey,
     required this.sectionId,
     required this.unitId,
+    this.unitKey = '',
     required this.lessonId,
     required this.lessonKey,
     required this.presentationKind,
@@ -27,6 +30,10 @@ class OfficialAnkiV2ViewRow {
   final String sectionKey;
   final String sectionId;
   final String unitId;
+
+  /// Middle deck segment (`A::B::C` → `B`). Empty on rows written before
+  /// schema v30; callers then fall back to [lessonKey].
+  final String unitKey;
   final String lessonId;
   final String lessonKey;
   final String presentationKind;
@@ -128,12 +135,12 @@ class OfficialAnkiV2ViewStore {
       final end = start + _insertChunk;
       final chunk = rows.sublist(start, end > rows.length ? rows.length : end);
       final values = List.filled(
-              chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+              chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
           .join(',');
       await course.customStatement(
         'INSERT INTO anki_course_tree_view '
         '(source_id, card_id, note_id, deck_id, word_id, section_key, '
-        'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
+        'section_id, unit_id, unit_key, lesson_id, lesson_key, presentation_kind, '
         'source_hash, mapping_version, rebuilt_at_millis) VALUES $values',
         [
           for (final row in chunk) ...[
@@ -145,6 +152,7 @@ class OfficialAnkiV2ViewStore {
             row.sectionKey,
             row.sectionId,
             row.unitId,
+            row.unitKey,
             row.lessonId,
             row.lessonKey,
             row.presentationKind,
@@ -159,22 +167,20 @@ class OfficialAnkiV2ViewStore {
   }
 
   /// 整视图 distinct section 数（scoped 换页后的整表口径）。
-  Future<int> distinctSectionCount() async {
-    try {
+  Future<int> distinctSectionCount() {
+    return _readView(() async {
       final rows = await course
           .customSelect(
             'SELECT COUNT(DISTINCT section_id) AS n FROM anki_course_tree_view',
           )
           .get();
       return rows.isEmpty ? 0 : rows.single.read<int>('n');
-    } catch (_) {
-      return 0;
-    }
+    }, 0);
   }
 
   /// Sections whose key records a 60/40 split (`(Part N)`).
-  Future<int> splitSectionCount() async {
-    try {
+  Future<int> splitSectionCount() {
+    return _readView(() async {
       final rows = await course
           .customSelect(
             "SELECT COUNT(DISTINCT section_id) AS n "
@@ -183,52 +189,43 @@ class OfficialAnkiV2ViewStore {
           )
           .get();
       return rows.isEmpty ? 0 : rows.single.read<int>('n');
-    } catch (_) {
-      return 0;
-    }
+    }, 0);
   }
 
   /// 整视图 distinct lesson 数。
-  Future<int> distinctLessonCount() async {
-    try {
+  Future<int> distinctLessonCount() {
+    return _readView(() async {
       final rows = await course
           .customSelect(
             'SELECT COUNT(DISTINCT lesson_id) AS n FROM anki_course_tree_view',
           )
           .get();
       return rows.isEmpty ? 0 : rows.single.read<int>('n');
-    } catch (_) {
-      return 0;
-    }
+    }, 0);
   }
 
-  Future<bool> get isAvailable async {
-    try {
+  Future<bool> get isAvailable {
+    return _readView(() async {
       final rows = await course
           .customSelect('SELECT 1 FROM anki_course_tree_view LIMIT 1')
           .get();
       return rows.isNotEmpty;
-    } catch (_) {
-      // 表不存在（flag 关、schema 未升级）时读面自然回落 v1。
-      return false;
-    }
+    }, false);
   }
 
-  Future<int> cardCountForSource(String sourceId) async {
-    try {
+  Future<int> cardCountForSource(String sourceId) {
+    return _readView(() async {
       final rows = await course.customSelect(
         'SELECT COUNT(*) AS n FROM anki_course_tree_view WHERE source_id = ?',
         variables: [Variable.withString(sourceId)],
       ).get();
       return rows.isEmpty ? 0 : rows.single.read<int>('n');
-    } catch (_) {
-      return 0;
-    }
+    }, 0);
   }
 
   /// 视图内全部 source 的分区聚合（按 source、section 分组）。
-  Future<List<OfficialAnkiV2ViewSectionSummary>> sectionSummaries() async {
-    try {
+  Future<List<OfficialAnkiV2ViewSectionSummary>> sectionSummaries() {
+    return _readView(() async {
       final rows = await course
           .customSelect(
             'SELECT source_id, section_id, section_key, '
@@ -248,18 +245,17 @@ class OfficialAnkiV2ViewStore {
             lessonCount: row.read<int>('lessons'),
           ),
       ];
-    } catch (_) {
-      return const [];
-    }
+    }, const <OfficialAnkiV2ViewSectionSummary>[]);
   }
 
   /// 一个课时下的卡映射（复习链 B6 读面：稳定 card-id 序）。
-  Future<List<OfficialAnkiV2ViewRow>> rowsForLesson(String lessonId) async {
-    try {
+  Future<List<OfficialAnkiV2ViewRow>> rowsForLesson(String lessonId) {
+    return _readView(() async {
       final rows = await course.customSelect(
         'SELECT source_id, card_id, note_id, deck_id, word_id, section_key, '
-        'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
-        'source_hash, mapping_version FROM anki_course_tree_view '
+        'section_id, unit_id, unit_key, lesson_id, lesson_key, '
+        'presentation_kind, source_hash, mapping_version '
+        'FROM anki_course_tree_view '
         'WHERE lesson_id = ? ORDER BY card_id',
         variables: [Variable.withString(lessonId)],
       ).get();
@@ -274,6 +270,7 @@ class OfficialAnkiV2ViewStore {
             sectionKey: row.read<String>('section_key'),
             sectionId: row.read<String>('section_id'),
             unitId: row.read<String>('unit_id'),
+            unitKey: row.read<String>('unit_key'),
             lessonId: row.read<String>('lesson_id'),
             lessonKey: row.read<String>('lesson_key'),
             presentationKind: row.read<String>('presentation_kind'),
@@ -281,28 +278,24 @@ class OfficialAnkiV2ViewStore {
             mappingVersion: row.read<int>('mapping_version'),
           ),
       ];
-    } catch (_) {
-      return const [];
-    }
+    }, const <OfficialAnkiV2ViewRow>[]);
   }
 
   /// 视图中出现过的全部 lesson id（树壳合成用）。
-  Future<Set<String>> lessonIds() async {
-    try {
+  Future<Set<String>> lessonIds() {
+    return _readView(() async {
       final rows = await course
           .customSelect(
             'SELECT DISTINCT lesson_id FROM anki_course_tree_view',
           )
           .get();
       return {for (final row in rows) row.read<String>('lesson_id')};
-    } catch (_) {
-      return const {};
-    }
+    }, const <String>{});
   }
 
   /// 课时名（lesson_key 展示用）：取每课时第一行的 key。
-  Future<Map<String, String>> lessonKeysById() async {
-    try {
+  Future<Map<String, String>> lessonKeysById() {
+    return _readView(() async {
       final rows = await course
           .customSelect(
             'SELECT lesson_id, MIN(lesson_key) AS lesson_key '
@@ -313,22 +306,37 @@ class OfficialAnkiV2ViewStore {
         for (final row in rows)
           row.read<String>('lesson_id'): row.read<String>('lesson_key'),
       };
-    } catch (_) {
-      return const {};
-    }
+    }, const <String, String>{});
   }
 
   /// 某个 source 在视图中的全部卡 id（v2 锁对齐 / retiring 校验用）。
-  Future<List<int>> cardIdsForSource(String sourceId) async {
-    try {
+  Future<List<int>> cardIdsForSource(String sourceId) {
+    return _readView(() async {
       final rows = await course.customSelect(
         'SELECT card_id FROM anki_course_tree_view WHERE source_id = ? '
         'ORDER BY card_id',
         variables: [Variable.withString(sourceId)],
       ).get();
       return [for (final row in rows) row.read<int>('card_id')];
-    } catch (_) {
-      return const [];
+    }, const <int>[]);
+  }
+
+  /// 表不存在（尚未建视图）时返回 [ifAbsent] 并记一条 info。
+  /// 其它 SQL 错误记 warning 后原样抛出，调用方不能把坏视图当成「没有官方课程」。
+  Future<T> _readView<T>(Future<T> Function() query, T ifAbsent) async {
+    try {
+      return await query();
+    } catch (error, stackTrace) {
+      if (error is SqliteException && error.message.contains('no such table')) {
+        logger.i('anki_course_tree_view absent: ${error.message}');
+        return ifAbsent;
+      }
+      logger.w(
+        'anki_course_tree_view read failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 }

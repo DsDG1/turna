@@ -291,7 +291,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 29;
+  static const int kSchemaVersion = 30;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -589,6 +589,25 @@ class CourseDatabase extends _$CourseDatabase {
               'ai_request_metrics',
             ]) {
               await m.database.customStatement('DROP TABLE IF EXISTS $table');
+            }
+          }
+          if (from < 30) {
+            // v30: the course-tree view stored the leaf name and dropped the
+            // middle deck segment, so a path A::B::C rendered its unit as C.
+            // `unit_key` keeps that middle segment. Existing rows get '' and
+            // the next v2 view rebuild (startup, when an active source exists)
+            // fills the real name. CREATE TABLE IF NOT EXISTS does not add a
+            // column to a table that already exists.
+            final info = await m.database
+                .customSelect('PRAGMA table_info(anki_course_tree_view)')
+                .get();
+            final hasUnitKey =
+                info.any((row) => row.read<String>('name') == 'unit_key');
+            if (info.isNotEmpty && !hasUnitKey) {
+              await m.database.customStatement(
+                "ALTER TABLE anki_course_tree_view "
+                "ADD COLUMN unit_key TEXT NOT NULL DEFAULT ''",
+              );
             }
           }
         },
@@ -1084,6 +1103,7 @@ class CourseDatabase extends _$CourseDatabase {
         section_key TEXT NOT NULL,
         section_id TEXT NOT NULL,
         unit_id TEXT NOT NULL,
+        unit_key TEXT NOT NULL DEFAULT '',
         lesson_id TEXT NOT NULL,
         lesson_key TEXT NOT NULL,
         presentation_kind TEXT NOT NULL,

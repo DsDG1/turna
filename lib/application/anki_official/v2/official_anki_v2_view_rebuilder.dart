@@ -429,6 +429,7 @@ class OfficialAnkiV2ViewRebuilder {
           sectionKey: placement.sectionKey,
           sectionId: placement.sectionId,
           unitId: placement.unitId,
+          unitKey: placement.unitKey,
           lessonId: officialAnkiLessonId(
             sourceId: source.sourceId,
             groupKey: groupEntry.key,

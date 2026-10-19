@@ -27,6 +27,7 @@ import 'package:turna/domain/course/stage.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/service/locator.dart';
 
+import '../helpers/fixture_language_bundle.dart';
 import '../helpers/in_memory_course_db.dart';
 
 /// Build a minimal one-unit/one-lesson Anki deck section, mirroring what
@@ -378,7 +379,11 @@ void main() {
     late AppPrefs appPrefs;
 
     setUp(() async {
-      final db = await seedInMemoryCourseDb();
+      // Turkish from the shipped bundle, French from the fixture overlay: the
+      // order assertions below cover two builtin courses plus two decks, and
+      // 0.9 ships a single builtin language.
+      final db =
+          await seedInMemoryCourseDb(bundle: await frenchCourseFixtureBundle());
       final repo = CourseRepository(db);
       await repo.bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
       await repo.bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
@@ -611,6 +616,24 @@ void main() {
         nowMillis: 2,
       );
     }
+
+    test('a broken official view keeps builtin courses and records the error',
+        () async {
+      await db.customStatement('DROP TABLE anki_course_tree_view');
+      await db.customStatement(
+        'CREATE TABLE anki_course_tree_view (source_id TEXT)',
+      );
+      final provider = CourseProvider(appPrefs);
+      await provider.load();
+
+      expect(provider.officialTreeLoadError, isNotNull);
+      expect(provider.bootFailed, isFalse);
+      expect(provider.sections, isNotEmpty);
+      expect(
+        provider.sections.any((section) => section.level == 'OfficialAnki'),
+        isFalse,
+      );
+    });
 
     test('builtin scope hides BOTH legacy and official Anki sections (R1-2)',
         () async {

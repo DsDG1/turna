@@ -235,4 +235,74 @@ void main() {
       unitLate, // 首卡 30
     ]);
   });
+
+  test('flag on: a stored unit key names the unit, lessons keep their own',
+      () async {
+    await OfficialAnkiV2ViewStore(course).replaceAll(
+      rows: const [
+        OfficialAnkiV2ViewRow(
+          sourceId: sourceId,
+          cardId: 1,
+          noteId: 10,
+          deckId: 10,
+          wordId: 'w-1',
+          sectionKey: 'Japanese',
+          sectionId: 'official-anki-src-v2-read-s-111',
+          unitId: 'u-grammar',
+          unitKey: 'Grammar',
+          lessonId: 'l-nouns',
+          lessonKey: 'Nouns',
+          presentationKind: 'flip',
+          sourceHash: 'hash-read',
+        ),
+        OfficialAnkiV2ViewRow(
+          sourceId: sourceId,
+          cardId: 2,
+          noteId: 20,
+          deckId: 11,
+          wordId: 'w-2',
+          sectionKey: 'Japanese',
+          sectionId: 'official-anki-src-v2-read-s-111',
+          unitId: 'u-grammar',
+          unitKey: 'Grammar',
+          lessonId: 'l-verbs',
+          lessonKey: 'Verbs',
+          presentationKind: 'flip',
+          sourceHash: 'hash-read',
+        ),
+      ],
+      rebuiltAtMillis: 3,
+    );
+
+    final shells = await OfficialAnkiV2CourseRead(
+      catalog: catalog,
+      course: course,
+    ).sectionShells();
+    final unit = shells.single.units.single;
+    expect(unit.name, 'Grammar');
+    expect(unit.lessons.map((lesson) => lesson.name).toSet(), {
+      'Nouns',
+      'Verbs',
+    });
+  });
+
+  test('a missing view table reads as empty', () async {
+    await course.customStatement('DROP TABLE anki_course_tree_view');
+    final store = OfficialAnkiV2ViewStore(course);
+    expect(await store.distinctSectionCount(), 0);
+    expect(await store.isAvailable, isFalse);
+    expect(await store.sectionSummaries(), isEmpty);
+    expect(await store.rowsForLesson(lessonId), isEmpty);
+  });
+
+  test('a broken view column is not treated as an empty course', () async {
+    await course.customStatement('DROP TABLE anki_course_tree_view');
+    await course.customStatement(
+      'CREATE TABLE anki_course_tree_view (source_id TEXT NOT NULL)',
+    );
+    expect(
+      OfficialAnkiV2ViewStore(course).sectionSummaries(),
+      throwsA(isA<SqliteException>()),
+    );
+  });
 }

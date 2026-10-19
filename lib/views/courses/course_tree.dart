@@ -193,6 +193,12 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
       key: PageStorageKey<String>('course-tree-${section?.id}'),
       physics: const BouncingScrollPhysics(),
       slivers: [
+        if (snapshot.officialTreeUnavailable)
+          SliverToBoxAdapter(
+            child: _OfficialTreeUnavailableBanner(
+              onRetry: () => context.read<CourseProvider>().reloadCourse(),
+            ),
+          ),
         // 吸顶章节头：页首为完整章节卡，滚动时擦拭收缩为悬浮条。
         if (section != null)
           SliverPersistentHeader(
@@ -715,6 +721,53 @@ class _EmptyMessage extends StatelessWidget {
   }
 }
 
+class _OfficialTreeUnavailableBanner extends StatelessWidget {
+  const _OfficialTreeUnavailableBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: TurnaTheme.warningSurface(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 20,
+              color: TurnaTheme.warning,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                AppStrings.coursesOfficialTreeUnavailable,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: TurnaTheme.textPrimaryColor(context),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onRetry,
+              child: Text(AppStrings.commonRetry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CourseSnapshot {
   final bool hasSections;
   final bool isLoaded;
@@ -722,6 +775,7 @@ class _CourseSnapshot {
   final Section? section;
   final SectionLoadState loadState;
   final Object? error;
+  final bool officialTreeUnavailable;
 
   const _CourseSnapshot({
     required this.hasSections,
@@ -730,6 +784,7 @@ class _CourseSnapshot {
     required this.section,
     required this.loadState,
     required this.error,
+    required this.officialTreeUnavailable,
   });
 
   factory _CourseSnapshot.from(CourseProvider provider) {
@@ -746,6 +801,7 @@ class _CourseSnapshot {
       error: currentSectionId == null
           ? null
           : provider.sectionLoadError(currentSectionId),
+      officialTreeUnavailable: provider.officialTreeLoadError != null,
     );
   }
 
@@ -758,7 +814,8 @@ class _CourseSnapshot {
       previous.currentSectionId != next.currentSectionId ||
       !identical(previous.section, next.section) ||
       previous.loadState != next.loadState ||
-      previous.error != next.error;
+      previous.error != next.error ||
+      previous.officialTreeUnavailable != next.officialTreeUnavailable;
 }
 
 sealed class _TreeItem {

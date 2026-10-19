@@ -92,7 +92,10 @@ class OfficialAnkiV2CourseRead {
     final unitOrder = <String, int>{}; // unitId → 最小 cardId
     for (final row in await _treeRows()) {
       if (!activeSources.contains(row.sourceId)) continue;
-      unitNames.putIfAbsent(row.unitId, () => row.lessonKey);
+      unitNames.putIfAbsent(
+        row.unitId,
+        () => row.unitKey.isEmpty ? row.lessonKey : row.unitKey,
+      );
       lessonNames.putIfAbsent(row.lessonId, () => row.lessonKey);
       lessonUnits.putIfAbsent(row.lessonId, () => row.unitId);
       lessonOrder.putIfAbsent(row.lessonId, () => row.cardId);
@@ -148,36 +151,34 @@ class OfficialAnkiV2CourseRead {
   }
 
   Future<List<OfficialAnkiV2ViewRow>> _treeRows() async {
-    try {
-      final rows = await course
-          .customSelect(
-            'SELECT source_id, card_id, note_id, deck_id, word_id, section_key, '
-            'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
-            'source_hash, mapping_version FROM anki_course_tree_view '
-            'ORDER BY source_id, section_id, unit_id, lesson_id, card_id',
-          )
-          .get();
-      return [
-        for (final row in rows)
-          OfficialAnkiV2ViewRow(
-            sourceId: row.read<String>('source_id'),
-            cardId: row.read<int>('card_id'),
-            noteId: row.read<int>('note_id'),
-            deckId: row.read<int>('deck_id'),
-            wordId: row.read<String>('word_id'),
-            sectionKey: row.read<String>('section_key'),
-            sectionId: row.read<String>('section_id'),
-            unitId: row.read<String>('unit_id'),
-            lessonId: row.read<String>('lesson_id'),
-            lessonKey: row.read<String>('lesson_key'),
-            presentationKind: row.read<String>('presentation_kind'),
-            sourceHash: row.read<String>('source_hash'),
-            mappingVersion: row.read<int>('mapping_version'),
-          ),
-      ];
-    } catch (_) {
-      return const [];
-    }
+    final rows = await course
+        .customSelect(
+          'SELECT source_id, card_id, note_id, deck_id, word_id, section_key, '
+          'section_id, unit_id, unit_key, lesson_id, lesson_key, '
+          'presentation_kind, source_hash, mapping_version '
+          'FROM anki_course_tree_view '
+          'ORDER BY source_id, section_id, unit_id, lesson_id, card_id',
+        )
+        .get();
+    return [
+      for (final row in rows)
+        OfficialAnkiV2ViewRow(
+          sourceId: row.read<String>('source_id'),
+          cardId: row.read<int>('card_id'),
+          noteId: row.read<int>('note_id'),
+          deckId: row.read<int>('deck_id'),
+          wordId: row.read<String>('word_id'),
+          sectionKey: row.read<String>('section_key'),
+          sectionId: row.read<String>('section_id'),
+          unitId: row.read<String>('unit_id'),
+          unitKey: row.read<String>('unit_key'),
+          lessonId: row.read<String>('lesson_id'),
+          lessonKey: row.read<String>('lesson_key'),
+          presentationKind: row.read<String>('presentation_kind'),
+          sourceHash: row.read<String>('source_hash'),
+          mappingVersion: row.read<int>('mapping_version'),
+        ),
+    ];
   }
 
   /// 复习链课时→卡映射（lesson card index 的 v2 供给，稳定 card-id 序）。

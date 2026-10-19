@@ -697,6 +697,25 @@ void main() {
       expect(harness.grammarProvider.state.containsKey('gp.present-a'), isTrue);
     });
 
+    test('legacy anki card with a failed commit skips the mistake book',
+        () async {
+      final lesson = _buildLegacyLesson(
+        items: [
+          const Interaction.ankiCard(
+            id: 'anki-imp1-c11',
+            front: 'Front',
+            back: 'Back',
+          ),
+        ],
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      await harness.vm.loadLesson(lesson.id);
+      final before = harness.mistakeProvider.count;
+      harness.vm.submitInteraction(false);
+      await pumpEventQueue();
+      expect(harness.mistakeProvider.count, before);
+    });
+
     test('anki flip card submit does not write Turna SRS', () async {
       final lesson = _buildLegacyLesson(
         items: [

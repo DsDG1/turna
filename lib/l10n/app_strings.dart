@@ -2393,6 +2393,7 @@ class AppStrings {
   static String get coursesCouldNotLoadCourse => '无法加载课程';
   static String get coursesNoSectionsFound => '未找到课程章节。';
   static String get coursesCouldNotLoadSection => '无法加载章节';
+  static String get coursesOfficialTreeUnavailable => '官方课程暂时读不出来，内置课程不受影响。';
   static String get coursesNoUnitsAvailable => '暂无可用单元';
   static String get coursesLoadingCourses => '正在加载课程…';
   static String get coursesLessonTypeNormal => '课程';
@@ -2691,7 +2692,6 @@ class AppStrings {
   static String get splashOhosNoVoiceTitle => '设备语音未就绪';
   static String splashOhosNoVoiceBody(String voices) =>
       '此设备的语音引擎未就绪（当前可用：$voices）。\n\n课程自带的录音仍可正常播放。';
-
 
   // ── AI Template ──
   static String get aiTemplateIntro => '新单词';

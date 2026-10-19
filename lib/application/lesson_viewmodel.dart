@@ -630,40 +630,16 @@ class LessonViewModel extends ChangeNotifier {
     final interaction = currentInteraction;
     if (interaction == null) return;
     final key = _canonicalKey(interaction);
-    // Official course cards are practice + explicit introduction — never
-    // attempt Official ledger learn then fall back on recoverableError.
-    if (key?.backend == AnkiBackendKind.official) {
-      final controller = await _commitAnkiCourse(interaction, correct, key!);
-      _applyAnkiCourseSubmit(
-        interaction: interaction,
-        correct: correct,
-        userAnswerText: userAnswerText,
-        recordMistake: recordMistake,
-        mistakeWordId: mistakeWordId,
-        receipt: controller?.lastReceipt,
-      );
-      return;
-    }
-
+    // ADR 0037: every anki-owned interaction stays out of the language
+    // mistake book and Turna FSRS, including a failed or missing commit.
     final controller = await _commitAnkiCourse(interaction, correct, key);
-    if (controller == null ||
-        controller.phase == StudyCardPhase.recoverableError ||
-        controller.lastReceipt == null) {
-      _submitStandardInteraction(
-        correct,
-        userAnswerText: userAnswerText,
-        recordMistake: recordMistake,
-        mistakeWordId: mistakeWordId,
-      );
-      return;
-    }
     _applyAnkiCourseSubmit(
       interaction: interaction,
       correct: correct,
       userAnswerText: userAnswerText,
       recordMistake: recordMistake,
       mistakeWordId: mistakeWordId,
-      receipt: controller.lastReceipt,
+      receipt: controller?.lastReceipt,
     );
   }
 

@@ -269,6 +269,12 @@ void main() {
       '201,202', '203', // C：同末段组内切片
       '301,302', // D：独立末段组
     });
+
+    final stored = [
+      for (final id in lessons.keys) ...await store.rowsForLesson(id),
+    ];
+    expect(stored.map((row) => row.unitKey).toSet(), {'B'});
+    expect(stored.map((row) => row.lessonKey).toSet(), {'C', 'D'});
   });
 
   test('default fallback presentationKind is flip (not showWord)', () async {

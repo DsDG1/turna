@@ -267,6 +267,11 @@ class CourseProvider extends ChangeNotifier {
   bool _bootFailed = false;
   bool get bootFailed => _bootFailed;
 
+  /// 官方课程树视图读失败。内置课程壳仍在；课程树只显示固定文案。
+  /// 下次读成功或视图不可用（未装配）时清空。不走 [bootFailed]。
+  Object? _officialTreeLoadError;
+  Object? get officialTreeLoadError => _officialTreeLoadError;
+
   void reportBootFailure() {
     if (_bootFailed) return;
     _bootFailed = true;
@@ -362,25 +367,33 @@ class CourseProvider extends ChangeNotifier {
 
   // --- Loading ---
 
-  /// Load the course shells from the index and pre-load the first
-  /// section's body so the course tree has something to show immediately.
-  ///
-  /// Idempotent: a second invocation while [_isLoaded] is already true is a
   /// v2 视图 section id 集（flag 关时空）：这些 section 的壳自带完整
   /// units/lessons，[ensureSectionLoaded] 无需再走 drift 装载。
   Set<String> _v2SectionIds = <String>{};
 
   /// v1 壳 + v2 视图壳（B6 读面分叉；flag 关时 v2 侧为空）。
+  ///
+  /// 视图 SQL 失败时保留内置壳并记下 [officialTreeLoadError]，不把官方课
+  /// 程伪装成「没有」。
   Future<List<Section>> _shellsWithV2() async {
     final shells = await loadSectionShells();
     final read = _v2Read();
-    if (read == null) return shells;
+    if (read == null) {
+      _officialTreeLoadError = null;
+      return shells;
+    }
     try {
       final v2Shells = await read.sectionShells();
+      _officialTreeLoadError = null;
       if (v2Shells.isEmpty) return shells;
       return [...shells, ...v2Shells];
-    } catch (error) {
-      logger.w('CourseProvider: v2 section shells unavailable: $error');
+    } catch (error, stackTrace) {
+      _officialTreeLoadError = error;
+      logger.w(
+        'CourseProvider: v2 section shells unavailable',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return shells;
     }
   }
@@ -407,6 +420,10 @@ class CourseProvider extends ChangeNotifier {
     return OfficialAnkiV2CourseRead(catalog: catalog, course: course);
   }
 
+  /// Load the course shells from the index and pre-load the first
+  /// section's body so the course tree has something to show immediately.
+  ///
+  /// Idempotent: a second invocation while [_isLoaded] is already true is a
   /// no-op. This was previously unconditional, which let widget rebuilds
   /// (e.g. switching away from the Learn tab and back via [AnimatedSwitcher])
   /// reset [_sections] back to shells while [_loadedSectionIds] still
@@ -416,7 +433,7 @@ class CourseProvider extends ChangeNotifier {
       logger.i('CourseProvider.load: already loaded, skipping re-entry');
       return;
     }
-    logger.w('CourseProvider.load: first load, fetching from DB');
+    logger.i('CourseProvider.load: first load, fetching from DB');
     await _restoreScopeFromPrefs();
     _v2SectionIds = await _loadV2SectionIds();
     Set<String>? officialActive;
@@ -610,7 +627,7 @@ class CourseProvider extends ChangeNotifier {
   /// after a transient DB failure. Does not reseed assets — that still
   /// requires a content-version bump or clearing app data.
   Future<void> reloadCourse() async {
-    logger.w('CourseProvider.reloadCourse: resetting and reloading shells');
+    logger.i('CourseProvider.reloadCourse: resetting and reloading shells');
     // Must drop CourseLoader's memoized shells/vocab — otherwise reload reads
     // the pre-mutation snapshot and newly imported Anki decks never appear
     // in [allSections] / [catalogEntries].
