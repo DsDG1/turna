@@ -9,7 +9,6 @@ import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/smart_speech.dart';
 import 'package:turna/application/study_session/session_settlement_service.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
-import 'package:turna/core/html_stripper.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -99,10 +98,12 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
     if (_lastSpokenIndex == _controller.currentIndex) return;
     _lastSpokenIndex = _controller.currentIndex;
     final content = item.content;
+    // Course cards only. An Anki card is never read aloud by the app: the
+    // reading of its text is not the card's content, and a card that does carry
+    // audio plays it through the official AV pipeline (`[sound:]`), which is the
+    // card's own media and stays untouched.
     if (content is StandardCourseCardContent) {
       maybeAutoSpeak(() => _speakText(content.frontText));
-    } else if (content is OfficialTemplateContent) {
-      maybeAutoSpeak(() => _speakText(stripHtml(content.frontHtml)));
     }
   }
 
@@ -355,9 +356,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                         onReveal: _controller.reveal,
                         onSpeak: content is StandardCourseCardContent
                             ? () => _speakText(content.frontText)
-                            : content is OfficialTemplateContent
-                                ? () => _speakText(stripHtml(content.frontHtml))
-                                : null,
+                            : null,
                         onObjectiveResult: structured
                             ? (correct) {
                                 _controller.reveal();

@@ -31,7 +31,6 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
     this.presentation,
     this.generation = 0,
     this.onPresented,
-    this.onSpeak,
     this.controller,
     this.paths,
     this.grades,
@@ -48,7 +47,6 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
   final FidelityCardPresentation? presentation;
   final bool isRevealed;
   final VoidCallback onReveal;
-  final VoidCallback? onSpeak;
   final int generation;
   final ValueChanged<PresentationReceipt>? onPresented;
   final OfficialAnkiReviewerController? controller;
@@ -160,7 +158,8 @@ class _OfficialTemplateWebViewBodyState
       if (seed != null && seed.cardId == widget.presentation!.cardKey.cardId) {
         await controller.adoptRenderedCard(seed);
       } else {
-        await controller.loadAndShowQuestion(widget.presentation!.cardKey.cardId);
+        await controller
+            .loadAndShowQuestion(widget.presentation!.cardKey.cardId);
       }
       logger.w('[OhosReviewer] body boot #$request card loaded: '
           'card=${controller.card?.cardId} '

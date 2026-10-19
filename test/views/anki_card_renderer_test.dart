@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
@@ -93,6 +94,53 @@ void main() {
 
     await tester.tap(find.text('不记得'));
     expect(results, [(false, 1)]);
+  });
+
+  testWidgets('the card offers no read-aloud control on either face',
+      (tester) async {
+    // Read-aloud was an addition, not a rendering: the two faces carry no
+    // language semantics (see `Interaction.ankiCard`), so speaking them used
+    // the course voice on text the course never taught.
+    await pumpCard(
+      tester,
+      onSubmit: (_, {userAnswerText, reviewQuality}) {},
+    );
+    expect(find.byIcon(Icons.record_voice_over_rounded), findsNothing);
+    expect(find.byTooltip('朗读'), findsNothing);
+
+    await revealAnswer(tester);
+    expect(find.text('Back side'), findsOneWidget);
+    expect(find.byIcon(Icons.record_voice_over_rounded), findsNothing);
+    expect(find.byTooltip('朗读'), findsNothing);
+  });
+
+  testWidgets("the card's own media strip still mounts after the removal",
+      (tester) async {
+    // The removal is scoped to app-side TTS. `[sound:]` media is the card's own
+    // content and has to keep reaching the learner, so the strip must still be
+    // built for a card that carries audio. The strip's own play/resolve
+    // contract is covered by `anki_media_strip_test.dart`; here the assertion
+    // stops at "it is mounted", because resolving the ref needs path_provider
+    // and never completes on a bare test host.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AnkiCardRenderer().build(
+            const Interaction.ankiCard(
+              id: 'anki-review-w2',
+              front: 'Front side',
+              back: 'Back side',
+              audioAssets: ['anki://import-1/clip.mp3'],
+            ),
+            const InteractionState(),
+            (_, {userAnswerText, reviewQuality}) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AnkiMediaStrip), findsOneWidget);
   });
 
   testWidgets('tapping the revealed card flips back to the front',

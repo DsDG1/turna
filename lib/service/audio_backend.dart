@@ -65,21 +65,32 @@ abstract class AudioBackend {
   Future<void> release();
 }
 
-/// The Android / iOS implementation, unchanged in behaviour: the same
-/// `audioplayers` calls the app has always made.
+/// The Android / iOS implementation: the same `audioplayers` calls the app has
+/// always made, including the playback mode each slot was tuned for.
+///
+/// [playMode] is a constructor value rather than a branch inside the call: the
+/// effects slot has always played through `PlayerMode.lowLatency` (SoundPool),
+/// and the platform seam that introduced this class silently dropped it, which
+/// turned an answer cue into a `mediaPlayer` load — a regression with no error
+/// attached. The speech slot must stay on `mediaPlayer`: a low-latency player
+/// cannot take a long or streamed source.
 class AudioplayersAudioBackend implements AudioBackend {
-  AudioplayersAudioBackend(this._player);
+  AudioplayersAudioBackend(
+    this._player, {
+    this.playMode = PlayerMode.mediaPlayer,
+  });
 
   final AudioPlayer _player;
+  final PlayerMode playMode;
 
   @override
   Future<void> playAsset(String assetPath) async {
-    await _player.play(AssetSource(assetPath));
+    await _player.play(AssetSource(assetPath), mode: playMode);
   }
 
   @override
   Future<void> playFile(String absolutePath) async {
-    await _player.play(DeviceFileSource(absolutePath));
+    await _player.play(DeviceFileSource(absolutePath), mode: playMode);
   }
 
   @override
@@ -376,7 +387,13 @@ class OhosAudioBackend implements AudioBackend {
     );
   }
   return (
-    effects: AudioplayersAudioBackend(effectsPlayer()),
+    // Effects keep the low-latency player the app shipped with: these are
+    // 1–2 second cues fired on an answer, where `mediaPlayer` preparation is
+    // audible as lag.
+    effects: AudioplayersAudioBackend(
+      effectsPlayer(),
+      playMode: PlayerMode.lowLatency,
+    ),
     speech: AudioplayersAudioBackend(speechPlayer()),
   );
 }

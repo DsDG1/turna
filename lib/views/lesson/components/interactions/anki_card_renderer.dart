@@ -7,11 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/audio_controller.dart';
-import 'package:turna/application/smart_speech.dart';
-import 'package:turna/core/language_detector.dart';
 import 'package:turna/core/sm2.dart';
-import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
@@ -21,6 +17,13 @@ import 'package:turna/core/theme.dart';
 
 /// Anki-style flip card renderer. Shows the front, user taps "Show Answer",
 /// then records the binary recall result: forgotten or remembered.
+///
+/// **No read-aloud, by design.** The app does not speak an Anki card: the card
+/// is somebody else's content, its text is not a vocabulary entry the app is
+/// teaching, and reading it aloud with the course voice was an addition rather
+/// than a rendering of the card. What the card *does* carry — `[sound:]` clips
+/// and images — still plays through [AnkiMediaStrip]; that is the card's own
+/// media and is untouched. A card with no media is silent.
 ///
 /// Face changes use a light scale pulse (shrink → grow) rather than a 3D
 /// rotate, so word cards feel soft and the action row does not jump with
@@ -88,10 +91,6 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
   /// buttons does not jump the layout. Covers caption + spacing + 48px row.
   static const double _actionAreaMinHeight = 88;
 
-  /// Resolved TTS languages for the front/back pair (computed lazily). Null
-  /// until the first speak / auto-speak call.
-  ({String front, String back})? _pair;
-
   /// Grade buttons only after the reveal pulse finishes — avoids a height
   /// stutter while the card is still animating.
   bool get _showGradeButtons =>
@@ -106,7 +105,6 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
       duration: const Duration(milliseconds: 320),
       vsync: this,
     )..addStatusListener(_onFlipStatus);
-    _maybeAutoSpeakFront();
   }
 
   void _onFlipStatus(AnimationStatus status) {
@@ -115,45 +113,6 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
         status == AnimationStatus.dismissed) {
       if (mounted) setState(() {});
     }
-  }
-
-  /// Resolve the front/back TTS languages from the card text + active course.
-  void _ensurePair() {
-    if (_pair != null) return;
-    final langs = currentSpeechLanguages();
-    _pair = const LanguageDetector().detectCardPair(
-      widget.front,
-      widget.back,
-      targetLanguage: langs.target,
-      nativeLanguage: langs.native,
-      signatureChars: langs.signatureChars,
-    );
-  }
-
-  void _speakFace(String text, String? lang) {
-    if (text.trim().isEmpty) return;
-    getIt<AudioController>().speak(text, languageCode: lang);
-  }
-
-  void _speakFront() {
-    _ensurePair();
-    _speakFace(widget.front, _pair?.front);
-  }
-
-  void _speakBack() {
-    _ensurePair();
-    _speakFace(widget.back, _pair?.back);
-  }
-
-  /// Auto-read the front face when the card first appears, if the course's
-  /// auto-read toggle is on.
-  void _maybeAutoSpeakFront() {
-    if (!autoReadOnTapForActiveCourse()) return;
-    _ensurePair();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _speakFace(widget.front, _pair?.front);
-    });
   }
 
   @override
@@ -174,11 +133,6 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
     setState(() => _revealed = reveal);
     if (reveal) {
       _flipController.forward();
-      // Auto-read the back face on reveal when the course toggle is on.
-      if (autoReadOnTapForActiveCourse()) {
-        _ensurePair();
-        _speakFace(widget.back, _pair?.back);
-      }
     } else {
       _flipController.reverse();
     }
@@ -312,12 +266,6 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                 ),
           ),
           const SizedBox(height: 8),
-          IconButton(
-            icon: const Icon(Icons.record_voice_over_rounded),
-            color: TurnaTheme.brandTeal,
-            tooltip: AppStrings.lessonSpeakLabel,
-            onPressed: _speakFront,
-          ),
           _buildMedia(),
           const SizedBox(height: 12),
           Text(
@@ -354,12 +302,6 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                 ),
           ),
           const SizedBox(height: 8),
-          IconButton(
-            icon: const Icon(Icons.record_voice_over_rounded),
-            color: TurnaTheme.brandTeal,
-            tooltip: AppStrings.lessonSpeakLabel,
-            onPressed: _speakBack,
-          ),
           _buildMedia(),
           const SizedBox(height: 12),
           Text(

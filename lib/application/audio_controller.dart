@@ -218,13 +218,15 @@ class AudioController {
     }
 
     if (lang == null) {
-      // No engine, Play Store or download advice here: on one platform the
-      // remedy is a permission, on another it is a voice pack the platform
-      // simply does not ship, and on a third there is no store at all. The
-      // remedy that fits belongs to whoever asked, so this only reports the
-      // fact. The user-facing wording is the settings tile's, which knows the
-      // platform.
-      throw StateError('no system TTS locale available for "$baseLang"');
+      // Android has a concrete remedy — install Google TTS plus the voice data
+      // for that language — and dropping it turns an actionable message into a
+      // bare statement of fact. It is withheld on the companion build, where
+      // there is no store to install from and no engine to choose: the settings
+      // tile carries that platform's wording instead.
+      final remedy = !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+          ? ' (install Google TTS + voice data for that language)'
+          : '';
+      throw StateError('no system TTS locale available for "$baseLang"$remedy');
     }
 
     if (_lastTtsLanguage == lang) return;

@@ -93,6 +93,40 @@ void main() {
     });
   });
 
+  group('the settings preview speaks what its entry promises', () {
+    test('the label is built from the word that is spoken', () {
+      // The two were written separately for a while: an OHOS device run pinned
+      // the utterance to a Chinese phrase and left the entry saying "Merhaba",
+      // so the preview taught the user the button lies.
+      expect(
+        AppStrings.settingsPlaySample,
+        contains(AppStrings.settingsPlaySampleWord),
+      );
+    });
+
+    test('the sample carries no hardcoded language override', () {
+      final source =
+          File('lib/views/settings/widgets/settings_sound_section.dart')
+              .readAsStringSync();
+      final start = source.indexOf('Future<void> _playSample()');
+      final end = source.indexOf('void _showMessage(');
+      // Both markers first: an empty slice would pass every "must not contain"
+      // below without checking anything.
+      expect(start, greaterThanOrEqualTo(0),
+          reason: 'the preview method is missing entirely');
+      expect(end, greaterThan(start),
+          reason: 'the preview method no longer precedes _showMessage');
+
+      final body = source.substring(start, end);
+      // A `languageCode:` passed here outranks the course language. The one a
+      // device run left behind was pinned to `zh-CN`, which made the Android
+      // preview speak Chinese even on a device with a working Turkish voice.
+      expect(body, isNot(contains('languageCode:')));
+      expect(body, isNot(contains('zh-CN')));
+      expect(body, contains('AppStrings.settingsPlaySampleWord'));
+    });
+  });
+
   group('actions the companion build cannot carry out stay hidden', () {
     test('the sound section gates the store action on the platform', () {
       final source =

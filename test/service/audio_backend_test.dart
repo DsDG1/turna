@@ -245,6 +245,27 @@ void main() {
       expect(backends.speech, isA<AudioplayersAudioBackend>());
     });
 
+    test('the effects slot keeps the low-latency player it shipped with', () {
+      // The platform seam replaced `play(..., mode: lowLatency)` with a plain
+      // `play()`, which moved every answer cue onto the media-player path with
+      // no error attached — only a prepare delay before the sound.
+      final backends = createAudioBackends(
+        effectsPlayer: () => _FakeAudioPlayer(),
+        speechPlayer: () => _FakeAudioPlayer(),
+      );
+
+      expect(
+        (backends.effects as AudioplayersAudioBackend).playMode,
+        PlayerMode.lowLatency,
+      );
+      // Speech must not follow it: a low-latency player cannot take a long or
+      // streamed source, and deck media is exactly that.
+      expect(
+        (backends.speech as AudioplayersAudioBackend).playMode,
+        PlayerMode.mediaPlayer,
+      );
+    });
+
     test('each backend wraps its own player', () {
       final effects = _FakeAudioPlayer();
       final speech = _FakeAudioPlayer();

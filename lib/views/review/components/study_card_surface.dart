@@ -167,7 +167,6 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         content: content,
         isRevealed: widget.isRevealed,
         onReveal: widget.onReveal,
-        onSpeak: widget.onSpeak,
         grades: widget.grades,
         onNativeReveal: widget.onNativeReveal,
         onNativeRated: widget.onNativeRated,

@@ -661,7 +661,14 @@ class AppStrings {
   static String get settingsVoiceSourceTitle => '语音来源';
   static String get settingsSystemTts => '系统 TTS';
   static String get settingsVoiceSourceDialogTitle => '语音来源';
-  static String get settingsPlaySample => '播放示例（Merhaba）…';
+
+  /// The word the settings preview speaks.
+  ///
+  /// One source for the menu entry and the utterance: the two used to be
+  /// written separately, and an OHOS device run left a hardcoded Chinese sample
+  /// behind, so the entry promised "Merhaba" while Android heard 你好.
+  static const String settingsPlaySampleWord = 'Merhaba';
+  static String get settingsPlaySample => '播放示例（$settingsPlaySampleWord）…';
   static String get settingsOpenSystemTts => '打开系统 TTS 设置…';
   static String get settingsInstallGoogleTts => '安装/打开 Google TTS…';
   static String settingsTtsNoVoicePlayed(Object error) => '未播放语音。$error';

@@ -210,22 +210,13 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     setState(() => _previewing = true);
     try {
       final audio = getIt<AudioController>();
-      // TEMPORARY SPIKE - revert after the device run. The companion build's
-      // courses are tr/fr while this device only has zh_CN / en_US voices, and
-      // the spoken language is always the learning language, so nothing in the
-      // shipped settings can ask CoreSpeechKit for a voice it actually has.
-      // Without this, "the engine initialised and the voice list reads" is all
-      // that can ever be verified, and whether the platform makes audible sound
-      // at all stays unknown - which is also what a sherpa-onnx call hinges on.
-      //
-      // The text is Chinese because the only voice this device reports as
-      // `INSTALLED` is `zh_CN person=13`. Asking that voice to say "Hello" tests
-      // a combination no user will ever hit, and it is exactly the combination
-      // a device run measured as silent - so a silent preview here says nothing
-      // about whether the platform can speak.
+      // The word comes from the same constant the menu entry renders, so the
+      // preview cannot promise one word and speak another — which is what the
+      // leftover OHOS diagnostic sample did: the entry said "Merhaba" and every
+      // platform, Android included, heard a hardcoded Chinese phrase. No
+      // `languageCode` override either: the spoken language is the course's.
       final result = await audio.speakWithResult(
-        '你好',
-        languageCode: 'zh-CN',
+        AppStrings.settingsPlaySampleWord,
       );
       if (!mounted) return;
 
