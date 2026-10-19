@@ -147,7 +147,7 @@ class JourneyOverviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Varnamala Plus 从原型到 0.8 的 8 个阶段',
+            'Varnamala Plus 从原型到 0.9 的 9 个阶段',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: TurnaTheme.textHintColor(context),
                 ),

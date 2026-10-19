@@ -57,7 +57,7 @@ flutter build apk --release --split-per-abi --target-platform android-arm64
 发布用的版本号必须和 `pubspec.yaml` 里的 `version` 一致，脚本会自己检查：
 
 ```bash
-python tool/build_release.py --version 0.8.0
+python tool/build_release.py --version 0.9.0
 ```
 
 `make help` 可以看全部命令；`make ci` 是本地跑全套检查（格式、静态分析、测试、工具测试、桌面编辑器检查、构建冒烟）。

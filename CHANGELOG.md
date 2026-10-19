@@ -13,28 +13,35 @@ Turna 的完整更新历程。本文件按时间顺序记录从最初原型到�
 
 ---
 
-## 未发布
+## 0.9 多端落地与可靠性 (2026-10-19)
 
-> 版本号以 `pubspec.yaml` 为准（当前 `0.8.0+4`）。本节只收 `0.8`（2026-09-04）之后的变更，每条均有代码或收据依据。
+本版把 Turna 从「安卓一个端」推到三端：新增鸿蒙伴生版，iOS 接上官方的 Anki 引擎；同时收口了多语言课程、安全与一批会让界面卡死的缺陷。
 
 ### 新增
 
+- **鸿蒙（HarmonyOS）伴生版**：课程、复习、词典、设置与备份可用；官方 Anki 复习器以原生 ArkUI 页面呈现（样式集 / 渲染 / 翻卡 / 评分落库 / 队列推进 / 强杀恢复全链路）；音频与朗读走自维护 ArkTS 通道，并内置离线土耳其语语音（sherpa-onnx）。复习器评分与安卓一致为两档（忘记 / 记住），退出前提示剩余张数。
 - **iOS 官方 Anki 引擎**：静态链接 rslib 的 `TurnaAnki.xcframework`（device arm64 + simulator arm64/x86_64）+ WKWebView 复习器（`turna-anki://anki.local`）；Dart 侧 iOS 门控全解，iOS 与 Android 同走 Official 路径。
+- **多语言课程框架**：多门内置语言可同库共存、随时切换与单独卸载；支持导入外部 `.turnapack` 课程包，重新导入先确认覆盖并清理孤立数据。
 - **体验改良批次 B1–B7**：Splash 播种/校验阶段文案；自研 Markdown 子集聊天气泡（`lib/core/simple_markdown.dart`，未引入 `flutter_markdown`）；改课 JSON 快照可撤销一次；导师聊天会话列表与恢复。
 - **P0 备份一致性**：学习/备份互斥门 `StudyActivityGate`（覆盖导入 parse/commit、正式复习、课时与三个练习页）；备份全快照期持锁、上传读不可变 staging 副本、媒体从副本校验后上传。
-- **文档治理**：对齐文档与代码现状（收据口径、schema/catalog/contract 版本号、feature flag 清单），并按「零入链即删、已闭环即归档」精简文档库（删除 6 篇、归档 3 篇、拆分测试基线收据）；新增 [iOS 构建文档](./docs/ios-build-setup.md)。
 
 ### 变更
 
-- **DAO 接口化 + `application → data` 硬禁**：`lib/domain/repositories/` 补齐六接口，`layering_guard_test` 改为全量禁止并按文件白名单放行三类例外；DI 双轨合并为 `lib/di/service_module.dart`。
-- **架构简化 P0–P4**：P1 Legacy 读退役（Legacy 浏览器/统计分支、卸载链、迁移导出载荷、due 聚合 Legacy 词扫描删除）；P2 course.db 升 v27（DROP `anki_notetypes` / `anki_notes` / `anki_cards_meta`）；P3 语言切换失败语义改为三段式（失败拒绝切换 → 提交级联 → 整体回退后抛 `CourseScopeSwitchException`）；P4 浏览牌组下拉改专用查询 + 埋点，`LessonSrsUndoLog` / `CourseCatalogOrdering` 职责拆出。
+- **四个主 tab 顶栏统一**：学习页原本 60 dp（要容纳积分 / 连胜 / 宝石 / 待复习 chip 行），练习 / 我的 / 设置却回退到框架默认 56 dp，切 tab 时标题基线跳 4 dp。现共用单一 token `TurnaTheme.tabAppBarHeight`；设置页顶栏不再自绘 `scaffoldBg` 底色（改为继承 `AppBarTheme`，与上方状态栏条连成一片），标题字号由 `headlineSmall`(24/w800) 降为 `titleLarge`/w700，与其余三页一致。子页保持 56 dp；「头像框」子页背景回落到与其他设置子页同一档。新增守卫 `test/views/tab_app_bar_contract_test.dart`，防止再写死高度。
+- **暗色模式统一为黑色背景**：夜间背景原来是一组深浅不一的墨绿（`#0F2119` / `#152B21` / `#12261C` / `#1B3529` / `#2C453A`），逐屏观感不统一；现改为中性黑阶（脚手架纯黑 → 卡片 `#141414` → 抬升面 `#1E1E1E` → 分割线 `#2A2A2A`），品牌色只由强调色承载。Android 窗口色（`colors.xml`）、鸿蒙复习器夜间调色板（`AnkiReviewerChrome.ets`）与桌面创作工具（`theme_tokens.py`）同步；暗色 golden 图已重生。
+- **关于页重新设计**：版本信息并入品牌头，链接与资源合并为一处；删除「配套工具」入口（桌面编辑器与 CLI 属于创作工具，App 里既无法安装也无法验证）。
+- **朗读口径收口**：Anki 卡片不再由应用额外朗读（卡片自带的音频 / 图片照常播放）；安卓的设置示例朗读恢复为课程语言，音效回到低延迟通道，TTS 失败提示重新带上可执行建议。
+- **移除法语示例课程**：内置课程只保留土耳其语。法语资产移入 `test/fixtures/`，仅作为多语言机制的测试 fixture，不再随包分发。
 - **错题本与 SRS 改增量写入**：避免每答一题重写整队列/整表。
-- **CI**：Flutter 钉 3.44.5；新增 format-check 门禁与覆盖率步骤；GUI 测试进 CI；Discord 通知修复 shell 注入面；`minSdkVersion` 显式钉 24。
+- **架构收口**：DAO 接口化 + `application → data` 硬禁；Legacy 读路径退役；course.db 升 v27；语言切换失败改为三段式（拒绝切换 → 提交级联 → 整体回退）。
+- **CI / 工程**：Flutter 钉 3.44.5；format-check 与覆盖率门禁；GUI 测试进 CI；`minSdkVersion` 钉 24。
 
 ### 修复
 
 - **课时完成弹窗 / 统一复习完成态卡死**：`PopScope(canPop: false)` 否决一切 `maybePop`，回调里再次 `maybePop` 形成无限微任务循环（CPU 打满需强杀）。统一改为确认后走无条件 `Navigator.pop`。
-- **课程 `.turnapack` 导入** 种子前清同 id 行、slug 冲突处理、媒体与语音字段挂载、多语言课程共存。
+- **鸿蒙复习入口白屏 / 评分后卡住**：撤除与「首卡只能由 widget 树 attach 时 present」互斥的预热路径；评分后原地装载并 present 下一张，不再依赖 Flutter 产帧；重复打开复习页已堵死。
+- **课程 `.turnapack` 导入**：种子前清同 id 行、slug 冲突处理、媒体与语音字段挂载、多语言课程共存。
+- **安全**：日志脱敏（绝对路径与凭据）、拒绝不安全的外部端点与重定向、Android 备份范围收窄。
 - **`build_release.py` 产物名与 About 页版本分叉**：新增 `--version` 与 pubspec 的一致性断言（`--allow-version-mismatch` 逃生）。
 
 ---
@@ -116,7 +123,7 @@ Turna 的完整更新历程。本文件按时间顺序记录从最初原型到�
 ### 改进
 
 - 每个 Anki 来源会作为独立课程显示，多次导入和多牌组管理更清晰。
-- Anki 导入生成的课程树改按牌组名称自然排序（Unit 2 排在 Unit 10 之前），并始终排列在内置课程之后，不再随机交错；工程明细见 [doc 36](./docs/official-anki-migration/archive/36-projection-tree-ordering-and-limits.md)。
+- Anki 导入生成的课程树改按牌组名称自然排序（Unit 2 排在 Unit 10 之前），并始终排列在内置课程之后，不再随机交错；工程明细见 doc 36（已归档，结论速查见 [`archive/README.md`](./docs/official-anki-migration/archive/README.md)）。
 - 超过单 section 60 个 unit / 单 unit 40 课的导入自动按 "Part N" 拆分，超大牌组不再生成打开即报错的损坏课程。
 - “复习全部”可连续覆盖多个 Anki 来源，待复习数量、卡片顺序与实际复习保持一致。
 - 课程管理页新增卡片浏览、牌组统计和旧数据迁移入口。
