@@ -34,6 +34,13 @@
 > 首屏窗口 8 张（P0-2）、#6 已提前到用户点复习即预热（P0-1）、#8 已改单次 IO +
 > 4 路有界并发（P1-3）、#9 已加暖帧（P1-4）；#2/#4/#5/#7 未变。快照保留是为了
 > 让「为什么这么改」可回溯。
+>
+> **2026-10-19 订正**：#6 的预热（P0-1）**已整体撤除**——预热本身是入口白屏的
+> 根因：ability 在批次就绪前就盖住 Flutter，而首卡只能由 Stage 在被盖住时
+> present（Flutter 不产帧 → Stage 永不 mount → `_controller == null`），于是原生
+> 页只剩「显示答案」空壳，只能等 60 s deadline 自己好。入口时序因此回到「点复习
+> 才开 ability」。收据见 [34 收据](./34-cutover-receipt.md)「鸿蒙复习页白屏修复与
+> 顶栏精简（2026-10-19，真机通过）」。
 
 点击复习 → 首卡可读，实际经过：
 
@@ -80,7 +87,7 @@ D8 工具栏、D9 退出确认、UI-8 回执兜底、生命周期幂等）。
 | D5 | **首卡 iframe 冷加载** | `assets/anki_reviewer/reviewer.js` `presentOnce` 的 `replaceFrame()` | 首卡多付一次 iframe + `card-frame.js` 加载 |
 | D6 | **换卡 rebuild 仍是全队列渲染** | `official_formal_review_coordinator.dart` `_doRebuild` 的 `for (final card in queue.cards)` | 即使首屏分批，第 9 张起仍会一次性卡住（所以 D2 的分批必须同时改这里） |
 | D7 | ~~评分档位两平台不一致~~ **已施工（2026-10-18）** | 安卓 `BinaryRecallBar`（2 档）vs 鸿蒙原四档 | 鸿蒙改二档，同语义；真机复验收据待取 |
-| D8 | ~~鸿蒙缺 bury / suspend / redo~~ **已施工（2026-10-18）** | 原：`_AnkiStudySessionView` 的鸿蒙分支直接 `Scaffold(body: _cardSurface)`，工具栏整体省略 | 原生补三键 + `requestCardAction` 协议；真机复验收据待取 |
+| D8 | ~~鸿蒙缺 bury / suspend / redo~~ **已施工（2026-10-18）→ 已撤除（2026-10-19）** | 原：`_AnkiStudySessionView` 的鸿蒙分支直接 `Scaffold(body: _cardSurface)`，工具栏整体省略 | 原生补三键 + `requestCardAction` 协议；真机复验收据待取。**2026-10-19 四键（含撤销）整体撤除**，与二档产品口径对齐 |
 | D9 | ~~返回确认缺剩余张数~~ **文案已对齐（2026-10-18）** | 安卓 `AlertDialog` + `reviewExitConfirmBody(remaining)`；鸿蒙两步按键 + `EXIT_CONFIRM_WINDOW_MS` | 形态仍不同（一步弹窗 vs 两步按键），信息量已一致：都报剩余张数 |
 
 > D1、D8 是**产品缺陷**，不是性能问题，所以它们按「各自独立一批」排期，
@@ -171,9 +178,9 @@ SDK 的 `TargetPlatform` 枚举没有 `ohos`、无 override 值可赋，**widget
 **真机判据**：禁用 `AnkiReviewerAbility` 后进复习，错误页一次点击可退出，不依赖
 系统手势。
 
-### 3.2 P0-1 ability 预热
+### 3.2 P0-1 ability 预热（**已撤除（2026-10-19）**）
 
-**状态**：**已施工（2026-10-18）**。§3.0 取舍 1 已定：**接受 `closeReviewer` 协议新增**。
+**状态**：**已施工（2026-10-18）→ 已撤除（2026-10-19，入口白屏根因）**。§3.0 取舍 1 已定：**接受 `closeReviewer` 协议新增**。
 
 **现状**：`attach()` 由 `Stage.didChangeDependencies` 在卡片数据 ready 后调用；
 `_open()` 里 `transport.open()` 不 await，随后 `await waitUntilReady()`。
@@ -473,7 +480,7 @@ review` 选最大。
 
 ### 3.8 D8 工具栏：redo / bury / suspend（本轮施工）
 
-**状态**：已施工（2026-10-18）。
+**状态**：已施工（2026-10-18）；**已于 2026-10-19 撤除**（四键整体移除，本节仅作设计回溯）。
 
 **现状（改前）**：安卓 `_AnkiSessionToolbar` 有三个 `IconButton`
 （`redo_rounded` / `bedtime_outlined` / `pause_circle_outline_rounded`）；
@@ -592,8 +599,8 @@ ArkUI ability 拉起走系统默认转场。可评估
 | 进度口径 | `currentIndex+1 / totalCount`（`totalCount => items.length`） | `answeredCount+1 / (answeredCount+items.length)` | ✅ 正常路径数值一致（`currentIndex` 由 `advanceTo` 按调度器 current 设定、与 `answeredCount` 同步）；队列收缩时安卓分母跟着缩、会读出「3/2」，鸿蒙用「已答+剩余」不会——**差异方向是鸿蒙更稳，不是鸿蒙落后**（2026-10-18 订正） |
 | 返回确认 | AlertDialog（带剩余张数） | 两步按键 + 2 s 窗口（**2026-10-18 起也带剩余张数**） | ⚠️ 形态不同，信息量已一致 |
 | 完成 | Flutter `UnifiedReviewCompletion` | 单源：原生行只做 0.6 s 收尾（「复习完成 / 正在打开结算…」，无统计无按钮）→ 自动关 → 落回**同一个** `UnifiedReviewCompletion`；Review All：保留「完成」按钮（下一源要复用同一个 ability，只能由 Dart 决定何时关），点后同样落到该组件 | ✅ 2026-10-18 施工（UI-16） |
-| 工具栏 | redo / bury / suspend | redo / bury / suspend（顶栏第二行） | ✅ 2026-10-18 对齐 |
-| 工具栏启用判定 | redo 看 `controller.canRedo`；bury/suspend 看 `canMutate` | payload 下发 `canRedo` / `canMutate`，三键在共享互锁前缀后各自追加自己的谓词 | ✅ 2026-10-18 施工（UI-15） |
+| 工具栏 | redo / bury / suspend | 无（2026-10-19 撤除） | ⛔ 2026-10-18 对齐过，2026-10-19 按产品口径整体撤除 |
+| 工具栏启用判定 | redo 看 `controller.canRedo`；bury/suspend 看 `canMutate` | 随四键一并撤除；`ReviewerChromeState.canRedo`/`canMutate` 仅留作 payload 契约字段 | ⛔ 2026-10-19 撤除 |
 | Review All 源进度 | `_AnkiSessionToolbar` 左侧「3/5 · Deck 名」徽章 | payload 新增 `sourceProgress`（与安卓同一字符串），原生顶栏第二行左侧渲染徽章，空串时不渲染 | ✅ 2026-10-18 施工（UI-15） |
 | 主题档位 | 四套：light / dark / highContrastLight / highContrastDark | payload 新增 `chromeTheme` 四值；`theme` 仍只给卡片 frame 用 day/night；ArkTS 增两套高对比色板 | ✅ 2026-10-18 施工（UI-15） |
 | 错误出口 | 页内错误 + 返回 | 两分支均带 `onBack`（兜底 `maybePop`） | ✅ 2026-10-18 修复（原为 ❌ D1），真机判据待取 |
@@ -643,7 +650,7 @@ ArkUI ability 拉起走系统默认转场。可评估
 对齐扩大成引擎语义与统计口径的改动，且与主交付平台的既有交互冲突。协议层四词
 保留，未来若恢复四档不需要动协议。
 
-### 5.2 工具栏（D8）——已施工（2026-10-18）
+### 5.2 工具栏（D8）——已施工（2026-10-18），**已撤除（2026-10-19）**
 
 鸿蒙分支原缺 redo / bury / suspend：这三项在安卓是 `_AnkiSessionToolbar`
 里的三个 `IconButton`，而鸿蒙分支整个 `Scaffold` 省略了它。
@@ -725,12 +732,12 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 | 项 | 判据 | 采证方式 |
 |---|---|---|
 | D1 错误出口 | 禁用 ability 后进复习，错误页一次点击可退出 | 真机 + 注入 `open` 失败 |
-| P0-1 预热 | 点击 → ArkUI 首帧耗时；装载失败无残留复习页；连进两次不出现第二个 ability | `hilog` 打点（`aboutToAppear`），预热前/后各 ≥5 次取中位 |
+| P0-1 预热 | ~~点击 → ArkUI 首帧耗时；装载失败无残留复习页；连进两次不出现第二个 ability~~ **已撤除，不再验**（2026-10-19；入口改回「点复习才开 ability」） | — |
 | P0-2 分批 | 队列 ≥50 张时首屏时间不随队列线性增长；第 9 张仍在；`Review All` 不漏卡；失败卡仍进 `renderFailures` | 真机 + debug chrome 的 render 计数 |
 | P1-3 媒体 | 含 ≥5 媒体的卡首卡时间；同一文件不重复推；大媒体仍走 Range | `_pushedMediaNames` 命中日志 |
 | P1-4 暖帧 | 首卡 present → `renderComplete` 的 ack 时间；首卡只创建一个 iframe | debug chrome；现有 60 ms 是**翻卡**，首卡必须单独量 |
 | D7 二档 | 同卡同评级两平台落库 rating 一致（`again`/`good`）；标签与语义色一致；评分行切换不跳布局 | 真机过卡 + 两平台对拍 |
-| D8 工具 | bury / suspend / redo 产生与安卓相同的调度效果 | 真机 + 调度前后队列对比 |
+| D8 工具 | bury / suspend / redo 产生与安卓相同的调度效果 | ~~真机 + 调度前后队列对比~~ **已撤除，不再验**（2026-10-19） |
 | D9 退出确认 | 两步确认的第一跳文案报出剩余张数，且与 `remainingCount` 同口径 | 真机 + 对照 `progressIndex/progressTotal` |
 | UI-8 回执兜底 | 注入 desync（把 current 卡从批次过滤）后评分，底栏出「重试进入下一张 / 结束复习」，不停在「已提交，加载中…」；重试一次可前进 | 真机 + debug chrome 的 `errorCode` |
 | 生命周期幂等 | 连续进入复习 ×20 不出现整页重载；Review All 含 blocked 源不被弹回复习外；返回只退一页 | 真机 + `hilog` 的 `reusing the live reviewer session` 计数 |
@@ -751,6 +758,8 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 3. ~~**P0-1 预热**（依赖 `closeReviewer` 协议新增；取舍未定则不做）~~
    **已施工（2026-10-18）**：协议新增已接受，`warmUp` / `cancel` / 调用点四条
    取消路径落地。真机判据待取
+   → **2026-10-19 撤除**（预热即入口白屏根因；页面不再 `warmUp`，首卡由 Stage
+   `attach` 在前台 present）。清单项就此结案，不再复验「预热收益」。
 4. ~~**P0-2 分批装载**~~ **已施工（2026-10-18）**：窗口 8、eligible 过滤、
    `restrictAllowedCards` 改 `eligible - 失败`、`_doRebuild` 滚动窗口。
    **行为收据已取**（同日复检）：`official_formal_review_render_window_behavior_test.dart`
@@ -758,6 +767,8 @@ chrome 都在 ArkUI 侧，塞一个 Flutter 顶栏等于在 Web 之上再叠一�
 5. ~~**D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）~~
    **已施工（2026-10-18）**：三项全要，原生补三键 + `requestCardAction`
    协议 + 三态回执，见 §3.8。真机判据待取
+   → **2026-10-19 撤除**：四键（撤销 / 重做 / 搁置 / 暂停）整体移除，协议方法
+   `requestUndo` / `requestCardAction` 同步删除。清单项就此结案。
 6. ~~**D9 退出确认文案**~~ **已施工（2026-10-18）**：补剩余张数，口径对齐安卓
    `remainingCount`（含当前这张），N 未知时回落原文案；见 §4.3
 7. **P2-5 / P2-6**（先测量，测完再决定是否立项）——只到测量方案，未施工
