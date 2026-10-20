@@ -5,6 +5,8 @@ import 'dart:io';
 // Project imports:
 import 'package:turna/application/ai/ai_course_provider.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
+import 'package:turna/application/ai/ai_json_schemas.dart';
+import 'package:turna/application/ai/ai_json_text.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
@@ -280,10 +282,20 @@ class TextbookImportProvider extends AiRequestSessionBase {
       config: config,
       messages: messages,
       temperature: _preset.temperature,
+      // The preset carried this budget all along but nothing read it, so a
+      // grammar-book extraction had no ceiling on a long chapter.
+      maxTokens: _preset.maxTokens,
       timeout: const Duration(seconds: 120),
+      jsonSchema: AiJsonSchemas.knowledgePoints,
       cancelToken: cancelToken,
     );
-    final cleaned = _stripCodeFences(result.content);
+    // A cut-off reply must not be reported as malformed JSON: the caller can
+    // only fix it by asking for less, not by retrying. `AiErrorMapper` keys on
+    // the word 截断 and surfaces the "output too long" copy.
+    if (result.isTruncated) {
+      throw Exception('本章抽取输出被截断（finish_reason: length），请拆小章节后重试。');
+    }
+    final cleaned = AiJsonText.stripCodeFences(result.content);
     final decoded = jsonDecode(cleaned) as Map<String, dynamic>;
     var points = coerceKnowledgePoints(decoded);
     if (_preset.isVocabOnly) {
@@ -569,15 +581,4 @@ class TextbookImportProvider extends AiRequestSessionBase {
     }
   }
 
-  /// Strip a leading ```lang and trailing ``` so a fenced JSON blob decodes.
-  String _stripCodeFences(String s) {
-    if (s.startsWith('```')) {
-      final firstNewline = s.indexOf('\n');
-      if (firstNewline >= 0) s = s.substring(firstNewline + 1);
-      if (s.endsWith('```')) {
-        s = s.substring(0, s.length - 3);
-      }
-    }
-    return s.trim();
-  }
 }

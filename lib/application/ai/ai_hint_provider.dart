@@ -346,7 +346,7 @@ class AiHintProvider extends AiStreamingSessionBase {
           prefs.injectLearnerContext && (_learnerContext?.isEmpty == false)
               ? _learnerContext!.toPromptBlock()
               : null,
-      override: AiPromptOverridesStore.resolve().textFor(AiPromptFeature.hint),
+      override: AiPromptOverridesStore.overrideFor(AiPromptFeature.hint),
     );
   }
 
@@ -374,8 +374,13 @@ class AiHintProvider extends AiStreamingSessionBase {
 
   // ─── Depth-learning tutor genres ─────────────────────────────────────
 
-  /// Shared hop for the genres: one `chat()` call whose reply is a JSON
+  /// Shared hop for the genres: one JSON-mode call whose reply is a JSON
   /// object, decoded and parsed into [T] by [parse].
+  ///
+  /// Uses `requestJson` rather than `chat`: these three prompts ask for "ONLY a
+  /// JSON object", and `chat()` hard-codes `responseFormat: null`, so they were
+  /// relying on the model obeying the instruction with none of the guarantees
+  /// JSON mode provides.
   Future<T> _typedChat<T>({
     required AiEngineConfig config,
     required String systemPrompt,
@@ -384,7 +389,7 @@ class AiHintProvider extends AiStreamingSessionBase {
     AiCancelToken? cancelToken,
     double temperature = 0.4,
   }) async {
-    final result = await _engine.chat(
+    final result = await _engine.requestJson(
       config: config,
       messages: <Map<String, dynamic>>[
         {'role': 'system', 'content': systemPrompt},

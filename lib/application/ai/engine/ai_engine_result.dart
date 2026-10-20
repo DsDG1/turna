@@ -2,14 +2,16 @@
 ///
 /// Carries the assistant's reply text ([content]), the raw decoded completion
 /// body ([body], used as the cache value and for usage extraction), whether the
-/// result was served from cache ([cacheHit]), and the optional token [usage]
-/// block reported by the endpoint.
+/// result was served from cache ([cacheHit]), the token [usage] block reported
+/// by the endpoint, and the terminal [finishReason].
 class AiEngineResult {
   const AiEngineResult({
     required this.content,
     this.body,
     this.cacheHit = false,
     this.usage,
+    this.finishReason,
+    this.reasoningText,
   });
 
   /// Assistant reply text. For JSON-mode calls this is the JSON string the
@@ -29,4 +31,20 @@ class AiEngineResult {
   /// Terminal usage block (`prompt_tokens` / `completion_tokens` /
   /// `total_tokens`) when the endpoint reported one.
   final Map<String, int>? usage;
+
+  /// Why generation stopped: `stop`, `length`, `content_filter`, … `null` when
+  /// the endpoint did not report one.
+  ///
+  /// This field exists because `length` is the difference between "the model
+  /// wrote bad JSON" and "the reply was cut off before the closing brace".
+  /// Without it a truncated course/practice body surfaced as a parse failure
+  /// and the user was told to retry something that could never succeed.
+  final String? finishReason;
+
+  /// Accumulated chain-of-thought text when the endpoint streamed one
+  /// (`delta.reasoning_content`). Never part of [content].
+  final String? reasoningText;
+
+  /// `true` when the model was cut off by the output token limit.
+  bool get isTruncated => finishReason == 'length';
 }

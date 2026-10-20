@@ -1,5 +1,8 @@
-// Dart imports:
-import 'dart:convert';
+// `stripCodeFences` / `decodeJsonObject` used to live here and were copied
+// into three other files with subtly different behaviour. They now live in
+// `ai_json_text.dart`; this export keeps every existing import working.
+export 'package:turna/application/ai/ai_json_text.dart'
+    show stripCodeFences, decodeJsonObject;
 
 /// Typed results for the depth-learning tutor genres. Each is produced by
 /// `AiHintProvider`'s genre methods (`explainGrammarPoint`, `compareSynonyms`,
@@ -292,21 +295,3 @@ extension SentenceBreakdownPlainText on SentenceBreakdown {
     return buf.toString().trimRight();
   }
 }
-
-/// Strip a leading ```lang fence and trailing ``` so a model reply that
-/// ignored the "no fences" instruction still decodes.
-String stripCodeFences(String s) {
-  var cleaned = s.trim();
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned
-        .replaceAll(RegExp(r'^```\w*\n?'), '')
-        .replaceAll(RegExp(r'\n?```$'), '')
-        .trim();
-  }
-  return cleaned;
-}
-
-/// Decode a model reply into a JSON object, stripping code fences first.
-/// Throws a [FormatException] (via [jsonDecode]) when the reply is not JSON.
-Map<String, dynamic> decodeJsonObject(String reply) =>
-    jsonDecode(stripCodeFences(reply)) as Map<String, dynamic>;

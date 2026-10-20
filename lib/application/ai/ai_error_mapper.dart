@@ -17,10 +17,21 @@ enum AiErrorKind {
   cancelled,
   parseFailed,
 
+  /// The endpoint refused the model id we sent (`unknown model` family — MiniMax
+  /// answers `invalid params, unknown model '' (2013)`). Retrying cannot fix it:
+  /// the id has to be corrected in Settings.
+  modelUnavailable,
+
   /// The configured endpoint answered 3xx. The request — and its
   /// `Authorization: Bearer` header — was not followed, so the user has to
   /// point the base URL at the final endpoint themselves.
   endpointRedirect,
+
+  /// The reply hit the output-token ceiling (`finish_reason: length`) and the
+  /// payload was cut mid-way. Retrying reproduces it exactly; the request has
+  /// to ask for less content instead.
+  truncated,
+
   unknown,
 }
 
@@ -86,6 +97,12 @@ class AiErrorMapper {
         message: AppStrings.aiErrorTimeout,
       );
     }
+    if (error is AiHttpError) {
+      // Status-code first: the body text is for humans, and matching on it was
+      // how a 400 containing the word "json" used to be reported as a parse
+      // failure.
+      return _fromStatus(error.statusCode, error.detail);
+    }
     if (error is SocketException || error is HttpException) {
       return AiErrorMapping(
         kind: AiErrorKind.network,
@@ -100,6 +117,21 @@ class AiErrorMapper {
       return AiErrorMapping(
         kind: AiErrorKind.notConfigured,
         message: AppStrings.aiErrorNotConfigured,
+        canRetry: false,
+        canConfigure: true,
+      );
+    }
+    if (_looksTruncated(lower)) {
+      return AiErrorMapping(
+        kind: AiErrorKind.truncated,
+        message: AppStrings.aiErrorTruncated,
+        canRetry: false,
+      );
+    }
+    if (_looksModelUnavailable(lower)) {
+      return AiErrorMapping(
+        kind: AiErrorKind.modelUnavailable,
+        message: AppStrings.aiErrorModelUnavailable,
         canRetry: false,
         canConfigure: true,
       );
@@ -172,18 +204,106 @@ class AiErrorMapper {
         return AppStrings.aiErrorCancelled;
       case AiErrorKind.parseFailed:
         return AppStrings.aiErrorParseFailed;
+      case AiErrorKind.modelUnavailable:
+        return AppStrings.aiErrorModelUnavailable;
       case AiErrorKind.endpointRedirect:
         return AppStrings.aiErrorEndpointRedirect;
+      case AiErrorKind.truncated:
+        return AppStrings.aiErrorTruncated;
       case AiErrorKind.unknown:
         return AppStrings.aiErrorUnknown;
     }
   }
+
+  /// Classify a structured [AiHttpError] by status code.
+  ///
+  /// [detail] is only consulted for the two cases the status code cannot
+  /// disambiguate: a 400 that means "no such model" versus one that means
+  /// "your parameters are wrong".
+  static AiErrorMapping _fromStatus(int status, String detail) {
+    final lower = detail.toLowerCase();
+    if (status == 401 || status == 403) {
+      return AiErrorMapping(
+        kind: AiErrorKind.unauthorized,
+        message: AppStrings.aiErrorUnauthorized,
+        canRetry: false,
+        canConfigure: true,
+      );
+    }
+    if (status == 429) {
+      return AiErrorMapping(
+        kind: AiErrorKind.rateLimited,
+        message: AppStrings.aiErrorRateLimited,
+      );
+    }
+    if (status == 408 || status == 504) {
+      return AiErrorMapping(
+        kind: AiErrorKind.timeout,
+        message: AppStrings.aiErrorTimeout,
+      );
+    }
+    if (status == 400 || status == 422) {
+      if (_looksModelUnavailable(lower)) {
+        return AiErrorMapping(
+          kind: AiErrorKind.modelUnavailable,
+          message: AppStrings.aiErrorModelUnavailable,
+          canRetry: false,
+          canConfigure: true,
+        );
+      }
+      // A bad-request is a caller-side problem: repeating it changes nothing.
+      return AiErrorMapping(
+        kind: AiErrorKind.unknown,
+        message: AppStrings.aiErrorUnknown,
+        canRetry: false,
+      );
+    }
+    if (status >= 500 && status <= 599) {
+      return AiErrorMapping(
+        kind: AiErrorKind.network,
+        message: AppStrings.aiErrorNetwork,
+      );
+    }
+    return AiErrorMapping(
+      kind: AiErrorKind.unknown,
+      message: AppStrings.aiErrorUnknown,
+      canRetry: false,
+    );
+  }
+
+  /// Did the model get cut off by the output-token ceiling?
+  ///
+  /// Matched on the copy the generators raise, not on provider text: a
+  /// `finish_reason: length` reply is detected in the engine, which then throws
+  /// with this wording. Catching it before the generic "looks like JSON"
+  /// branch matters — a truncated payload also fails to parse, and "格式异常"
+  /// would send the user to retry an impossible request.
+  static bool _looksTruncated(String lower) =>
+      lower.contains('truncated') ||
+      lower.contains('finish_reason: length') ||
+      lower.contains('length limit') ||
+      lower.contains('截断');
+
 
   static bool _looksIncomplete(String lower) =>
       lower.contains('config incomplete') ||
       lower.contains('api key') && lower.contains('incomplete') ||
       lower.contains('please fill in') ||
       lower.contains('not configured');
+
+  /// Does this error mean the endpoint rejected the model id?
+  ///
+  /// Deliberately narrow: only the phrases providers use for "there is no such
+  /// model" (MiniMax `invalid params, unknown model '' (2013)`, OpenAI
+  /// `model_not_found`, generic `no such model`). A bare `400` must not be
+  /// swallowed here — most 400s mean something else.
+  static bool _looksModelUnavailable(String lower) =>
+      lower.contains('unknown model') ||
+      lower.contains('model_not_found') ||
+      lower.contains('model not found') ||
+      lower.contains('no such model') ||
+      lower.contains('invalid model') ||
+      (lower.contains('does not exist') && lower.contains('model'));
 
   static bool _looksAuth(String lower) =>
       lower.contains('unauthorized') ||

@@ -117,7 +117,9 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
         return AppStrings.settingsTtsReady(locale);
       case TtsPreferredStatus.voiceMissing:
         if (d.hasGoogleEngine) {
-          return AppStrings.settingsTtsGoogleInstalledMissingVoice;
+          return AppStrings.settingsTtsGoogleInstalledMissingVoice(
+            language.displayName,
+          );
         }
         return AppStrings.settingsTtsVoiceMissing(
           getIt<LanguageProvider>().displayName,

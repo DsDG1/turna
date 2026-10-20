@@ -17,7 +17,6 @@ import 'package:turna/service/locator.dart';
 /// stored name that no longer matches any value decodes to `null`, so a
 /// renamed route degrades the row to informational instead of crashing.
 enum AiRecentTaskRoute {
-  wishChat('AiWishChatRoute'),
   textbookImport('TextbookImportRoute'),
   tutorChat('AiTutorChatRoute'),
   diagnosis('AiDiagnosisRoute'),

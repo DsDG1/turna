@@ -1,6 +1,7 @@
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_json_schemas.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
@@ -98,8 +99,9 @@ class DictionaryAiProvider extends AiRequestSessionBase {
             'content': AiPromptCatalog.dictionary(
               language: language,
               prefs: _prefs.snapshot,
-              override: AiPromptOverridesStore.resolve()
-                  .textFor(AiPromptFeature.dictionary),
+              override: AiPromptOverridesStore.overrideFor(
+                AiPromptFeature.dictionary,
+              ),
             ),
           },
           {
@@ -109,6 +111,7 @@ class DictionaryAiProvider extends AiRequestSessionBase {
                 'Provide enrichment JSON.',
           },
         ],
+        jsonSchema: AiJsonSchemas.dictionary,
         cancelToken: session.cancelToken,
       );
       if (!isCurrentSession(session)) return null;

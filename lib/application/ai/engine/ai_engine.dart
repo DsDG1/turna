@@ -10,6 +10,7 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_result.dart';
 import 'package:turna/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/ai/engine/ai_usage_meter.dart';
 import 'package:turna/core/performance_trace.dart';
 
 /// Single choke point for every LLM call in the app.
@@ -30,14 +31,17 @@ import 'package:turna/core/performance_trace.dart';
 /// Caching: when `config.cacheEnabled` is on, the engine consults [AiCache]
 /// before the network. A cache hit returns immediately; for streaming callers
 /// the cached content is delivered to `onChunk` as a single fragment. The cache
-/// key is `sha256(model | messages | responseFormat)` and never includes the
-/// API key (see [AiCache.makeKey]).
+/// key is `sha256(model | sampling | messages | response_format)` where
+/// `sampling` carries temperature / reasoning / max tokens, and never includes
+/// the API key (see [AiCache.makeKey]).
 @lazySingleton
 class AiEngine {
-  AiEngine(this._http, this._cache);
+  AiEngine(this._http, this._cache, {AiUsageMeter? meter})
+      : _meter = meter ?? AiUsageMeter.instance;
 
   final AiHttpClient _http;
   final AiCache _cache;
+  final AiUsageMeter _meter;
 
   /// Plain-text chat. [messages] must already include the system prompt if
   /// needed. Uses the chat-side model (`config.selectModel('chat')`) and no
@@ -50,6 +54,7 @@ class AiEngine {
     required AiEngineConfig config,
     required List<Map<String, dynamic>> messages,
     double temperature = 0.5,
+    int? maxTokens,
     void Function(String delta)? onChunk,
     AiCancelToken? cancelToken,
     Duration timeout = const Duration(seconds: 60),
@@ -59,6 +64,7 @@ class AiEngine {
       model: config.selectModel('chat'),
       messages: messages,
       temperature: temperature,
+      maxTokens: maxTokens,
       responseFormat: null,
       strict: StrictSchemaMode.off,
       onChunk: onChunk,
@@ -71,10 +77,15 @@ class AiEngine {
   /// and a response format resolved from [config.strictSchema] (plus the
   /// optional [jsonSchema]). The returned [AiEngineResult.content] is the raw
   /// JSON string from the model; the caller parses it with its domain parser.
+  ///
+  /// [jsonSchema] must be a full `json_schema` envelope (`{name, strict,
+  /// schema}`); see `ai_json_schemas.dart` for the shared ones. Without it,
+  /// `strictSchema` can never escalate past `json_object`.
   Future<AiEngineResult> requestJson({
     required AiEngineConfig config,
     required List<Map<String, dynamic>> messages,
     double temperature = 0.4,
+    int? maxTokens,
     Map<String, dynamic>? jsonSchema,
     void Function(String delta)? onChunk,
     AiCancelToken? cancelToken,
@@ -90,6 +101,7 @@ class AiEngine {
       model: config.selectModel('json'),
       messages: messages,
       temperature: temperature,
+      maxTokens: maxTokens,
       responseFormat: responseFormat,
       strict: config.strictSchema,
       onChunk: onChunk,
@@ -108,8 +120,18 @@ class AiEngine {
 
   AiCacheStats cacheStats() => _cache.stats();
 
+  /// Session token counters (see [AiUsageMeter]).
+  AiUsageSnapshot usageStats() => _meter.snapshot();
+
   /// Drop all process-local AI response cache entries.
   void clearCache() => _cache.clear();
+
+  /// Forget the per-Base-URL `json_schema` capability verdicts.
+  ///
+  /// The probe is keyed by Base URL only, so a config change (provider switch,
+  /// edited Base URL) must not inherit a verdict recorded against a different
+  /// endpoint. Called by `AiEngineConfigHolder.updateConfig`.
+  void resetCapabilityProbes() => _http.resetCapabilityProbes();
 
   /// The single low-level primitive. Checks the cache, otherwise dispatches to
   /// [AiHttpClient.postJson] (non-streaming) or [AiHttpClient.postStream]
@@ -119,6 +141,7 @@ class AiEngine {
     required String model,
     required List<Map<String, dynamic>> messages,
     required double temperature,
+    required int? maxTokens,
     required Map<String, dynamic>? responseFormat,
     required StrictSchemaMode strict,
     required void Function(String delta)? onChunk,
@@ -150,6 +173,7 @@ class AiEngine {
         model: model,
         messages: messages,
         temperature: temperature,
+        maxTokens: maxTokens,
         responseFormat: responseFormat,
         strict: strict,
         onChunk: tracedChunk,
@@ -157,10 +181,14 @@ class AiEngine {
         timeout: timeout,
       );
       trace.stop();
+      _meter.recordSuccess(usage: result.usage, cacheHit: result.cacheHit);
       PerformanceTrace.instance.record(
         feature: 'ai',
         operation: 'ask',
         duration: trace.elapsed,
+        // Count characters on the non-streaming path and chunks on the
+        // streaming one: they measure different things, so the tracer labels
+        // the unit rather than letting two incomparable numbers share a field.
         resultSize: onChunk == null ? result.content.length : notificationCount,
         cacheStatus:
             result.cacheHit ? TraceCacheStatus.hit : TraceCacheStatus.miss,
@@ -168,6 +196,7 @@ class AiEngine {
       return result;
     } on AiCancelled {
       trace.stop();
+      _meter.recordFailure(cancelled: true);
       PerformanceTrace.instance.record(
         feature: 'ai',
         operation: 'ask',
@@ -178,6 +207,7 @@ class AiEngine {
       rethrow;
     } catch (_) {
       trace.stop();
+      _meter.recordFailure(cancelled: false);
       PerformanceTrace.instance.record(
         feature: 'ai',
         operation: 'ask',
@@ -194,6 +224,7 @@ class AiEngine {
     required String model,
     required List<Map<String, dynamic>> messages,
     required double temperature,
+    required int? maxTokens,
     required Map<String, dynamic>? responseFormat,
     required StrictSchemaMode strict,
     required void Function(String delta)? onChunk,
@@ -205,9 +236,21 @@ class AiEngine {
           'AI config incomplete: please fill in Base URL / API Key / Model.');
     }
 
+    // Fields that change the answer but live outside `messages` /
+    // `response_format` must be part of the digest, otherwise a user who
+    // changes the temperature (or toggles reasoning) keeps being served the
+    // reply generated under the old settings.
+    final sampling = 't=$temperature|r=${config.reasoningEnabled}'
+        '|m=${maxTokens ?? 0}';
+
     // Large payloads canonicalise + hash off the main isolate (small ones
     // hash inline — see AiCache.makeKeyAsync).
-    final key = await AiCache.makeKeyAsync(model, messages, responseFormat);
+    final key = await AiCache.makeKeyAsync(
+      model,
+      messages,
+      responseFormat,
+      sampling: sampling,
+    );
 
     // Cache lookup (only when caching is enabled at both the config and cache
     // level). A hit short-circuits the network entirely.
@@ -225,6 +268,7 @@ class AiEngine {
           body: cached,
           cacheHit: true,
           usage: _extractUsage(cached),
+          finishReason: _extractFinishReason(cached),
         );
       }
     }
@@ -232,19 +276,28 @@ class AiEngine {
     if (onChunk != null) {
       // Streaming path: forward deltas, accumulate, cache the synthetic body.
       final fragments = <String>[];
+      final reasoning = StringBuffer();
       Map<String, int>? usage;
+      String? finishReason;
       await for (final chunk in _http.postStream(
         config: config,
         model: model,
         messages: messages,
         temperature: temperature,
         responseFormat: responseFormat,
+        maxTokens: maxTokens,
         strict: strict,
         cancelToken: cancelToken,
         timeout: timeout,
       )) {
+        if (chunk.reasoningDelta != null && chunk.reasoningDelta!.isNotEmpty) {
+          // Chain of thought: recorded for diagnostics, never delivered as
+          // assistant text (it is not the answer and would poison parsers).
+          reasoning.write(chunk.reasoningDelta);
+        }
         if (chunk.done) {
           if (chunk.usage != null) usage = chunk.usage;
+          if (chunk.finishReason != null) finishReason = chunk.finishReason;
           // Some endpoints send the full content only in the terminal chunk
           // (non-SSE fallback). Prefer accumulated fragments; fall back to the
           // terminal delta when nothing accumulated.
@@ -259,9 +312,11 @@ class AiEngine {
           onChunk(chunk.delta);
         }
         if (chunk.usage != null) usage = chunk.usage;
+        if (chunk.finishReason != null) finishReason = chunk.finishReason;
       }
       final content = fragments.join();
-      final body = _synthesizeStreamedBody(content, usage, model);
+      final body =
+          _synthesizeStreamedBody(content, usage, model, finishReason);
       if (config.cacheEnabled && _cache.enabled) {
         _cache.put(key, body);
       }
@@ -270,6 +325,8 @@ class AiEngine {
         body: body,
         cacheHit: false,
         usage: usage,
+        finishReason: finishReason,
+        reasoningText: reasoning.isEmpty ? null : reasoning.toString(),
       );
     }
 
@@ -280,6 +337,7 @@ class AiEngine {
       messages: messages,
       temperature: temperature,
       responseFormat: responseFormat,
+      maxTokens: maxTokens,
       strict: strict,
       cancelToken: cancelToken,
       timeout: timeout,
@@ -293,6 +351,8 @@ class AiEngine {
       body: body,
       cacheHit: false,
       usage: _extractUsage(body),
+      finishReason: _extractFinishReason(body),
+      reasoningText: _extractReasoningText(body),
     );
   }
 
@@ -300,15 +360,42 @@ class AiEngine {
   /// body. Mirrors `AiCourseService.extractAssistantText` (kept here so the
   /// engine doesn't depend on the service shim and create a cycle).
   String _extractAssistantText(Map<String, dynamic> body) {
-    final choices = body['choices'];
-    if (choices is! List || choices.isEmpty) return '';
-    final first = choices.first;
-    if (first is! Map) return '';
-    final message = first['message'];
-    if (message is! Map) return '';
+    final message = _firstMessage(body);
+    if (message == null) return '';
     final content = message['content'];
     if (content is! String) return '';
     return content.trim();
+  }
+
+  /// Chain-of-thought text on a non-streaming reply, when the endpoint returns
+  /// it alongside the answer.
+  String? _extractReasoningText(Map<String, dynamic> body) {
+    final message = _firstMessage(body);
+    if (message == null) return null;
+    final raw = message['reasoning_content'] ?? message['reasoning'];
+    if (raw is! String || raw.trim().isEmpty) return null;
+    return raw;
+  }
+
+  Map? _firstMessage(Map<String, dynamic> body) {
+    final choices = body['choices'];
+    if (choices is! List || choices.isEmpty) return null;
+    final first = choices.first;
+    if (first is! Map) return null;
+    final message = first['message'];
+    if (message is! Map) return null;
+    return message;
+  }
+
+  /// `choices[0].finish_reason`, or `null` when the endpoint omitted it.
+  String? _extractFinishReason(Map<String, dynamic> body) {
+    final choices = body['choices'];
+    if (choices is! List || choices.isEmpty) return null;
+    final first = choices.first;
+    if (first is! Map) return null;
+    final reason = first['finish_reason'];
+    if (reason is! String || reason.isEmpty) return null;
+    return reason;
   }
 
   Map<String, int>? _extractUsage(Map<String, dynamic> body) {
@@ -327,13 +414,21 @@ class AiEngine {
   /// stores a uniform shape and downstream parsers (which expect
   /// `choices[0].message.content`) work on both paths. Mirrors
   /// `ai/client.py:read_streaming`'s terminal `json.dumps`.
+  ///
+  /// [finishReason] is preserved rather than hard-coded to `stop`: a stream cut
+  /// off by the token limit must stay identifiable as `length`, both for the
+  /// caller and for anything later read back out of the cache.
   Map<String, dynamic> _synthesizeStreamedBody(
-      String content, Map<String, int>? usage, String model) {
+    String content,
+    Map<String, int>? usage,
+    String model,
+    String? finishReason,
+  ) {
     return {
       'choices': [
         {
           'message': {'role': 'assistant', 'content': content},
-          'finish_reason': 'stop',
+          'finish_reason': finishReason ?? 'stop',
         },
       ],
       'usage': usage ?? const <String, int>{},

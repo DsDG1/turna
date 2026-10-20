@@ -50,6 +50,11 @@ class AiPromptOverridesStore extends ChangeNotifier {
   @visibleForTesting
   static void resetFallbackForTest() => _fallback = null;
 
+  /// 便捷入口：provider 一行就能取到当前功能的追加文本，且与面板看到的是
+  /// 同一份（内部走 [resolve]）。
+  static String overrideFor(AiPromptFeature feature) =>
+      resolve().textFor(feature);
+
   final Map<AiPromptFeature, String> _overrides;
 
   /// 当前功能的追加文本；没有自定义时是空串。

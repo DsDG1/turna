@@ -42,7 +42,58 @@ void main() {
       );
       expect(c.selectModel('chat'), 'mimo-v2.6');
       expect(c.selectModel('json'), 'mimo-v2.6-pro');
-      expect(c.selectModel('other'), 'mimo-v2.6-pro'); // preset default
+      // 未知类型回落到会话模型（`config.py:select_model` 的 `self.model`）。
+      expect(c.selectModel('other'), 'mimo-v2.6');
+    });
+
+    // 回归：`custom` 预设没有默认模型，JSON 模型留空时旧实现回落到
+    // `preset.defaultModel` 的空串，请求带着 `model: ""` 上路，服务端只回
+    // `invalid params, unknown model ''` —— 表现是「AI 对话能用，学习诊断 /
+    // 定制复习 / 生成课程全挂」。
+    test('a blank JSON model inherits the chat model', () {
+      const c = AiEngineConfig(
+        preset: kCustomPreset,
+        apiKey: 'k',
+        customBaseUrl: 'https://api.minimax.cn/v1',
+        modelChat: 'MiniMax-M3.1-Flash',
+        modelJson: '',
+      );
+      expect(c.selectModel('chat'), 'MiniMax-M3.1-Flash');
+      expect(c.selectModel('json'), 'MiniMax-M3.1-Flash');
+      expect(c.isComplete, isTrue);
+    });
+
+    test('an explicit JSON model still wins over the chat model', () {
+      const c = AiEngineConfig(
+        preset: kCustomPreset,
+        apiKey: 'k',
+        modelChat: 'cheap-chat',
+        modelJson: 'strong-json',
+      );
+      expect(c.selectModel('chat'), 'cheap-chat');
+      expect(c.selectModel('json'), 'strong-json');
+    });
+
+    test('whitespace-only models count as blank, not as a model id', () {
+      const c = AiEngineConfig(
+        preset: kCustomPreset,
+        apiKey: 'k',
+        customBaseUrl: 'https://api.minimax.cn/v1',
+        modelChat: '  MiniMax-M3.1-Flash  ',
+        modelJson: '   ',
+      );
+      expect(c.selectModel('chat'), 'MiniMax-M3.1-Flash');
+      expect(c.selectModel('json'), 'MiniMax-M3.1-Flash');
+    });
+
+    test('a custom config with no model at all is incomplete', () {
+      const c = AiEngineConfig(
+        preset: kCustomPreset,
+        apiKey: 'k',
+        customBaseUrl: 'https://api.minimax.cn/v1',
+      );
+      expect(c.selectModel('json'), isEmpty);
+      expect(c.isComplete, isFalse);
     });
 
     test('custom preset uses customBaseUrl', () {
@@ -194,6 +245,28 @@ void main() {
         'modelChat': 'my-own-alias',
       });
       expect(restored.modelChat, 'my-own-alias');
+    });
+
+    // 旧设置页把空的 JSON 输入框原样存成 ''。迁移到 custom 之后它既不是 null
+    // （拿不到 retired 的默认值）也不是有效 id，只能算「没填」。
+    test('a blank stored model is unset, never an empty model id', () {
+      final retiredKimi = AiEngineConfig.fromJson({
+        'presetId': 'kimi',
+        'modelChat': 'kimi-k3',
+        'modelJson': '',
+      });
+      expect(retiredKimi.preset.id, AiProvider.custom);
+      expect(retiredKimi.modelJson, 'kimi-k3');
+      expect(retiredKimi.selectModel('json'), 'kimi-k3');
+
+      final custom = AiEngineConfig.fromJson({
+        'presetId': 'custom',
+        'customBaseUrl': 'https://api.minimax.cn/v1',
+        'modelChat': 'MiniMax-M3.1-Flash',
+        'modelJson': '',
+      });
+      expect(custom.modelJson, isEmpty); // 界面仍显示「留空」
+      expect(custom.selectModel('json'), 'MiniMax-M3.1-Flash');
     });
   });
 }

@@ -61,11 +61,17 @@ class _AiCacheAdapter implements CacheDiagnosticsAdapter {
   @override
   String get owner => 'ai.responseCache';
   @override
-  Future<CacheFootprint> inspect() async => CacheFootprint(
-        owner: owner,
-        entries: engine.cacheStats().entries,
-        estimatedBytes: null,
-      );
+  Future<CacheFootprint> inspect() async {
+    final stats = engine.cacheStats();
+    return CacheFootprint(
+      owner: owner,
+      entries: stats.entries,
+      // A measured estimate (the cache sums the actual stored bodies as they
+      // go in), not `entries × constant` — ADR 0038 forbids the latter because
+      // it invents a number, while this one is derived from real content.
+      estimatedBytes: stats.estimatedBytes,
+    );
+  }
   @override
   Future<CacheClearResult> clearRegenerable() async {
     final before = engine.cacheStats().entries;

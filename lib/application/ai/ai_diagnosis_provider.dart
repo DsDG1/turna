@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_json_schemas.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
@@ -108,6 +109,7 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
                     'No course section/unit/lesson schema.',
           },
         ],
+        jsonSchema: AiJsonSchemas.diagnosis,
         cancelToken: session.cancelToken,
       );
       if (!isCurrentSession(session)) return true;
@@ -143,8 +145,7 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
       prefs: _prefs.snapshot,
       learnerContextBlock:
           ctx.isEmpty ? null : ctx.toPromptBlock(maxChars: 1200),
-      override:
-          AiPromptOverridesStore.resolve().textFor(AiPromptFeature.diagnosis),
+      override: AiPromptOverridesStore.overrideFor(AiPromptFeature.diagnosis),
     );
   }
 

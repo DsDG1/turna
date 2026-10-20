@@ -319,8 +319,7 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
       modeLine: modeLine,
       prefs: _prefs.snapshot,
       learnerContextBlock: _learnerContext?.toPromptBlock(),
-      override:
-          AiPromptOverridesStore.resolve().textFor(AiPromptFeature.freeChat),
+      override: AiPromptOverridesStore.overrideFor(AiPromptFeature.freeChat),
     );
   }
 

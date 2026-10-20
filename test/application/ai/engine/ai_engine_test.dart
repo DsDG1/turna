@@ -137,6 +137,41 @@ void main() {
     });
   });
 
+  // 回归：JSON 请求必须带着真实模型 id 上线。`custom` 预设 + 空着的 JSON 模型
+  // 曾把 `model: ""` 发出去，服务端回 `invalid params, unknown model ''`，
+  // 现场表现是「AI 对话能用，学习诊断 / 定制复习 / 生成课程全挂」。
+  group('AiEngine.requestJson model resolution', () {
+    test('a blank JSON model is sent as the chat model, never as ""', () async {
+      String? sentModel;
+      final engine = AiEngine(
+        AiHttpClient.withClient(
+          MockClient((request) async {
+            final decoded = jsonDecode(request.body) as Map<String, dynamic>;
+            sentModel = decoded['model'] as String?;
+            return _reply('{}');
+          }),
+        ),
+        AiCache.forTest(maxEntries: 4),
+      );
+      const config = AiEngineConfig(
+        preset: kCustomPreset,
+        apiKey: 'key',
+        customBaseUrl: 'https://api.minimax.cn/v1',
+        modelChat: 'MiniMax-M3.1-Flash',
+        modelJson: '',
+      );
+
+      await engine.requestJson(
+        config: config,
+        messages: const [
+          {'role': 'user', 'content': 'plan'},
+        ],
+      );
+
+      expect(sentModel, 'MiniMax-M3.1-Flash');
+    });
+  });
+
   group('AiEngine.clearCache', () {
     test('drops entries so the next call is a miss', () async {
       var callCount = 0;

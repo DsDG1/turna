@@ -75,7 +75,7 @@ class DataBackupSettingsPage extends StatelessWidget {
                       context.router.push(const RemoteBackupRoute()),
                 ),
                 settingsTileDivider(context),
-                // Independent migration-package entry (plan 34 §R7-3): a
+                // Independent migration-package entry (ADR 0043): a
                 // turna-migration-v1 zip from another platform (OHOS EOL
                 // export) — deliberately separate from the JSON backup
                 // import above. Legacy Anki rows land as pending
@@ -248,7 +248,7 @@ class DataBackupSettingsPage extends StatelessWidget {
     );
   }
 
-  /// turna-migration-v1 import (plan 34 §R7-3). Validation is fail-closed;
+  /// turna-migration-v1 import (ADR 0043). Validation is fail-closed;
   /// the dialog reports exact outcomes, including ignored legacy imports.
   Future<void> _importMigrationPackage(BuildContext context) async {
     String? pickedPath;

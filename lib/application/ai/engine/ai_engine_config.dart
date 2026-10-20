@@ -56,16 +56,43 @@ class AiEngineConfig {
   /// a non-const `preset.defaultModel` read in the initializer list.
   final String? _modelChat;
 
-  /// Raw JSON-side model id, or `null` to fall back to [preset.defaultModel].
+  /// Raw JSON-side model id; `null` means "same as the chat model"
+  /// ([effectiveJsonModel]).
   final String? _modelJson;
 
   /// Model id for conversational / explanation calls. Defaults to the preset's
-  /// default model when not specified.
+  /// default model when not specified. This is the raw display value — what
+  /// actually goes on the wire is [effectiveChatModel].
   String get modelChat => _modelChat ?? preset.defaultModel;
 
   /// Model id for JSON-generation calls (course / lesson / transform / extract).
-  /// Defaults to the preset's default model when not specified.
+  /// Defaults to the preset's default model when not specified. This is the raw
+  /// display value — leaving it blank means "inherit the chat model", which is
+  /// what [effectiveJsonModel] resolves.
   String get modelJson => _modelJson ?? preset.defaultModel;
+
+  /// 会话调用真正发出去的模型 id：`modelChat`（去首尾空白）→ 预设默认值 → 空串。
+  ///
+  /// 空串只可能出现在 `custom` 预设上——它没有默认模型。
+  String get effectiveChatModel {
+    final trimmed = modelChat.trim();
+    return trimmed.isNotEmpty ? trimmed : preset.defaultModel.trim();
+  }
+
+  /// JSON 调用真正发出去的模型 id：`modelJson`（去首尾空白）→
+  /// [effectiveChatModel]。
+  ///
+  /// **留空必须继承会话模型，不能把空串原样发出去。** 这条规则移植自
+  /// `tool/gui/src/backend/ai/config.py:select_model` 的
+  /// `model_json.strip() or self.model`；Dart 侧一度写成「回落到
+  /// `preset.defaultModel`」，在 deepseek / mimo 预设下两者恰好同值，所以
+  /// 看不出异常。`custom` 预设的默认模型是空串，于是请求带着 `model: ""`
+  /// 上路，服务端只回一句 `unknown model`——用户看到的是「AI 对话能用，
+  /// 学习诊断 / 定制复习 / 生成课程全挂」。
+  String get effectiveJsonModel {
+    final trimmed = modelJson.trim();
+    return trimmed.isNotEmpty ? trimmed : effectiveChatModel;
+  }
 
   /// Strict-JSON response-format policy.
   final StrictSchemaMode strictSchema;
@@ -99,24 +126,21 @@ class AiEngineConfig {
   /// and does not enable reasoning on its own.
   bool get reasoningEnabled => supportsReasoningOverride ?? false;
 
-  /// Pick the model for a given call kind. Empty `modelChat` / `modelJson`
-  /// (impossible here since the constructor defaults them, but defensive) falls
-  /// back to the preset default. Mirrors `ai/config.py:select_model`.
-  String selectModel(String kind) {
-    switch (kind) {
-      case 'chat':
-        return modelChat.trim().isNotEmpty ? modelChat : preset.defaultModel;
-      case 'json':
-        return modelJson.trim().isNotEmpty ? modelJson : preset.defaultModel;
-      default:
-        return preset.defaultModel;
-    }
-  }
+  /// Pick the model id to send for a given call kind. `json` uses
+  /// [effectiveJsonModel]; `chat` and any unknown kind use
+  /// [effectiveChatModel]. Mirrors `ai/config.py:select_model`.
+  String selectModel(String kind) => switch (kind) {
+        'json' => effectiveJsonModel,
+        _ => effectiveChatModel,
+      };
 
+  /// 一次请求需要 Base URL、密钥、模型 id 三样齐全。[effectiveJsonModel] 继承
+  /// [effectiveChatModel]，所以 JSON 侧不可能在会话侧为空时还有值——检查会话
+  /// 模型这一条即可覆盖两种调用。
   bool get isComplete =>
       baseUrl.trim().isNotEmpty &&
       apiKey.trim().isNotEmpty &&
-      selectModel('chat').isNotEmpty;
+      effectiveChatModel.isNotEmpty;
 
   AiEngineConfig copyWith({
     AiProviderPreset? preset,
@@ -214,7 +238,11 @@ class AiEngineConfig {
 
     String? migrateModel(String? raw) {
       if (raw == null) return null;
-      return kRetiredModelAliases[raw] ?? raw;
+      final trimmed = raw.trim();
+      // 空串是「没填」的另一种写法：旧设置页把空输入框原样存成 ''，归成 null
+      // 才能让预设默认值 / 会话模型接得住它。
+      if (trimmed.isEmpty) return null;
+      return kRetiredModelAliases[trimmed] ?? trimmed;
     }
 
     StrictSchemaMode? strict;

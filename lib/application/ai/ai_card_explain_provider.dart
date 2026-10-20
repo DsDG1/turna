@@ -73,7 +73,9 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
     _state = AiCardExplainState.loading;
     notifySessionListeners();
 
-    final language = context.language ?? 'the target language';
+    // 课程卡片有确定的目标语言；Anki 卡片没有（`null`）——牌组是用户导入的，
+    // 语言由 `AiCardContextResolver` 之外的内容决定，不在这里猜。
+    final language = context.language;
 
     try {
       final result = await _engine.chat(
@@ -84,8 +86,9 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
             'content': AiPromptCatalog.cardExplain(
               language: language,
               prefs: _prefs.snapshot,
-              override: AiPromptOverridesStore.resolve()
-                  .textFor(AiPromptFeature.cardExplain),
+              override: AiPromptOverridesStore.overrideFor(
+                AiPromptFeature.cardExplain,
+              ),
             ),
           },
           {

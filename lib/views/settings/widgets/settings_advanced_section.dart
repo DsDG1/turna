@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/engine/ai_usage_meter.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -187,6 +188,14 @@ class _AiEngineTunablesCard extends StatefulWidget {
 }
 
 class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
+  /// `Listenable.merge` allocates, so it is built once per state instead of on
+  /// every rebuild (which would re-subscribe the builder each time).
+  late final Listenable _listenables = Listenable.merge([
+    if (getIt.isRegistered<AiEngineConfigHolder>())
+      getIt<AiEngineConfigHolder>(),
+    AiUsageMeter.instance,
+  ]);
+
   @override
   Widget build(BuildContext context) {
     // The holder is app-scoped (injectable); tests that never set up DI skip
@@ -196,9 +205,10 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
     }
     final holder = getIt<AiEngineConfigHolder>();
     return ListenableBuilder(
-      listenable: holder,
+      listenable: _listenables,
       builder: (context, _) {
         final config = holder.config;
+        final usage = AiUsageMeter.instance.snapshot();
         return SettingsCard(
           children: [
             SettingsTile(
@@ -226,6 +236,21 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
                 };
                 holder.updateConfig(config.copyWith(strictSchema: next));
               },
+            ),
+            settingsTileDivider(context),
+            // Read-only: the engine has always parsed the endpoint's `usage`
+            // block but nothing surfaced it, so a learner had no way to see how
+            // much of their quota a session consumed.
+            SettingsTile(
+              icon: Icons.speed_rounded,
+              title: AppStrings.aiUsageTitle,
+              subtitle: AppStrings.aiUsageSubtitle(
+                requests: usage.requests,
+                cacheHits: usage.cacheHits,
+                promptTokens: usage.promptTokens,
+                completionTokens: usage.completionTokens,
+                usageReports: usage.usageReports,
+              ),
             ),
           ],
         );
