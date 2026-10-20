@@ -42,7 +42,7 @@ class ExperienceSkillsMixin:
         except Exception:
             logger.debug("application/experience_skills_mixin.py:_usage_today_for_policy best-effort step failed", exc_info=True)
         try:
-            self._sync_usage_today()
+            self._sync_usage_today(force=True)
             shell = getattr(self, "experience", None)
             raw = getattr(shell, "_usage_today", None) if shell is not None else None
             if isinstance(raw, dict) and raw:
@@ -57,14 +57,19 @@ class ExperienceSkillsMixin:
             logger.debug("application/experience_skills_mixin.py:_usage_today_for_policy best-effort step failed", exc_info=True)
         return None
 
-    def _sync_usage_today(self) -> None:
-        """M-08: push telemetry's today bucket into the Shell. Never raises."""
+    def _sync_usage_today(self, *, force: bool = False) -> None:
+        """M-08: push telemetry's today bucket into the Shell. Never raises.
+
+        ``force=True`` bypasses the refresh throttle — the policy check
+        reads the value right after this call, so a throttled (stale)
+        number would misjudge the AI budget.
+        """
         try:
             from src.application.experience_window_bridge import (
                 sync_usage_today,
             )
 
-            sync_usage_today(self)
+            sync_usage_today(self, force=force)
         except Exception:
             logger.debug("application/experience_skills_mixin.py:_sync_usage_today best-effort step failed", exc_info=True)
 
@@ -177,6 +182,30 @@ class ExperienceSkillsMixin:
         from src.application.experience_dispatch import dispatch_experience_action
 
         dispatch_experience_action(self, suggestion)
+
+    def _on_experience_timeline_clicked(self, event: dict) -> None:
+        """Replay an action from the Dock's "recent" list.
+
+        The Dock emitted ``timeline_clicked`` but nothing consumed it, so
+        clicking a recent entry did nothing. The event carries the same
+        ``action_id`` / ``scope`` shape as a suggestion, so it goes through
+        the same dispatcher (with the same policy checks).
+        """
+        payload = dict(event or {})
+        action_id = str(payload.get("action_id") or "")
+        if not action_id:
+            return
+        from src.application.experience_dispatch import dispatch_experience_action
+
+        dispatch_experience_action(
+            self,
+            {
+                "action_id": action_id,
+                "scope": dict(payload.get("scope") or {}),
+                "title": str(payload.get("summary") or action_id),
+                "source": "timeline",
+            },
+        )
     def _run_local_validate(self) -> list[dict] | None:
         """Validate the course dir and normalize problems to dicts.
 

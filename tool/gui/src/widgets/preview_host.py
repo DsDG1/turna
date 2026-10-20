@@ -197,6 +197,10 @@ class PreviewHost(QWidget):
                         ok=True, action_id=action_id, opaque=opaque
                     )
                 except Exception as exc:
+                    logger.debug(
+                        "src/widgets/preview_host.py:199 best-effort step failed",
+                        exc_info=True,
+                    )
                     self._note_auto_result(
                         ok=False,
                         action_id=action_id,

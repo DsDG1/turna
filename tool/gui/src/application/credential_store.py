@@ -103,6 +103,10 @@ def get_git_token(url: str) -> str | None:
         try:
             return _read_keyring_token(account)
         except Exception:
+            logger.debug(
+                "src/application/credential_store.py:105 best-effort step failed",
+                exc_info=True,
+            )
             _warn_keyring_unavailable_once()
     # Fallback: QSettings obfuscated.
     qsettings = QSettings(ORG_NAME, APP_NAME)
@@ -127,6 +131,10 @@ def set_git_token(url: str, token: str) -> None:
             keyring.set_password(_KEYRING_SERVICE, account, token)
             return
         except Exception:
+            logger.debug(
+                "src/application/credential_store.py:129 best-effort step failed",
+                exc_info=True,
+            )
             _warn_keyring_unavailable_once()
     # Fallback: QSettings obfuscated.
     qsettings = QSettings(ORG_NAME, APP_NAME)
@@ -154,6 +162,10 @@ def delete_git_token(url: str) -> bool:
                     logger.debug("backend/credential_store.py:delete_git_token best-effort step failed", exc_info=True)
             return True
         except Exception:
+            logger.debug(
+                "src/application/credential_store.py:156 best-effort step failed",
+                exc_info=True,
+            )
             _warn_keyring_unavailable_once()
     qsettings = QSettings(ORG_NAME, APP_NAME)
     key = f"git/token/{account}"

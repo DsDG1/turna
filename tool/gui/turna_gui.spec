@@ -63,6 +63,20 @@ a = Analysis(
         "keyring.backends",
         "keyring.backends.SecretService",
         "keyring.backends.Windows",
+        # --- optional extras: OCR (scanned PDF / image attachments) --------
+        # These are imported lazily inside functions (so static analysis misses
+        # them) and live in the `ocr` extra, which the release workflow used
+        # to skip — the shipped exe therefore had OCR silently unavailable.
+        # `pytesseract` also needs the `tesseract` *binary* on PATH, which
+        # cannot be bundled; `ocr_available()` reports that honestly at
+        # runtime.
+        "pytesseract",
+        "PIL",
+        "PIL.Image",
+        "fitz",
+        # --- optional extras: voice (speech input for the command palette)
+        "speech_recognition",
+        "pyaudio",
         # --- app entry points ---------------------------------------------
         "src.app",
         # --- application layer --------------------------------------------

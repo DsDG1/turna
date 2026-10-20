@@ -18,6 +18,50 @@ if str(_GUI) not in sys.path:
 from tests._qtapp import qt_app
 from tests._job_tray_fixture import RegistryTray
 
+
+class _InlineSignal:
+    def __init__(self) -> None:
+        self._callbacks: list = []
+
+    def connect(self, callback) -> None:
+        self._callbacks.append(callback)
+
+    def emit(self, *args) -> None:
+        for cb in self._callbacks:
+            cb(*args)
+
+
+class _InlineWorker:
+    """Runs the target synchronously and emits the result immediately.
+
+    Attachment extraction runs on a worker thread in production; the test
+    runs it inline so the assertions can stay synchronous.
+    """
+
+    def __init__(self, target, *args, **kwargs):
+        self.target = target
+        self.args = args
+        self.kwargs = kwargs
+        self.result_ready = _InlineSignal()
+        self.error_occurred = _InlineSignal()
+
+    def start(self) -> None:
+        try:
+            result = self.target(*self.args, **self.kwargs)
+        except Exception as exc:  # pragma: no cover - mirrors worker behaviour
+            self.error_occurred.emit(str(exc))
+            return
+        self.result_ready.emit(result)
+
+    def cancel(self) -> None:
+        pass
+
+    def isRunning(self) -> bool:
+        return False
+
+    def wait(self, _ms: int = 0) -> bool:
+        return True
+
 from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
@@ -609,6 +653,9 @@ class DesignPanelScannedPdfOfferTest(unittest.TestCase):
 
         panel = DesignPanel(None, None)
         self.addCleanup(panel.deleteLater)
+        # Attachment extraction runs on a worker thread in production; the
+        # test runs it inline so the assertions can stay synchronous.
+        panel._attachment_worker_factory = _InlineWorker
         return panel
 
     def _scanned_pdf(self):

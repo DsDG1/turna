@@ -257,6 +257,10 @@ def refresh_memos(dlg) -> None:
         else:
             dlg.memo_text.setPlainText("（无匹配留言）")
     except Exception as exc:
+        logger.debug(
+            "src/dialogs/git_library/memo.py:259 best-effort step failed",
+            exc_info=True,
+        )
         dlg.memo_text.setPlainText(f"读取留言板失败：{exc}")
 
 
@@ -325,4 +329,8 @@ def on_send_memo(dlg) -> None:
             error_title="留言同步失败",
         )
     except Exception as exc:
+        logger.debug(
+            "src/dialogs/git_library/memo.py:327 best-effort step failed",
+            exc_info=True,
+        )
         QMessageBox.critical(dlg, "发送失败", f"无法写入并推送留言：{exc}")

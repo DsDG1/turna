@@ -507,10 +507,6 @@ def set_view(host: Any, key: str, *, initial_filter: str = "") -> None:
     _telemetry("shell.view_switched", view=key)
 
 
-def current_view(host: Any) -> str:
-    return str(getattr(host, "_current_view", "welcome"))
-
-
 def sync_shell_views(host: Any) -> None:
     """Reconcile view availability + welcome/edit handoff with repo state.
 
@@ -647,6 +643,47 @@ def toggle_sidebar(host: Any) -> None:
     if qs is not None:
         with contextlib.suppress(Exception):
             qs.setValue(_SETTINGS_KEY_SIDEBAR, not sidebar.isHidden())
+
+
+def focus_search(host: Any) -> None:
+    """Ctrl+F — focus the course-tree filter field.
+
+    Switches to the edit view first (the filter lives there), reveals the
+    sidebar if it was collapsed, and puts the caret in the search box with
+    its content selected so typing replaces it.
+    """
+    sidebar = getattr(host, "tree_sidebar", None)
+    if sidebar is None:
+        return
+    try:
+        set_view(host, "edit")
+    except Exception:
+        logger.debug(
+            "application/shell_views.py:focus_search view switch skipped",
+            exc_info=True,
+        )
+    try:
+        if sidebar.isHidden():
+            sidebar.setVisible(True)
+            qs = _qs(host)
+            if qs is not None:
+                with contextlib.suppress(Exception):
+                    qs.setValue(_SETTINGS_KEY_SIDEBAR, True)
+    except Exception:
+        logger.debug(
+            "application/shell_views.py:focus_search sidebar reveal skipped",
+            exc_info=True,
+        )
+    search = getattr(sidebar, "search", None)
+    if search is None:
+        return
+    try:
+        search.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        search.selectAll()
+    except Exception:
+        logger.debug(
+            "application/shell_views.py:focus_search focus skipped", exc_info=True
+        )
 
 
 def mark_saved(host: Any) -> None:
@@ -813,6 +850,7 @@ def build_shell_shortcuts(host: Any) -> None:
     _shortcut(host, "Ctrl+4", functools.partial(set_view, host, "resources"))
     _shortcut(host, "Ctrl+B", functools.partial(toggle_sidebar, host))
     _shortcut(host, "Ctrl+J", functools.partial(_toggle_copilot, host))
+    _shortcut(host, "Ctrl+F", functools.partial(focus_search, host))
     # Ctrl+K lives on palette_action and Ctrl+, on settings_action (both
     # QActions added to the window in build_toolbar — a second QShortcut on
     # the same keys would make them ambiguous).

@@ -457,14 +457,15 @@ class PublishDialog(TurnaDialog):
         if course_dir is None:
             QMessageBox.warning(self, "无法交给 App", "未加载课程目录。")
             return
-        from src.backend.course_delivery import (
+        from src.application.delivery_service import (
+            apply_profile,
+            default_repo_root,
             deliver_builtin,
             deliver_pack,
-            default_repo_root,
             find_manifest_entry,
+            is_in_repo_course,
             repo_course_dir_name,
             resolve_profile,
-            apply_profile,
         )
 
         repo_root = default_repo_root()

@@ -6,9 +6,7 @@ from __future__ import annotations
 
 import html
 import logging
-import shutil
-import tempfile
-import uuid
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -21,10 +19,10 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.ai import ChatMessage
-from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_expand_window import ChatExpandWindow
 from src.application.ai_request_worker import AttachmentRecord
+from src.application.attachment_service import AttachmentExtractor
 from src.application.settings import APP_NAME, ORG_NAME
 
 logger = logging.getLogger(__name__)
@@ -69,30 +67,48 @@ class GeneratorChatCoordinator(QObject):
         attachment_bar: AttachmentBar,
         parent: QWidget | None = None,
     ) -> None:
-        for path in paths:
-            temp_name = f"turna_wish_{uuid.uuid4().hex[:8]}_{path.name}"
-            temp_path = Path(tempfile.gettempdir()) / temp_name
-            try:
-                shutil.copy(str(path), str(temp_path))
-            except OSError as exc:
-                if parent:
-                    QMessageBox.warning(parent, "添加失败", f"无法复制文件 {path.name}: {exc}")
-                continue
-            result = extract_attachment(temp_path)
-            if not result.ok:
-                if parent:
-                    QMessageBox.warning(parent, "提取失败", f"{path.name}: {result.error}")
-                try:
-                    temp_path.unlink(missing_ok=True)
-                except OSError:
-                    logger.debug("dialogs/ai/generator_chat_coordinator.py:unlink best-effort failed", exc_info=True)
-                continue
-            record = AttachmentRecord(
-                temp_path=temp_path,
-                original_name=path.name,
-                content=result.content or {},
-            )
-            attachment_bar.add_attachment(record)
+        """Add attachments, extracting their content on a worker thread.
+
+        Extraction used to run on the GUI thread: reading a text-native PDF
+        reads every page, and images are base64-encoded. That froze the
+        window for seconds with no feedback.
+        """
+        existing = [p for p in paths if p.exists()]
+        if not existing:
+            return
+        self._extractor = AttachmentExtractor(self)
+        # functools.partial, not a lambda: the signal-lifecycle guard
+        # forbids anonymous lambdas in signal connections (they are not
+        # disconnected with their owner).
+        self._extractor.extracted.connect(
+            functools.partial(self._on_attachment_extracted, attachment_bar=attachment_bar)
+        )
+        self._extractor.failed.connect(
+            functools.partial(self._on_attachment_failed, parent=parent)
+        )
+        self._extractor.finished.connect(
+            functools.partial(self._on_attachments_done, attachment_bar=attachment_bar)
+        )
+        self._extractor.extract_paths(existing, prefix="turna_wish_")
+
+    def _on_attachment_extracted(
+        self, record: AttachmentRecord, *, attachment_bar: AttachmentBar
+    ) -> None:
+        attachment_bar.add_attachment(record)
+        self.sync_attachments(attachment_bar)
+
+    def _on_attachment_failed(
+        self,
+        temp_path: str,
+        original_name: str,
+        message: str,
+        *,
+        parent: QWidget | None = None,
+    ) -> None:
+        if parent:
+            QMessageBox.warning(parent, "提取失败", str(message))
+
+    def _on_attachments_done(self, *, attachment_bar: AttachmentBar) -> None:
         self.sync_attachments(attachment_bar)
 
     def sync_attachments(self, attachment_bar: AttachmentBar) -> None:

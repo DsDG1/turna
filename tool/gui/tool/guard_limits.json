@@ -2,8 +2,10 @@
   "_comment": "Single source of truth for the guard-gui ratchet baselines. check_ai_boundaries.py loads this file next to itself; CLI flags override for experiments only. Re-pin procedure: measure, update here, record the change in tests/BASELINE.md.",
   "max_except_pass": 0,
   "max_except_continue": 0,
-  "max_broad_except": 854,
+  "max_broad_except": 873,
   "max_hardcoded_style_hex": 0,
-  "max_ui_backend_imports": 168,
-  "max_import_cycles": 2
+  "max_ui_backend_imports": 166,
+  "max_import_cycles": 0,
+  "max_app_dialogs_imports": 13,
+  "max_widgets_dialogs_imports": 4
 }

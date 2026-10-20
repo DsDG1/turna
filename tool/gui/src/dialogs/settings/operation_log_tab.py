@@ -17,6 +17,9 @@ from PySide6.QtWidgets import (
 )
 
 from src.infrastructure.operations_log import operations
+import logging
+
+logger = logging.getLogger(__name__)
 from src.widgets.ui.flow_layout import FlowLayout
 
 
@@ -136,6 +139,10 @@ def refresh_operation_log(dlg) -> None:
             parts.append(f"最近 AI {ai_ms:.0f}ms")
         dlg.oplog_summary_label.setText("　|　".join(parts))
     except Exception:
+        logger.debug(
+            "src/dialogs/settings/operation_log_tab.py:141 best-effort step failed",
+            exc_info=True,
+        )
         dlg.oplog_view.setPlainText("（读取操作日志失败）")
 
 

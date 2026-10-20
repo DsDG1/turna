@@ -33,6 +33,9 @@ guard-gui: ## Enforce tool/gui layering + ratchet contract (see tool/gui/docs/ai
 		--fail-course-cli-binding
 	# Numeric ratchet baselines live in tool/gui/tool/guard_limits.json
 	# (single source; CLI flags override for one-off experiments only).
+	# --fail-app-dialogs is deliberately NOT enabled: the contract treats
+	# application -> dialogs as known debt (13 edges, composition-root only).
+	# Its ceiling is enforced via max_app_dialogs_imports instead.
 	python3 tool/gui/tool/gen_module_tree.py --check
 	python3 tool/gui/tool/check_docs_index.py --quiet
 
@@ -43,7 +46,12 @@ build-release: ## Build release artifacts for a given VERSION (e.g., make build-
 	python3 tool/build_release.py --version $(VERSION)
 
 build-release-smoke: ## Quick build smoke test (skips web, content validation, and the native .so build)
-	python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --skip-native
+	# `--allow-version-mismatch` is required: `build_release.py` asserts that
+	# --version agrees with pubspec.yaml (so shipped artifact names cannot
+	# lie about the running build), and "ci-smoke" deliberately is not a
+	# version. The smoke target only exercises the pipeline; it ships
+	# nothing. `build-release` above keeps the strict assertion.
+	python3 tool/build_release.py --version ci-smoke --allow-version-mismatch --skip-web --skip-content-validation --skip-native
 
 ci: format-check analyze test test-python lint-gui guard-gui test-gui build-release-smoke ## Run the full local CI equivalent
 

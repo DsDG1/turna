@@ -1,0 +1,82 @@
+Running Hvigor task assembleApp...                              
+> hvigor [32mstart to execute ohpm install[39m
+ohpm INFO: remove useless folder succeed: "D:\program\Turna\Turna\ohos\oh_modules\.ohpm\@ohos+flutter_ohos@vags+lfg3q4ujl8jdvnhdwazcfmozwvaqdg+ix+t+qe="
+ohpm INFO: remove useless folder succeed: "D:\program\Turna\Turna\ohos\oh_modules\.ohpm\flutter_native_arm64_v8a@oof+bxyundrvjobjr9t3ac4slu3v607ui7qy+s5rlhg="
+ohpm INFO: remove useless folder succeed: "D:\program\Turna\Turna\ohos\oh_modules\.ohpm\flutter_native_x86_64@lgn+yaeftncqbcdguykiekvsnv+ezig0+wxh3sh96+a="
+ohpm INFO: remove useless folder succeed: "D:\program\Turna\Turna\ohos\oh_modules\.tmp"
+ohpm INFO: remove useless folder succeed: "D:\program\Turna\Turna\ohos\entry\oh_modules\flutter_native_x86_64"
+[32minstall completed in 1s 673ms[39m
+> hvigor [32mFinished ::PreBuildApp... after 1 ms [39m
+> hvigor [32mFinished :entry:default@PreBuild... after 188 ms [39m
+> hvigor [32mFinished :package_info_plus:default@PreBuild... after 125 ms [39m
+> hvigor [32mFinished :path_provider_ohos:default@PreBuild... after 23 ms [39m
+> hvigor [32mFinished :share_plus:default@PreBuild... after 23 ms [39m
+> hvigor [32mFinished :shared_preferences_ohos:default@PreBuild... after 22 ms [39m
+> hvigor [32mFinished :url_launcher_ohos:default@PreBuild... after 26 ms [39m
+flutter assemble: Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 40816 bytes (97.5% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+
+copy flutter assets to project start
+copy flutter assets to project end
+copy ConfigsFile start
+buildinfo.json5 not exist
+framesconfig.json not exist
+copy ConfigsFile end
+> hvigor [32mFinished :entry:default@FlutterTask... after 1 min 17 s 509 ms [39m
+> hvigor [32mFinished ::DuplicateDependencyCheck... after 1 ms [39m
+> hvigor [32mFinished :entry:default@CreateModuleInfo... after 1 ms [39m
+> hvigor [32mUP-TO-DATE :entry:default@GenerateMetadata...  [39m
+> hvigor [32mFinished :entry:default@PreCheckSyscap... after 1 ms [39m
+> hvigor [32mFinished :entry:default@GeneratePkgContextInfo... after 27 ms [39m
+> hvigor [32mFinished :entry:default@GeneratePkgSdkInfo... after 13 ms [39m
+> hvigor [32mFinished :entry:default@ProcessIntegratedHsp... after 1 ms [39m
+> hvigor [32mFinished :package_info_plus:default@CreateHarBuildProfile... after 4 ms [39m
+> hvigor [32mFinished :package_info_plus:default@ConfigureCmake... after 1 ms [39m
+> hvigor [32mFinished :package_info_plus:default@MergeProfile... after 9 ms [39m
+> hvigor [32mFinished :path_provider_ohos:default@CreateHarBuildProfile... after 4 ms [39m
+> hvigor [32mFinished :path_provider_ohos:default@ConfigureCmake... after 1 ms [39m
+> hvigor [32mFinished :path_provider_ohos:default@MergeProfile... after 6 ms [39m
+> hvigor [32mFinished :share_plus:default@CreateHarBuildProfile... after 4 ms [39m
+> hvigor [32mFinished :share_plus:default@ConfigureCmake... after 1 ms [39m
+> hvigor [32mFinished :share_plus:default@MergeProfile... after 5 ms [39m
+> hvigor [32mFinished :shared_preferences_ohos:default@CreateHarBuildProfile... after 3 ms [39m
+> hvigor [32mFinished :shared_preferences_ohos:default@ConfigureCmake... after 1 ms [39m
+> hvigor [32mFinished :shared_preferences_ohos:default@MergeProfile... after 5 ms [39m
+> hvigor [32mFinished :url_launcher_ohos:default@CreateHarBuildProfile... after 3 ms [39m
+> hvigor [32mFinished :url_launcher_ohos:default@ConfigureCmake... after 1 ms [39m
+> hvigor [32mFinished :url_launcher_ohos:default@MergeProfile... after 5 ms [39m
+> hvigor [32mFinished :entry:default@SyscapTransform... after 20 ms [39m
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor WARN: Current module 'entry' has a dependency that is not installed at its oh-package.json5.
+> hvigor ERROR: Failed :entry:default@ProcessRouterMap... 
+> hvigor ERROR: Error Code: 00308018 Unknown Error
+ENOENT: no such file or directory, stat ''
+
+* Try the following:
+  > This error is unknown, view the detailed error logs in the '.hvigor > outputs > build-logs' directory in the project directory for analysis, or contact the developer's official website for help.
+  > More info: https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs/faqs-compiling-and-building
+
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+
+> hvigor ERROR: BUILD FAILED in 1 min 26 s 992 ms 
+
+Oops; flutter has exited unexpectedly: "ProcessException: The command failed with exit code 1
+  Command: hvigorw assembleApp -p product=default -p buildMode=release --no-daemon -p FLUTTER_TARGET=lib\main.dart -p TARGET_PLATFORM=ohos-arm64 -p DART_DEFINES=RkxVVFRFUl9WRVJTSU9OPTMuNDQuOStvaG9zLTAuMC4xLWNhbmFyeTE=,RkxVVFRFUl9DSEFOTkVMPVt1c2VyLWJyYW5jaF0=,RkxVVFRFUl9HSVRfVVJMPXVua25vd24gc291cmNl,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049MzkyODVkZjcxYQ==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049NWEyYTZhNDJjYw==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMi4y -p DART_OBFUSCATION=false -p TRACK_WIDGET_CREATION=true -p TREE_SHAKE_ICONS=true -p PACKAGE_CONFIG=D:\program\Turna\Turna\.dart_tool\package_config.json".
+A crash report has been written to D:\program\Turna\Turna\flutter_08.log
+This crash may already be reported. Check GitHub for similar crashes.
+https://github.com/flutter/flutter/issues?q=is%3Aissue+ProcessException%3A+The+command+failed+with+exit+code+1%0A++Command%3A+hvigorw+assembleApp+-p+product%3Ddefault+-p+buildMode%3Drelease+--no-daemon+-p+FLUTTER_TARGET%3Dlib%5Cmain.dart+-p+TARGET_PLATFORM%3Dohos-arm64+-p+DART_DEFINES%3DRkxVVFRFUl9WRVJTSU9OPTMuNDQuOStvaG9zLTAuMC4xLWNhbmFyeTE%3D%2CRkxVVFRFUl9DSEFOTkVMPVt1c2VyLWJyYW5jaF0%3D%2CRkxVVFRFUl9HSVRfVVJMPXVua25vd24gc291cmNl%2CRkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049MzkyODVkZjcxYQ%3D%3D%2CRkxVVFRFUl9FTkdJTkVfUkVWSVNJT049NWEyYTZhNDJjYw%3D%3D%2CRkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMi4y+-p+DART_OBFUSCATION%3Dfalse+-p+TRACK_WIDGET_CREATION%3Dtrue+-p+TREE_SHAKE_ICONS%3Dtrue+-p+PACKAGE_CONFIG%3DD%3A%5Cprogram%5CTurna%5CTurna%5C.dart_tool%5Cpackage_config.json
+
+To report your crash to the Flutter team, first read the guide to filing a bug.
+https://flutter.dev/to/report-bugs
+
+Create a new GitHub issue by pasting this link into your browser and completing the issue template. Thank you!
+https://github.com/flutter/flutter/issues/new?title=%5Btool_crash%5D+ProcessException%3A+The+command+failed+with+exit+code+1+Command%3A+hvigorw%2C+OS+error+code%3A+1&body=%23%23+Command%0A%60%60%60sh%0Aflutter+build+app+--release%0A%60%60%60%0A%0A%23%23+Steps+to+Reproduce%0A1.+...%0A2.+...%0A3.+...%0A%0A%23%23+Logs%0AProcessException%3A+The+command+failed+with+exit+code+1+Command%3A+hvigorw%2C+OS+error+code%3A+1%0A%60%60%60console%0A%230++++++RunResult.throwException+%28package%3Aflutter_tools%2Fsrc%2Fbase%2Fprocess.dart%3A153%3A5%29%0A%231++++++_DefaultProcessUtils.runSync+%28package%3Aflutter_tools%2Fsrc%2Fbase%2Fprocess.dart%3A523%3A17%29%0A%232++++++hvigorwTask+%28package%3Aflutter_tools%2Fsrc%2Fohos%2Fhvigor.dart%3A162%3A41%29%0A%233++++++assembleApp+%28package%3Aflutter_tools%2Fsrc%2Fohos%2Fhvigor.dart%3A219%3A10%29%0A%234++++++OhosHvigorBuilder.buildApp+%28package%3Aflutter_tools%2Fsrc%2Fohos%2Fhvigor.dart%3A618%3A34%29%0A%3Casynchronous+suspension%3E%0A%235++++++BuildAppCommand.runCommand+%28package%3Aflutter_tools%2Fsrc%2Fcommands%2Fbuild_app.dart%3A85%3A5%29%0A%3Casynchronous+suspension%3E%0A%236++++++FlutterCommand.run.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Fsrc%2Frunner%2Fflutter_command.dart%3A1630%3A27%29%0A%3Casynchronous+suspension%3E%0A%237++++++AppContext.run.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Fsrc%2Fbase%2Fcontext.dart%3A154%3A19%29%0A%3Casynchronous+suspension%3E%0A%238++++++CommandRunner.runCommand+%28package%3Aargs%2Fcommand_runner.dart%3A212%3A13%29%0A%3Casynchronous+suspension%3E%0A%239++++++FlutterCommandRunner.runCommand.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Fsrc%2Frunner%2Fflutter_command_runner.dart%3A496%3A9%29%0A%3Casynchronous+suspension%3E%0A%2310+++++AppContext.run.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Fsrc%2Fbase%2Fcontext.dart%3A154%3A19%29%0A%3Casynchronous+suspension%3E%0A%2311+++++FlutterCommandRunner.runCommand+%28package%3Aflutter_tools%2Fsrc%2Frunner%2Fflutter_command_runner.dart%3A431%3A5%29%0A%3Casynchronous+suspension%3E%0A%2312+++++FlutterCommandRunner.run.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Fsrc%2Frunner%2Fflutter_command_runner.dart%3A307%3A33%29%0A%3Casynchronous+suspension%3E%0A%2313+++++run.%3Canonymous+closure%3E.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Frunner.dart%3A104%3A11%29%0A%3Casynchronous+suspension%3E%0A%2314+++++AppContext.run.%3Canonymous+closure%3E+%28package%3Aflutter_tools%2Fsrc%2Fbase%2Fcontext.dart%3A154%3A19%29%0A%60%60%60%0A%60%60%60console%0A%5B%21%5D+Flutter+%28Channel+%5Buser-branch%5D%2C+3.44.9%2Bohos-0.0.1-canary1%2C+on+Microsoft+Windows+%5B%E7%89%88%E6%9C%AC+10.0.26200.9711%5D%2C+locale+zh-CN%29+%5B2.8s%5D%0A++++%21+Flutter+version+3.44.9%2Bohos-0.0.1-canary1+on+channel+%5Buser-branch%5D+at+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter_ohos_344%0A++++++Currently+on+an+unknown+channel.+Run+%60flutter+channel%60+to+switch+to+an+official+channel.%0A++++++If+that+doesn%27t+fix+the+issue%2C+reinstall+Flutter+by+following+instructions+at+https%3A%2F%2Fflutter.dev%2Fsetup.%0A++++%21+Warning%3A+%60flutter%60+on+your+path+resolves+to+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter%5Cbin%5Cflutter%2C+which+is+not+inside+your+current+Flutter+SDK+checkout+at+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter_ohos_344.+Consider+adding+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter_ohos_344%5Cbin+to+the+front+of+your+path.%0A++++%21+Warning%3A+%60dart%60+on+your+path+resolves+to+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter%5Cbin%5Cdart%2C+which+is+not+inside+your+current+Flutter+SDK+checkout+at+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter_ohos_344.+Consider+adding+C%3A%5CUsers%5CDsDogs%5CDesktop%5Cdevelopper%5Cflutter_ohos_344%5Cbin+to+the+front+of+your+path.%0A++++%21+Upstream+repository+unknown+source+is+not+the+same+as+FLUTTER_GIT_URL%0A++++%E2%80%A2+FLUTTER_GIT_URL+%3D+https%3A%2F%2Fgitcode.com%2Fopenharmony-tpc%2Fflutter_flutter.git%0A++++%E2%80%A2+Framework+revision+39285df71a+%289+weeks+ago%29%2C+2026-08-21+22%3A52%3A55+%2B0800%0A++++%E2%80%A2+Engine+revision+5a2a6a42cc%0A++++%E2%80%A2+Dart+version+3.12.2%0A++++%E2%80%A2+DevTools+version+2.57.0%0A++++%E2%80%A2+Pub+download+mirror+https%3A%2F%2Fpub.flutter-io.cn%0A++++%E2%80%A2+Flutter+download+mirror+https%3A%2F%2Fstorage.flutter-io.cn%0A++++%E2%80%A2+Feature+flags%3A+enable-ohos%2C+enable-web%2C+enable-linux-desktop%2C+enable-macos-desktop%2C+enable-windows-desktop%2C+enable-android%2C+enable-ios%2C+cli-animations%2C+enable-native-assets%2C+enable-swift-package-manager%2C+omit-legacy-version-file%2C+enable-lldb-debugging%2C+enable-uiscene-migration%2C+enable-riscv64%0A++++%E2%80%A2+If+those+were+intentional%2C+you+can+disregard+the+above+warnings%3B+however+it+is+recommended+to+use+%22git%22+directly+to+perform+update+checks+and+upgrades.%0A%0A%5B%E2%9C%93%5D+HarmonyOS+toolchain+-+develop+for+HarmonyOS+devices%0A++++%E2%80%A2+OpenHarmony+Sdk+at+D%3A%5CDevEco+Studio%5Csdk%2C+available+api+versions+has+%5B26%3Adefault%5D%0A++++%E2%80%A2+Ohpm+version+26.0.0.410%0A++++%E2%80%A2+Node+version+v24.16.0%0A++++%E2%80%A2+Hvigorw+binary+at+D%3A%5CDevEco+Studio%5Ctools%5Chvigor%5Cbin%5Chvigorw%0A%0A%5B%E2%9C%93%5D+Windows+Version+%28Windows+11+or+higher%2C+25H2%2C+2009%29+%5B3.4s%5D%0A%0A%5B%21%5D+Android+toolchain+-+develop+for+Android+devices+%28Android+SDK+version+35.0.1%29+%5B1%2C817ms%5D%0A++++%E2%80%A2+Android+SDK+at+C%3A%5CUsers%5CDsDogs%5CAppData%5CLocal%5CAndroid%5CSdk%0A++++%E2%80%A2+Emulator+version+37.1.11.0+%28build_id+15917651%29+%28CL%3AN%2FA%29%0A++++%E2%9C%97+cmdline-tools+component+is+missing.%0A++++++Try+installing+or+updating+Android+Studio.%0A++++++Alternatively%2C+download+the+tools+from+https%3A%2F%2Fdeveloper.android.com%2Fstudio%23command-line-tools-only+and+make+sure+to+set+the+ANDROID_HOME+environment+variable.%0A++++++See+https%3A%2F%2Fdeveloper.android.com%2Fstudio%2Fcommand-line+for+more+details.%0A++++%E2%9C%97+Android+license+status+unknown.%0A++++++Run+%60flutter+doctor+--android-licenses%60+to+accept+the+SDK+licenses.%0A++++++See+https%3A%2F%2Fflutter.dev%2Fto%2Fwindows-android-setup+for+more+details.%0A%0A%5B%E2%9C%97%5D+Chrome+-+develop+for+the+web+%28Cannot+find+Chrome+executable+at+.%5CGoogle%5CChrome%5CApplication%5Cchrome.exe%29+%5B867ms%5D%0A++++%21+Cannot+find+Chrome.+Try+setting+CHROME_EXECUTABLE+to+a+Chrome+executable.%0A%0A%5B%E2%9C%93%5D+Visual+Studio+-+develop+Windows+apps+%28Visual+Studio+%E7%94%9F%E6%88%90%E5%B7%A5%E5%85%B7+2022+17.14.39+%28August+2026%29%29+%5B864ms%5D%0A++++%E2%80%A2+Visual+Studio+at+C%3A%5CProgram+Files+%28x86%29%5CMicrosoft+Visual+Studio%5C2022%5CBuildTools%0A++++%E2%80%A2+Visual+Studio+%E7%94%9F%E6%88%90%E5%B7%A5%E5%85%B7+2022+version+17.14.37614.0%0A++++%E2%80%A2+Windows+10+SDK+version+10.0.26100.0%0A%0A%5B%E2%9C%93%5D+Connected+device+%283+available%29+%5B930ms%5D%0A++++%E2%80%A2+9QF0226906000469+%28mobile%29+%E2%80%A2+9QF0226906000469+%E2%80%A2+ohos-arm64+++++%E2%80%A2+Ohos+OpenHarmony-7.0.0.109+%28API+26%29%0A++++%E2%80%A2+Windows+%28desktop%29+++++++++%E2%80%A2+windows++++++++++%E2%80%A2+windows-x64++++%E2%80%A2+Microsoft+Windows+%5B%E7%89%88%E6%9C%AC+10.0.26200.9711%5D%0A++++%E2%80%A2+Edge+%28web%29++++++++++++++++%E2%80%A2+edge+++++++++++++%E2%80%A2+web-javascript+%E2%80%A2+Microsoft+Edge+155.0.4283.62%0A%0A%5B%E2%9C%93%5D+Network+resources+%5B1%2C479ms%5D%0A++++%E2%80%A2+All+expected+network+resources+are+available.%0A%0A%21+Doctor+found+issues+in+3+categories.%0A%0A%60%60%60%0A%0A%23%23+Flutter+Application+Metadata%0A%2A%2AType%2A%2A%3A+app%0A%2A%2AVersion%2A%2A%3A+0.9.1%2B6%0A%2A%2AMaterial%2A%2A%3A+true%0A%2A%2AAndroid+X%2A%2A%3A+false%0A%2A%2AModule%2A%2A%3A+false%0A%2A%2APlugin%2A%2A%3A+false%0A%2A%2AAndroid+package%2A%2A%3A+null%0A%2A%2AiOS+bundle+identifier%2A%2A%3A+null%0A%2A%2ACreation+channel%2A%2A%3A+stable%0A%2A%2ACreation+framework+version%2A%2A%3A+b0366e0a3f089e15fd89c97604ab402fe26b724c%0A%23%23%23+Plugins%0Aaudioplayers_darwin-6.5.0%0Afile_picker-8.3.7%0Afirebase_core-3.15.2%0Aflutter_local_notifications-19.5.0%0Aflutter_secure_storage-9.2.4%0Aflutter_timezone-5.1.1%0Aflutter_tts-4.2.5%0Apackage_info_plus%0Apath_provider_foundation-2.5.1%0Ashare_plus%0Ashared_preferences_foundation-2.5.7%0Asqlite3_flutter_libs-0.5.42%0Aurl_launcher_ios-6.4.2%0Awebview_flutter_wkwebview-3.26.2%0Aaudioplayers_android-5.3.0%0Aflutter_plugin_android_lifecycle-2.0.35%0Ajni-1.1.0%0Ajni_flutter-1.0.4%0Apath_provider_android-2.3.1%0Ashared_preferences_android-2.4.28%0Aurl_launcher_android-6.3.33%0Awebview_flutter_android-4.14.1%0Aflutter_secure_storage_macos-3.1.3%0Aurl_launcher_macos-3.2.6%0Aaudioplayers_linux-4.3.0%0Aflutter_local_notifications_linux-6.0.0%0Aflutter_secure_storage_linux-1.2.3%0Apath_provider_linux-2.2.2%0Ashared_preferences_linux-2.4.1%0Aurl_launcher_linux-3.2.3%0Aaudioplayers_windows-4.4.1%0Aflutter_local_notifications_windows-1.0.3%0Aflutter_secure_storage_windows-3.1.2%0Apath_provider_windows-2.3.0%0Ashared_preferences_windows-2.4.1%0Aurl_launcher_windows-3.1.6%0Aaudioplayers_web-5.3.0%0Afirebase_core_web-2.24.1%0Aflutter_secure_storage_web-1.2.1%0Ashared_preferences_web-2.4.3%0Aurl_launcher_web-2.4.3%0Apath_provider_ohos%0Ashared_preferences_ohos%0Aurl_launcher_ohos%0A%0A&labels=tool%2Csevere%3A+crash
+

@@ -50,7 +50,12 @@ class GitWorkerHub(QObject):
             try:
                 if prev.isRunning():
                     prev.cancel()
-                for sig_name in ("result_ready", "error_occurred", "completed", "finished"):
+                # ``finished`` is deliberately NOT disconnected: it releases
+                # the worker's keepalive entry (see
+                # ``ai_request_worker._LIVE_WORKERS``) and lets the hub
+                # forget the worker. Disconnecting it stranded the worker in
+                # the registry forever.
+                for sig_name in ("result_ready", "error_occurred", "completed"):
                     safe_disconnect(getattr(prev, sig_name, None))
             except Exception:
                 logger.debug("dialogs/git_library/git_worker_hub.py:run_async best-effort step failed", exc_info=True)

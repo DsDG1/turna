@@ -28,7 +28,25 @@ jobs:
           cache-dependency-path: tool/gui/pyproject.toml
 
       - name: Install GUI editor dependencies
-        run: python -m pip install "./tool/gui[dev]" pyinstaller
+        # The `ocr` and `voice` extras MUST be installed: the shipped exe
+        # bundles those modules (see turna_gui.spec hiddenimports), and
+        # without them PyInstaller would either fail the build or ship an
+        # exe whose OCR / voice features are silently unavailable.
+        run: python -m pip install "./tool/gui[dev,ocr,voice]" pyinstaller
+
+      - name: Stamp the version into pyproject.toml
+        # The exe reads its version from pyproject.toml (single source). A
+        # `gui-v*` tag must therefore write the version back, or every
+        # shipped exe reports 0.0.0 and a bug report cannot be tied to a
+        # build.
+        run: |
+          $tag = "${GITHUB_REF_NAME}"
+          if ($tag -like "gui-v*") {
+            $version = $tag.Substring(6)
+            python -c "import pathlib, re, sys; p = pathlib.Path('tool/gui/pyproject.toml'); t = p.read_text(encoding='utf-8'); v = sys.argv[1]; p.write_text(re.sub(r'(?m)^version\s*=\s*\"[^\"]+\"', f'version = \"{v}\"', t, count=1), encoding='utf-8'); print('stamped', v)" $version
+          } else {
+            python -c "import pathlib, re; p = pathlib.Path('tool/gui/pyproject.toml'); t = p.read_text(encoding='utf-8'); m = re.search(r'(?m)^version\s*=\s*\"([^\"]+)\"', t); print('workflow_dispatch: version', m.group(1) if m else '0.0.0')"
+          }
 
       - name: Lint GUI editor (ruff)
         run: ruff check tool/gui
@@ -45,6 +63,9 @@ jobs:
             --fail-undeclared-host-access \
             --fail-course-cli-binding
             # ratchet baselines: tool/gui/tool/guard_limits.json (single source)
+            # --fail-app-dialogs is intentionally not enabled: the contract
+            # treats application -> dialogs as known debt (13 edges,
+            # composition-root only). Its ceiling is max_app_dialogs_imports.
           python tool/gui/tool/gen_module_tree.py --check
           python tool/gui/tool/check_docs_index.py --quiet
 

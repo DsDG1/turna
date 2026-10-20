@@ -506,14 +506,17 @@ def _quality_by_section(
             empty_passages.extend(section_passages)
             quality_issues.extend(section_issues)
             if fingerprint:
-                _QUALITY_CACHE[sid] = (
-                    fingerprint,
-                    mean,
-                    section_gaps,
-                    section_imb,
-                    section_unsurf,
-                    section_passages,
-                    section_issues,
+                _quality_cache_store(
+                    sid,
+                    (
+                        fingerprint,
+                        mean,
+                        section_gaps,
+                        section_imb,
+                        section_unsurf,
+                        section_passages,
+                        section_issues,
+                    ),
                 )
         except Exception:
             logger.debug("context_bus: section quality aggregation skip", exc_info=True)
@@ -589,6 +592,40 @@ def _imbalance_from_report(
 _QUALITY_CACHE: dict[
     str, tuple[str, float, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]
 ] = {}
+# Upper bound on the section-quality memo. The cache was an unbounded
+# module-level dict keyed by section id, so a long session that opened many
+# courses kept every visited course's sections (and their issue text) alive
+# forever. Sections are scored per course, so a few hundred entries is
+# plenty; the oldest entry is evicted first.
+_QUALITY_CACHE_MAX = 256
+
+
+def _quality_cache_store(
+    sid: str,
+    value: tuple[
+        str, float, list[dict[str, Any]], list[dict[str, Any]],
+        list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]],
+    ],
+) -> None:
+    """Insert into the section-quality memo, evicting the oldest entries.
+
+    Uses insertion order (plain dicts keep it) so the eviction is FIFO.
+    """
+    _QUALITY_CACHE[sid] = value
+    while len(_QUALITY_CACHE) > _QUALITY_CACHE_MAX:
+        oldest = next(iter(_QUALITY_CACHE))
+        if oldest == sid:
+            break
+        _QUALITY_CACHE.pop(oldest, None)
+
+
+def clear_quality_cache() -> None:
+    """Drop the section-quality memo.
+
+    Called when a course is closed so the previous course's sections (and
+    their issue text) are released.
+    """
+    _QUALITY_CACHE.clear()
 
 
 def _section_fingerprint(section: dict[str, Any]) -> str:

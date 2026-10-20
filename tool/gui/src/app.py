@@ -65,6 +65,7 @@ from src.backend.experience.conflict_guard import ConflictGuard
 from src.backend.experience.memory import ExperienceMemory
 from src.backend.experience.metrics import ExperienceMetrics
 from src.backend.experience.proactive import make_mute
+from src.backend.experience.timeline import ExperienceTimeline
 from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import ImportStrategy
 from src.infrastructure.telemetry import telemetry
@@ -177,6 +178,13 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self.experience_dock_widget = ExperienceDock(self)
         self.experience_dock_widget.suggestion_clicked.connect(self._on_experience_suggestion)
         self.experience_dock_widget.pin_toggled.connect(self._on_experience_pin_toggled)
+        # Session timeline: the Dock's "recent" list and the command
+        # palette's history replay both read it. It was never instantiated
+        # before, so both surfaces stayed permanently empty.
+        self.experience_timeline = ExperienceTimeline()
+        self.experience_dock_widget.timeline_clicked.connect(
+            self._on_experience_timeline_clicked
+        )
 
         self._health_status_label = QLabel("未加载课程", self)
         self.experience.status_line_changed.connect(self._health_status_label.setText)

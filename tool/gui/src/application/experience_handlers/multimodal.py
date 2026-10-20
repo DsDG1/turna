@@ -332,6 +332,10 @@ def _show_git_skill_result(host, title: str, text: str) -> None:
         layout.addLayout(row)
         dlg.exec()
     except Exception:
+        logger.debug(
+            "src/application/experience_handlers/multimodal.py:334 best-effort step failed",
+            exc_info=True,
+        )
         # Headless / no Qt: surface via status bar.
         host.statusBar().showMessage(text[:120], 8000)
 

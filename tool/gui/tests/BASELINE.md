@@ -8,6 +8,77 @@
 
  ## 当前基线
 
+- **2026-10-20（tool/gui 全量改进：门禁修复 + 运行时阻塞 + 功能空洞接线）**：
+  按 `docs/reviews/2026-10-20-tool-gui-improvement-review.md` 的审查结论逐项施工。
+  **204 模块 / 2885 例**（发现器 `countTestCases`；上一条目 201 / 2875，+3 模块 +10 例 =
+  `test_theme_parity` 3 例、`test_icon_names` 2 例、`test_ai_request_worker_keepalive` 3 例、
+  `test_shell_views` 的 Ctrl+F 两条）。`full` **204/204**（110.7 s）。
+
+  **门禁修复**：
+  - `ui_backend` 171 → **166**（基线同步下调）：新增 `application/media_service.py` 与
+    `application/delivery_service.py` 两个门面，UI 层不再直连 `backend.course_media` /
+    `backend.course_delivery`。
+  - `import_cycles` 2 → **0**（基线同步下调）：两处模块级环用 PEP 562 惰性再导出断开
+    （`backend/experience/suggestions/__init__.py` 导出 `local_suggestions`、
+    `dialogs/git_library/__init__.py` 导出 `GitLibraryDialog`）。
+  - **新增两条棘轮**并写进 `guard_limits.json`：`max_app_dialogs_imports: 13`
+    （application→dialogs 已知债务，此前只有零容忍形态且三处门禁都没启用，等于无上限）、
+    `max_widgets_dialogs_imports: 4`（widgets→dialogs 反向耦合，此前完全无门禁）。
+    契约 §10 / §15 已同步说明。
+  - `broad_except` 854 → **873**（基线同步上调）：**20 处完全静默的宽泛捕获全部补了
+    `logger.debug(..., exc_info=True)`**，静默吞异常归零。
+
+  **运行时阻塞修复**：
+  - `ai_request_worker._LIVE_WORKERS` 泄漏：两个 hub 的 disconnect 列表原本含 `finished`
+    （= 保活释放所挂的信号）→ worker 永久滞留。改为**不断开 `finished`**，
+    并加 `AiRequestWorker._sweep_finished_workers()` 兜底清扫。
+  - `close_controller` 关闭路径**同步保存** → 改异步（`_start_close_save`，
+    保存完成后 `host.close()` 自行关窗；保存中二次关闭被拒绝并提示）。
+  - `close_controller` 关闭时**只 join 了 1 个 worker** → 新增
+    `_cancel_in_flight_workers()`，对共享清单 `IN_FLIGHT_WORKER_ATTRS`（9 个）
+    逐个 cancel + 有界 wait(2000)。
+  - `audio_controller` 的**同步 `adapter.save()`** → 改走 worker，保存成功后才启动 TTS。
+  - `telemetry.usage_summary()` **每次全量重解析日志** → 改增量（inode + 字节偏移游标，
+    跨 UTC 日或文件轮转时重算）；`sync_usage_today` 加 30 s 节流（节流状态挂在 host 上，
+    策略检查路径走 `force=True`）；日志加体积上限（8 MB × 3 备份）。
+  - 附件提取**在 GUI 线程做 PDF 全文提取 + base64** → 新增
+    `application/attachment_service.py`，`design_panel` 与 `generator_chat_coordinator` 改走 worker。
+  - `_QUALITY_CACHE`（`context_bus.py`）**无上限模块级 dict** → 改 LRU（上限 256），
+    并在 `clear_experience_session` 里清。
+
+  **功能空洞接线**（backlog 第 6/8/9/11/12/14 条）：
+  - 第 6 条 教材提取自动保存失败**静默** → controller 加 `on_status` 回调，
+    dialog 侧接状态灯与日志。
+  - 第 8 条 ExperienceTimeline **整链未接**（Dock「最近」恒空、⌘K 历史重放恒空）→
+    MainWindow 实例化 timeline，`record_experience_event` 写入并刷新 Dock，
+    `timeline_clicked` 接上派发。
+  - 第 9 条 AuthorMemory **写入零调用**、ProjectMemory **只写不读** →
+    课程加载记语言偏好、chip 改题记作者风格、命令面板显示「常用」技能行。
+  - 第 11 条 `experience_defer_json` / `experience_save_brief` **Settings 无字段**
+    → 永不落盘、功能恒关。补齐字段 + 存/取。
+  - 第 12 条 死代码批次：删 `save_host.run_async_direct_save`、
+    `ai_runtime.empty_ai_runtime`、`goal_controller.run_sandbox_for_host`、
+    `shell_views.current_view`、`course_media.media_ref_for_filename`、
+    `goal_generate.extract_lesson_from_section`，以及三个零引用的
+    `ai_config_file_*` 设置（其 QSettings key 会随删除变成孤儿，无害）。
+    **backlog 列的 palette 死条目（`quality.campaign_worst_n` / `unit.regenerate` /
+    `section.edit` / `unit.edit`）复核后确认仍在用，不删。**
+  - 第 14 条 取消语义：`cancel_in_flight_ai_jobs` 只认 4 个属性 → 改走共享清单
+    `AI_WORKER_ATTRS`（8 个）。**保存 worker 刻意不在取消清单内**（保存不是 AI 请求，
+    打断会留下不一致状态），但它在关窗清单内。
+
+  **发布链与一致性**：
+  - `gui_release.yml` 改装 `[dev,ocr,voice]`（原先只装 `[dev]` → 发布版 OCR/语音静默不可用），
+    `turna_gui.spec` 补 `pytesseract` / `PIL` / `fitz` / `speech_recognition` / `pyaudio`
+    的 hiddenimports；`gui-v*` tag 回写 `pyproject.toml` 版本号（原先 exe 恒报 0.0.0），
+    `build_gui.py` 加 `--version`。
+  - 新增 `tests/test_theme_parity.py`：Dart `lib/core/theme.dart` ↔ Python
+    `theme_tokens.py` 的品牌色一致性（此前只靠注释约束，33 色差集无人拦）。
+  - 新增 `tests/test_icon_names.py`：所有 `icon("…")` 引用的名字必须有对应 SVG
+    （`chevron-right` 原本不存在 → 已补 Lucide 同源 SVG）。
+  - `i18n/labels.py` docstring 写明**它不是 i18n 层**（只覆盖领域字段名，
+    UI 文案是 280 处中文硬编码），避免误导。
+
 - **2026-09-29（课程交给 App：描述符、turnapack、等级壳、媒体路径）**：
   创作者工具补上内置课登记与 `.turnapack` 导出、章节 CEFR 下拉（正文与 index 壳一起写）、
   先修保存时同步壳、题目与资源表的媒体选文件（只复制进 `media/`，教师预览不播放）。

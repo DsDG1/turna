@@ -369,8 +369,42 @@ class ShortcutGroupTest(unittest.TestCase):
             sc.key().toString()
             for sc in self.win.findChildren(QShortcut)
         }
-        for expected in ("Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+B", "Ctrl+J"):
+        for expected in (
+            "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+B", "Ctrl+J", "Ctrl+F"
+        ):
             self.assertIn(expected, keys)
+
+    def test_ctrl_f_focuses_the_tree_filter(self) -> None:
+        """Ctrl+F puts the caret in the course-tree filter field.
+
+        Offscreen Qt never grants focus to a window, so the contract is
+        asserted on the calls instead of on the resulting focus widget.
+        """
+        from src.application.shell_views import focus_search
+
+        search = MagicMock()
+        sidebar = MagicMock()
+        sidebar.search = search
+        sidebar.isHidden.return_value = True
+        host = MagicMock()
+        host.tree_sidebar = sidebar
+
+        focus_search(host)
+
+        search.setFocus.assert_called_once()
+        search.selectAll.assert_called_once()
+        # The collapsed sidebar is revealed again — the filter lives there.
+        sidebar.setVisible.assert_called_with(True)
+
+    def test_ctrl_f_switches_to_the_edit_view(self) -> None:
+        """Ctrl+F lands in the edit view (where the tree filter lives)."""
+        from src.application import shell_views
+
+        host = MagicMock()
+        host.tree_sidebar = MagicMock()
+        with patch.object(shell_views, "set_view") as set_view:
+            shell_views.focus_search(host)
+        set_view.assert_called_once_with(host, "edit")
 
     def test_action_shortcuts_bound(self) -> None:
         self.assertEqual(self.win.save_action.shortcut().toString(), "Ctrl+S")

@@ -246,6 +246,18 @@ rm -rf ohos/entry/src/main/resources/rawfile/flutter_assets \
 
 两个目录都是纯构建产物；不清就会在 `FlutterTask` / `CompileArkTS` 阶段被打断，看起来像编译失败。收据见 34 收据「鸿蒙复习面 UI-15 对齐与 ArkTS 编译器收据（2026-10-18 晚）」。
 
+### 9.2 鸿蒙签名材料
+
+签名材料在 `~/.ohos/config/`，由 `ohos/build-profile.json5` 的 `app.signingConfigs[].material` 指向。**五条硬规则**（细节与排错见 [`docs/ohos-build-setup.md`](./docs/ohos-build-setup.md)）：
+
+1. **三件套必须同代**：`storeFile`（密钥库）、`certpath`（证书链）、`profile` 必须来自同一次生成。不同代 → `ERROR: 11111002 Certificates error`。
+2. **别被工具的误导性提示带跑**：它会说 "Please check whether the keyAlias is correct"，但 `hap-sign-tool` 在 `generate-keypair` 与 `sign-app` 两侧都做**别名小写归一**——配置写 `debugKey`、库内条目是 `debugkey` 是**对的**。别名大小写不是失败原因（2026-10-20 已实测证伪）。
+3. **密码只能给加密 blob**：明文 → `00303116` / `00303242`。
+4. **`app.products[].signingConfig` 必须引用** `signingConfigs[].name`，否则只出 unsigned 包。
+5. **真机直装只能用 debug profile**：`type=release` 的 profile 无 `device-ids`，装不上测试机。
+
+**红线**：release 密钥库口令、任何明文口令、`~/.ohos/config/material/` 的内容，**不得进仓库、提交、CI 日志或对话记录**。口令只允许存在于 `~/.ohos/config/` 与被 git 忽略的 `ohos/SIGNING.local.md`。
+
 ---
 
 ## 10. 文档锚点
@@ -267,7 +279,8 @@ rm -rf ohos/entry/src/main/resources/rawfile/flutter_assets \
 | 分层 / 架构树 / 关键模式 / 领域模型 | `docs/project-guide.md` §3–§4 |
 | 各子系统实现状态 | `docs/project-guide.md` §4–§7（AI 功能清单 §7.3） |
 | 课程数据格式 | `docs/project-guide.md` §13 |
-| 平台与构建 / 发布流水线 | `docs/project-guide.md` §10；`docs/android-build-setup.md`；`docs/ios-build-setup.md` |
+| 平台与构建 / 发布流水线 | `docs/project-guide.md` §10；`docs/android-build-setup.md`；`docs/ios-build-setup.md`；`docs/ohos-build-setup.md` |
+| 鸿蒙签名材料 / 签名排错 | 本文件 §9.2；[`docs/ohos-build-setup.md`](./docs/ohos-build-setup.md)（口令在 git-ignored 的 `ohos/SIGNING.local.md`） |
 | 视觉与主题 / 无障碍 | `docs/project-guide.md` §9 |
 | 明确不做的事 | `docs/project-guide.md` §15 |
 | Official Anki 全部进度与证据 | `docs/official-anki-migration/34-cutover-receipt.md` |

@@ -5,6 +5,13 @@ pure display-layer mapping; it never alters the JSON contract (§15.13). The
 runtime-type and template labels are re-exported from lesson_content so there
 is a single source of truth, then extended with nested-layer names and
 per-field display rules.
+
+**Scope — this is NOT an i18n layer.** It covers *domain field names*
+(``frontHtml`` → 「正面 HTML」) only. UI chrome copy (button labels, tooltips,
+dialog titles) is Chinese literals inline at the call site — this tool is a
+single-language internal creator tool, and a full i18n sweep is not planned.
+Do not look here to change button or dialog copy; grep for the literal
+instead. The package is named ``i18n`` for historical reasons.
 """
 from __future__ import annotations
 

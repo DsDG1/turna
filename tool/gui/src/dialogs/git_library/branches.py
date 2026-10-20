@@ -1,6 +1,9 @@
 """Branch management domain: list / create / switch / delete (D)."""
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QPushButton
 
 
@@ -42,6 +45,10 @@ def refresh_branches(dlg) -> None:
         if idx >= 0:
             dlg.branch_combo.setCurrentIndex(idx)
     except Exception as exc:
+        logger.debug(
+            "src/dialogs/git_library/branches.py:47 best-effort step failed",
+            exc_info=True,
+        )
         # A broken repo (corrupted .git, missing HEAD) used to silently
         # produce an empty branch list with no status update, so the user
         # saw a blank combo and assumed the repo had no branches. Surface

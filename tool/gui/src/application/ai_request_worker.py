@@ -44,8 +44,49 @@ _AttachmentRecord = AttachmentRecord
 # may be closed while a request is still in flight; destroying the last
 # reference to a running QThread aborts the process
 # ("QThread: Destroyed while thread is still running"), so the registry keeps
-# every started worker alive until its ``finished`` signal fires.
+# every started worker alive until it is released.
+#
+# The release runs on the ``finished`` signal, which Qt delivers on the
+# thread that owns the QThread object (the GUI thread). That matters:
+# touching a QThread from the worker thread can deadlock.
+#
+# Two call sites used to disconnect *all* of a worker's signals when
+# superseding it (``generator_worker_hub``, ``git_worker_hub``) — and that
+# list included ``finished``. With the release hooked to ``finished``, such
+# a disconnect stranded the worker in this set: the registry grew without
+# bound and the worker was never joined. Both hubs now exclude ``finished``,
+# and ``_sweep_finished_workers`` is the fallback for anything that still
+# ends up disconnected.
 _LIVE_WORKERS: set[AiRequestWorker] = set()
+
+#: Host attributes that may hold an in-flight **AI** worker — the ones the
+#: tray's "取消" button may stop.
+#:
+#: The save worker is deliberately NOT here: a save is not an AI request,
+#: and cancelling it half-way would leave the course in an unclear state.
+AI_WORKER_ATTRS: tuple[str, ...] = (
+    "_open_worker",
+    "_experience_worker",
+    "_diagnose_worker",
+    "_palette_llm_worker",
+    "_generate_worker",
+    "_publish_worker",
+    "_chip_ai_worker",
+    "_audio_save_worker",
+)
+
+#: Every host attribute that may hold an in-flight background worker.
+#:
+#: Single source of truth for the close path
+#: (``close_controller._cancel_in_flight_workers``), which must stop and
+#: join *all* of them — including the save worker — before the window is
+#: torn down. It used to live in two places with different contents, so
+#: workers the cancel path did not know about (course open, publish, TTS)
+#: could not be stopped.
+IN_FLIGHT_WORKER_ATTRS: tuple[str, ...] = (
+    "_save_worker",
+    *AI_WORKER_ATTRS,
+)
 
 
 class AiRequestWorker(QThread):
@@ -83,11 +124,39 @@ class AiRequestWorker(QThread):
         self._cancelled = True
 
     def start(self, *args, **kwargs) -> None:
+        # Sweep entries left behind by a previous worker whose ``finished``
+        # signal was disconnected before it fired. The sweep runs on the GUI
+        # thread, so it is safe to touch the QThread objects.
+        self._sweep_finished_workers()
         # Register before starting so the worker can never be garbage
         # collected mid-run, even if every owner drops its reference.
         _LIVE_WORKERS.add(self)
+        # Release on ``finished``. The slot is connected to a QThread object
+        # that lives in the GUI thread, so it runs there — which matters:
+        # touching a QThread from the worker thread can deadlock.
+        #
+        # ``finished`` used to be disconnected together with the other
+        # signals when a worker was superseded, which stranded the worker in
+        # the registry forever (unbounded growth, never joined). The
+        # disconnect lists in ``generator_worker_hub`` / ``git_worker_hub``
+        # now exclude it, and ``_sweep_finished_workers`` catches the rest.
         self.finished.connect(self._release_keepalive)
         super().start(*args, **kwargs)
+
+    @staticmethod
+    def _sweep_finished_workers() -> None:
+        """Drop registry entries whose thread has already ended.
+
+        The fallback for the case where ``finished`` was disconnected
+        before it fired. Runs on the GUI thread (called from ``start``).
+        """
+        for worker in list(_LIVE_WORKERS):
+            try:
+                if not worker.isRunning():
+                    _LIVE_WORKERS.discard(worker)
+            except RuntimeError:
+                # The C++ object is already gone.
+                _LIVE_WORKERS.discard(worker)
 
     def _release_keepalive(self) -> None:
         _LIVE_WORKERS.discard(self)
@@ -138,6 +207,10 @@ class AiRequestWorker(QThread):
         except AiCancelled as exc:
             self.error_occurred.emit(str(exc) or "请求已取消。")
         except Exception as exc:
+            logger.debug(
+                "src/application/ai_request_worker.py:180 best-effort step failed",
+                exc_info=True,
+            )
             self.error_occurred.emit(str(exc))
         else:
             if not self._cancelled:

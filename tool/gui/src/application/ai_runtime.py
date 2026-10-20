@@ -36,14 +36,6 @@ class AiRuntime:
         return self.settings_fn()
 
 
-def empty_ai_runtime() -> AiRuntime:
-    """Default empty config/settings (tests / no MainWindow)."""
-    return AiRuntime(
-        config_fn=lambda: AiApiConfig(),
-        settings_fn=lambda: Settings(),
-    )
-
-
 def runtime_from_host(host: ExperienceHost) -> AiRuntime:
     """Build an :class:`AiRuntime` from a MainWindow-like host object."""
 

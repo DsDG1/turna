@@ -153,7 +153,13 @@ class GeneratorWorkerHub(QObject):
         if worker is None:
             return
         import warnings
-        for sig_name in ("result_ready", "error_occurred", "completed", "chunk_ready", "usage_ready", "finished"):
+        # ``finished`` is deliberately NOT disconnected: it is the signal
+        # that releases the worker's keepalive entry (see
+        # ``ai_request_worker._LIVE_WORKERS``) and the one the hub uses to
+        # forget the worker. Disconnecting it stranded the worker in the
+        # registry forever — unbounded growth, and the thread was never
+        # joined.
+        for sig_name in ("result_ready", "error_occurred", "completed", "chunk_ready", "usage_ready"):
             try:
                 sig = getattr(worker, sig_name, None)
                 if sig is not None:

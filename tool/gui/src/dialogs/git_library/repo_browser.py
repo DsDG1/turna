@@ -1,6 +1,8 @@
 """Repo inspection domain: history / diff / file tree / reset / revert (E)."""
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
@@ -17,6 +19,8 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def build_inspect_section(dlg, sync_layout) -> None:
@@ -60,6 +64,10 @@ def refresh_history(dlg) -> None:
             dlg.history_table.setItem(row, 2, QTableWidgetItem(commit["date"]))
             dlg.history_table.setItem(row, 3, QTableWidgetItem(commit["message"]))
     except Exception as exc:
+        logger.debug(
+            "src/dialogs/git_library/repo_browser.py:66 best-effort step failed",
+            exc_info=True,
+        )
         dlg.history_table.setRowCount(0)
         # Surface the failure instead of leaving an empty table that
         # looks like a repo with no commits. (B4)
@@ -91,6 +99,10 @@ def refresh_file_tree(dlg) -> None:
                 parent_key = key
         dlg.file_tree.expandItem(root_item)
     except Exception as exc:
+        logger.debug(
+            "src/dialogs/git_library/repo_browser.py:97 best-effort step failed",
+            exc_info=True,
+        )
         # Same rationale as refresh_branches: don't mask a broken repo
         # as an empty tree. (B4)
         dlg.status_label.setText(f"读取文件树失败：{exc}")

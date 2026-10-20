@@ -170,17 +170,27 @@ flutter_*.log
 
 # OHOS signing material — never commit these.
 #
-# `ohos/build-profile.json5.release` holds the **plaintext** release
-# keystore password (hvigor refuses anything else, see the comment inside
-# `ohos/build-profile.json5`). Committing it would publish the signing
-# secret of the AppGallery release certificate. The keystore itself lives
-# outside the repo in `~/.ohos/config/turna-release.{cer,p7b,p12}`; this
-# file is only the hvigor-side pointer to it.
+# `ohos/build-profile.json5.release` points hvigor at the AppGallery
+# release keystore and carries that keystore's password **encrypted** into
+# DevEco's own blob format (hvigor accepts nothing but an encrypted blob —
+# a plaintext password is rejected with 00303116 / 00303242, see the
+# comment inside `ohos/build-profile.json5`). The blob is still
+# machine-local: it decrypts to the release signing secret, and the
+# keystore it unlocks lives outside the repo in
+# `~/.ohos/config/turna-release.{cer,p7b,p12}`. Committing this file would
+# publish material that unlocks the release certificate.
 #
 # `ohos/build-profile.json5.unsigned` is a byte-identical working copy of
 # the stripped `build-profile.json5` and carries no additional information.
 ohos/build-profile.json5.release
 ohos/build-profile.json5.unsigned
+
+# `ohos/SIGNING.local.md` is the machine-local signing notes file: it holds
+# the **plaintext** keystore passwords and the reverse-engineered blob
+# layout used to re-encrypt them. The rules it describes are documented
+# without secrets in `docs/ohos-build-setup.md`; only the secrets live
+# here. Never commit it.
+ohos/SIGNING.local.md
 
 # One-off scratch scripts. The hvigor password-decrypt probe lived at
 # `tool/_tmp_decrypt_pwd.js` and was explicitly marked "用完即删"; the

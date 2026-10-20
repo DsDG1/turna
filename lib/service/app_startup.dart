@@ -10,6 +10,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
@@ -84,6 +85,17 @@ Future<void> continueTurnaStartup({bool retrySeed = false}) async {
 
 Future<void> _hydrateAfterSeed() async {
   await getIt<AiEngineConfigHolder>().loadPersisted();
+
+  // Must happen here, before `ready`, and not only from HomePage.initSession:
+  // the splash gate is `game.initialized && course.isLoaded`, and
+  // `ensureUserGameFields` is the only writer of that flag. When the only
+  // caller was HomePage, a profile with no prefs — fresh install, cleared
+  // data, a cloud-test device — could never open the gate it was itself
+  // waiting on: the splash sat on the spinner with no status label (the label
+  // is suppressed once the course is loaded) and never navigated. Observed on
+  // device 2026-10-20 as "app failed to start". Idempotent for profiles that
+  // already carry the flag.
+  await getIt<GameProvider>().ensureUserGameFields();
 
   final persistedScope = CourseScopeCodec.decode(
     getIt<AppPrefs>().courseScope.getValue(),

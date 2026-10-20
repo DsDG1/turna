@@ -33,6 +33,15 @@ _LOG_FILE = _LOG_DIR / "telemetry.log"
 
 _RETENTION_DAYS = 7
 
+# Size cap for a single log file. The handler rotates by *size* in addition to
+# the daily rotation: a busy authoring session (AI generate / batch
+# regenerate) can emit tens of thousands of events a day, and a day-only
+# rotation let ``telemetry.log`` grow to hundreds of MB. That in turn made
+# every full parse of the file (see ``usage_summary``) take seconds.
+_MAX_LOG_BYTES = 8 * 1024 * 1024
+# Rotated size-based backups kept per file (on top of the daily rotation).
+_MAX_LOG_BACKUPS = 3
+
 
 # ---------------------------------------------------------------------------
 # T21: opt-out + path scrubbing
@@ -313,6 +322,13 @@ class Telemetry:
         # are failing, so a permanently-unwritable log (full disk, read-only
         # home) doesn't spam stderr on every event. (M10)
         self._write_failed_warned = False
+        # Incremental-parse cursor for ``usage_summary``: (inode, byte
+        # offset). The summary is recomputed on every UI refresh, and the
+        # log can be tens of MB — re-reading and re-parsing it whole made
+        # every tree navigation in the GUI slow. The cursor lets a refresh
+        # parse only the bytes appended since the last one.
+        self._usage_cursor: tuple[int, int] | None = None
+        self._usage_cache: dict[str, dict[str, Any]] | None = None
         self._setup_handler()
 
     def _setup_handler(self) -> None:
@@ -362,6 +378,7 @@ class Telemetry:
         if context:
             line["context"] = scrub_payload(context)
         try:
+            self._rotate_if_oversized()
             self._logger.info(json.dumps(line, ensure_ascii=False, sort_keys=True))
         except Exception:
             # Telemetry must never crash the application, but a permanently
@@ -378,6 +395,47 @@ class Telemetry:
                     )
                 except Exception:
                     logger.debug("infrastructure/telemetry.py:_write best-effort step failed", exc_info=True)
+
+    def _rotate_if_oversized(self) -> None:
+        """Roll the current log file over once it passes ``_MAX_LOG_BYTES``.
+
+        ``TimedRotatingFileHandler`` only rotates by day, so a busy authoring
+        session could grow one day-file to hundreds of MB — and every full
+        parse of that file (see :meth:`usage_summary`) then took seconds on
+        the GUI thread.
+
+        The roll is done here, before the record is written, because the
+        handler holds the file open; rotating underneath it would leave the
+        handler writing to the old inode.
+        """
+        try:
+            if not self._log_file.exists():
+                return
+            if self._log_file.stat().st_size < _MAX_LOG_BYTES:
+                return
+            # Shift existing size-backups down, then move the live file to
+            # ``.1``. The handler reopens on the next write.
+            for i in range(_MAX_LOG_BACKUPS - 1, 0, -1):
+                src = self._log_file.with_name(self._log_file.name + f".{i}")
+                dst = self._log_file.with_name(self._log_file.name + f".{i + 1}")
+                if src.exists():
+                    if dst.exists():
+                        dst.unlink()
+                    src.replace(dst)
+            backup = self._log_file.with_name(self._log_file.name + ".1")
+            if backup.exists():
+                backup.unlink()
+            self._log_file.replace(backup)
+            # Force the handler to reopen the (now absent) live file.
+            for handler in list(self._logger.handlers):
+                if isinstance(handler, logging.handlers.TimedRotatingFileHandler):
+                    handler.close()
+        except Exception:
+            logger.debug(
+                "infrastructure/telemetry.py:_rotate_if_oversized "
+                "best-effort step failed",
+                exc_info=True,
+            )
 
     def start_session(self) -> None:
         """Record application/session start."""
@@ -532,24 +590,102 @@ class Telemetry:
 
         Token counts are read from ``duration_ms`` payloads (when available) or
         from ``usage`` events. Costs are estimated locally via the pricing table.
-        """
-        from src.backend import ai_presets
 
+        Incremental: the log is parsed once and then only the bytes appended
+        since the previous call. The summary is recomputed on every UI
+        refresh (tree navigation included) and the log can reach tens of MB,
+        so re-reading it whole made the GUI sluggish on long-lived
+        sessions. The cursor resets automatically when the file is rotated
+        (its inode changes) or truncated (the size shrinks).
+        """
         today = datetime.now(UTC).date()
-        buckets = {
-            "today": self._empty_usage_bucket(),
-            "total": self._empty_usage_bucket(),
-        }
         if not self._log_file.exists():
-            return buckets
+            self._usage_cursor = None
+            self._usage_cache = None
+            return {
+                "today": self._empty_usage_bucket(),
+                "total": self._empty_usage_bucket(),
+            }
+
+        try:
+            stat = self._log_file.stat()
+        except OSError:
+            return {
+                "today": self._empty_usage_bucket(),
+                "total": self._empty_usage_bucket(),
+            }
+
+        cursor = self._usage_cursor
+        cache = self._usage_cache
+        if since is not None:
+            # An explicit time filter needs a full re-scan; the incremental
+            # cursor only tracks "everything appended so far".
+            cache = None
+            cursor = None
+        if cache is None or cursor is None:
+            # First call: parse the whole file.
+            cache = {
+                "today": self._empty_usage_bucket(),
+                "total": self._empty_usage_bucket(),
+                "day": today.isoformat(),
+            }
+            start_offset = 0
+        elif cursor[0] != stat.st_ino or stat.st_size < cursor[1]:
+            # The file was rotated or truncated: start over.
+            cache = {
+                "today": self._empty_usage_bucket(),
+                "total": self._empty_usage_bucket(),
+                "day": today.isoformat(),
+            }
+            start_offset = 0
+        else:
+            start_offset = cursor[1]
+            if cache.get("day") != today.isoformat():
+                # A new UTC day: the "today" bucket must be rebuilt from
+                # scratch, so fall back to a full parse.
+                cache = {
+                    "today": self._empty_usage_bucket(),
+                    "total": self._empty_usage_bucket(),
+                    "day": today.isoformat(),
+                }
+                start_offset = 0
+
+        if start_offset >= stat.st_size:
+            # Nothing new to parse.
+            self._usage_cursor = (stat.st_ino, stat.st_size)
+            self._usage_cache = cache
+            return {
+                "today": dict(cache["today"]),
+                "total": dict(cache["total"]),
+            }
 
         try:
             with self._log_file.open("r", encoding="utf-8") as f:
-                lines = f.readlines()
+                f.seek(start_offset)
+                chunk = f.read()
+                end_offset = f.tell()
         except Exception:
-            return buckets
+            return {
+                "today": dict(cache["today"]),
+                "total": dict(cache["total"]),
+            }
 
-        for line in lines:
+        # A partial trailing line means the writer was mid-append; stop at
+        # the last complete line and leave the cursor there.
+        last_nl = chunk.rfind("\n")
+        if last_nl < 0:
+            # No complete line yet — nothing to consume.
+            self._usage_cursor = (stat.st_ino, start_offset)
+            self._usage_cache = cache
+            return {
+                "today": dict(cache["today"]),
+                "total": dict(cache["total"]),
+            }
+        complete = chunk[: last_nl + 1]
+        end_offset = start_offset + len(complete.encode("utf-8"))
+
+        buckets = {"today": cache["today"], "total": cache["total"]}
+        for line in complete.splitlines():
             line = line.strip()
             if not line:
                 continue
@@ -568,7 +704,11 @@ class Telemetry:
                     if record_dt < since:
                         continue
                 except Exception:
-                    logger.debug("infrastructure/telemetry.py:usage_summary best-effort step failed", exc_info=True)
+                    logger.debug(
+                        "infrastructure/telemetry.py:usage_summary "
+                        "best-effort step failed",
+                        exc_info=True,
+                    )
 
             is_today = False
             try:
@@ -603,15 +743,42 @@ class Telemetry:
                 bucket["prompt_tokens"] += prompt
                 bucket["completion_tokens"] += completion
                 bucket["total_tokens"] += total
-                cost, currency = ai_presets.estimate_cost(
-                    {"prompt_tokens": prompt, "completion_tokens": completion},
-                    model,
-                )
+                cost, currency = self._estimate_cost(payload, model)
                 if cost is not None:
                     bucket["estimated_cost"] = (bucket.get("estimated_cost") or 0) + cost
                     bucket["currency"] = currency
 
-        return buckets
+        self._usage_cursor = (stat.st_ino, end_offset)
+        self._usage_cache = cache
+        return {
+            "today": dict(buckets["today"]),
+            "total": dict(buckets["total"]),
+        }
+
+    @staticmethod
+    def _estimate_cost(
+        payload: dict[str, Any], model: str
+    ) -> tuple[float | None, str | None]:
+        """Local cost estimate for one AI record. Never raises."""
+        try:
+            from src.backend import ai_presets
+
+            usage = payload.get("usage")
+            if not isinstance(usage, dict):
+                usage = payload
+            return ai_presets.estimate_cost(
+                {
+                    "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
+                    "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
+                },
+                model,
+            )
+        except Exception:
+            logger.debug(
+                "infrastructure/telemetry.py:_estimate_cost best-effort step failed",
+                exc_info=True,
+            )
+            return None, None
 
     @staticmethod
     def _empty_usage_bucket() -> dict[str, Any]:
@@ -632,6 +799,10 @@ class Telemetry:
             self._log_file.write_text("", encoding="utf-8")
         except Exception:
             logger.debug("infrastructure/telemetry.py:clear best-effort step failed", exc_info=True)
+        # The incremental cursor points past the old content; drop it so the
+        # next summary re-reads from the start.
+        self._usage_cursor = None
+        self._usage_cache = None
 
 
 # Module singleton for production use.

@@ -1,38 +1,67 @@
 {
   app: {
-    // Temporary unsigned variant, written 2026-10-20 so `assembleHap` emits an
-    // unsigned HAP that `hap-sign-tool` can sign outside hvigor.
+    // Release signing material, applied 2026-10-20. Signed by the `Release`
+    // profile AGC issued for me.dsdogs.turna.hmos (valid to 2029-10-19,
+    // subject CN=毛晨明(2003364747587620865),Release).
     //
-    // Why: this hvigor build refuses plaintext passwords in `signingConfigs`.
-    // A <32-char value fails with 00303116 ("length ... less than 32"); a value
-    // padded past that floor is decrypted as if it were DevEco's blob and fails
-    // with 00303242 ("Invalid initialization vector"). Only DevEco Studio's own
-    // encryptor produces an accepted value, and that is a GUI action.
+    // The three files below MUST come from the same generation:
+    //   - `turna-release.p12`  the private key (alias `turna-release`)
+    //   - `turna-release.cer`  the matching distribution certificate chain
+    //   - `turna-release.p7b`  the matching `type=release` distribution profile
+    // Dropping the debug pair in here fails with
+    // `ERROR: 11111002 Certificates error`, and `hap-sign-tool` blames the
+    // keyAlias — a red herring: it lower-cases the alias on both
+    // `generate-keypair` and `sign-app`, so `debugKey` really does match the
+    // `debugkey` entry stored inside a .p12.
     //
-    // The real signing config is parked in `build-profile.json5.release`;
-    // restore it with `cp ohos/build-profile.json5.release ohos/build-profile.json5`
-    // once DevEco has encrypted the passwords.
+    // `storePassword` / `keyPassword` are DevEco **encrypted blobs**, never
+    // plaintext: `DecipherUtil.decryptPwd` hex-decodes the field and
+    // AES-128-GCM-decrypts it with the key material under
+    // `~/.ohos/config/material`. A plaintext value fails with 00303116
+    // ("length ... less than 32") or 00303242 ("Invalid initialization
+    // vector"). The blobs below are this machine's 38-char keystore
+    // password encrypted into that format (blob layout: 4-byte header =
+    // plaintext length + 16, then a 12-byte IV, the ciphertext and the
+    // 16-byte GCM tag). They are **machine-local** and must never be
+    // committed.
     //
-    // `build-profile.json5.release` is **machine-local and git-ignored**: it
-    // carries the plaintext release keystore password, so it must never
-    // reach a commit (`.gitignore` has the rule; see the comment there).
+    // The keystore is NOT in the repo: `turna-release.p12` sits in
+    // `~/.ohos/config/`. Losing that file makes this certificate permanently
+    // unusable — back it up before the first upload.
+    signingConfigs: [
+      {
+        name: 'default',
+        type: 'HarmonyOS',
+        material: {
+          certpath: 'C:\\Users\\DsDogs\\.ohos\\config\\turna-release.cer',
+          keyAlias: 'turna-release',
+          keyPassword: '0000003619f5dbeebc40d075e6d1df2cb5d78812c0318d528ed090160c055487b65921ddcc1f049e62bd198b17e70cf62a7dbba2b8e94a32e62c8887e0b0ad8ed8a2ef1c1fc1',
+          profile: 'C:\\Users\\DsDogs\\.ohos\\config\\turna-release.p7b',
+          signAlg: 'SHA256withECDSA',
+          storeFile: 'C:\\Users\\DsDogs\\.ohos\\config\\turna-release.p12',
+          storePassword: '0000003619f5dbeebc40d075e6d1df2cb5d78812c0318d528ed090160c055487b65921ddcc1f049e62bd198b17e70cf62a7dbba2b8e94a32e62c8887e0b0ad8ed8a2ef1c1fc1',
+        },
+      },
+    ],
     products: [
       {
         name: 'default',
+        signingConfig: 'default',
         compatibleSdkVersion: '5.1.0(18)',
         runtimeOS: 'HarmonyOS',
+        "targetSdkVersion": "26.0.0"
       },
     ],
     buildModeSet: [
       {
-        name: 'debug',
+        name: 'debug'
       },
       {
-        name: 'profile',
+        name: 'profile'
       },
       {
-        name: 'release',
-      },
+        name: 'release'
+      }
     ],
   },
   modules: [

@@ -123,30 +123,6 @@ def build_plan_for_host(host: ExperienceHost, goal_text: str = "", *, expand: bo
         return GoalPlan(goal_text=goal_text or "", notes=["规划异常"])
 
 
-def run_sandbox_for_host(host: ExperienceHost, plan: Any) -> tuple[Any | None, Any | None, str]:
-    """Stage plan in CourseSandbox. Returns (sandbox, merge_plan, error).
-
-    E3-B2 stub path (local, no LLM): used as the fallback when AI config is
-    incomplete, and still the basis for non-``lesson.fill_empty`` steps.
-    E3-B3 real generation lives in :func:`run_sandbox_real_fill_for_host`.
-    """
-    from src.backend.experience.sandbox import CourseSandbox
-
-    try:
-        adapter = getattr(host, "adapter", None)
-        if adapter is None:
-            return None, None, "无课程"
-        lesson_ids = list(getattr(plan, "lesson_ids", None) or [])
-        box = CourseSandbox.from_adapter(
-            adapter, lesson_ids=lesson_ids if lesson_ids else None
-        )
-        box.run_plan_local(plan)
-        mp = box.to_merge_plan()
-        return box, mp, ""
-    except Exception as exc:
-        return None, None, str(exc) or exc.__class__.__name__
-
-
 def _collect_fill_lesson_ids(plan: Any) -> list[str]:
     """Ordered unique lesson ids targeted by ``lesson.fill_empty`` steps."""
     seen: set[str] = set()
@@ -433,6 +409,10 @@ def _run_real_fill_chain(
         try:
             worker.start()
         except Exception:
+            logger.debug(
+                "src/application/goal_controller.py:435 best-effort step failed",
+                exc_info=True,
+            )
             _on_err("worker 启动失败")
         try:
             host._experience_worker = worker

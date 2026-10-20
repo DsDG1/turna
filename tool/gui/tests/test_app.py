@@ -27,6 +27,51 @@ from src.backend.course_adapter import SaveResult
 from tests._qtapp import _App as _TestApp
 
 
+class _InlineWorker:
+    """Runs the target synchronously and emits the result immediately.
+
+    The close path now saves on a worker (the synchronous save froze the
+    window for the whole save chain) and the pre-TTS save does too. Tests
+    run the worker inline so the assertions stay deterministic.
+    """
+
+    def __init__(self, target, *args, **kwargs):
+        self.target = target
+        self.args = args
+        self.kwargs = kwargs
+        self.result_ready = _InlineSignal()
+        self.error_occurred = _InlineSignal()
+
+    def start(self) -> None:
+        try:
+            result = self.target(*self.args, **self.kwargs)
+        except Exception as exc:  # pragma: no cover - mirrors worker behaviour
+            self.error_occurred.emit(str(exc))
+            return
+        self.result_ready.emit(result)
+
+    def cancel(self) -> None:
+        pass
+
+    def isRunning(self) -> bool:
+        return False
+
+    def wait(self, _ms: int = 0) -> bool:
+        return True
+
+
+class _InlineSignal:
+    def __init__(self) -> None:
+        self._callbacks: list = []
+
+    def connect(self, callback) -> None:
+        self._callbacks.append(callback)
+
+    def emit(self, *args) -> None:
+        for cb in self._callbacks:
+            cb(*args)
+
+
 def _build_main_window_with_ai_settings(ai_values: dict) -> MainWindow:
     """Create a MainWindow with mocked QSettings returning the given AI values."""
     fake_settings = MagicMock()
@@ -172,12 +217,17 @@ class CloseEventTest(unittest.TestCase):
             return_value=_YES,
             create=True,
         ), patch(
+            "src.application.ai_request_worker.AiRequestWorker", _InlineWorker
+        ), patch(
             "src.application.save_host.execute_save"
         ) as ex:
             ex.return_value = MagicMock(ok=True, errors=[], message="")
             self.win.closeEvent(event)
         ex.assert_called_once()
-        self.assertTrue(event.isAccepted())
+        # The save runs on a worker, so the close is deferred: the window
+        # stays open until the save resolves, then closes itself.
+        self.assertFalse(event.isAccepted())
+        self.assertTrue(getattr(self.win, "_close_saved_ok", False))
 
     def test_dirty_discard_accepts_close(self) -> None:
         self.adapter.detect_changes.return_value = {"vocab": True}
@@ -218,6 +268,8 @@ class CloseEventTest(unittest.TestCase):
             return_value=_YES,
             create=True,
         ), patch(
+            "src.application.ai_request_worker.AiRequestWorker", _InlineWorker
+        ), patch(
             "src.application.save_host.execute_save"
         ) as ex, patch(
             "src.application.ui_guard.safe_warning"
@@ -234,6 +286,8 @@ class CloseEventTest(unittest.TestCase):
         self.win._settings_obj.auto_save_on_close = True
         event = QCloseEvent()
         with patch(
+            "src.application.ai_request_worker.AiRequestWorker", _InlineWorker
+        ), patch(
             "src.application.save_host.execute_save"
         ) as ex, patch(
             "src.application.ui_guard.safe_question3", create=True
@@ -242,7 +296,9 @@ class CloseEventTest(unittest.TestCase):
             self.win.closeEvent(event)
             mock_question.assert_not_called()
         ex.assert_called_once()
-        self.assertTrue(event.isAccepted())
+        # The save runs on a worker: the close is deferred until it resolves.
+        self.assertFalse(event.isAccepted())
+        self.assertTrue(getattr(self.win, "_close_saved_ok", False))
 
     def test_close_clears_api_key(self) -> None:
         self.adapter.detect_changes.return_value = {
@@ -490,13 +546,17 @@ class AutoSaveOnCloseTest(unittest.TestCase):
         with patch(
             "src.application.ui_guard.safe_question3", create=True
         ) as mock_question, patch(
+            "src.application.ai_request_worker.AiRequestWorker", _InlineWorker
+        ), patch(
             "src.application.save_host.execute_save"
         ) as ex:
             ex.return_value = MagicMock(ok=True, errors=[], message="")
             win.closeEvent(event)
             mock_question.assert_not_called()
         ex.assert_called_once()
-        self.assertTrue(event.isAccepted())
+        # The save runs on a worker: the close is deferred until it resolves.
+        self.assertFalse(event.isAccepted())
+        self.assertTrue(getattr(win, "_close_saved_ok", False))
 
     def test_auto_save_failure_ignores_close(self) -> None:
         win = _build_main_window()
@@ -508,6 +568,8 @@ class AutoSaveOnCloseTest(unittest.TestCase):
 
         event = QCloseEvent()
         with patch(
+            "src.application.ai_request_worker.AiRequestWorker", _InlineWorker
+        ), patch(
             "src.application.save_host.execute_save"
         ) as ex, patch("src.application.ui_guard.safe_warning") as mock_warning:
             ex.return_value = MagicMock(
@@ -1129,6 +1191,10 @@ class GenerateAudioTest(unittest.TestCase):
         with patch(
             "src.application.audio_worker.GenerateAudioWorker",
             return_value=fake_worker,
+        ), patch(
+            # The pre-TTS save runs on a worker; run it inline so the TTS
+            # worker starts within the test.
+            "src.application.ai_request_worker.AiRequestWorker", _InlineWorker
         ), patch(
             "src.dialogs.generate_audio_dialog.GenerateAudioDialog",
             _FakeDialog,

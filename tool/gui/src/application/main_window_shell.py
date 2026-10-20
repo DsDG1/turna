@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.theme import current_palette
+from src.application.ai_request_worker import AI_WORKER_ATTRS
 from src.application.presence_mode import DEMOTE_SHORTCUT
 from src.widgets.ambient_banner import AmbientBanner
 from src.widgets.course_tree import CourseTreeWidget
@@ -183,12 +184,7 @@ def cancel_in_flight_ai_jobs(host, job_id: str = "") -> None:
     # _chip_ai_worker is mirrored there by the teacher item-AI chip, which
     # registers its job with the tray as kind="ai" — so the flyout offers a
     # cancel for it and this must be able to honour that.
-    for attr in (
-        "_experience_worker",
-        "_palette_llm_worker",
-        "_diagnose_worker",
-        "_chip_ai_worker",
-    ):
+    for attr in AI_WORKER_ATTRS:
         w = getattr(host, attr, None)
         if w is None:
             continue

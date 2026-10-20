@@ -103,6 +103,7 @@ class TextbookImportController:
         on_extract_progress: Callable[[dict[str, Any]], None] | None = None,
         on_sections_ready: Callable[[list[dict[str, Any]]], None] | None = None,
         on_autosave: Callable[[TextbookProject], None] | None = None,
+        on_status: Callable[[str], None] | None = None,
         on_quality_report_changed: Callable[[ExtractionQualityReport], None] | None = None,
         on_usage_update: Callable[[int, UsageDict, UsageDict], None] | None = None,
         language: str = "Turkish",
@@ -119,6 +120,11 @@ class TextbookImportController:
         self._on_extract_progress = on_extract_progress or (lambda _p: None)
         self._on_sections_ready = on_sections_ready or (lambda _sections: None)
         self._on_autosave = on_autosave
+        # Status line for failures that must not be silent (e.g. a failed
+        # autosave). Before this existed the controller read
+        # ``getattr(self, "_status_hook", None)`` — an attribute that was
+        # never assigned, so autosave failures vanished without a trace.
+        self._on_status = on_status or (lambda _msg: None)
         self._on_quality_report_changed = on_quality_report_changed or (lambda _r: None)
         self._on_usage_update = on_usage_update or (lambda _idx, _chap, _proj: None)
         self._language = language
@@ -855,7 +861,7 @@ class TextbookImportController:
         execute_autosave(
             self._on_autosave,
             self.to_project(),
-            status_hook=getattr(self, "_status_hook", None),
+            status_hook=self._on_status,
         )
 
     def flush_autosave(self) -> None:

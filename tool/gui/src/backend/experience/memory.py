@@ -357,6 +357,46 @@ class ProjectMemory:
             "preferred_templates": list(bucket.get("preferred_templates") or []),
         }
 
+    def recent_skills(self, n: int = 5) -> list[str]:
+        """The most recently used skills for the active course (newest last).
+
+        A read accessor for the write-only bucket: the command palette
+        shows these as "最近技能" so the per-course history has a consumer.
+        """
+        try:
+            if not self._active_key:
+                return []
+            bucket = self._buckets.get(self._active_key) or {}
+            skills = [str(s) for s in (bucket.get("recent_skills") or []) if s]
+            n = max(0, int(n))
+            if n == 0:
+                return []
+            return skills[-n:]
+        except Exception:
+            logger.debug(
+                "backend/experience/memory.py:recent_skills best-effort step failed",
+                exc_info=True,
+            )
+            return []
+
+    def preferred_templates(self, n: int = 3) -> list[str]:
+        """The templates this course used most (newest last)."""
+        try:
+            if not self._active_key:
+                return []
+            bucket = self._buckets.get(self._active_key) or {}
+            templates = [str(t) for t in (bucket.get("preferred_templates") or []) if t]
+            n = max(0, int(n))
+            if n == 0:
+                return []
+            return templates[-n:]
+        except Exception:
+            logger.debug(
+                "backend/experience/memory.py:preferred_templates best-effort step failed",
+                exc_info=True,
+            )
+            return []
+
     def configure_persist(
         self, *, enabled: bool = False, base_dir: Any = None
     ) -> None:
@@ -645,6 +685,26 @@ class ExperienceMemory:
         except Exception:
             logger.debug("backend/experience/memory.py:record_lesson_style best-effort step failed", exc_info=True)
 
+    def record_author_style(self, hint: str, *, limit: int = 8) -> None:
+        """Cross-course author style hint.
+
+        ``AuthorMemory.add_style_hint`` had no production caller, so the
+        cross-course profile stayed permanently empty. The chip-edit path
+        is where an author's phrasing habits become visible.
+        """
+        try:
+            self.author.add_style_hint(hint, limit=limit)
+        except Exception:
+            logger.debug("backend/experience/memory.py:record_author_style best-effort step failed", exc_info=True)
+
+    def author_style_hints(self) -> list[str]:
+        """The cross-course style hints (newest last)."""
+        try:
+            snap = self.author.snapshot() or {}
+            return [str(x) for x in (snap.get("style_hints") or [])]
+        except Exception:
+            return []
+
     def lesson_style_hints(self, lesson_id: str) -> list[str]:
         """R-07: style hints for one lesson; empty on any failure."""
         try:
@@ -689,6 +749,10 @@ class ExperienceMemory:
             try:
                 self.project.bind(_safe_str(course_dir, limit=64) or None)
             except Exception:
+                logger.debug(
+                    "src/backend/experience/memory.py:691 best-effort step failed",
+                    exc_info=True,
+                )
                 self.project.bind(None)
 
     def context_fields(self) -> dict[str, Any]:

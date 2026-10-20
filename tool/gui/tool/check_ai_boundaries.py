@@ -233,6 +233,11 @@ _BACKEND_IMPORT = re.compile(
 )
 # ``course_cli`` may only be bound inside its designated gateway.
 _COURSE_CLI_BIND = re.compile(r"^\s*(?:import\s+course_cli\b|from\s+[\w.]*\s+import\s+.*\bcourse_cli\b)")
+# widgets/ must not reach up into dialogs/ (see scan_widgets_dialogs_imports).
+_WIDGETS_DIALOGS = re.compile(
+    r"^\s*(?:from\s+src\.dialogs(?:\.\w+)*\s+import\s+|import\s+src\.dialogs\b)",
+    re.MULTILINE,
+)
 
 
 def scan_ui_backend_imports() -> list[tuple[str, int, str]]:
@@ -255,6 +260,29 @@ def scan_ui_backend_imports() -> list[tuple[str, int, str]]:
                 if _BACKEND_IMPORT.search(line):
                     rel = path.relative_to(_GUI_ROOT).as_posix()
                     hits.append((rel, n, line.strip()[:160]))
+    return hits
+
+
+def scan_widgets_dialogs_imports() -> list[tuple[str, int, str]]:
+    """``src/widgets/**`` importing ``src.dialogs`` (reverse UI dependency).
+
+    ``dialogs`` may reuse reusable ``widgets`` components — that direction is
+    fine and widespread (21 edges). The reverse is not: a reusable widget
+    reaching up into a concrete dialog couples the component to a screen and
+    makes the widget untestable outside that dialog. A ratchet over this count
+    is the migration signal — see ``--max-widgets-dialogs-imports``.
+    """
+    hits: list[tuple[str, int, str]] = []
+    root = _SRC / "widgets"
+    if not root.is_dir():
+        return hits
+    for path in _iter_py(root):
+        for n, line in enumerate(
+            path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+        ):
+            if _WIDGETS_DIALOGS.search(line):
+                rel = path.relative_to(_GUI_ROOT).as_posix()
+                hits.append((rel, n, line.strip()[:160]))
     return hits
 
 
@@ -602,6 +630,8 @@ def main(argv: list[str] | None = None) -> int:
         "max_hardcoded_style_hex",
         "max_ui_backend_imports",
         "max_import_cycles",
+        "max_app_dialogs_imports",
+        "max_widgets_dialogs_imports",
     )
 
     limits: dict[str, int] = {}
@@ -734,6 +764,22 @@ def main(argv: list[str] | None = None) -> int:
         "exceeds N (ratchet)",
     )
     parser.add_argument(
+        "--max-app-dialogs-imports",
+        type=int,
+        default=limits.get("max_app_dialogs_imports"),
+        metavar="N",
+        help="Exit 1 if application/ or src/app.py -> src.dialogs import "
+        "statements exceed N (ratchet; known debt, ceiling only shrinks)",
+    )
+    parser.add_argument(
+        "--max-widgets-dialogs-imports",
+        type=int,
+        default=limits.get("max_widgets_dialogs_imports"),
+        metavar="N",
+        help="Exit 1 if src/widgets -> src.dialogs import statements exceed N "
+        "(ratchet; reusable widgets must not reach up into concrete dialogs)",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print every UI→backend edge instead of a per-layer breakdown",
@@ -755,6 +801,7 @@ def main(argv: list[str] | None = None) -> int:
     ui_backend = scan_ui_backend_imports()
     course_cli = scan_course_cli_bindings()
     cycles = count_module_import_cycles()
+    widgets_dialogs = scan_widgets_dialogs_imports()
 
     print("=== AI boundary scan ===")
     print(f"gui root: {_GUI_ROOT}")
@@ -809,6 +856,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"module-level import cycles in src: {len(cycles)}")
     for comp in cycles:
         print(f"  CYCLE {' -> '.join(comp)}")
+    print(f"widgets → dialogs imports: {len(widgets_dialogs)}")
+    for rel, n, snip in widgets_dialogs:
+        print(f"  WDLG  {rel}:{n}: {snip}")
 
     # Baseline summary for docs
     print("---")
@@ -821,7 +871,7 @@ def main(argv: list[str] | None = None) -> int:
         f"except_continue={except_continue} "
         f"broad_except={broad_except} style_hex={style_hex} "
         f"ui_backend={len(ui_backend)} course_cli={len(course_cli)} "
-        f"cycles={len(cycles)}"
+        f"cycles={len(cycles)} widgets_dialogs={len(widgets_dialogs)}"
     )
 
     rc = 0
@@ -854,6 +904,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.max_ui_backend_imports is not None and len(ui_backend) > args.max_ui_backend_imports:
         rc = 1
     if args.max_import_cycles is not None and len(cycles) > args.max_import_cycles:
+        rc = 1
+    if (
+        args.max_app_dialogs_imports is not None
+        and len(app_dialogs) > args.max_app_dialogs_imports
+    ):
+        rc = 1
+    if (
+        args.max_widgets_dialogs_imports is not None
+        and len(widgets_dialogs) > args.max_widgets_dialogs_imports
+    ):
         rc = 1
     return rc
 

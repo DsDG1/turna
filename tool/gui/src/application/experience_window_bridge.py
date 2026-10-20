@@ -7,6 +7,7 @@ methods so tests and signal wiring are unchanged.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from src.application.course_lifecycle import clear_experience_session, REASON_CLOSE_COURSE
@@ -130,11 +131,44 @@ def sync_experience_attachments(host) -> None:
         )
 
 
-def sync_usage_today(host) -> None:
-    """M-08: feed telemetry today's AI-usage bucket into the Shell."""
+# Throttle for ``sync_usage_today``. The function is called on every tree
+# selection (every arrow key in the course tree), and it parses the telemetry
+# log to compute the day's AI usage. Even with the incremental parser that
+# means a file open + seek per keystroke. 30 s is short enough that the
+# number stays roughly current and long enough to keep navigation cheap.
+_USAGE_REFRESH_INTERVAL_S = 30.0
+
+
+def sync_usage_today(host, *, force: bool = False) -> None:
+    """M-08: feed telemetry today's AI-usage bucket into the Shell.
+
+    Throttled: the summary is only recomputed every
+    ``_USAGE_REFRESH_INTERVAL_S`` seconds unless ``force`` is set. Callers on
+    the interaction hot path (tree navigation) use the throttled form; the
+    settings / publish paths that must show a fresh number pass ``force=True``.
+
+    The throttle state lives on the host (one window = one timer), not in a
+    module global: a global would leak between windows and make the
+    behaviour order-dependent in tests.
+    """
     exp = getattr(host, "experience", None)
     if exp is None:
         return
+    now = time.monotonic()
+    last = getattr(host, "_usage_last_refresh_at", None)
+    if (
+        not force
+        and last is not None
+        and (now - float(last)) < _USAGE_REFRESH_INTERVAL_S
+    ):
+        return
+    try:
+        host._usage_last_refresh_at = now
+    except Exception:
+        logger.debug(
+            "experience_window_bridge.py:sync_usage_today stamp failed",
+            exc_info=True,
+        )
     try:
         from src.backend.experience.metrics import usage_today_from_summary
 
@@ -208,7 +242,50 @@ def flush_experience_metrics(host, reason: str = "", *, course_dir: Any = None) 
 
 
 def record_experience_event(host, event_name: str, label: str = "", **payload) -> None:
+    """Record an editor/AI event: telemetry + the session timeline.
+
+    The timeline feed was missing: ``_record_experience_event`` only wrote
+    telemetry, so the Dock's "recent" list and the command palette's
+    history replay were permanently empty even though both surfaces and
+    the ``ExperienceTimeline`` implementation existed.
+    """
     try:
         telemetry.record_event(event_name, label=label, **payload)
     except Exception:
         logger.debug("MainWindow._record_experience_event best-effort failed", exc_info=True)
+    _append_timeline_event(host, event_name, label=label, **payload)
+
+
+def _append_timeline_event(host, event_name: str, label: str = "", **payload) -> None:
+    """Push one event into the session timeline and refresh the Dock."""
+    timeline = getattr(host, "experience_timeline", None)
+    if timeline is None:
+        return
+    try:
+        summary = str(label or event_name or "")
+        action_id = str(payload.get("action_id") or "")
+        scope = payload.get("scope")
+        timeline.record(
+            str(event_name or "event"),
+            summary,
+            action_id=action_id,
+            scope=dict(scope) if isinstance(scope, dict) else {},
+        )
+    except Exception:
+        logger.debug(
+            "application/experience_window_bridge.py:_append_timeline_event "
+            "best-effort step failed",
+            exc_info=True,
+        )
+        return
+    dock = getattr(host, "experience_dock_widget", None)
+    if dock is None:
+        return
+    try:
+        dock.set_timeline(timeline.recent_dicts(5))
+    except Exception:
+        logger.debug(
+            "application/experience_window_bridge.py:_append_timeline_event "
+            "dock refresh failed",
+            exc_info=True,
+        )

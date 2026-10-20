@@ -53,11 +53,6 @@ def reject_unsafe_media_value(value: str) -> None:
         raise MediaPathError("路径不能包含 ..")
 
 
-def media_ref_for_filename(original_name: str) -> str:
-    """``media/<safe name>`` for a picked file name. Does not touch disk."""
-    return f"media/{safe_filename(original_name)}"
-
-
 def copy_into_course_media(course_dir: Path, source: Path) -> str:
     """Copy ``source`` into ``<course_dir>/media/`` and return the stored ref."""
     if not source.is_file():

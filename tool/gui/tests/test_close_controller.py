@@ -49,6 +49,51 @@ class ClearKeyTest(unittest.TestCase):
         settings_obj.save_to_qsettings.assert_called_once()
 
 
+class _InlineWorker:
+    """Runs the target synchronously and emits the result immediately.
+
+    The close path now saves on a worker (the synchronous save froze the
+    window for the whole save chain). Tests run the worker inline so the
+    assertions stay deterministic.
+    """
+
+    def __init__(self, target, *args, **kwargs):
+        self.target = target
+        self.args = args
+        self.kwargs = kwargs
+        self.result_ready = _FakeSignal()
+        self.error_occurred = _FakeSignal()
+
+    def start(self) -> None:
+        try:
+            result = self.target(*self.args, **self.kwargs)
+        except Exception as exc:  # pragma: no cover - mirrors worker behaviour
+            self.error_occurred.emit(str(exc))
+            return
+        self.result_ready.emit(result)
+
+    def cancel(self) -> None:
+        pass
+
+    def isRunning(self) -> bool:
+        return False
+
+    def wait(self, _ms: int = 0) -> bool:
+        return True
+
+
+class _FakeSignal:
+    def __init__(self) -> None:
+        self._callbacks: list = []
+
+    def connect(self, callback) -> None:
+        self._callbacks.append(callback)
+
+    def emit(self, *args) -> None:
+        for cb in self._callbacks:
+            cb(*args)
+
+
 class CloseEventTest(unittest.TestCase):
     def _host(self, *, dirty=True, auto_save=False):
         adapter = MagicMock()
@@ -63,6 +108,7 @@ class CloseEventTest(unittest.TestCase):
             _record_window_duration=MagicMock(),
             _ai_config=SimpleNamespace(api_key="k"),
             _settings=object(),
+            close=MagicMock(),
         )
 
     def test_clean_accepts_and_teardown(self) -> None:
@@ -91,6 +137,7 @@ class CloseEventTest(unittest.TestCase):
         tel.record_event.assert_any_call("app.close_discarded")
 
     def test_auto_save_failure_ignores(self) -> None:
+        """A failed async close-save keeps the window open and warns."""
         host = self._host(dirty=True, auto_save=True)
         host._settings_obj.ai_api_key = ""
         host._settings_obj.save_to_qsettings = MagicMock()
@@ -99,6 +146,10 @@ class CloseEventTest(unittest.TestCase):
         with (
             patch("src.infrastructure.telemetry.telemetry"),
             patch(
+                "src.application.ai_request_worker.AiRequestWorker",
+                _InlineWorker,
+            ),
+            patch(
                 "src.application.save_host.execute_save", return_value=fail
             ),
             patch(
@@ -106,11 +157,14 @@ class CloseEventTest(unittest.TestCase):
             ) as warn,
         ):
             handle_close_event(host, ev)
+        # The save runs on a worker; the close is deferred, so the event is
+        # ignored and the window stays open until the save resolves.
         self.assertTrue(ev._ignored)
         warn.assert_called()
         host._flush_experience_metrics.assert_not_called()
 
-    def test_auto_save_success_teardown(self) -> None:
+    def test_auto_save_success_closes_window(self) -> None:
+        """A successful async close-save closes the window itself."""
         host = self._host(dirty=True, auto_save=True)
         host._settings_obj.ai_api_key = ""
         host._settings_obj.save_to_qsettings = MagicMock()
@@ -121,13 +175,20 @@ class CloseEventTest(unittest.TestCase):
         with (
             patch("src.infrastructure.telemetry.telemetry"),
             patch(
+                "src.application.ai_request_worker.AiRequestWorker",
+                _InlineWorker,
+            ),
+            patch(
                 "src.application.save_host.execute_save", return_value=ok
             ),
         ):
             handle_close_event(host, ev)
-        self.assertTrue(ev.isAccepted())
-        ww.interrupt_and_save.assert_called()
-        self.assertIsNone(host._workshop_window)
+        # The first pass defers the close (the save is still running from the
+        # handler's point of view); the save completion asks the window to
+        # close.
+        self.assertTrue(ev._ignored)
+        host.close.assert_called()
+        self.assertTrue(host._close_after_save)
 
 
 class SaveWorkerWaitTest(unittest.TestCase):

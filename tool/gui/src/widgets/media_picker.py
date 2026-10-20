@@ -5,23 +5,15 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
-from src.backend.course_media import (
-    AUDIO_EXTENSIONS,
-    IMAGE_EXTENSIONS,
+from src.application.media_service import (
     MediaPathError,
-    copy_into_course_media,
+    media_filter_for,
+    pick_media_into_course,
 )
 
 
 def _filter_for(kind: str) -> str:
-    if kind == "image":
-        exts = " ".join(f"*{ext}" for ext in sorted(IMAGE_EXTENSIONS))
-        return f"Images ({exts})"
-    if kind == "audio":
-        exts = " ".join(f"*{ext}" for ext in sorted(AUDIO_EXTENSIONS))
-        return f"Audio ({exts})"
-    exts = " ".join(f"*{ext}" for ext in sorted(IMAGE_EXTENSIONS | AUDIO_EXTENSIONS))
-    return f"Media ({exts})"
+    return media_filter_for(kind)
 
 
 def pick_course_media(parent: QWidget, course_dir: Path | None, *, kind: str) -> str | None:
@@ -39,7 +31,7 @@ def pick_course_media(parent: QWidget, course_dir: Path | None, *, kind: str) ->
     if not path:
         return None
     try:
-        return copy_into_course_media(Path(course_dir), Path(path))
+        return pick_media_into_course(course_dir, Path(path))
     except MediaPathError as exc:
         QMessageBox.warning(parent, "选择文件", str(exc))
         return None

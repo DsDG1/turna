@@ -152,6 +152,9 @@ jobs:
             --fail-undeclared-host-access \
             --fail-course-cli-binding
             # ratchet baselines: tool/gui/tool/guard_limits.json (single source)
+            # --fail-app-dialogs is intentionally not enabled: the contract
+            # treats application -> dialogs as known debt (13 edges,
+            # composition-root only). Its ceiling is max_app_dialogs_imports.
           python3 tool/gui/tool/gen_module_tree.py --check
           python3 tool/gui/tool/check_docs_index.py --quiet
 

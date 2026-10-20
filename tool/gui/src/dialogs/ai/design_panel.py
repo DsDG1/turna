@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 import html
-import tempfile
-import uuid
 from pathlib import Path
 from typing import Any
 
@@ -49,13 +47,13 @@ from src.backend.ai.facade import (
     STATUS_RUNNING,
     STATUS_SKIPPED,
 )
-from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_view import ChatView
 from src.dialogs.ai.design_controller import DesignController
 from src.dialogs.ai.design_panel_build import _LEVELS, _TEMPLATES, build_ui
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.application.ai_request_worker import AttachmentRecord
+from src.application.attachment_service import AttachmentExtractor
 from src.theme import current_palette
 from src.widgets.json_editor import JsonEditor
 
@@ -135,6 +133,20 @@ class DesignPanel(QWidget):
         self._autosave_timer.timeout.connect(self._autosave_now)
         self._autosave_dirty = False
         self.setAcceptDrops(True)
+        # Attachment extraction runs on a worker thread (a text-native PDF
+        # reads every page; base64-encoding images is not free either).
+        # ``_attachment_worker_factory`` is a test seam: tests inject a
+        # factory that runs the extraction inline (no real QThread).
+        self._attachment_extractor = AttachmentExtractor(
+            self, worker_factory=self._make_attachment_worker
+        )
+        self._attachment_extractor.extracted.connect(
+            self._on_attachment_extracted
+        )
+        self._attachment_extractor.failed.connect(self._on_attachment_failed)
+        self._attachment_extractor.finished.connect(
+            self._on_attachment_batch_done
+        )
 
         if controller is None:
             from src.application.ai_runtime import runtime_from_host
@@ -677,64 +689,83 @@ class DesignPanel(QWidget):
         self._attachment_bar.add_attachment(record)
         return True
 
+    def _make_attachment_worker(self, target, *args, **kwargs):
+        """Construct the worker that extracts one attachment.
+
+        Tests set ``panel._attachment_worker_factory`` to run the extraction
+        inline (no real QThread); production uses the real worker. Mirrors
+        the ``_make_ai_worker`` seam in experience_skills_mixin.
+        """
+        factory = getattr(self, "_attachment_worker_factory", None)
+        if callable(factory):
+            return factory(target, *args, **kwargs)
+        from src.application.ai_request_worker import AiRequestWorker
+
+        return AiRequestWorker(target, *args, **kwargs)
+
     def _add_attachment_paths(self, paths: list[Path]) -> None:
         """Copy to temp + extract text/image content, then add to the bar.
+
+        The extraction runs on a worker thread: reading a text-native PDF
+        reads every page and base64-encodes images, which froze the GUI for
+        seconds when it ran on the GUI thread.
 
         Ported from the legacy dialog (ai_generator_dialog.py:1906-1931);
         temp files are owned by this panel and deleted after send / on close
         (the legacy dialog leaked sent attachments' temp files).
         """
-        for path in paths:
-            if not path.exists():
-                continue
-            temp_path = (
-                Path(tempfile.gettempdir())
-                / f"turna_design_{uuid.uuid4().hex[:8]}_{path.name}"
-            )
-            try:
-                temp_path.write_bytes(path.read_bytes())
-            except OSError:
-                continue
-            result = extract_attachment(temp_path)
-            if not result.ok or result.content is None:
-                err_msg = str(result.error or "")
-                if getattr(self, "_ocr_enabled", False) and ("扫描件" in err_msg or "图片 PDF" in err_msg):
-                    from src.backend.experience.ocr_skill import ocr_available
+        existing = [
+            p for p in paths if p.exists()
+        ]
+        if not existing:
+            return
+        self._attachment_extractor.extract_paths(
+            existing, prefix="turna_design_"
+        )
 
-                    avail, _ = ocr_available()
-                    if avail:
-                        from src.application.ui_guard import safe_question
-                        reply = safe_question(
-                            self,
-                            "OCR 识别",
-                            f"{path.name} 可能是扫描件或图片 PDF，是否使用 OCR 识别文字？",
-                            default_yes=False,)
-                        if reply:
-                            self.ocr_requested.emit(
-                                temp_path.as_posix()
-                                if hasattr(temp_path, "as_posix")
-                                else str(temp_path).replace("\\", "/"),
-                                path.name,
-                                True,
-                            )
-                            continue
-                try:
-                    temp_path.unlink()
-                except OSError:
-                    logger.debug("dialogs/ai/design_panel.py:815 best-effort step failed", exc_info=True)
-                from src.application.ui_guard import safe_warning
+    def _on_attachment_extracted(self, record) -> None:
+        """Worker result: one attachment is ready for the bar."""
+        self._attachment_bar.add_attachment(record)
 
-                safe_warning(
-                    self, "附件无法读取", f"{path.name}：{result.error or '未知错误'}"
+    def _on_attachment_failed(
+        self, temp_path: str, original_name: str, message: str
+    ) -> None:
+        """Worker result: one attachment could not be read."""
+        err_msg = str(message or "")
+        if getattr(self, "_ocr_enabled", False) and (
+            "扫描件" in err_msg or "图片 PDF" in err_msg
+        ):
+            from src.backend.experience.ocr_skill import ocr_available
+
+            avail, _ = ocr_available()
+            if avail and temp_path:
+                from src.application.ui_guard import safe_question
+
+                reply = safe_question(
+                    self,
+                    "OCR 识别",
+                    f"{err_msg}。是否使用 OCR 识别文字？",
+                    default_yes=False,
                 )
-                continue
-            self._attachment_bar.add_attachment(
-                AttachmentRecord(
-                    temp_path=temp_path,
-                    original_name=path.name,
-                    content=result.content,
-                )
-            )
+                if reply:
+                    self.ocr_requested.emit(
+                        temp_path.replace("\\", "/"),
+                        original_name,
+                        True,
+                    )
+                    return
+        from src.application.ui_guard import safe_warning
+
+        safe_warning(self, "附件无法读取", err_msg or "未知错误")
+
+    def _on_attachment_batch_done(self) -> None:
+        """Worker result: the whole batch finished.
+
+        ``add_attachment`` rebuilds the chips itself, so there is nothing to
+        refresh here — the hook exists so the panel can react to the batch
+        completing (e.g. re-enable the add button).
+        """
+        return
 
     @staticmethod
     def _delete_temp_files(records: list[AttachmentRecord]) -> None:

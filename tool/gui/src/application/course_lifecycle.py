@@ -96,6 +96,16 @@ def clear_experience_session(
     except Exception:
         logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
+    # Drop the section-quality memo: it is keyed by section id and used to
+    # keep every visited course's sections (and their issue text) alive for
+    # the whole session.
+    try:
+        from src.backend.experience.context_bus import clear_quality_cache
+
+        clear_quality_cache()
+    except Exception:
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
+
     try:
         keys = getattr(host, "_shown_suggestion_keys", None)
         if isinstance(keys, set):
@@ -421,6 +431,20 @@ def bind_loaded_course(
         mem = getattr(host, "experience_memory", None)
         if mem is not None and hasattr(mem, "bind_course"):
             mem.bind_course(path)
+    except Exception:
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
+
+    # C-13: remember the course's language in the cross-course author
+    # profile. ``AuthorMemory.set_language_pref`` had no production caller,
+    # so the author profile stayed permanently empty.
+    try:
+        mem = getattr(host, "experience_memory", None)
+        adapter = getattr(host, "adapter", None)
+        index = getattr(adapter, "index", None) if adapter is not None else None
+        if mem is not None and isinstance(index, dict):
+            language = str(index.get("language") or "").strip()
+            if language:
+                mem.author.set_language_pref("course_language", language)
     except Exception:
         logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 

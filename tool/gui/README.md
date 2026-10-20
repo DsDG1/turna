@@ -141,6 +141,25 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
   - `F2`：快速重命名当前节点名称。
   - `Ctrl+↑` / `Ctrl+↓`：上移或下移当前节点排序。
 
+#### 全局快捷键总表
+
+| 快捷键 | 功能 | 作用域 |
+|---|---|---|
+| `Ctrl+1` / `2` / `3` / `4` | 切换到 编辑 / 工坊 / 总览 / 资源 视图 | 全局 |
+| `Ctrl+B` | 侧栏（搜索 + 课程树）显隐 | 编辑视图 |
+| `Ctrl+J` | Copilot（AI 建议面板）显隐 | 全局 |
+| `Ctrl+K` | 命令面板（转到视图 / 执行动作 / 定位节点） | 全局 |
+| `Ctrl+S` | 保存（走完整保存管线，含校验与回滚） | 全局 |
+| `Ctrl+,` | 打开设置 | 全局 |
+| `Ctrl+Z` | 撤销 | 全局 |
+| `Ctrl+Shift+Z` | 重做 | 全局 |
+| `Ctrl+F` | 聚焦侧栏搜索框 | 编辑视图 |
+| `[` / `]` | 在 Copilot 建议之间上下移动 | 非输入框聚焦时 |
+| `Esc` | 关闭当前对话框 / 取消 | 局部 |
+
+> `Ctrl+Z` / `Ctrl+Shift+Z` 由工具栏的 Undo / Redo 动作提供（`QAction` 上的标准快捷键），
+> 因此在树、编辑器、AI 面板里都生效。
+
 ### 3. 课时编辑器与可视化蓝图 (Lesson Editor & Blueprint)
 
 在树状导航中选中具体 Lesson 后，右侧面板展示其内容编辑器：
@@ -349,10 +368,10 @@ tool/gui/
 │   ├── main.py                 # 程序主入口（--gallery 打开组件画廊）
 │   ├── theme.py                # 主题应用（调色板 + 密度 + UI 缩放）
 │   ├── theme_tokens.py         # 设计 token 单一真源（色/间距/圆角/字阶/层级/密度，Qt-free）
-│   ├── application/            # 56 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
+│   ├── application/            # 59 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
 │   │   ├── commands/               # 6 个 .py — Undoable edit commands for the course editor (B2).
 │   │   └── experience_handlers/    # 12 个 .py — Experience skill handlers (M7).
-│   ├── backend/                # 113 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
+│   ├── backend/                # 115 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
 │   │   ├── ai/                     # 10 个 .py — AI backend package (OpenAI-compatible course generation).
 │   │   └── experience/             # 54 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
 │   ├── dialogs/                # 59 个 .py — 对话框与独立子窗口
@@ -366,7 +385,7 @@ tool/gui/
 │   ├── infrastructure/         # 7 个 .py — 横切设施：操作日志 / 遥测 / 滚轮防误触 / 屏幕适配
 │   ├── teacher/                # 11 个 .py — 教师模式：线性流程 / 题目卡 / 词表 / 模板编辑
 │   ├── theme_styles/           # 8 个 .py — 模块化 QSS（builder 组装）
-│   ├── widgets/                # 39 个 .py — 可复用 UI 组件
+│   ├── widgets/                # 40 个 .py — 可复用 UI 组件
 │   │   └── ui/                     # 10 个 .py — Turna UI kit (GUI 焕新 W1).
 ├── tests/                  # unittest 自动化测试套件（分档见 run_gui_tests.py）
 ├── docs/                   # 契约与设计文档（ai_refactor_contract.md 为门禁契约）

@@ -17,6 +17,10 @@ def handle_open_workshop(host: ExperienceHost, scope: dict | None = None) -> Non
         open_workshop(host)
         host.experience_metrics.inc_suggestion("textbook.open_workshop", "applied")
     except Exception as exc:
+        logger.debug(
+            "src/application/experience_handlers/textbook.py:19 best-effort step failed",
+            exc_info=True,
+        )
         safe_warning(host, "课程工坊", f"无法打开工坊：{exc}")
 
 
@@ -84,6 +88,10 @@ def handle_import_draft(host: ExperienceHost, scope: dict | None = None) -> None
             scope={"count": n},
         )
     except Exception as exc:
+        logger.debug(
+            "src/application/experience_handlers/textbook.py:86 best-effort step failed",
+            exc_info=True,
+        )
         safe_warning(host, "导入草稿", str(exc))
 
 

@@ -56,6 +56,39 @@ def history_rows_from_timeline(timeline: Any, n: int = 3) -> list[dict[str, Any]
     return rows
 
 
+def recent_skill_rows(memory: Any, n: int = 3) -> list[dict[str, Any]]:
+    """Build palette history rows from the per-course ``ProjectMemory``.
+
+    ``ProjectMemory`` recorded the skills used in this course but nothing
+    ever read them back, so the bucket was write-only. These rows surface
+    the course's own habits next to the session timeline entries.
+    """
+    if memory is None:
+        return []
+    project = getattr(memory, "project", None)
+    if project is None or not hasattr(project, "recent_skills"):
+        return []
+    try:
+        skills = list(project.recent_skills(int(n)))
+    except Exception:
+        return []
+    rows: list[dict[str, Any]] = []
+    for aid in skills:
+        if not aid:
+            continue
+        rows.append(
+            {
+                "action_id": aid,
+                "label": f"常用 · {aid}",
+                "scope": {},
+                # Same confidence band as the timeline history: the action
+                # still goes through the normal dispatch + policy checks.
+                "confidence": 0.6,
+            }
+        )
+    return rows
+
+
 def should_confirm_scope(
     action_id: str,
     confidence: float,
@@ -124,7 +157,22 @@ def open_command_palette(host: ExperienceHost) -> Any:
 
     parent = host if _is_qwidget(host) else None
     dlg = CommandPalette(parent)
-    dlg.set_history(history_rows_from_timeline(getattr(host, "experience_timeline", None)))
+    history_rows = history_rows_from_timeline(
+        getattr(host, "experience_timeline", None)
+    )
+    # Per-course habits from ProjectMemory, then the session timeline.
+    # Timeline first: it is the more specific signal.
+    seen_actions: set[str] = set()
+    merged: list[dict[str, Any]] = []
+    for row in history_rows + recent_skill_rows(
+        getattr(host, "experience_memory", None)
+    ):
+        aid = str(row.get("action_id") or "")
+        if not aid or aid in seen_actions:
+            continue
+        seen_actions.add(aid)
+        merged.append(row)
+    dlg.set_history(merged)
     dlg.command_triggered.connect(
         functools.partial(_on_palette_command_triggered, host)
     )
@@ -152,6 +200,10 @@ def open_command_palette(host: ExperienceHost) -> Any:
         settings = getattr(host, "_settings_obj", None)
         dlg.set_voice_enabled(is_voice_palette_enabled(settings))
     except Exception:
+        logger.debug(
+            "src/application/palette_controller.py:154 best-effort step failed",
+            exc_info=True,
+        )
         dlg.set_voice_enabled(False)
     dlg.voice_requested.connect(
         functools.partial(_on_palette_voice_requested, host, dlg)

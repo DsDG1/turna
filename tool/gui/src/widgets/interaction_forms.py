@@ -111,7 +111,10 @@ class StringListEditor(QWidget):
     def _on_add(self) -> None:
         from PySide6.QtWidgets import QInputDialog, QMessageBox
 
-        from src.backend.course_media import MediaPathError, reject_unsafe_media_value
+        from src.application.media_service import (
+            MediaPathError,
+            reject_unsafe_media_value,
+        )
 
         text, ok = QInputDialog.getText(self, "添加", "输入内容:")
         if not ok or not text:

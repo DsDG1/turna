@@ -74,6 +74,11 @@ class ExperienceHost(Protocol):
     _ai_config: Any                 # AiApiConfig for workers (probed)
     _save_worker: Any               # in-flight background save AiRequestWorker
     _open_worker: Any               # in-flight course-load AiRequestWorker (probed)
+    _audio_save_worker: Any         # in-flight pre-TTS save AiRequestWorker (probed)
+    _close_save_pending: bool       # a close-time save is in flight (probed)
+    _close_after_save: bool         # close requested after a successful save (probed)
+    _close_saved_ok: bool           # the close-time save succeeded (probed)
+    _usage_last_refresh_at: float   # monotonic stamp of the last usage-summary refresh (probed)
     _last_saved_at: Any             # last successful-save timestamp (probed)
     _show_load_error: _Handler      # load-failure notice entry (probed)
     _resolve_experience_policy: _Handler      # () -> PolicyDecision (probed)

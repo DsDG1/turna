@@ -121,11 +121,6 @@ class Settings:
     tts_force: bool = False
     tts_api_key: str = ""  # memory-only
 
-    # --- External AI Config File ---
-    ai_config_file_path: str = ""
-    ai_config_file_autoload: bool = False
-    ai_config_file_autosave: bool = False
-
     # --- Experience & Ambient AI settings ---
     experience_mode: str = "copilot"
     experience_allow_dangerous_skills: bool = False
@@ -134,6 +129,14 @@ class Settings:
     experience_daily_ai_budget: int = 0
     experience_memory_persist_project: bool = False
     experience_memory_persist_author: bool = False
+    # A3 ②: the deferred-proposal store. Written by
+    # ``ambient_controller.save_defer_store`` and read back by
+    # ``load_defer_store`` — but the field did not exist, so the store
+    # never survived a restart.
+    experience_defer_json: str = ""
+    # Show the AI save brief after a save (the brief was built but the
+    # flag was never stored, so the feature was permanently off).
+    experience_save_brief: bool = False
     experience_outline_shell: bool = False
     experience_mute_json: str = ""
     experience_immersive_full_auto: bool = True
@@ -160,7 +163,6 @@ class Settings:
             _load_editor_settings,
             _load_git_settings,
             _load_tts_settings,
-            _load_ai_config_file_settings,
             _load_experience_settings,
         ):
             data.update(loader(qsettings))
@@ -220,11 +222,6 @@ class Settings:
         if qsettings.contains("tts/api_key"):
             qsettings.remove("tts/api_key")
 
-        # External AI config file (path + flags; api key is never in QSettings)
-        qsettings.setValue("ai/config_file_path", self.ai_config_file_path)
-        qsettings.setValue("ai/config_file_autoload", self.ai_config_file_autoload)
-        qsettings.setValue("ai/config_file_autosave", self.ai_config_file_autosave)
-
         # Experience & Ambient AI settings
         qsettings.setValue("experience/mode", self.experience_mode)
         qsettings.setValue("experience/allow_dangerous_skills", self.experience_allow_dangerous_skills)
@@ -233,6 +230,8 @@ class Settings:
         qsettings.setValue("experience/daily_ai_budget", self.experience_daily_ai_budget)
         qsettings.setValue("experience/memory_persist_project", self.experience_memory_persist_project)
         qsettings.setValue("experience/memory_persist_author", self.experience_memory_persist_author)
+        qsettings.setValue("experience/defer_json", self.experience_defer_json)
+        qsettings.setValue("experience/save_brief", self.experience_save_brief)
         qsettings.setValue("experience/outline_shell", self.experience_outline_shell)
         qsettings.setValue("experience/mute_json", self.experience_mute_json)
         qsettings.setValue("experience/immersive_full_auto", self.experience_immersive_full_auto)
@@ -322,9 +321,6 @@ class Settings:
             tts_speed=self.tts_speed,
             tts_force=self.tts_force,
             tts_api_key=self.tts_api_key,
-            ai_config_file_path=self.ai_config_file_path,
-            ai_config_file_autoload=self.ai_config_file_autoload,
-            ai_config_file_autosave=self.ai_config_file_autosave,
             experience_mode=self.experience_mode,
             experience_allow_dangerous_skills=self.experience_allow_dangerous_skills,
             experience_goal_enabled=self.experience_goal_enabled,
@@ -332,6 +328,8 @@ class Settings:
             experience_daily_ai_budget=self.experience_daily_ai_budget,
             experience_memory_persist_project=self.experience_memory_persist_project,
             experience_memory_persist_author=self.experience_memory_persist_author,
+            experience_defer_json=self.experience_defer_json,
+            experience_save_brief=self.experience_save_brief,
             experience_outline_shell=self.experience_outline_shell,
             experience_mute_json=self.experience_mute_json,
             experience_immersive_full_auto=self.experience_immersive_full_auto,
@@ -484,18 +482,6 @@ def _load_tts_settings(qsettings: QSettings) -> dict[str, Any]:
     }
 
 
-def _load_ai_config_file_settings(qsettings: QSettings) -> dict[str, Any]:
-    return {
-        "ai_config_file_path": _str_or_empty(qsettings.value("ai/config_file_path", "")),
-        "ai_config_file_autoload": _bool_or_default(
-            qsettings.value("ai/config_file_autoload", False), False
-        ),
-        "ai_config_file_autosave": _bool_or_default(
-            qsettings.value("ai/config_file_autosave", False), False
-        ),
-    }
-
-
 # Legal experience_mode values (mirror of policy.EXPERIENCE_MODES; policy
 # normalize is the runtime authority — this guards what gets persisted/loaded).
 _LEGAL_EXPERIENCE_MODES = frozenset({"observer", "copilot", "active", "immersive"})
@@ -527,6 +513,12 @@ def _load_experience_settings(qsettings: QSettings) -> dict[str, Any]:
         ),
         "experience_memory_persist_author": _bool_or_default(
             qsettings.value("experience/memory_persist_author", False), False
+        ),
+        "experience_defer_json": _str_or_empty(
+            qsettings.value("experience/defer_json", "")
+        ),
+        "experience_save_brief": _bool_or_default(
+            qsettings.value("experience/save_brief", False), False
         ),
         "experience_outline_shell": _bool_or_default(
             qsettings.value("experience/outline_shell", False), False

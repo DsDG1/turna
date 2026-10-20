@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -180,6 +181,10 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> {
   bool _navigating = false;
 
+  /// One-shot: a gate that never opens is otherwise invisible — the splash
+  /// simply spins, which is how a first-install deadlock went unnoticed.
+  bool _loggedBlocked = false;
+
   @override
   void initState() {
     super.initState();
@@ -215,6 +220,14 @@ class _SplashPageState extends State<SplashPage> {
     }
     final initialized = game?.initialized ?? false;
     final loaded = course?.isLoaded ?? false;
+    if (loaded && !initialized && !_loggedBlocked) {
+      _loggedBlocked = true;
+      logger.w(
+        'Splash held: course is loaded but GameProvider.initialized is false. '
+        'Nothing seeds that flag from this screen — it must be seeded during '
+        'startup (see continueTurnaStartup).',
+      );
+    }
     if (initialized && loaded && !_navigating) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSkip());
     }

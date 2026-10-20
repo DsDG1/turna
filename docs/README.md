@@ -19,6 +19,7 @@
 |---|---|
 | [`android-build-setup.md`](./android-build-setup.md) | Android 构建环境（JDK 17）、常见错误速查、arm64 发布约束 |
 | [`ios-build-setup.md`](./ios-build-setup.md) | iOS 构建（静态链接 rslib xcframework + WKWebView 复习器） |
+| [`ohos-build-setup.md`](./ohos-build-setup.md) | 鸿蒙构建与签名（fork SDK、签名材料五条硬规则、签名排错速查；**不含口令**） |
 | [`firebase-app-distribution.md`](./firebase-app-distribution.md) | 内测分发的一次性 Console / Secrets 配置 |
 
 ## 课程内容

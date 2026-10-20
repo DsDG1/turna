@@ -416,4 +416,8 @@ auto_choice=CANCEL,)
 {result}",
         )
     except Exception as exc:
+        logger.debug(
+            "src/dialogs/git_library/sync.py:418 best-effort step failed",
+            exc_info=True,
+        )
         QMessageBox.critical(dlg, "同步失败", str(exc))

@@ -62,6 +62,32 @@ class _FakeWorker:
         pass
 
 
+class _InlineWorker:
+    """Runs the target synchronously and emits the result immediately.
+
+    Used for the attachment-extraction worker so the test does not need a
+    real QThread (attachment extraction runs on a worker in production).
+    """
+
+    def __init__(self, target, *args, **kwargs):
+        self.target = target
+        self.args = args
+        self.kwargs = kwargs
+        self.result_ready = _FakeSignal()
+        self.error_occurred = _FakeSignal()
+
+    def start(self) -> None:
+        try:
+            result = self.target(*self.args, **self.kwargs)
+        except Exception as exc:  # pragma: no cover - mirrors worker behaviour
+            self.error_occurred.emit(str(exc))
+            return
+        self.result_ready.emit(result)
+
+    def cancel(self) -> None:
+        pass
+
+
 def _factory(results: dict):
     def factory(target, *args, **kwargs):
         return _FakeWorker(target, *args, result=results.get(target), **kwargs)
@@ -305,6 +331,11 @@ class DesignPanelPhaseCTest(unittest.TestCase):
             ),
         )
         self.panel = DesignPanel(None, None, controller=controller)
+        # Attachment extraction runs on a worker thread in production; the
+        # test runs it inline so the assertions can stay synchronous.
+        self.panel._attachment_worker_factory = (
+            lambda target, *args, **kwargs: _InlineWorker(target, *args, **kwargs)
+        )
         self.panel.set_project(self.project, self.store)
 
     def tearDown(self) -> None:

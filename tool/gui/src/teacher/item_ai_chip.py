@@ -299,6 +299,17 @@ def run_item_chip(
                         rec(str(lesson_id), instruction)
                     except Exception:
                         logger.debug("teacher/item_ai_chip.py:253 best-effort step failed", exc_info=True)
+                # Also a cross-course author hint: the same phrasing habit
+                # applies to the next course, not just this lesson.
+                author_rec = getattr(memory, "record_author_style", None)
+                if callable(author_rec):
+                    try:
+                        author_rec(instruction)
+                    except Exception:
+                        logger.debug(
+                            "teacher/item_ai_chip.py:author style record failed",
+                            exc_info=True,
+                        )
             telemetry.record_event(
                 "experience.chip.applied", payload={"item_id": item_id}
             )

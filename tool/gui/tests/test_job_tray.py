@@ -277,13 +277,12 @@ class CancelActionTest(unittest.TestCase):
             / "item_ai_chip.py"
         ).read_text(encoding="utf-8")
         self.assertIn("_chip_ai_worker", src)
-        canceller = (
-            Path(__file__).resolve().parents[1]
-            / "src"
-            / "application"
-            / "main_window_shell.py"
-        ).read_text(encoding="utf-8")
-        self.assertIn('"_chip_ai_worker"', canceller)
+        # The canceller walks the shared attribute list; the chip's mirror
+        # must be part of it (otherwise the flyout's cancel button cannot
+        # reach the chip's worker).
+        from src.application.ai_request_worker import AI_WORKER_ATTRS
+
+        self.assertIn("_chip_ai_worker", AI_WORKER_ATTRS)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等；2026-10-19 补记鸿蒙复习页白屏修复与顶栏精简（撤除 P0-1 预热与 D8 顶栏四键，真机通过）；**2026-10-19 晚补记文档树精简批次**——见下方「文档树精简（2026-10-19）」一节）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复；2026-10-17 补记协议门禁、探针隔离、5 项功能对等性与 O1/R2/T1 施工；2026-10-18 补记评分档对齐安卓二档、回执兜底与评分互斥、reviewer 生命周期幂等；2026-10-19 补记鸿蒙复习页白屏修复与顶栏精简（撤除 P0-1 预热与 D8 顶栏四键，真机通过）；**2026-10-19 晚补记文档树精简批次**——见下方「文档树精简（2026-10-19）」一节；**2026-10-20 补记鸿蒙签名材料修复与 release 包产出**——含 11111002 真因、「别名大小写」假设的证伪、debug/release 两个包的验签收据与全量门禁首跑，见下方「鸿蒙签名材料修复与 release 包产出（2026-10-20）」一节）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：34-remaining 的 R0–R8（已全部闭环；该方案原文已归档删除，结论速查见 [`archive/README.md`](./archive/README.md)）
@@ -478,6 +478,62 @@ env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
 **收据边界**：这是**编译器收据，不是真机收据**。UI-15 三项、10-18 的 D8/D9/UI-8/
 生命周期/二档/入口三项/P0-1/P0-2 全部仍待真机复验。构建后已用**官方** SDK 的
 `flutter pub get` 恢复 `package_config.json`（三项 rootUri 指回官方 SDK）。
+
+## 鸿蒙签名材料修复与 release 包产出（2026-10-20）
+
+> 本节是**构建/签名侧**收据，不是真机收据、也不是 Official Anki 功能收据。
+> 规则沉淀见 [`docs/ohos-build-setup.md`](../ohos-build-setup.md) 与
+> [`AGENTS.md`](../../AGENTS.md) §9.2；口令等密只在本机 `~/.ohos/config/` 与
+> 被 git 忽略的 `ohos/SIGNING.local.md`，**本节不含任何口令**。
+
+**起因**——`flutter build hap --debug` 在签名阶段失败，报
+`ERROR: 11111002 Certificates error`，而 `hap-sign-tool` 自己的提示是
+"Please check whether the keyAlias is correct"，把排查方向带偏到「配置写的
+`debugKey` 与库里 `debugkey` 大小写不一致、PKCS12 别名查找分大小写」这个假设上。
+
+**该假设已被实测证伪**（这一步是本节最要紧的结论）：
+
+- `hap-sign-tool.jar generate-keypair -keyAlias debugKey` **自己把别名小写化**，
+  落盘后库内条目是 `debugkey`；传 `debugkey` 结果相同 → 配置写 `debugKey` 是对的。
+- `sign-app -keyAlias debugKey` 对 `debugkey` 条目**签成功**，与传 `debugkey` 的
+  产物逐字节一致；传真错别名（`totallyBogusAlias`）才失败 → 别名查找生效但**不分大小写**。
+- `keytool -list -alias` 同样会小写化，**不能**用它论证「别名查不到」。
+
+**真根因**——**密钥库与证书不同代**：`storeFile` 指向 debug 密钥库
+（CN=DebugKey），`certpath` 却指向了 release 分发证书链。2×2×2 签名矩阵实测：
+keystore 与 cert 同代必过、不同代必挂 11111002，profile 两代皆可。
+
+**改动**——①`ohos/build-profile.json5` 的 `certpath` / `profile` 改指同代 debug
+材料，并补注释写明「同代要求 / 11111002 与误导性 keyAlias 提示 / 别名小写化 /
+只有 debug p7b 带 device-ids」；②`ohos/build-profile.json5.release`（git-ignored）
+重写为**加密 blob** 版——此前存明文口令，而 hvigor 只收加密 blob（明文 →
+00303116 / 00303242），该档此前根本不可用；③`.gitignore` 相关注释订正
+（原注释两处都说反了），并新增 `ohos/SIGNING.local.md`（本机密档）忽略规则；
+④`Makefile` 的 `build-release-smoke` 补 `--allow-version-mismatch`——脚本新加了
+「`--version` 必须与 pubspec 一致」的断言，而 smoke 目标固定用非版本号
+`ci-smoke`，**不改则 `make ci` 恒挂**；⑤顺带清理 `ohos/` 下 16 个 `.tmp_*`
+排查残留（其中 7 个曾被 `git add` 过）。
+
+**产出收据**——
+
+- `flutter build hap --debug` → 签名 hap，`verify-app` **Verify success**，
+  内嵌 profile `type=debug` / app-identifier `6918745411724992158` / **含 device-ids**（可真机直装）。
+- `flutter build app --release` → `ohos-default-signed.app`（58.0 MB，内含 116 MB hap），
+  `verify-app` **Verify success**，内嵌 profile `type=release` /
+  app-identifier `6917619511459549572` / `app-distribution-type=app_gallery` /
+  **无 device-ids**（AppGallery 分发档）。
+- 两者的签名块内均为 **release 分发叶证书**、均**不含** debug 叶证书（按 DER 逐字节核对）。
+- 归档落位 `dist/turna-v0.9.1-ohos-release.hap` 与 `dist/turna-v0.9.1-ohos-release.app`。
+
+**全量门禁**（本机无 `make`，按 `Makefile` 的 `ci` 目标逐步复刻）——`format-check`
+0 改动；`analyze` **No issues found**；`test`（含 golden）**2246 passed / 1 failed**
+（唯一失败为既有项 `course_tree_expanded_light` 本机渲染漂移）；`test-python`
+**60 tests / OK**；`lint-gui` ✓；`guard-gui` 三步 ✓；`test-gui` **204 passed / 0 failed**；
+`build-release-smoke` 修 Makefile 后 **APK 阶段通过**，**AAB 阶段仍失败**（Android 侧
+native 符号剥离，与鸿蒙签名无关，本批不处理）。
+
+**未验**——真机安装与 AppGallery 上传均未做；本轮重签的两个包**未再上机**；
+`ohos/build-profile.json5` 生效档已切回 debug 档。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 

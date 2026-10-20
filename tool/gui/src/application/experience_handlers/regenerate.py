@@ -789,6 +789,10 @@ def _batch_regen_prepare(
             _s, display = spec.find(host.adapter, iid)
             names.append(f"· {display}（{iid}）")
         except Exception:
+            logger.debug(
+                "src/application/experience_handlers/regenerate.py:791 best-effort step failed",
+                exc_info=True,
+            )
             names.append(f"· {iid}")
     more = "" if len(targets) <= 12 else f"\n…共 {len(targets)} {spec.noun}"
     if not safe_question(

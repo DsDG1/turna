@@ -258,14 +258,19 @@ S112 已补 `logger.debug(..., exc_info=True)` 清零。同时修正上方命令
   `src.backend.ai.facade`（PEP 562 模块级 `__getattr__` 惰性转发
   `run_pipeline`/`PipelineState`/`PipelineStep`/`CHECKLIST_STEPS`/`STATUS_*`/
   `request_course`，保持原有循环导入规避设计）。当前基线 **0**。
-- **app/application → dialogs 棘轮**：`--fail-app-dialogs` —— application 层
+- **app/application → dialogs 棘轮**：`--max-app-dialogs-imports N` —— application 层
   不得 import dialogs 的**基础设施**（worker/helper），当前已清零并下沉：
   `src/application/ai_request_worker.py`（原 `dialogs/ai/worker.py`，29 个文件
   引用点同步）、`src/backend/quality_campaign.py`（原 dialogs 里的纯排序函数）。
   剩余 **13** 处为 controller / app.py 作为组合根**启动对话框窗口**的既定
   模式（InitCourseDialog/SettingsDialog/AiFixDialog/WorkshopWindow 等），
-  属已知债务，暂 warn 不 fail；新增 import 需走对话框启动模式而非再引入
-  基础设施依赖。
+  属已知债务。
+  **2026-10-20 变更**：此前这条只有「零容忍」形态的 `--fail-app-dialogs`
+  （有就失败），但 13 处已知债务无法清零，于是该选项在 Makefile 与两个 CI
+  workflow 里**从未启用**——契约写了、门禁没管，数字因此无上限。
+  现改为**上限形态** `--max-app-dialogs-imports 13`（基线写在
+  `guard_limits.json`），语义与其它棘轮一致：只减不增。
+  `--fail-app-dialogs` 保留为「清零后启用」的形态，现阶段不启用。
 - **私有符号外泄清零**：`textbook_to_course._rewrite_ids_deterministic` 增加公开
   别名 `rewrite_ids_deterministic`；design_controller / section_import_service
   改用公开名。
@@ -411,7 +416,7 @@ polish / measure 成本正比于**进程中全部存活控件**，而非新建�
 指向的是同一现象（未回收窗口 + 反复重申进程级样式导致的资源累积），
 不是定时器逻辑本身有问题。
 
-## 15. UI→backend 旁路与 import 环（2026-09-27，已接线）
+## 15. UI→backend 旁路与 import 环（2026-09-27 接线；2026-10-20 补两条 UI 横向棘轮）
 
 `application/` 门面层最大的现实问题：UI 层绕过它直连 backend。实测（AST 全量扫描，
 含函数体内的惰性 import）：
@@ -433,18 +438,46 @@ polish / measure 成本正比于**进程中全部存活控件**，而非新建�
 |---|---|---|
 | `--max-ui-backend-imports N` | UI→backend import 语句数**只减不增** | 见 `guard_limits.json` |
 | `--fail-course-cli-binding` | 除 `src/backend/api.py` 外，任何模块不得绑定 `course_cli` 这个名字 | **0** |
-| `--max-import-cycles N` | `src/` 内**模块级** import 环（Tarjan SCC）只减不增 | **2** |
+| `--max-import-cycles N` | `src/` 内**模块级** import 环（Tarjan SCC）只减不增 | **0** |
+
+**2026-10-20：模块级 import 环已清零**（基线从 2 降到 0）。两处环都用
+**PEP 562 模块级 `__getattr__` 惰性再导出**断开，调用点无需改动：
+
+1. `backend/experience/suggestions/__init__` → `ambient` → 各 `p*` 收集器 → 回指包
+   —— 包 `__init__` 改为惰性导出 `local_suggestions`。
+2. `dialogs/git_library/__init__` → `git_library_dialog` → 包内各功能模块
+   —— 包 `__init__` 改为惰性导出 `GitLibraryDialog`。
+
+惰性再导出与 `src/backend/ai/facade.py` 已有的一致（契约第 5 节即用同一手法
+规避 `ai_pipeline` 的循环导入）。
+
+**2026-10-20：新增两条 UI 横向耦合棘轮**（此前只管 UI→backend，不管 UI 内部）：
+
+| 规则 | 含义 | 基线 |
+|---|---|---|
+| `--max-app-dialogs-imports N` | application/app → dialogs 语句数只减不增 | **13** |
+| `--max-widgets-dialogs-imports N` | widgets → dialogs 语句数只减不增 | **4** |
+
+两条的**权威数字在 `tool/gui/tool/guard_limits.json`**
+（`max_app_dialogs_imports` / `max_widgets_dialogs_imports`）；上表是 2026-10-20 的快照。
+CLI 参数只用于一次性实验，默认值一律从该文件读 —— 缺键/多键会直接 exit 1，
+不会静默解除某项检查。
+
+`dialogs → widgets`（21 处，方向合理：对话框复用组件）不设棘轮。
+`widgets → dialogs` 是反向耦合（可复用组件伸手进具体对话框），当前 4 处：
+`bulk_merge_resolve_panel.py:72`、`course_tree.py:792`、`course_tree.py:814`、
+`workshop_canvas.py:34`。
 
 **`course_cli` 单网关已收口**：`src/widgets/resource_editor.py` 原先
 `from src.backend.api import course_cli`（重新导出 CLI 内部对象），
 已改为调用 `api.py` 已有的包装 `export_csv_rows()`。该规则基线直接为 0。
 
-**现存 2 个模块级环**（只统计模块体 import；函数内惰性 import 是为断环而存在，
-不算结构性环）：
+**模块级环已清零**（2026-10-20）。原存 2 个（只统计模块体 import；函数内惰性
+import 是为断环而存在，不算结构性环）：
 
 1. `backend/experience/suggestions` ↔ `backend/experience/suggestions/ambient`
-   （包 `__init__` 导入自己的子模块，子模块又导回包）
-2. `dialogs/git_library` ↔ `dialogs/git_library_dialog`
+   （包 `__init__` 导入自己的子模块，子模块又导回包）—— 已用 PEP 562 惰性再导出断开
+2. `dialogs/git_library` ↔ `dialogs/git_library_dialog` —— 同上
 
 **为什么用棘轮而不是立即清零**（下述边数为 2026-09 历史快照）：163 条边中真正该改的是那 99 个「函数」类符号，
 但它们分散在 66 个文件里，且多数是惰性导入。一次性改成 0 会让主干无法推进。

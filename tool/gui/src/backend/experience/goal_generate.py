@@ -89,26 +89,6 @@ def force_lesson_id(lesson: Mapping[str, Any], lesson_id: str) -> dict[str, Any]
     return body
 
 
-def extract_lesson_from_section(
-    section: Mapping[str, Any] | None,
-    lesson_id: str,
-) -> dict[str, Any] | None:
-    """Find lesson dict in a section tree; return deep copy or None."""
-    lid = str(lesson_id or "").strip()
-    if not lid or not section:
-        return None
-    try:
-        for unit in section.get("units") or []:
-            if not isinstance(unit, Mapping):
-                continue
-            for les in unit.get("lessons") or []:
-                if isinstance(les, Mapping) and str(les.get("id") or "") == lid:
-                    return copy.deepcopy(dict(les))
-    except Exception:
-        return None
-    return None
-
-
 def payload_summary(payload: Mapping[str, Any] | None) -> str:
     """Short author-visible line for checklist."""
     if not is_lesson_payload_mergeable(payload):

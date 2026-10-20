@@ -7,6 +7,7 @@ MainWindow (``app.py``) runs ``_import_section_dict`` for each section.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,9 @@ from src.theme import ai_color, current_palette
 from src.widgets.bulk_import_preview_panel import BulkImportPreviewPanel
 from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
 from src.application.settings import APP_NAME, ORG_NAME
+
+logger = logging.getLogger(__name__)
+
 
 def _status_text_style(token: str) -> str:
     """Status-lamp text style driven by the active palette (themeable)."""
@@ -124,6 +128,7 @@ class TextbookImportDialog(QDialog):
             on_extract_progress=self._on_extract_progress,
             on_sections_ready=self._on_controller_sections_ready,
             on_autosave=self._on_autosave,
+            on_status=self._on_status,
             on_quality_report_changed=self._on_quality_report_changed,
             on_usage_update=self._on_usage_update,
             language=project.language if project else "Turkish",
@@ -311,6 +316,29 @@ class TextbookImportDialog(QDialog):
         elif "失败" in text:
             self._extract_status_label.setText("抽取状态：失败 — 见日志")
             self._extract_status_label.setStyleSheet(_status_text_style("error_text"))
+
+    def _on_status(self, message: str) -> None:
+        """Surface a non-fatal failure (e.g. a failed autosave) to the user.
+
+        The controller used to read a ``_status_hook`` attribute that was
+        never assigned, so an autosave failure (disk full, read-only project
+        directory) lost the extracted work with no visible sign.
+        """
+        text = str(message or "")
+        if not text:
+            return
+        try:
+            self._extract_log.insertPlainText(text)
+            self._extract_log.ensureCursorVisible()
+        except Exception:
+            logger.debug(
+                "dialogs/textbook_import_dialog.py:_on_status log append failed",
+                exc_info=True,
+            )
+        label = getattr(self, "_extract_status_label", None)
+        if label is not None:
+            label.setText(f"状态：{text[:120]}")
+            label.setStyleSheet(_status_text_style("error_text"))
 
     def _on_autosave(self, project: TextbookProject) -> None:
         """Persist project snapshot, preserving original identity and imports."""

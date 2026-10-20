@@ -36,6 +36,9 @@ from src.backend.knowledge_prompt import (
     build_vocab_only_extraction_messages,
 )
 from src.backend.knowledge_schema import KnowledgePoints, coerce_knowledge_points
+import logging
+
+logger = logging.getLogger(__name__)
 from src.backend.markdown_chopper import Chapter, split_chapter_windows
 
 ExtractionStrategy = Literal["standard", "vocab_only"]
@@ -351,6 +354,10 @@ def extract_knowledge_points_windowed(
         except AiCancelled:
             raise
         except Exception as exc:
+            logger.debug(
+                "src/backend/knowledge_extractor.py:356 best-effort step failed",
+                exc_info=True,
+            )
             errors.append(f"第 {n}/{len(windows)} 窗：{exc}")
     if not results:
         raise RuntimeError("知识点抽取失败：" + "；".join(errors))

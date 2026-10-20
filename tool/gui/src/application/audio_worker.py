@@ -46,6 +46,10 @@ class GenerateAudioWorker(QThread):
         # Keep a strong reference until the thread finishes so a closed owner
         # cannot destroy a still-running QThread ("QThread: Destroyed while
         # thread is still running").
+        #
+        # The release happens on the ``finished`` signal, which is delivered
+        # on the GUI thread. Doing it inside ``run`` would touch the QThread
+        # from the worker thread, which can deadlock.
         _LIVE_WORKERS.add(self)
         self.finished.connect(self._release_keepalive)
         super().start(*args, **kwargs)
