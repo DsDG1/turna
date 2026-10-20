@@ -1,3 +1,4 @@
+import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
@@ -15,6 +16,34 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
 
   bool get canUndo => _session.canUndo;
   bool get canRedo => _session.canRedo;
+
+  /// Whether the scheduler still owes [cardId] right after the last mutation.
+  ///
+  /// [answer] leaves a fresh queue behind (`answerAndConfirm` refreshes it),
+  /// so "absent from the queue" means this card is now scheduled beyond
+  /// today. The due snapshot fold uses THIS instead of guessing from the
+  /// outcome: a learning card answered `good` can still be owed in the same
+  /// session, and a lapsed card answered `again` certainly is.
+  ///
+  /// Conservative where it cannot judge: a session that ended in an error
+  /// (empty queue + not `completed`), and a queue the engine truncated at
+  /// `maxReviewQueueFetchLimit`, both report "still owed" — a stale extra card
+  /// in the count is preferable to hiding one the learner will be shown next.
+  bool isCardStillOwed(int cardId) {
+    final queue = _session.queue;
+    if (queue == null) {
+      // No queue: either the session just answered its last card
+      // (`refreshQueue` clears it and flips to `completed`) or the engine
+      // failed. Only the completed case means "nothing is owed any more".
+      return _session.phase != OfficialReviewPhase.completed;
+    }
+    final allowed = _session.allowedCardIds;
+    if (allowed != null &&
+        allowed.length > OfficialAnkiOperation.maxReviewQueueFetchLimit) {
+      return true;
+    }
+    return queue.cards.any((card) => card.cardId == cardId);
+  }
 
   @override
   Future<ReviewDueSummary> dueSummary({String? scope}) async {

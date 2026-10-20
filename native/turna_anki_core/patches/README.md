@@ -77,7 +77,9 @@ If a later task needs an upstream change:
     with_media)`: merges an already-imported staging collection into the
     target without re-unzipping the original package — the backing of the
     `PROMOTE_STAGING_COLLECTION` op (doc 38 cutover). Adds a private
-    `copy_dir` helper for the media folder merge.
+    `copy_media_tree` helper for the media folder merge, plus
+    `empty_zip_archive()` (a writable read+write temp file, not
+    `anki_io::open_file`) so the foreign merge can reuse `Context::import()`.
   - `Context` grows a `copy_media_files` flag; `prepare_media`/`copy_media`
     are skipped when it is off (scheduling data still imports).
 - Why: the official-Anki migration stages packages into a throwaway

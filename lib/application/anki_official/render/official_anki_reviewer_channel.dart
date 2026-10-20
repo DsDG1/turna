@@ -25,8 +25,7 @@ class OfficialAnkiReviewerChannel {
 
   /// Channel name kept identical to the existing probe so the rename from
   /// "probe" to "reviewer" stays invisible to the rest of the Dart side.
-  static const String channelName =
-      OfficialAnkiReviewerProtocol.channelName;
+  static const String channelName = OfficialAnkiReviewerProtocol.channelName;
 
   final MethodChannel channel;
 
@@ -243,8 +242,9 @@ class OfficialAnkiReviewerChannel {
       }
     }
 
-    final workers =
-        pending.length < mediaPushConcurrency ? pending.length : mediaPushConcurrency;
+    final workers = pending.length < mediaPushConcurrency
+        ? pending.length
+        : mediaPushConcurrency;
     await Future.wait(
       List<Future<void>>.generate(workers, (_) => worker()),
     );

@@ -150,7 +150,6 @@ void main() {
             'noise, not a second exit',
       );
     });
-
   });
 
   group('exit confirmation count (D9)', () {
@@ -371,14 +370,16 @@ void main() {
 
     test('the insets come back as padding', () {
       expect(
-        page.contains('padding({ top: this.topAvoid, bottom: this.bottomAvoid })'),
+        page.contains(
+            'padding({ top: this.topAvoid, bottom: this.bottomAvoid })'),
         isTrue,
         reason: 'an edge-to-edge window puts the header under the status bar '
             'and the action row under the gesture indicator unless the page '
             'pads itself',
       );
       expect(
-        page.contains('win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)'),
+        page.contains(
+            'win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)'),
         isTrue,
         reason: 'the status bar height is only knowable from the avoid area',
       );
@@ -418,9 +419,10 @@ void main() {
       // was a different colour family from the pages around it. Reading the
       // token instead of hardcoding it means a theme change moves both.
       final theme = File('lib/core/theme.dart').readAsLinesSync().join('\n');
-      final match =
-          RegExp(r'darkScaffold = Color\(0xFF([0-9A-Fa-f]{6})\)').firstMatch(theme);
-      expect(match, isNotNull, reason: 'TurnaTheme.darkScaffold moved or was renamed');
+      final match = RegExp(r'darkScaffold = Color\(0xFF([0-9A-Fa-f]{6})\)')
+          .firstMatch(theme);
+      expect(match, isNotNull,
+          reason: 'TurnaTheme.darkScaffold moved or was renamed');
       final token = '#${match!.group(1)!.toUpperCase()}';
       final night =
           chrome.substring(chrome.indexOf('export function nightPalette()'));

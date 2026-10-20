@@ -8,8 +8,8 @@ import 'package:turna/service/locator.dart';
 /// Idempotent migrations that must run after every kind of user-state restore.
 ///
 /// Restore writers only put bytes/prefs back. This service owns the semantic
-/// convergence that follows: no debug auto-answer, no plaintext AI key,
-/// ledger/prefs agreement, and slot-based cosmetic equipment/entitlements.
+/// convergence that follows: no plaintext AI key, ledger/prefs agreement, and
+/// slot-based cosmetic equipment/entitlements.
 class RestoreNormalizationService {
   RestoreNormalizationService({
     required AppPrefs prefs,
@@ -27,9 +27,6 @@ class RestoreNormalizationService {
   final AiEngineConfigHolder _aiConfig;
 
   Future<void> normalize() async {
-    // Debug convenience state is intentionally never restored as enabled.
-    await _prefs.preferences.setBool(LocalStateKeys.funAutoAnswer, false);
-
     // Load first: legacy plaintext is copied to secure storage and then
     // removed from the prefs document by AiEngineConfigHolder.
     await _aiConfig.loadPersisted();

@@ -23,6 +23,7 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -30,7 +31,6 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
 import 'package:turna/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
@@ -313,26 +313,36 @@ class _NewLessonPageState extends State<NewLessonPage>
     }
   }
 
+  /// Routes the user to the AI connection page when the engine is not
+  /// configured.
+  ///
+  /// [openSettings] switches the Home tab **and** pushes the target route in
+  /// one hop. Switching the tab alone was not enough: the lesson route sits
+  /// above Home in the root stack, so the tab change stayed invisible and the
+  /// CTA looked like a dead end on the Settings landing page.
   Future<void> _showAiConfigPrompt(BuildContext context) async {
-    await showDialog<void>(
+    final goToSettings = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(AppStrings.aiNotConfiguredTitle),
         content: Text(AppStrings.aiNotConfiguredMessageLesson),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(AppStrings.commonLater),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              getIt<TabRouter>().switchTo(TabDestination.settings);
-            },
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(AppStrings.aiGoToSettings),
           ),
         ],
       ),
+    );
+    if (goToSettings != true || !context.mounted) return;
+    await openSettings(
+      context,
+      SettingsDestination.advanced,
+      anchor: SettingsAdvancedAnchor.aiConnection,
     );
   }
 

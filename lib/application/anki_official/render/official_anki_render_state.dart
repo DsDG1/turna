@@ -184,7 +184,8 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     final token = ++generation;
     cardToken = token;
     phase = OfficialAnkiReviewerPhase.loadingCard;
-    ui = OfficialAnkiReviewerUi.rendering(side: OfficialAnkiReviewerProtocol.sideQuestion, generation: token);
+    ui = OfficialAnkiReviewerUi.rendering(
+        side: OfficialAnkiReviewerProtocol.sideQuestion, generation: token);
     showingAnswer = false;
     error = null;
     await av.nextCard();
@@ -200,7 +201,8 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     final token = ++generation;
     cardToken = token;
     phase = OfficialAnkiReviewerPhase.loadingCard;
-    ui = OfficialAnkiReviewerUi.rendering(side: OfficialAnkiReviewerProtocol.sideQuestion, generation: token);
+    ui = OfficialAnkiReviewerUi.rendering(
+        side: OfficialAnkiReviewerProtocol.sideQuestion, generation: token);
     showingAnswer = false;
     error = null;
     lastAck = null;

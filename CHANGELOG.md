@@ -13,6 +13,54 @@ Turna 的完整更新历程。本文件按时间顺序记录从最初原型到�
 
 ---
 
+## 0.9.1 AI 收敛与界面打磨 (2026-10-20)
+
+本版把 AI 从「并行专区」收回到「练习的一个来源」，顺带修掉一批界面缺陷。
+
+### 新增
+
+- **系统提示词可见可追加**：新增 `lib/application/ai/ai_prompt_catalog.dart`（自由问答 / 卡片讲解 / 词典扩展 / 题目提示 / 学习诊断 5 个功能的默认 prompt 收成**单一来源**，provider 只传运行时变量）+ `ai_prompt_overrides.dart`（`ai.promptOverride.<feature>` 单键、追加式、4000 字上限、进程内兜底单例）+ `views/ai/ai_prompt_sheet.dart`（生效版本只读 + 追加编辑器 + 复制/保存/恢复默认），入口在 AI Hub 偏好卡下方。**只追加不替换**是刻意的——默认文本里「不许输出课程 JSON」「未作答别直接给答案」是安全边界，含 schema 契约的课程生成类干脆不开放。
+- **AI 生成内容显式标注**：`views/ai/components/ai_generated_notice.dart` 页面级横幅 + 单条输出角标（`AiMarkdownBody`），用户在产生第一轮输出之前就知道这是模型生成的。
+- **鸿蒙分层图标**：`ohos/AppScope/resources/base/media/layered_image.json` + 前景 / 背景各 1024×1024。云测试 50111 项要求图标必须分层且不得自带圆角/内边距，单层 `app_icon.png`（216×216）会在该项判不通过；原图保留作回退。
+- **ADR 0051**：鸿蒙 bundle 名与安卓区分（`me.dsdogs.turna.hmos`），避免同包名覆盖安装。
+- **鸿蒙每日提醒平台守卫**：`LocalReminderService.supportsScheduling` 为假时（鸿蒙无通知注册器）开关置灰并显示原因，不再让用户点一个永远不生效的开关。
+
+### 变更
+
+- **AI 服务商收敛**：`AiProvider` 从 `deepseek / kimi / qwen / mimo / custom` 收敛为 **`deepseek / mimo / custom`**。DeepSeek 默认模型升至 `deepseek-v4.1-flash`（+ `-pro`），MiMo 升至 `mimo-v2.6-pro` / `mimo-v2.6`。删预设不等于删连接：`AiEngineConfig` 加 `schemaVersion: 2`，`fromJson` 用 `kRetiredPresets`（`kimi` / `qwen` → `custom` + 原 Base URL + 原模型）与 `kRetiredModelAliases`（v4→v4.1、v2.5→v2.6）迁移，否则老用户会拿到「deepseek 地址 + kimi 模型」这种连不通且界面看不出异常的静默坏配置。
+- **AI 面去蓝紫**：`ai_hub_page` Hero 渐变 `amethystLeague→teal` 改 `brandTealDark→brandTealLight`；`ai_feature_guide_page` / `ai_api_config_page` / `ai_not_configured_panel` / `play_tiles` / `play_info_panels` 同步。`amethystLeague` 常量**保留**（词典 / 练习信息面板 / 成就目录仍在用）；Hero 没用 `brandReed` 收尾是因为 `#78C7B8` 上白字对比不足。
+- **全库用户可见 emoji 清零**（`📘 伴学` / `🎯 复习` / 三处 `❤ 收藏`），并修三处假文案：原写「隐私：仅本机 · 不联网」（AI 必然出网，改为「配置只存本机，请求直达服务商」）、引导页「选时间范围 7/30 天」「选词数量 10/20/50」两个根本不存在的控件改成真实步骤。
+- **「开发者实验室」（Fun Lab）及其底层子系统整体删除**（不是隐藏）：设置分类 `SettingsDestination.developer`、debug 入口块、`DeveloperSettingsPage`、`SettingsFunSection`、`FunProvider`、`FunLabSnapshotService`。连带清理成就页横幅、`FunLabSnapshotMeta` 等 4 张表（`CourseDatabase.kSchemaVersion` 30→31，v31 为纯 `DROP TABLE`）、66 条文案、`ISrsStateStore.countPostponable` / `postponeActiveBy`、备份清单同步移除。`make gen`（fork SDK）重生成 `routing.gr.dart` / `injection.config.dart`。
+- **AI 入口并入练习队列**：练习页「AI 助手」横幅撤除，改为复习队列 2×2 的第四格「智能练习」（`ReviewTile` + `auto_awesome` + teal，引擎未配置时挂橙色「未配置」徽标）；语言课 = 错题/单词/语法/智能练习，Anki 课 = Anki 复习/智能练习。命名连带：AI Hub AppBar 与功能手册标题改「智能练习」/「智能练习 · 功能介绍」，Hub 页首分区 `aiHubNew` 由「开始伴学」改「生成练习」。
+- **接口与责任标注**：AI 配置页新增常驻 `_EndpointScopeNotice`（只接 OpenAI 兼容 Chat Completions `POST {Base URL}/chat/completions`；请求由本机直达用户填的服务商、应用不中转不留存；生成/合规/计费归服务商），Base URL 下方加「末尾别带 `/chat/completions`」。
+- **鸿蒙探针 ability 注销**：`AnkiReviewerProbeAbility` 保留在 `ets/probe/` 但**不再注册**到 `module.json5`（`exported: true` 的诊断 ability 留在发布包里是云测试安全项的现成把柄；启动探针已于 2026-10-19 移除，`lib/` 无调用方）。
+- **鸿蒙 vendor** `example` → `Turna`；`versionCode` / `versionName` 与 pubspec 同步（此前 app.json5 注释声称有守卫测试断言同步，实测**没有**——该守卫只断言文件存在，注释已订正）。
+- **修掉的死导航**：隐私与 Anki AI 提示原写「设置 → AI 工具 → AI API 配置」，设置里早已没有该分组（`settingsAiSectionTitle` 零引用），改成「练习 → 智能练习 → 顶部引擎卡」。
+- **重复选择**：`TutorLaunchSheet({SrsTutorFocus? focus})` 上游已选侧重就锁定、不再渲染 `_focusChooser`；删 `ai_hub_page._openSheet` 收 `focus` 却从不使用的死参数。
+- **大字模式排版**：`play_hub_screen` 复习队列 1×6 → 网格、三列工具行 `SizedBox(height: 104)` → 网格 + `minChildHeight: 104`（`columns: ankiCourse ? 1 : 3`）；`ReviewTile` / `CompactToolTile` 顶部 badge `Spacer` → `Expanded + Align(end) + FittedBox`；`course_management_page._AddCourseCard` 标题 Column 加 `Flexible`。
+- **设置页开关滑块恢复可见**：`settingsAdaptiveSwitch` 的 `selected` 态 thumb 由 `brandTeal` 改为 `textOnPrimary`（白）。此前 thumb 与 track 同色，整个开关塌成一坨纯青（像素实测白色像素数 = 0）；**这不是回归**——自 `980224e6` 引入起就是 teal thumb（当时叫 `peacockTeal`），只是此前无人与裸 `Switch` 同屏对比。修复覆盖设置页全部 5 个开关入口。
+- **changelog 阶段数改为派生**：`changelog_page.dart` 原硬编码「从原型到 0.9 的 9 个阶段」，新增一版即说谎；改为从 `ReleaseManifest.journeySteps` 派生。
+- **新文件**：`lib/views/widgets/adaptive_card_grid.dart`（自适应卡片网格）。
+
+### 修复
+
+- **鸿蒙每日提醒开关无效**：`settings_reminder_section.dart` 改为在无排程能力时置灰并说明原因，同时不再渲染时间选择行。
+- **大字模式文字溢出**：成就卡、复习进度 streak 行、课时完成弹窗统计格、添加课程卡等在 `TextScaler.linear(2)` + 360 宽下溢出。
+- **Anki 官方引擎答题到期折叠**：`official_answer_due_fold_test.dart` 覆盖新行为。
+
+### 测试
+
+- 新增 `ai_prompt_catalog_test` / `ai_prompt_sheet_test` / `achievement_badge_card_text_scale_test` / `local_reminder_platform_support_test` / `official_answer_due_fold_test` / `sherpa_model_asset_guard_test` / `settings_switch_thumb_test`（像素级断言，验证 ON 态白 thumb 存在且两态可区分）。
+- `play_hub_screen_test` 改断言（存在「智能练习」、Anki 场景同样存在、无「AI 助手」、徽标「未配置」）。
+- 删 `fun_lab_snapshot_service_test.dart`（7 条）与 `achievement_badge_card_test.dart`（1 条）；`schema_migration_test.dart` 的 v14→v15 建表用例改为 v30→v31 删表用例。
+- golden 重生 `play_hub_light/dark` 与 `settings_reminder_light/dark`。
+
+### 验证
+
+`flutter analyze` **No issues found**；全量 `flutter test --exclude-tags golden` **2233 passed / 0 failed**；`python -m unittest discover -s test -p "*_test.py"` **Ran 60 tests / OK**；`test/golden/` 仅 `course_tree_expanded_light` 一项失败（`git stash` 回 HEAD 复现同一失败，属既有本机渲染漂移，不属本版）。`dart format` 全库合规。
+
+---
+
 ## 0.9 多端落地与可靠性 (2026-10-19)
 
 本版把 Turna 从「安卓一个端」推到三端：新增鸿蒙伴生版，iOS 接上官方的 Anki 引擎；同时收口了多语言课程、安全与一批会让界面卡死的缺陷。

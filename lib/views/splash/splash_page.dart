@@ -18,10 +18,6 @@ import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
-import 'components/center_display.dart';
-import 'components/get_started_button.dart';
-import 'components/splash_background_painter.dart';
-
 /// Returns true when a TTS dialog was shown (counts against the session
 /// modal budget). Dismissing the barrier keeps the system voice.
 Future<bool> maybePromptTtsAvailability(BuildContext context) async {
@@ -146,7 +142,7 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
   return true;
 }
 
-/// Label shown on the splash while the course is not loaded yet.
+/// Label shown while the course is not loaded yet.
 /// Null once the course is up, or when boot failed (the retry copy takes over).
 String? splashStartupStatusLabel(
   TurnaStartupPhase phase, {
@@ -166,6 +162,13 @@ enum _GoogleTtsPromptAction {
   keepSystem,
 }
 
+/// Startup gate — NOT a welcome screen.
+///
+/// It exists only because the router needs an initial page whose guard can
+/// hold navigation until the course shells are ready, and because a failed
+/// boot needs a retry affordance. There is deliberately no mascot, no product
+/// name, no tagline and no "get started" button: the learner goes straight to
+/// [HomeRoute] the moment the providers are up (see [_SplashPageState._maybeSkip]).
 @RoutePage()
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -215,71 +218,62 @@ class _SplashPageState extends State<SplashPage> {
     if (initialized && loaded && !_navigating) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSkip());
     }
+    final bootFailed = course?.bootFailed ?? false;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      body: Stack(
-        children: [
-          CustomPaint(
-            painter: SplashBackgroundPainter(),
-            size: Size.infinite,
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                const Expanded(child: CenterDisplay()),
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (course?.bootFailed ?? false) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-                          child: Text(
-                            AppStrings.splashCourseLoadFailed,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: TurnaTheme.textSecondaryColor(context),
-                                ),
+      body: SafeArea(
+        child: Center(
+          child: bootFailed
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStrings.splashCourseLoadFailed,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: TurnaTheme.textSecondaryColor(context),
                           ),
-                        ),
-                      ] else if (!(course?.isLoaded ?? false))
-                        ListenableBuilder(
-                          listenable: turnaStartupProgress,
-                          builder: (context, _) {
-                            final label = splashStartupStatusLabel(
-                              turnaStartupProgress.phase,
-                              courseLoaded: course?.isLoaded ?? false,
-                              bootFailed: course?.bootFailed ?? false,
-                            );
-                            if (label == null) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-                              child: Text(
-                                label,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: TurnaTheme.textSecondaryColor(
-                                          context),
-                                    ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => continueTurnaStartup(retrySeed: true),
+                      child: Text(AppStrings.commonRetry),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                    const SizedBox(height: 14),
+                    ListenableBuilder(
+                      listenable: turnaStartupProgress,
+                      builder: (context, _) {
+                        final label = splashStartupStatusLabel(
+                          turnaStartupProgress.phase,
+                          courseLoaded: course?.isLoaded ?? false,
+                          bootFailed: course?.bootFailed ?? false,
+                        );
+                        if (label == null) return const SizedBox.shrink();
+                        return Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: TurnaTheme.textSecondaryColor(context),
                               ),
-                            );
-                          },
-                        ),
-                      GetStartedButton(context),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -34,8 +34,7 @@ void main() {
   });
 
   group('OhosFilePicker', () {
-    test('is not required on the host SDK, so Android/iOS keep the plugin',
-        () {
+    test('is not required on the host SDK, so Android/iOS keep the plugin', () {
       expect(OhosFilePicker.isRequired, isFalse);
     });
 
@@ -60,7 +59,8 @@ void main() {
       expect(picked.size, 4096);
     });
 
-    test('sends the filter under "extensions", dotted and lowercased', () async {
+    test('sends the filter under "extensions", dotted and lowercased',
+        () async {
       final calls = <MethodCall>[];
       respondWith(null, calls);
 
@@ -106,8 +106,7 @@ void main() {
       expect(
         () => OhosFilePicker.pickFiles(allowedExtensions: const ['json']),
         throwsA(
-          isA<PlatformException>()
-              .having((e) => e.code, 'code', 'NO_RESULT'),
+          isA<PlatformException>().having((e) => e.code, 'code', 'NO_RESULT'),
         ),
       );
     });

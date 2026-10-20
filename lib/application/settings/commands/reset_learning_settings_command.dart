@@ -6,9 +6,15 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/local_reminder_service.dart';
 
-/// Resets every learning-related tunable to its factory default in one
-/// transactional sweep: TTS speed, daily reminder (+ OS schedule), FSRS
-/// retention, Anki daily limits and the daily-challenge inclusion.
+/// Resets every learning-related tunable to its factory default in one sweep:
+/// TTS speed, daily reminder (+ OS schedule), FSRS retention, Anki daily
+/// limits and the daily-challenge inclusion.
+///
+/// The sweep is **independent per step**, not transactional: the reminder is
+/// applied first (and still gates the rest, because committing "off" while
+/// the OS kept a schedule is the one inconsistency worth refusing), but a
+/// failure afterwards is reported by step instead of silently discarding the
+/// writes that already succeeded.
 ///
 /// [notResetScopes] is the single source of truth for what this command
 /// NEVER touches — the confirmation dialog copies it verbatim so the UI
@@ -32,22 +38,48 @@ class ResetLearningSettingsCommand {
     final reminder = getIt<LocalReminderService>();
     final anki = getIt<AnkiDeckManager>();
 
+    // Reminder first, and the one step that still aborts: only after the OS
+    // accepts "disabled" may the preference be committed
+    // (UpdateDailyReminderCommand semantics). Disabling is a no-op — not a
+    // failure — on a platform with no notification registrant, so a
+    // HarmonyOS build reaches the rest of the sweep.
     try {
-      // Reminder first: only after the OS schedule accepts "disabled" do we
-      // commit the preference (UpdateDailyReminderCommand semantics).
       await reminder.applyFromSettings(
           enabled: false, time: settings.dailyReminderTime);
-      await settings.resetLearningDefaults();
-      audio.setTtsSpeed(settings.ttsSpeed);
-      await anki.resetLearningDefaults();
     } on Object catch (error) {
       return SettingsOperationFailure(
-        code: 'learningReset.failed',
-        userMessage: '部分设置重置失败，请重试。${_brief(error)}',
+        code: 'learningReset.reminderFailed',
+        userMessage: '提醒取消失败，设置未重置。${_brief(error)}',
         retryable: true,
       );
     }
-    return const SettingsOperationSuccess();
+
+    // The remaining steps are independent local writes. One failing must not
+    // discard the ones that already landed — the previous all-or-nothing try
+    // block reported "部分…失败" while resetting nothing at all.
+    final failures = <String>[];
+    try {
+      await settings.resetLearningDefaults();
+    } on Object catch (error) {
+      failures.add('学习偏好：${_brief(error)}');
+    }
+    try {
+      audio.setTtsSpeed(settings.ttsSpeed);
+    } on Object catch (error) {
+      failures.add('朗读语速：${_brief(error)}');
+    }
+    try {
+      await anki.resetLearningDefaults();
+    } on Object catch (error) {
+      failures.add('Anki 限额：${_brief(error)}');
+    }
+
+    if (failures.isEmpty) return const SettingsOperationSuccess();
+    return SettingsOperationFailure(
+      code: 'learningReset.partial',
+      userMessage: '部分设置重置失败，请重试。${failures.join('；')}',
+      retryable: true,
+    );
   }
 
   static String _brief(Object error) {

@@ -14,6 +14,7 @@ import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
+import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
@@ -164,7 +165,16 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                           children: [
                             Expanded(
                               child: SingleChildScrollView(
-                                child: const _StreamingCardExplanation(),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: const [
+                                    _StreamingCardExplanation(),
+                                    // 显式标识：解释内容是模型输出，标识必须
+                                    // 与内容同屏（《标识办法》）。
+                                    AiGeneratedNotice(),
+                                  ],
+                                ),
                               ),
                             ),
                             if (snap.state == AiCardExplainState.ready &&
@@ -174,8 +184,8 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                                 children: [
                                   TextButton.icon(
                                     onPressed: () {
-                                      Clipboard.setData(
-                                          ClipboardData(text: text));
+                                      Clipboard.setData(ClipboardData(
+                                          text: labelAiGenerated(text)));
                                       TurnaSnackBar.maybeShow(
                                           context, AppStrings.aiDepthCopied);
                                     },

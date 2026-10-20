@@ -101,7 +101,7 @@ class LessonProgressProvider extends ChangeNotifier {
   }
 
   /// Refresh cached lesson-id sets after progress is restored outside this
-  /// provider (Fun Lab checkpoint / data import).
+  /// provider (data import).
   void reloadFromPrefs() {
     _completedLessonIds = _readStringList(
       LocalStateKeys.completedLessonIds,

@@ -104,8 +104,9 @@ void main() {
     expect(raw.contains('sk-secret-123456'), isFalse);
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
     expect(decoded.containsKey('apiKey'), isFalse);
-    // Non-secret fields survive.
-    expect(decoded['modelChat'], 'deepseek-v4-flash');
+    // Non-secret fields survive — 模型 id 会被 fromJson 的别名表顺带升级
+    // （`deepseek-v4-flash` → `deepseek-v4.1-flash`），字段本身不丢。
+    expect(decoded['modelChat'], 'deepseek-v4.1-flash');
   });
 
   test('failed secure write keeps the plaintext key and reports failure',

@@ -52,9 +52,12 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
 
     final result = await getIt<ResetLearningSettingsCommand>().execute();
     if (!context.mounted) return;
+    // Rebuild the Anki limit card in every outcome: a partial reset may have
+    // landed the Anki defaults even when another step failed, and the sliders
+    // read their values from AnkiDeckManager rather than SettingsProvider.
+    setState(() => _ankiEpoch++);
     switch (result) {
       case SettingsOperationSuccess():
-        setState(() => _ankiEpoch++);
         TurnaSnackBar.show(
             context, AppStrings.settingsResetLearningDefaultsDone);
       case SettingsOperationFailure(:final userMessage):

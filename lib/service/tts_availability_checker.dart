@@ -271,7 +271,8 @@ class TtsAvailabilityChecker {
       // device that plainly has both.
       final base = languageCode.trim().toLowerCase().split('-').first;
       for (final voice in voices) {
-        final voiceBase = voice.trim().toLowerCase().split(RegExp('[-_]')).first;
+        final voiceBase =
+            voice.trim().toLowerCase().split(RegExp('[-_]')).first;
         if (voiceBase == base) {
           logger.d(
             'TtsAvailabilityChecker: resolved "$voice" by base subtag for '

@@ -18,7 +18,9 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/play/play_hub_screen.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 
@@ -108,15 +110,28 @@ void main() {
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
     expect(find.text(AppStrings.playPracticeToolsTitle), findsOneWidget);
 
-    // 复习队列 2×2（「复习」不再与 Hero 重复出现两次）。
+    // 复习队列 2×2（「复习」不再与 Hero 重复出现两次）。智能练习是队列的
+    // 第四格，不再是队列下方一条独立的「AI 助手」横幅。
     expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('复习'), findsOneWidget);
     expect(find.text('语法复习'), findsOneWidget);
+    expect(find.text('智能练习'), findsOneWidget);
     expect(find.text('Anki 复习'), findsNothing);
 
-    // AI 助手：单行卡 + 引擎状态 chip（默认空配置 -> 未配置）。
-    expect(find.byType(AiAssistantTile), findsOneWidget);
-    expect(find.text('未配置'), findsOneWidget);
+    // 智能练习：默认空配置 -> 卡上挂「未配置」徽标（警示色）。
+    final smartTitle = find.text('智能练习');
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: smartTitle,
+          matching: find.byType(ReviewTile),
+        ),
+        matching: find.text('未配置'),
+      ),
+      findsOneWidget,
+    );
+    // 旧的独立「AI 助手」分区已撤除。
+    expect(find.text('AI 助手'), findsNothing);
     expect(find.text('设计课程（AI）'), findsNothing);
     expect(find.text('导入教材'), findsNothing);
     expect(find.text('全部 AI 功能'), findsNothing);
@@ -153,6 +168,8 @@ void main() {
     expect(find.text('Anki 复习'), findsOneWidget);
     expect(find.text('错题复习'), findsNothing);
     expect(find.text('语法复习'), findsNothing);
+    // 智能练习与课程类型无关：Anki 课同样按错题生成练习。
+    expect(find.text('智能练习'), findsOneWidget);
     expect(find.text('薄弱单词'), findsNothing);
     expect(find.text('词典'), findsNothing);
     expect(find.text('复习进度'), findsOneWidget);
@@ -327,6 +344,75 @@ void main() {
               '否则仓库里的 schedulerDue 还是进会话前的旧值');
       expect(heroNumber(tester), '2');
     });
+
+    testWidgets('returning to the Play tab re-syncs the due snapshot',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var refreshRuns = 0;
+      OfficialAnkiHomeDueSync.debugRefreshOverride = () async {
+        refreshRuns++;
+      };
+
+      // 本页在 TabStack 里永久挂载，切回来不会重跑 initState —— 这条测试
+      // 锁住「靠 tab 通知刷新」这个唯一通道。
+      final owned = !getIt.isRegistered<TabRouter>();
+      final router = owned ? TabRouter() : getIt<TabRouter>();
+      if (owned) getIt.registerSingleton<TabRouter>(router);
+      addTearDown(() async {
+        if (owned) await getIt.unregister<TabRouter>();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: hubTree(
+            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(refreshRuns, 1, reason: '首次挂载刷一次');
+
+      router.switchTo(TabDestination.learn);
+      await tester.pumpAndSettle();
+      // 跨过 3 秒防抖，模拟真实的「切走一会儿再回来」。
+      PlayHubScreen.resetDueRefreshTtlForTest();
+      router.switchTo(TabDestination.play);
+      await tester.pumpAndSettle();
+
+      expect(refreshRuns, 2, reason: '切回练习页必须重取 due 快照，否则数字永远停在首次挂载时的值');
+    });
+
+    testWidgets('an unavailable due snapshot offers a retry on the hub',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var refreshRuns = 0;
+      OfficialAnkiHomeDueSync.debugRefreshOverride = () async {
+        refreshRuns++;
+      };
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: hubTree(
+            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('play-anki-due-unavailable')), findsNothing);
+
+      OfficialFormalDueRepository.instance.markUnavailable(StateError('boom'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('play-anki-due-unavailable')), findsOneWidget,
+          reason: '同步失败时练习页必须有自救入口，不能只把数字冻住');
+
+      await tester.tap(find.text(AppStrings.ankiReviewRetry));
+      await tester.pumpAndSettle();
+      expect(refreshRuns, 2, reason: '重试按钮必须真的重新同步');
+    });
   });
 
   group('long-press info popup', () {
@@ -406,5 +492,41 @@ void main() {
         findsWidgets, // Hero 副标题 + 浮窗「下一个」行。
       );
     });
+  });
+
+  testWidgets(
+      'queue grid and practice tools survive 200% text scale on a narrow phone',
+      (tester) async {
+    // 真机收据（2026-10-20）：系统字体放大后队列格子报
+    // `BOTTOM OVERFLOWED BY 11 PIXELS`，工具行被外层 `SizedBox(height: 104)`
+    // 掐住。两处都改成行高自适应网格，这里守住回归。
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(2),
+          ),
+          child: child!,
+        ),
+        home: hubTree(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // 队列与工具行在首屏之外，滚到可见才算真正布局过。
+    await tester.scrollUntilVisible(
+      find.text(AppStrings.playPracticeToolsTitle),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
+    expect(find.text(AppStrings.playPracticeToolsTitle), findsOneWidget);
   });
 }

@@ -50,14 +50,6 @@ abstract interface class ISrsStateStore {
   /// to spare the other languages' rows; null clears every language.
   Future<void> clearQueue(String queue, {String? languageCode});
 
-  /// Count every active schedule that can be moved by the Fun Lab time
-  /// machine. Both currently-due and future rows are included.
-  Future<int> countPostponable();
-
-  /// Move all active schedules by [duration] atomically, without touching
-  /// any other FSRS field or the review history table.
-  Future<int> postponeActiveBy(Duration duration);
-
   /// Most recent [limit] reviewed rows in [queue] (newest first), filtered
   /// to those that have been reviewed at least once. Optional [since]
   /// narrows to rows reviewed on/after the given instant; optional

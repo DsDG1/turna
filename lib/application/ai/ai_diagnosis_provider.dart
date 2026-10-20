@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
@@ -134,22 +136,16 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
     return true;
   }
 
+  /// 文案在 [AiPromptCatalog.diagnosis]（单一来源）；这里只准备运行时变量。
   String _systemPrompt(LearnerAiContext ctx) {
-    final prefs = _prefs.snapshot;
-    final buf = StringBuffer()
-      ..writeln('You are a language-learning coach for ${ctx.languageName}. '
-          'Produce a TEXT diagnosis of weak areas only. '
-          'Never output course section/unit/lesson JSON.')
-      ..writeln(prefs.toSystemPromptRules())
-      ..writeln('Respond with ONLY a JSON object (no markdown fences): '
-          '{"weakAreas":[{"title":string,"severity":"high|medium|low","evidence":[string]}],'
-          '"priorityTips":[string],"exampleDrillIdeas":[string]}.')
-      ..writeln(
-          'priorityTips: 3-7 items. exampleDrillIdeas: short text ideas, not lessons.');
-    if (!ctx.isEmpty) {
-      buf.writeln(ctx.toPromptBlock(maxChars: 1200));
-    }
-    return buf.toString();
+    return AiPromptCatalog.diagnosis(
+      language: ctx.languageName,
+      prefs: _prefs.snapshot,
+      learnerContextBlock:
+          ctx.isEmpty ? null : ctx.toPromptBlock(maxChars: 1200),
+      override:
+          AiPromptOverridesStore.resolve().textFor(AiPromptFeature.diagnosis),
+    );
   }
 
   @visibleForTesting

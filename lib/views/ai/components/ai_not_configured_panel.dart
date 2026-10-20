@@ -30,7 +30,7 @@ class AiNotConfiguredPanel extends StatelessWidget {
           Icon(
             Icons.auto_awesome_outlined,
             size: compact ? 36 : 48,
-            color: TurnaTheme.amethystLeague.withValues(alpha: 0.8),
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.8),
           ),
           const SizedBox(height: 12),
           Text(

@@ -20,6 +20,7 @@ import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
+import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
@@ -359,6 +360,10 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               const SizedBox(height: 4),
               Text(typeLines.join(' · ')),
             ],
+            // 解释文本是模型输出；`transformationReady` 那种纯本地提示
+            // 不算生成合成内容，所以标识只跟随真实解释出现。
+            if (explanation != null && explanation.isNotEmpty)
+              const AiGeneratedNotice(),
           ],
         ),
       ),

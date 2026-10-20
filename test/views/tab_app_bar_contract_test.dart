@@ -89,7 +89,7 @@ void main() {
       final play = File('lib/views/play/play_app_bar.dart').readAsStringSync();
       // Both must read their title style from textTheme.titleLarge — a
       // headlineSmall title rendered visibly heavier than the other tabs.
-      for (final entry in { 'settings': src, 'play': play }.entries) {
+      for (final entry in {'settings': src, 'play': play}.entries) {
         expect(
           entry.value.contains('textTheme.titleLarge'),
           isTrue,

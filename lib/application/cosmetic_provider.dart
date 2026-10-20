@@ -226,7 +226,7 @@ class CosmeticProvider extends ChangeNotifier {
     });
   }
 
-  /// After external prefs restore (export import / Fun Lab).
+  /// After external prefs restore (export import).
   void refreshFromPrefs() {
     notifyListeners();
   }

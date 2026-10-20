@@ -2028,6 +2028,58 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    fn media_file_count(folder: &Path) -> usize {
+        fs::read_dir(folder)
+            .map(|entries| entries.filter_map(Result::ok).count())
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn promote_staging_collection_merges_notes_and_honors_media_toggle() {
+        for with_media in [true, false] {
+            let (staging_root, staging_handle, _) =
+                crate::test_support::temp_open("promote-staging");
+            let imported =
+                import(staging_handle, &package_path("06-media-paths.apkg"), false).unwrap();
+            assert_eq!(imported["note_count"].as_u64(), Some(1));
+            let staging_media = staging_root.join("collection.media");
+            assert!(
+                media_file_count(&staging_media) > 0,
+                "staging import must populate collection.media"
+            );
+            close_collection(staging_handle).unwrap();
+            free_engine(staging_handle).unwrap();
+
+            let (live_root, live_handle, _) = crate::test_support::temp_open("promote-live");
+            let promoted = call(
+                live_handle,
+                OP_PROMOTE_STAGING_COLLECTION,
+                json!({
+                    "collection_path": staging_root.join("collection.anki2").to_string_lossy(),
+                    "media_folder": staging_media.to_string_lossy(),
+                    "with_scheduling": false,
+                    "with_deck_configs": true,
+                    "with_media": with_media,
+                }),
+            )
+            .unwrap();
+            assert_eq!(promoted["note_count"].as_u64(), Some(1));
+            assert_eq!(promoted["card_count"].as_u64(), Some(1));
+
+            let live_media = live_root.join("collection.media");
+            if with_media {
+                assert!(live_media.join("hello world.png").is_file());
+                assert!(live_media.join("paren (1).mp3").is_file());
+            } else {
+                assert_eq!(media_file_count(&live_media), 0);
+            }
+
+            free_engine(live_handle).unwrap();
+            let _ = fs::remove_dir_all(staging_root);
+            let _ = fs::remove_dir_all(live_root);
+        }
+    }
+
     #[test]
     fn import_on_created_engine_is_invalid_state() {
         // Step1 task B contract: IMPORT_PACKAGE requires EngineState::Open.

@@ -310,7 +310,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   }
 
   /// Force the in-memory queue to match SQLite after an external transactional
-  /// restore or bulk schedule edit (for example the Fun Lab checkpoint).
+  /// restore or bulk schedule edit.
   /// Bumps [_loadGeneration] so a still-running [ensureLoaded] started before
   /// the restore discards its result instead of merging pre-restore rows back
   /// in, and bumps the review-data revision so revision-keyed dashboards drop

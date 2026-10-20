@@ -9,10 +9,7 @@ enum AchievementUnlockOrigin {
   live,
 
   /// One-time v1 -> v2 migration backfill. Never pays gems, never pops up.
-  migration,
-
-  /// Fun Lab preview placeholder — never persisted as real state.
-  funPreview;
+  migration;
 
   String get serializedName => name;
 

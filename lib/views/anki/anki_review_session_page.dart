@@ -552,13 +552,26 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     };
   }
 
-  /// OHOS header progress (UI-4): `(index, total)`. The live queue shrinks
-  /// as cards are answered, so the honest denominator is answered + residual
-  /// — never the shrinking `totalCount` alone, which read as "3/2".
+  /// OHOS header progress (UI-4): `(index, total)`.
+  ///
+  /// The denominator is the session's real card count, never the item list:
+  /// P0-2 renders only the current card plus the next seven
+  /// ([officialInitialRenderWindow]), and [OfficialStudyBatchAssembler]
+  /// skips every card without a presentation — so `controller.items.length`
+  /// is a render window of ≈8, not a queue. Using it made the native header
+  /// read "1 / 8" for a 20-card session.
+  ///
+  /// The numerator stays `answered + 1` (the card on screen is unanswered),
+  /// clamped to the denominator because a lapsed card can be answered more
+  /// than once. Only sessions without a live queue fall back to the old
+  /// answered + items arithmetic.
   (int, int)? _onNativeProgress() {
     final controller = _controller;
     if (controller == null) return null;
-    final total = controller.answeredCount + controller.items.length;
+    final sessionTotal = _officialSessionLiveQueue?.sessionTotalCards ?? 0;
+    final total = sessionTotal > 0
+        ? sessionTotal
+        : controller.answeredCount + controller.items.length;
     if (total <= 0) return null;
     final index = (controller.answeredCount + 1).clamp(1, total);
     return (index, total);

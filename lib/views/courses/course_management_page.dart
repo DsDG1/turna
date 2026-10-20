@@ -897,9 +897,8 @@ class _AddCourseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
-    final accent = enabled
-        ? TurnaTheme.brandTeal
-        : TurnaTheme.textSecondaryColor(context);
+    final accent =
+        enabled ? TurnaTheme.brandTeal : TurnaTheme.textSecondaryColor(context);
     return Material(
       color: Colors.transparent,
       borderRadius: radius,
@@ -908,7 +907,8 @@ class _AddCourseCard extends StatelessWidget {
         borderRadius: radius,
         child: CustomPaint(
           foregroundPainter: _DashedBorderPainter(
-            color: TurnaTheme.brandTeal.withValues(alpha: enabled ? 0.45 : 0.18),
+            color:
+                TurnaTheme.brandTeal.withValues(alpha: enabled ? 0.45 : 0.18),
             radius: TurnaTheme.radiusLarge,
           ),
           child: Padding(
@@ -924,26 +924,31 @@ class _AddCourseCard extends StatelessWidget {
                   color: accent,
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title ?? AppStrings.courseManagementImportTitle,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
+                // Flexible 而非裸 Column：字体放大后标题/副标题会超出卡片
+                // 宽度（真机收据 `RIGHT OVERFLOWED BY 3 PIXELS`）。Flexible
+                // 在宽度够时仍 shrink-wrap 保持整块居中，不够时文本换行。
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title ?? AppStrings.courseManagementImportTitle,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle ?? AppStrings.homeFromAnkiSubtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TurnaTheme.textSecondaryColor(context),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle ?? AppStrings.homeFromAnkiSubtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: TurnaTheme.textSecondaryColor(context),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),

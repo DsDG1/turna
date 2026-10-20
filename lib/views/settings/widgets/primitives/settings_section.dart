@@ -12,8 +12,13 @@ Widget settingsTileDivider(BuildContext context) => Divider(
     );
 
 /// Shared Turna teal adaptive switch used across settings toggle tiles.
-
-/// Shared Turna teal adaptive switch used across settings toggle tiles.
+///
+/// The ON state is a brand-teal track with a **white** thumb. The thumb must
+/// not be tinted with the track colour: `Switch` resolves `thumbColor` before
+/// it falls back to the theme default, so returning the same teal here makes
+/// the thumb vanish into the track and the switch reads as one solid blob.
+/// Off state is left to the platform default (white / outline thumb) so the
+/// two states stay visually distinct.
 Widget settingsAdaptiveSwitch({
   required bool value,
   required ValueChanged<bool>? onChanged,
@@ -23,7 +28,7 @@ Widget settingsAdaptiveSwitch({
     activeTrackColor: TurnaTheme.brandTeal,
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
-        return TurnaTheme.brandTeal;
+        return TurnaTheme.textOnPrimary;
       }
       return null;
     }),

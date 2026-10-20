@@ -72,7 +72,6 @@ void main() {
       LocalStateKeys.cosmeticsEquippedRing,
       kAvatarRingReed,
     );
-    await prefs.preferences.setBool(LocalStateKeys.funAutoAnswer, true);
     const secret = 'sk-restored-plaintext';
     await prefs.preferences.setString(
       LocalStateKeys.aiEngineConfig,
@@ -110,12 +109,6 @@ void main() {
     ).getSingle();
     expect(entitlementRows.read<int>('c'), 1);
     expect(cosmetics.equippedRingId, kAvatarRingReed);
-    expect(
-      prefs.preferences
-          .getBool(LocalStateKeys.funAutoAnswer, defaultValue: true)
-          .getValue(),
-      isFalse,
-    );
     expect(credentials.values[AiEngineConfigHolder.apiKeyId], secret);
     final stored = prefs.preferences
         .getString(LocalStateKeys.aiEngineConfig, defaultValue: '')
@@ -149,7 +142,6 @@ void main() {
         LocalStateKeys.gems: 75,
         LocalStateKeys.cosmeticsUnlocked: [kAvatarRingReed],
         LocalStateKeys.cosmeticsEquippedRing: kAvatarRingReed,
-        LocalStateKeys.funAutoAnswer: true,
         LocalStateKeys.highContrast: true,
         LocalStateKeys.aiEngineConfig: jsonEncode(
           const AiEngineConfig(apiKey: secret, modelChat: 'import-model')
@@ -163,12 +155,6 @@ void main() {
     expect(await getIt<IGemLedger>().projectedBalance(), 75);
     expect(cosmetics.equippedRingId, kAvatarRingReed);
     expect(credentials.values[AiEngineConfigHolder.apiKeyId], secret);
-    expect(
-      prefs.preferences
-          .getBool(LocalStateKeys.funAutoAnswer, defaultValue: true)
-          .getValue(),
-      isFalse,
-    );
     expect(
       prefs.preferences
           .getBool(LocalStateKeys.highContrast, defaultValue: false)

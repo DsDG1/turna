@@ -1,6 +1,3 @@
-// Flutter imports:
-import 'package:flutter/foundation.dart';
-
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
@@ -99,6 +96,5 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AdvancedSettingsRoute.page),
         AutoRoute(page: LegacyCompatibilityRoute.page),
         AutoRoute(page: AboutSettingsRoute.page),
-        if (kDebugMode) AutoRoute(page: DeveloperSettingsRoute.page),
       ];
 }

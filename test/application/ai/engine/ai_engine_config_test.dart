@@ -11,8 +11,8 @@ void main() {
       const c = AiEngineConfig(apiKey: '');
       expect(c.preset.id, AiProvider.deepseek);
       expect(c.baseUrl, 'https://api.deepseek.com');
-      expect(c.modelChat, 'deepseek-v4-flash');
-      expect(c.modelJson, 'deepseek-v4-flash');
+      expect(c.modelChat, 'deepseek-v4.1-flash');
+      expect(c.modelJson, 'deepseek-v4.1-flash');
       expect(c.apiKey, '');
       expect(c.isComplete, isFalse); // empty key
     });
@@ -35,14 +35,14 @@ void main() {
 
     test('selectModel routes chat vs json', () {
       const c = AiEngineConfig(
-        preset: kKimiPreset,
+        preset: kMimoPreset,
         apiKey: 'k',
-        modelChat: 'kimi-k2.7-code',
-        modelJson: 'kimi-k3',
+        modelChat: 'mimo-v2.6',
+        modelJson: 'mimo-v2.6-pro',
       );
-      expect(c.selectModel('chat'), 'kimi-k2.7-code');
-      expect(c.selectModel('json'), 'kimi-k3');
-      expect(c.selectModel('other'), 'kimi-k3'); // falls back to preset default
+      expect(c.selectModel('chat'), 'mimo-v2.6');
+      expect(c.selectModel('json'), 'mimo-v2.6-pro');
+      expect(c.selectModel('other'), 'mimo-v2.6-pro'); // preset default
     });
 
     test('custom preset uses customBaseUrl', () {
@@ -62,25 +62,25 @@ void main() {
     test('copyWith preserves raw model fields so a preset switch resets them',
         () {
       const c = AiEngineConfig(
-        preset: kKimiPreset,
+        preset: kMimoPreset,
         apiKey: 'k',
-        modelChat: 'kimi-k2.7-code',
+        modelChat: 'mimo-v2.6',
       );
       // Switch preset without specifying models: should fall back to the new
-      // preset's default (deepseek-v4-flash), not freeze 'kimi-k2.7-code'.
+      // preset's default (deepseek-v4.1-flash), not freeze 'mimo-v2.6'.
       final switched = c.copyWith(preset: kDeepseekPreset);
       expect(switched.preset.id, AiProvider.deepseek);
-      expect(switched.modelChat, 'deepseek-v4-flash');
+      expect(switched.modelChat, 'deepseek-v4.1-flash');
     });
   });
 
   group('serialization', () {
     test('toJson/fromJson round-trips a complete named-preset config', () {
       const c = AiEngineConfig(
-        preset: kKimiPreset,
+        preset: kMimoPreset,
         apiKey: 'sk-secret',
-        modelChat: 'kimi-k2.7-code',
-        modelJson: 'kimi-k3',
+        modelChat: 'mimo-v2.6',
+        modelJson: 'mimo-v2.6-pro',
         strictSchema: StrictSchemaMode.on,
         cacheEnabled: false,
         supportsReasoningOverride: true,
@@ -88,14 +88,19 @@ void main() {
       // includeApiKey: the legacy-inclusive form is only for reading back
       // pre-migration blobs (the key now lives in the secure store).
       final restored = AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
-      expect(restored.preset.id, AiProvider.kimi);
+      expect(restored.preset.id, AiProvider.mimo);
       expect(restored.apiKey, 'sk-secret');
-      expect(restored.modelChat, 'kimi-k2.7-code');
-      expect(restored.modelJson, 'kimi-k3');
+      expect(restored.modelChat, 'mimo-v2.6');
+      expect(restored.modelJson, 'mimo-v2.6-pro');
       expect(restored.strictSchema, StrictSchemaMode.on);
       expect(restored.cacheEnabled, isFalse);
       expect(restored.supportsReasoningOverride, isTrue);
-      expect(restored.baseUrl, 'https://api.moonshot.cn/v1');
+      expect(restored.baseUrl, 'https://api.xiaomimimo.com/v1');
+    });
+
+    test('toJson stamps the current schema version', () {
+      const c = AiEngineConfig(apiKey: 'k');
+      expect(c.toJson()['schemaVersion'], AiEngineConfig.schemaVersion);
     });
 
     test('toJson/fromJson round-trips a custom preset with customBaseUrl', () {
@@ -116,7 +121,7 @@ void main() {
       final restored = AiEngineConfig.fromJson({'apiKey': 'only-key'});
       expect(restored.preset.id, AiProvider.deepseek);
       expect(restored.apiKey, 'only-key');
-      expect(restored.modelChat, 'deepseek-v4-flash'); // preset default
+      expect(restored.modelChat, 'deepseek-v4.1-flash'); // preset default
       expect(restored.cacheEnabled, isTrue); // constructor default
       expect(restored.strictSchema, StrictSchemaMode.auto); // default
     });
@@ -125,6 +130,70 @@ void main() {
       final restored =
           AiEngineConfig.fromJson({'presetId': 'no-such-provider'});
       expect(restored.preset.id, AiProvider.deepseek);
+    });
+  });
+
+  // 2026-10-20 服务商收敛：Kimi / Qwen 从产品移除，DeepSeek 与 MiMo 换模型 id。
+  // 这组 case 守的是「老配置不许静默变成必失败的组合」——枚举兜底成 DeepSeek
+  // 会拼出 deepseek 地址 + kimi 模型 id，用户只会看到连接失败。
+  group('retired preset / model migration', () {
+    test('a retired kimi config becomes custom with the old base URL', () {
+      final restored = AiEngineConfig.fromJson({
+        'presetId': 'kimi',
+        'modelChat': 'kimi-k2.7-code',
+        'modelJson': 'kimi-k3',
+        'apiKey': 'sk-old',
+      });
+      expect(restored.preset.id, AiProvider.custom);
+      expect(restored.baseUrl, 'https://api.moonshot.cn/v1');
+      expect(restored.modelChat, 'kimi-k2.7-code');
+      expect(restored.modelJson, 'kimi-k3');
+      expect(restored.apiKey, 'sk-old');
+      expect(restored.isComplete, isTrue);
+    });
+
+    test('a retired qwen config keeps its model, or gets the old default', () {
+      final withModel = AiEngineConfig.fromJson({
+        'presetId': 'qwen',
+        'modelChat': 'qwen3.7-flash',
+      });
+      expect(withModel.preset.id, AiProvider.custom);
+      expect(withModel.baseUrl,
+          'https://dashscope.aliyuncs.com/compatible-mode/v1');
+      expect(withModel.modelChat, 'qwen3.7-flash');
+
+      // 老配置里 modelChat 可能是 null（从未手填），此时用原预设的默认模型，
+      // 而不是让 custom 的空默认值把配置判成「未完成」。
+      final withoutModel = AiEngineConfig.fromJson({'presetId': 'qwen'});
+      expect(withoutModel.modelChat, 'qwen3.8-max');
+      expect(withoutModel.modelJson, 'qwen3.8-max');
+    });
+
+    test('retired model ids are rewritten to current ones', () {
+      final restored = AiEngineConfig.fromJson({
+        'presetId': 'deepseek',
+        'modelChat': 'deepseek-v4-flash',
+        'modelJson': 'deepseek-v4-pro',
+      });
+      expect(restored.modelChat, 'deepseek-v4.1-flash');
+      expect(restored.modelJson, 'deepseek-v4.1-pro');
+
+      final mimo = AiEngineConfig.fromJson({
+        'presetId': 'mimo',
+        'modelChat': 'mimo-v2.5-pro',
+        'modelJson': 'mimo-v2.5',
+      });
+      expect(mimo.modelChat, 'mimo-v2.6-pro');
+      expect(mimo.modelJson, 'mimo-v2.6');
+    });
+
+    test('unknown custom model ids are left untouched', () {
+      final restored = AiEngineConfig.fromJson({
+        'presetId': 'custom',
+        'customBaseUrl': 'https://proxy.example.com/v1',
+        'modelChat': 'my-own-alias',
+      });
+      expect(restored.modelChat, 'my-own-alias');
     });
   });
 }

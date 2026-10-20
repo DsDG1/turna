@@ -14,7 +14,11 @@
 
 /// Machine name of a supported provider. `custom` preserves whatever the user
 /// typed (empty Base URL / model) instead of overwriting it.
-enum AiProvider { deepseek, kimi, qwen, mimo, custom }
+///
+/// 2026-10-20 收敛：`kimi` / `qwen` 已从产品移除（产品决定只保留 DeepSeek
+/// 与 MiMo 两个预设 + 自定义）。枚举值删掉后，历史配置的 `presetId` 仍可能
+/// 是这两个字符串 —— 迁移路径见 [kRetiredPresets]，**不要**靠枚举兜底。
+enum AiProvider { deepseek, mimo, custom }
 
 /// A provider preset carrying enough information to fill the Settings UI.
 class AiProviderPreset {
@@ -43,9 +47,9 @@ class AiProviderPreset {
   final List<String> supportedModels;
 
   /// Whether the provider's models accept `reasoning_effort` / `thinking`
-  /// payload fields (DeepSeek / Kimi / Qwen / MiMo all do). This is a
-  /// *capability* hint, not the effective toggle: the user-facing reasoning
-  /// switch lives on [AiEngineConfig] and defaults to off.
+  /// payload fields (DeepSeek / MiMo both do). This is a *capability* hint,
+  /// not the effective toggle: the user-facing reasoning switch lives on
+  /// [AiEngineConfig] and defaults to off.
   final bool supportsReasoning;
 
   /// Documentation link shown next to the preset for convenience.
@@ -67,52 +71,23 @@ const AiProviderPreset kDeepseekPreset = AiProviderPreset(
   id: AiProvider.deepseek,
   label: 'DeepSeek',
   baseUrl: 'https://api.deepseek.com',
-  defaultModel: 'deepseek-v4-flash',
+  defaultModel: 'deepseek-v4.1-flash',
   supportedModels: [
-    'deepseek-v4-flash',
-    'deepseek-v4-pro',
-    'deepseek-v4-flash-vision-exp',
+    'deepseek-v4.1-flash',
+    'deepseek-v4.1-pro',
   ],
   supportsReasoning: true,
   docsUrl: 'https://platform.deepseek.com/',
-);
-
-const AiProviderPreset kKimiPreset = AiProviderPreset(
-  id: AiProvider.kimi,
-  label: 'Kimi',
-  baseUrl: 'https://api.moonshot.cn/v1',
-  defaultModel: 'kimi-k3',
-  supportedModels: [
-    'kimi-k3',
-    'kimi-k2.7-code',
-  ],
-  supportsReasoning: true,
-  docsUrl: 'https://platform.kimi.com/',
-);
-
-const AiProviderPreset kQwenPreset = AiProviderPreset(
-  id: AiProvider.qwen,
-  label: 'Qwen',
-  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  defaultModel: 'qwen3.8-max',
-  supportedModels: [
-    'qwen3.8-max',
-    'qwen3.7-plus',
-    'qwen3.7-flash',
-    'qwen3.5-omni-plus',
-  ],
-  supportsReasoning: true,
-  docsUrl: 'https://help.aliyun.com/zh/model-studio/',
 );
 
 const AiProviderPreset kMimoPreset = AiProviderPreset(
   id: AiProvider.mimo,
   label: 'MiMo',
   baseUrl: 'https://api.xiaomimimo.com/v1',
-  defaultModel: 'mimo-v2.5-pro',
+  defaultModel: 'mimo-v2.6-pro',
   supportedModels: [
-    'mimo-v2.5-pro',
-    'mimo-v2.5',
+    'mimo-v2.6-pro',
+    'mimo-v2.6',
   ],
   supportsReasoning: true,
   docsUrl: 'https://mimo.mi.com/docs/zh-CN/quick-start/summary/model',
@@ -131,8 +106,6 @@ const AiProviderPreset kCustomPreset = AiProviderPreset(
 /// same instance can be referenced in const contexts (e.g. config defaults).
 const Map<AiProvider, AiProviderPreset> kBuiltinPresets = {
   AiProvider.deepseek: kDeepseekPreset,
-  AiProvider.kimi: kKimiPreset,
-  AiProvider.qwen: kQwenPreset,
   AiProvider.mimo: kMimoPreset,
   AiProvider.custom: kCustomPreset,
 };
@@ -140,11 +113,37 @@ const Map<AiProvider, AiProviderPreset> kBuiltinPresets = {
 /// All built-in providers in the canonical dropdown order.
 List<AiProvider> providerOrder() => const [
       AiProvider.deepseek,
-      AiProvider.kimi,
-      AiProvider.qwen,
       AiProvider.mimo,
       AiProvider.custom,
     ];
+
+// ─── 历史配置迁移 ────────────────────────────────────────────────────────
+//
+// 删预设不等于删用户的连接。以下两张表只在 `AiEngineConfig.fromJson` 里用，
+// 作用是把老 `presetId` / 老模型 id 翻译成还能用的配置，而不是让枚举
+// 兜底成 DeepSeek（那会得到「deepseek 的 Base URL + kimi 的模型 id」这种
+// 必然连不通、且没有任何提示的组合）。
+
+/// 已下线的预设：迁移成 `custom` + 原 Base URL，连接继续可用。
+///
+/// [defaultModel] 只在用户从未手填模型时兜底（老配置里 `modelChat` 可为
+/// null），保留原厂商的模型名比换成 deepseek 的模型更有意义。
+const Map<String, ({String baseUrl, String defaultModel})> kRetiredPresets = {
+  'kimi': (baseUrl: 'https://api.moonshot.cn/v1', defaultModel: 'kimi-k3'),
+  'qwen': (
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen3.8-max',
+  ),
+};
+
+/// 模型改名表：老 id → 新 id。只在字符串精确相等时替换，用户自定义的
+/// 代理模型名不会被误改。
+const Map<String, String> kRetiredModelAliases = {
+  'deepseek-v4-flash': 'deepseek-v4.1-flash',
+  'deepseek-v4-pro': 'deepseek-v4.1-pro',
+  'mimo-v2.5-pro': 'mimo-v2.6-pro',
+  'mimo-v2.5': 'mimo-v2.6',
+};
 
 /// Return the preset for [provider], falling back to the `custom` preset.
 AiProviderPreset presetFor(AiProvider provider) =>

@@ -4,9 +4,15 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/core/simple_markdown.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/ai/components/ai_generated_notice.dart';
 
 /// Renders the chat Markdown subset as selectable text. User bubbles stay
 /// plain [SelectableText]; this is for assistant replies.
+///
+/// The closing [AiGeneratedNotice] is the app's explicit AI-content label
+/// (《人工智能生成合成内容标识办法》, in force 2025-09-01). Every assistant
+/// reply goes through here, so keeping the badge at this layer is what makes
+/// the coverage complete — a new chat screen cannot forget it.
 class AiMarkdownBody extends StatelessWidget {
   const AiMarkdownBody({
     super.key,
@@ -21,7 +27,14 @@ class AiMarkdownBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final blocks = parseSimpleMarkdown(source);
     if (blocks.isEmpty) {
-      return SelectableText(source, style: TextStyle(color: color));
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SelectableText(source, style: TextStyle(color: color)),
+          const AiGeneratedNotice(),
+        ],
+      );
     }
     final base = Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
     return Column(
@@ -31,6 +44,7 @@ class AiMarkdownBody extends StatelessWidget {
           if (i > 0) const SizedBox(height: 6),
           _block(context, blocks[i], base),
         ],
+        const AiGeneratedNotice(),
       ],
     );
   }

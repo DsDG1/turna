@@ -291,7 +291,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 30;
+  static const int kSchemaVersion = 31;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -302,7 +302,6 @@ class CourseDatabase extends _$CourseDatabase {
           await m.createAll();
           await _addAnkiStateColumns(m.database);
           await _ensureAnkiCanonicalV2(m.database);
-          await _ensureFunLabSnapshotTables(m.database);
           await _ensureAnkiUnificationTables(m.database);
           await _ensureGemEconomyTables(m.database);
           await _ensureV2CourseTreeView(m.database);
@@ -331,10 +330,6 @@ class CourseDatabase extends _$CourseDatabase {
               'course_meta',
               'srs_states',
               'review_events',
-              'fun_lab_snapshot_anki_state',
-              'fun_lab_snapshot_review_events',
-              'fun_lab_snapshot_srs',
-              'fun_lab_snapshot_meta',
               'anki_card_introduction_states',
               'study_product_events',
               'anki_course_tree_view',
@@ -346,7 +341,6 @@ class CourseDatabase extends _$CourseDatabase {
             await m.createAll();
             await _addAnkiStateColumns(m.database);
             await _ensureAnkiCanonicalV2(m.database);
-            await _ensureFunLabSnapshotTables(m.database);
             await _ensureAnkiUnificationTables(m.database);
             await _ensureV2CourseTreeView(m.database);
             return;
@@ -447,12 +441,6 @@ class CourseDatabase extends _$CourseDatabase {
             // assembler extracts the import id via `lastIndexOf('-c')`,
             // returning '' for `-n` ids). See [_rekeyLegacyAnkiWordIds].
             await _rekeyLegacyAnkiWordIds(m.database);
-          }
-          if (from < 15) {
-            // v15: one persistent Fun Lab checkpoint. Raw tables intentionally
-            // mirror the live progress tables so snapshots can be copied and
-            // restored with transactional INSERT ... SELECT statements.
-            await _ensureFunLabSnapshotTables(m.database);
           }
           if (from < 18) {
             await _ensureAnkiUnificationTables(m.database);
@@ -610,6 +598,22 @@ class CourseDatabase extends _$CourseDatabase {
               );
             }
           }
+          if (from < 31) {
+            // v31: the Developer Lab (Fun Lab) is retired. Its four checkpoint
+            // tables were raw mirrors of the live progress tables with no
+            // readers outside the deleted snapshot service. Pure DROP:
+            // `IF EXISTS` covers a real v30 database (tables present) and one
+            // that never created them (fresh install, or a pre-v15 upgrade
+            // whose creation step went away with the feature).
+            for (final table in const [
+              'fun_lab_snapshot_meta',
+              'fun_lab_snapshot_srs',
+              'fun_lab_snapshot_review_events',
+              'fun_lab_snapshot_anki_state',
+            ]) {
+              await m.database.customStatement('DROP TABLE IF EXISTS $table');
+            }
+          }
         },
       );
 
@@ -647,8 +651,6 @@ class CourseDatabase extends _$CourseDatabase {
       'expressions',
       'srs_states',
       'review_events',
-      'fun_lab_snapshot_srs',
-      'fun_lab_snapshot_review_events',
     ]) {
       await addLanguageColumn(table);
     }
@@ -1000,8 +1002,6 @@ class CourseDatabase extends _$CourseDatabase {
     for (final table in const [
       'srs_states',
       'review_events',
-      'fun_lab_snapshot_srs',
-      'fun_lab_snapshot_review_events',
     ]) {
       for (final column in const ['source_kind', 'source_id', 'owner_id']) {
         await add(table, column);
@@ -1017,8 +1017,6 @@ class CourseDatabase extends _$CourseDatabase {
     for (final tableAndId in const [
       ('srs_states', 'word_id'),
       ('review_events', 'card_id'),
-      ('fun_lab_snapshot_srs', 'word_id'),
-      ('fun_lab_snapshot_review_events', 'card_id'),
     ]) {
       final table = tableAndId.$1;
       final id = tableAndId.$2;
@@ -1157,77 +1155,6 @@ class CourseDatabase extends _$CourseDatabase {
         session_id TEXT,
         undone_at INTEGER,
         effects_state TEXT NOT NULL DEFAULT 'applied'
-      )
-    ''');
-  }
-
-  static Future<void> _ensureFunLabSnapshotTables(
-    GeneratedDatabase database,
-  ) async {
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_meta (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        created_at INTEGER NOT NULL,
-        content_fingerprint TEXT NOT NULL,
-        prefs_json TEXT NOT NULL,
-        srs_item_count INTEGER NOT NULL DEFAULT 0
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_srs (
-        language_code TEXT NOT NULL DEFAULT 'tr',
-        word_id TEXT NOT NULL,
-        queue TEXT NOT NULL,
-        due_at INTEGER NOT NULL,
-        interval_days INTEGER NOT NULL,
-        ease REAL NOT NULL,
-        reps INTEGER NOT NULL,
-        lapses INTEGER NOT NULL,
-        is_leech INTEGER NOT NULL,
-        is_suspended INTEGER NOT NULL,
-        is_buried INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        last_reviewed_at INTEGER,
-        stability REAL,
-        difficulty REAL,
-        fsrs_state INTEGER NOT NULL,
-        learning_step INTEGER,
-        source_kind TEXT,
-        source_id TEXT,
-        owner_id TEXT,
-        PRIMARY KEY (language_code, word_id)
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_review_events (
-        id INTEGER PRIMARY KEY,
-        card_id TEXT NOT NULL,
-        language_code TEXT NOT NULL DEFAULT 'tr',
-        queue TEXT NOT NULL,
-        reviewed_at INTEGER NOT NULL,
-        quality INTEGER NOT NULL,
-        prev_interval_days INTEGER NOT NULL,
-        next_interval_days INTEGER NOT NULL,
-        prev_ease REAL NOT NULL,
-        next_ease REAL NOT NULL,
-        reps INTEGER NOT NULL,
-        lapses INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        source_key TEXT,
-        source_kind TEXT,
-        source_id TEXT,
-        owner_id TEXT
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_anki_state (
-        import_id TEXT NOT NULL,
-        card_id INTEGER NOT NULL,
-        suspended INTEGER NOT NULL,
-        buried_until INTEGER,
-        marked INTEGER NOT NULL,
-        flag INTEGER NOT NULL,
-        PRIMARY KEY (import_id, card_id)
       )
     ''');
   }

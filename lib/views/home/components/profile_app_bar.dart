@@ -21,8 +21,7 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ProfileAppBar({super.key});
 
   @override
-  Size get preferredSize =>
-      const Size.fromHeight(TurnaTheme.tabAppBarHeight);
+  Size get preferredSize => const Size.fromHeight(TurnaTheme.tabAppBarHeight);
 
   /// Opens the share-progress bottom sheet (also used from the profile hero).
   static void openShareSheet(BuildContext context) {

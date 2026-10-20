@@ -61,8 +61,9 @@ enum OhosDegradation {
 }
 
 /// Degradations that apply to the running build. Empty everywhere but OHOS.
-Set<OhosDegradation> get activeDegradations =>
-    isHarmonyOsTarget ? OhosDegradation.values.toSet() : const <OhosDegradation>{};
+Set<OhosDegradation> get activeDegradations => isHarmonyOsTarget
+    ? OhosDegradation.values.toSet()
+    : const <OhosDegradation>{};
 
 /// Whether [feature] is unavailable on this build. Prefer this over
 /// [isHarmonyOsTarget] at call sites: it keeps the reason next to the

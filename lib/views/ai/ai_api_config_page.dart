@@ -307,7 +307,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             children: [
               const Icon(
                 Icons.auto_awesome_rounded,
-                color: TurnaTheme.amethystLeague,
+                color: TurnaTheme.brandTeal,
                 size: 22,
               ),
               const SizedBox(width: 8),
@@ -340,6 +340,10 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                 ),
                 const SizedBox(height: 12),
                 const _CredentialSafetyNotice(),
+                const SizedBox(height: 12),
+                // 接口类型 + 数据流向 + 责任归属：用户按实填了第三方 Key，
+                // 就必须在填写现场说清「请求发给谁、谁负责」。
+                const _EndpointScopeNotice(),
                 const SizedBox(height: 16),
                 AiGroupCard(
                   icon: Icons.hub_rounded,
@@ -359,6 +363,14 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                       errorText: _baseUrlError,
                       presetBaseUrl: _draft.preset.baseUrl,
                       onChanged: (_) => _scheduleCommit(),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      AppStrings.aiConfigOpenAiCompatHint,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: TurnaTheme.textHintColor(context),
+                            height: 1.35,
+                          ),
                     ),
                   ],
                 ),
@@ -459,13 +471,6 @@ String _maskKey(String key) {
   switch (p) {
     case AiProvider.deepseek:
       return (icon: Icons.bolt_rounded, color: TurnaTheme.brandSky);
-    case AiProvider.kimi:
-      return (
-        icon: Icons.nights_stay_rounded,
-        color: TurnaTheme.amethystLeague
-      );
-    case AiProvider.qwen:
-      return (icon: Icons.auto_awesome_rounded, color: TurnaTheme.brandTeal);
     case AiProvider.mimo:
       return (icon: Icons.memory_rounded, color: TurnaTheme.anatolianClay);
     case AiProvider.custom:
@@ -1194,6 +1199,75 @@ class _CredentialSafetyNotice extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// 接口与责任边界说明卡。
+///
+/// 三句话缺一不可：① 这个页面只接 OpenAI 兼容协议，别的协议填进来必然失败；
+/// ② 请求从本机直达用户自己填的服务商，应用不做中转；③ 内容由服务商生成与
+/// 处理，准确性/合规/计费归服务商。用户在这里填的是自己的密钥，这三条属于
+/// 填写现场必须给出的信息，不能只写在隐私政策里。
+class _EndpointScopeNotice extends StatelessWidget {
+  const _EndpointScopeNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return AiGroupCard(
+      icon: Icons.info_outline_rounded,
+      accent: TurnaTheme.brandSky,
+      title: AppStrings.aiConfigScopeTitle,
+      children: [
+        _ScopeLine(
+          icon: Icons.terminal_rounded,
+          text: AppStrings.aiConfigScopeProtocol,
+        ),
+        const SizedBox(height: 8),
+        _ScopeLine(
+          icon: Icons.cloud_upload_outlined,
+          text: AppStrings.aiConfigScopeDataFlow,
+        ),
+        const SizedBox(height: 8),
+        _ScopeLine(
+          icon: Icons.gavel_rounded,
+          text: AppStrings.aiConfigScopeLiability,
+        ),
+      ],
+    );
+  }
+}
+
+class _ScopeLine extends StatelessWidget {
+  const _ScopeLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            icon,
+            size: 15,
+            color: TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TurnaTheme.textSecondaryColor(context),
+                  height: 1.45,
+                ),
+          ),
+        ),
+      ],
     );
   }
 }

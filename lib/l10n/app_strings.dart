@@ -79,8 +79,6 @@ class AppStrings {
   static String get settingsCategoryAdvancedSubtitle => 'AI 连接、存储、诊断与兼容性';
   static String get settingsCategoryAbout => '关于 Turna';
   static String get settingsCategoryAboutSubtitle => '版本、更新日志与链接';
-  static String get settingsCategoryFunLab => '开发者实验室';
-  static String get settingsCategoryFunLabSubtitle => '仅开发环境可用，正式版不展示';
   static String get settingsGroupPersonal => '个人';
   static String get settingsGroupLearning => '学习体验';
   static String get settingsGroupDataSystem => '数据与系统';
@@ -259,14 +257,22 @@ class AppStrings {
           String message, int count, String state) =>
       '$message\n发生 $count 次 · $state';
 
+  // ── AI 生成内容标识（《人工智能生成合成内容标识办法》显式标识）──
+  /// 单条模型输出下方的角标。措辞必须含「AI 生成」字样，法规定义的是
+  /// 用户可辨识的显式文字提示，缩写或图标单独使用不算。
+  static String get aiGeneratedBadge => '内容由 AI 生成';
+  static String get aiGeneratedBannerText => '本功能内容由 AI 生成，仅供参考，请自行核实后再使用';
+
   // ── AI feature guide (功能手册页) ──
   static String get aiGuideHeroTitle => '6 个 AI 能力，一次看懂';
   static String get aiGuideHeroSubtitle => '所有功能都依赖 AI 引擎。配置一次，全部可用。';
   static String aiGuideEngineConfigured(String preset) => '引擎已配置 · $preset';
   static String get aiGuideEngineMissing => '引擎未配置（点 AI Hub 顶部卡设置）';
-  static String get aiGuidePrivacyChip => '隐私：仅本机 · 不联网';
-  static String get aiGuideSectionCompanion => '📘 伴学';
-  static String get aiGuideSectionReview => '🎯 复习';
+  // AI 请求必然出网（直达用户自己配置的服务商），所以这句只能说「配置
+  // 只存本机」，不能再说「不联网」——那是与事实相反的承诺。
+  static String get aiGuidePrivacyChip => '隐私：配置只存本机，请求直达服务商';
+  static String get aiGuideSectionCompanion => '伴学';
+  static String get aiGuideSectionReview => '复习';
   static String get aiGuideLabelPurpose => '作用';
   static String get aiGuideLabelScenarios => '适用场景';
   static String get aiGuideLabelSteps => '操作流程';
@@ -282,7 +288,7 @@ class AppStrings {
         '点击卡片进入聊天页',
         '在输入框写下问题，回车发送',
         'AI 实时流式回答',
-        '满意的回答可点 ❤ 收藏',
+        '满意的回答可点「收藏」',
       ];
   static String get aiGuideFreeChatTip =>
       '问题越具体，AI 越懂你。比如「-dık 与 -acak 的区别」比「教我语法」有用。';
@@ -310,7 +316,7 @@ class AppStrings {
         '想对比同一问题几次回答的差异',
       ];
   static List<String> get aiGuideSavedSteps => const [
-        '在自由问答 / 讲解页面点回答旁的 ❤',
+        '在自由问答 / 讲解页面点回答旁的收藏按钮',
         '自动进入「收藏的回答」',
         '点击单条可查看完整对话',
         '可长按删除或加笔记（待支持）',
@@ -328,7 +334,7 @@ class AppStrings {
         '在题目 / 单词 / 语法点旁点「深度讲解」',
         '弹出讲解面板，AI 读上下文后开始写',
         '可继续追问或让 AI 再讲一遍',
-        '满意的讲解可点 ❤ 收藏',
+        '满意的讲解可点「收藏」',
       ];
   static String get aiGuideDepthTip => '讲解会注入你的水平、错题和讲解偏好——同义词用你认识的、深度跟你匹配。';
 
@@ -341,7 +347,7 @@ class AppStrings {
       ];
   static List<String> get aiGuideMistakesSteps => const [
         '点击卡片',
-        '选时间范围（最近 7 / 30 天）',
+        '在面板里确认侧重，点「生成定制复习」',
         'AI 生成专项练习题',
         '做完进入评分，错题自动进 SRS',
       ];
@@ -356,7 +362,7 @@ class AppStrings {
       ];
   static List<String> get aiGuideWeakSteps => const [
         '点击卡片',
-        '选词数量（10 / 20 / 50）',
+        '在面板里确认侧重，点「生成定制复习」',
         'AI 用这些弱词生成练习',
         '完成后 FSRS 自动更新记忆强度',
       ];
@@ -516,7 +522,10 @@ class AppStrings {
   static String get settingsApiKeyLabel => 'API 密钥';
   static String get settingsApiKeyHint => 'sk-...';
   static String get settingsModelLabel => '模型';
-  static String get settingsModelHint => 'deepseek-v4-flash';
+
+  /// 模型输入框的占位提示。以前写死某个具体模型 id，预设一换就成了误导；
+  /// 现在只说「留空用预设默认」，具体值由上方快捷选择给出。
+  static String get settingsModelHint => '留空则用所选预设的默认模型';
   static String get settingsSaveConfig => '保存配置';
   static String get settingsExportSheetTitle => '导出数据';
   static String get settingsExportSubtitle => '选择导出文件中包含的内容。';
@@ -604,6 +613,7 @@ class AppStrings {
   static String settingsTtsSpeedValue(String ttsSpeed) => '${ttsSpeed}x';
   static String get settingsDailyReminderTitle => '每日提醒';
   static String get settingsDailyReminderSubtitle => '温和地提醒复习——无连续天数惩罚';
+  static String get settingsDailyReminderUnsupported => '当前平台暂不支持本地通知，这个开关用不了';
   static String get settingsSrsRetentionTitle => '复习目标保留率';
   static String settingsSrsRetentionValue(int percent) => '$percent%';
   static String get settingsSrsWeightsTitle => '记忆曲线权重';
@@ -831,7 +841,7 @@ class AppStrings {
   static String get privacyDetailsAiTitle => 'AI 功能';
   static String get privacyDetailsAiIntro => '联网行为由你在 AI API 配置中选择的平台决定';
   static String get privacyDetailsAiBody =>
-      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、Anki 卡片讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「设置 → AI 工具 → AI API 配置」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥仅保存在本机偏好中（退出输入框即丢弃输入），不会上传到任何第三方。';
+      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、Anki 卡片讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「练习 → 智能练习 → 顶部引擎卡（AI API 配置）」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥仅保存在本机偏好中（退出输入框即丢弃输入），不会上传到任何第三方。';
   // 可选网络行为：外部链接
   static String get privacyDetailsExternalLinksTitle => '可选网络行为：外部链接';
   static String get privacyDetailsExternalLinksIntro => '打开外部链接时 Turna 的行为';
@@ -841,7 +851,7 @@ class AppStrings {
   static String get privacyDetailsYourRightsTitle => '你的权利与控制';
   static String get privacyDetailsYourRightsIntro => '你对自己的数据拥有完全控制';
   static String get privacyDetailsYourRightsBody =>
-      '你始终拥有自己的数据。可随时在「设置 → 数据」中：导出完整进度为本地 JSON 文件；从导出文件恢复；清除错题记录；重置课程进度；或直接卸载应用彻底抹除全部数据。AI 相关数据可随时在「设置 → AI 工具 → AI API 配置」中清空 API 密钥、切换或停用。';
+      '你始终拥有自己的数据。可随时在「设置 → 数据」中：导出完整进度为本地 JSON 文件；从导出文件恢复；清除错题记录；重置课程进度；或直接卸载应用彻底抹除全部数据。AI 相关数据可随时在「练习 → 智能练习 → 顶部引擎卡（AI API 配置）」中清空 API 密钥、切换或停用。';
   // 政策更新
   static String get privacyDetailsUpdatesTitle => '政策更新';
   static String get privacyDetailsUpdatesIntro => '政策的变更与通知方式';
@@ -1005,7 +1015,10 @@ class AppStrings {
   static String get playAnkiReviewSubtitle => '复习导入的 Anki 牌组';
   static String get playDictionaryTitle => '词典';
   static String get playDictionarySubtitle => '搜索单词、短语和语法';
-  static String get playAiAssistantTitle => 'AI 助手';
+
+  /// 2026-10-20：「AI 助手」不再是练习页里独立的一条横幅，而是复习队列里的
+  /// 一格「智能练习」——它是练习入口，不是一个并行的助手专区。
+  static String get playSmartPracticeTitle => '智能练习';
   static String get playAiEngineReady => '引擎就绪';
   static String get playAiEngineNotConfigured => '未配置';
   static String get playTitle => '练习';
@@ -1391,7 +1404,7 @@ class AppStrings {
   // ── AI ──
   static String get aiNotConfiguredTitle => 'AI 未配置';
   static String get aiNotConfiguredMessageLesson =>
-      '在使用 AI 提示前，请在 设置 → 学习 → AI API 配置 中填写 Base URL / API 密钥 / 模型。';
+      '在使用 AI 提示前，请在 设置 → 高级 → AI 连接 中填写 Base URL / API 密钥 / 模型。';
   static String get aiGoToSettings => '前往设置';
   static String get aiCourseDesignerTitle => 'AI 课程设计器';
   static String get aiCourseParametersTooltip => '课程参数';
@@ -1580,6 +1593,31 @@ class AppStrings {
   static String get aiPrefsAllowReveal => '允许最终揭示答案';
   static String get aiPrefsInjectContext => '注入学习数据（错题/弱词）';
 
+  // ── 系统提示词面板 ──
+  static String get aiHubOpenPromptSheet => '系统提示词';
+  static String get aiHubOpenPromptSheetSubtitle => '查看默认设置，追加你自己的要求';
+  static String get aiPromptSheetTitle => '系统提示词';
+  static String get aiPromptSheetIntro => '下面就是实际发给模型的那段话。默认部分由应用固定：它决定回答用哪种语言、'
+      '暴露到什么深度、以及「不许直接给答案」「不许输出课程 JSON」这类边界。'
+      '你只能在自己那一段里追加要求，改不动默认部分。';
+  static String aiPromptSheetEffective(String usage) => '生效版本 · $usage';
+  static String get aiPromptCopy => '复制';
+  static String get aiPromptCopied => '已复制系统提示词';
+  static String get aiPromptCustomTitle => '你的额外要求（追加在默认提示词之后）';
+  static String get aiPromptCustomHint =>
+      '写在这里的内容会以「Additional requirements from the learner」为标题追加到末尾。'
+      '适合写风格、举例偏好、用词限制；与上面默认规则冲突时以默认规则为准。';
+  static String get aiPromptCustomPlaceholder =>
+      '例如：解释时先给一个土耳其语例句，再给中文说明；不要用「其实」「简单来说」这类词。';
+  static String get aiPromptUsingDefault => '当前使用默认提示词';
+  static String get aiPromptSave => '保存';
+  static String get aiPromptSaved => '已保存，下一次请求生效';
+  static String get aiPromptResetDefault => '恢复默认';
+  static String get aiPromptResetDone => '已清除你的额外要求';
+  static String get aiPromptSheetFooter =>
+      '默认部分不开放替换：删掉「不许输出课程 JSON」或「未作答时别给答案」会让功能直接坏掉。'
+      '响应缓存以提示词内容参与计算，改完下一次请求就会重新生成，无需手动清缓存。';
+
   // ── Free tutor chat ──
   static String get aiTutorChatTitle => '自由问答';
   static String get aiTutorChatModeQa => '答疑';
@@ -1629,12 +1667,19 @@ class AppStrings {
   // ── AI tutor (Phase 2.2) ──
   static String get tutorLaunchTitle => 'AI 伴学';
   static String get tutorLaunchSubtitle => '让 AI 基于你的最近错题 / 弱词，生成一节定制化复习课。';
-  static String get tutorLaunchByMistakesCta => '按本周错题定制';
-  static String get tutorLaunchByWeakWordsCta => '针对弱词生成 10 题';
+  static String get tutorLaunchByMistakesCta => '按最近错题定制';
+  static String get tutorLaunchByWeakWordsCta => '按弱词定制';
   static String get tutorLaunchByMistakesTitle => '本周错题复习';
   static String get tutorLaunchByWeakWordsTitle => '弱词专项';
+
+  /// 上游已选定侧重时（AI Hub / 功能手册的两张卡）用的面板副标题：
+  /// 说清数据从哪来，别再让用户猜「点进去还要选什么」。
+  static String get tutorLaunchMistakesSubtitle =>
+      '取你最近 20 道错题生成一节针对性复习课；错题不够时会用同类高频错题补足。';
+  static String get tutorLaunchWeakSubtitle => '取你最近 20 个 FSRS 弱词生成一节针对性复习课。';
   static String get tutorLaunchRun => '生成定制复习';
   static String get tutorLaunchIdleHint => '选择上面一个侧重，然后点生成。';
+  static String get tutorLaunchIdleHintPreselected => '点下方按钮开始生成。';
   static String get tutorLaunchGathering => '正在收集你的学习上下文...';
   static String get tutorLaunchPlanning => 'AI 正在定制复习小节...';
   static String get tutorLaunchSaving => '保存定制小节...';
@@ -1648,7 +1693,10 @@ class AppStrings {
   static String get aiHubHeroIncomplete => '请先填写 API Key + Base URL + 模型';
   static String get aiHubContinue => '继续';
   static String get aiHubContinueEmpty => '完成一次 AI 讲解后会出现在这里';
-  static String get aiHubNew => '开始伴学';
+
+  /// 2026-10-20：页首分区改成「生成练习」——入口（练习队列的「智能练习」）
+  /// 落在这里，所以先把按错题/按弱词生成摆出来，伴学工具放在下一段。
+  static String get aiHubNew => '生成练习';
   static String get aiHubCompanionSection => '伴学';
   static String get aiHubAuthoringSection => '内容创作';
   static String get aiHubStartWish => '设计课程（AI）';
@@ -1693,6 +1741,21 @@ class AppStrings {
   static String get aiConfigProviderSectionHint => '选择你的 AI 服务商';
   static String get aiConfigTestDisabledHint => '请先完成配置';
   static String get aiConfigCustomProviderLabel => '自定义';
+
+  // ── 接口与责任边界（API 配置页常驻说明）──
+  static String get aiConfigScopeTitle => '接口与责任边界';
+  static String get aiConfigScopeProtocol =>
+      '接口类型：OpenAI 兼容的 Chat Completions，请求形如 POST {Base URL}/chat/completions。'
+      '不支持 Anthropic、Gemini 等原生协议；OpenAI 规范之外的字段（如推理开关发送的 '
+      'reasoning_effort / thinking）可能被服务商忽略或直接报错。';
+  static String get aiConfigScopeDataFlow =>
+      '数据流向：你填写的 Base URL、API Key、提示词与随附的学习上下文由本机直接发往该服务商，'
+      '不经过 Turna 的任何中转服务器；应用不留存请求内容，也不代为处理。';
+  static String get aiConfigScopeLiability =>
+      '责任归属：返回内容的生成与处理均由该 API 服务商完成，其准确性、合规性、计费与数据处理'
+      '政策与本应用无关。AI 输出仅供参考，请以课程与词典为准。';
+  static String get aiConfigOpenAiCompatHint =>
+      '填写 OpenAI 兼容地址（形如 https://api.example.com/v1），末尾不要带 /chat/completions。';
 
   // ── AI connection page: draft save / key safety / probe classification ──
   static String get aiConfigSave => '保存';
@@ -1827,8 +1890,8 @@ class AppStrings {
   static String get ankiAiRetry => '重新识别';
   static String get ankiAiIdentifying => 'AI 识别中…';
   static String get ankiAiNotConfiguredMessage =>
-      '未配置 AI，无法智能识别。请先在「设置 > AI 工具」中配置 AI API。';
-  static String get ankiAiIdentifyHint => '如未配置 AI，请先在「设置 > AI 工具」配置';
+      '未配置 AI，无法智能识别。请先在「练习 → 智能练习」顶部的引擎卡里配置 AI API。';
+  static String get ankiAiIdentifyHint => '如未配置 AI，请先在「练习 → 智能练习」顶部引擎卡配置';
   static String get ankiNotetypeSampleFront => '正面';
   static String get ankiNotetypeSampleBack => '背面';
   static String get ankiMappingEditTitle => '看一下这类卡片';
@@ -2341,7 +2404,7 @@ class AppStrings {
       '这是 App 运行时占用的内存，和磁盘上的文件大小是两回事。';
 
   // ── AI feature guide ──
-  static String get aiFeatureGuideTitle => 'AI 助手 · 功能介绍';
+  static String get aiFeatureGuideTitle => '智能练习 · 功能介绍';
   static String get aiFeatureGuideTooltip => '功能介绍';
 
   // ── AI task labels (AI Hub 最近任务 kind → 显示名) ──
@@ -2480,8 +2543,6 @@ class AppStrings {
   static String get achievementsUnlockBannerTitle => '新成就解锁';
   static String achievementsUnlockBannerCount(int count) => '本次获得 $count 枚徽章';
   static String get achievementsUnlockBannerViewAll => '查看成就';
-  static String get achievementsFunPreviewBanner => '预览全部（Fun Lab，非真实解锁）';
-  static String get achievementsFunPreviewTag => '预览';
   static String get achievementsGemRewardSuffix => '宝石';
   // 系列名称与描述（key = seriesId）
   static String get achievementsSeriesCourseJourney => '课程行者';
@@ -2653,14 +2714,7 @@ class AppStrings {
   static String get homeDueChipLabel => '待复习';
   static String get emDash => '—';
 
-  // ── Splash ──
-  static String get splashReclaiming => '重拾语言学习';
-  static String splashLearnLanguage(String name, String nativeLabel) =>
-      'Learn $name • $nativeLabel';
-  static String get splashFreeForever => '免费。永远。';
-  static String get splashAppName => 'Turna';
-  static String get splashSubtitle => '没有会失去的生命值，没有要补充的体力。\n纯粹的学习。';
-  static String get splashGetStarted => '开始使用';
+  // ── Splash（启动门：只有加载状态与失败重试，没有欢迎文案）──
   static String get splashPhaseSeeding => '正在准备课程';
   static String get splashPhaseValidating => '正在校验课程';
   static String get splashCourseLoadFailed => '课程没有加载成功。';
@@ -2709,81 +2763,6 @@ class AppStrings {
   static String get settingsAnkiReviewCardsSubtitle => '每日最大 Anki 复习卡片数量';
   static String get settingsAnkiDailyChallengeTitle => '每日挑战中的 Anki 卡片';
   static String get settingsAnkiDailyChallengeSubtitle => '在每日挑战中包括导入的 Anki 卡片';
-
-  // ── Settings Fun Lab ──
-  static String get settingsFunWarning => '趣味实验室\n以下功能仅供娱乐，请勿用于正常学习。';
-  static String get settingsFunSnapshotSection => '实验存档';
-  static String get settingsFunActionsSection => '实验功能';
-  static String get settingsFunSnapshotStatusTitle => '当前检查点';
-  static String get settingsFunSnapshotLoading => '正在读取…';
-  static String get settingsFunSnapshotEmpty => '尚未创建，危险操作暂不可用';
-  static String settingsFunSnapshotReady(String time, int count) =>
-      '$time · $count 个复习项目';
-  static String get settingsFunSnapshotCreateTitle => '创建实验存档';
-  static String get settingsFunSnapshotCreateSubtitle => '保存当前学习进度，之后可一键恢复';
-  static String get settingsFunSnapshotReplaceTitle => '替换实验存档';
-  static String get settingsFunSnapshotReplaceSubtitle => '用当前学习进度覆盖已有检查点';
-  static String get settingsFunSnapshotCreateDialogTitle => '创建实验存档？';
-  static String get settingsFunSnapshotCreateDialogMessage =>
-      '将保存当前复习状态、历史、分数、宝石、课程进度、错题和学习统计。课程内容与应用设置不会保存。';
-  static String get settingsFunSnapshotReplaceDialogTitle => '替换现有存档？';
-  static String get settingsFunSnapshotReplaceDialogMessage =>
-      '旧检查点会被当前学习进度覆盖，此操作无法撤销。';
-  static String get settingsFunSnapshotCreateConfirm => '创建存档';
-  static String get settingsFunSnapshotReplaceConfirm => '替换存档';
-  static String get settingsFunSnapshotCreated => '📦 实验存档已创建';
-  static String get settingsFunSnapshotRestoreTitle => '恢复实验存档';
-  static String get settingsFunSnapshotRestoreSubtitle => '恢复完整学习进度，存档本身会继续保留';
-  static String get settingsFunSnapshotRestoreDialogTitle => '恢复实验存档？';
-  static String get settingsFunSnapshotRestoreDialogMessage =>
-      '当前学习进度将被检查点覆盖。恢复后仍可再次使用这个检查点。';
-  static String get settingsFunSnapshotRestoreConfirm => '恢复';
-  static String get settingsFunSnapshotRestored => '↩️ 学习进度已恢复';
-  static String get settingsFunSnapshotDeleteTitle => '删除实验存档';
-  static String get settingsFunSnapshotDeleteSubtitle => '删除后危险操作将再次锁定';
-  static String get settingsFunSnapshotDeleteDialogTitle => '删除实验存档？';
-  static String get settingsFunSnapshotDeleteDialogMessage =>
-      '删除检查点不会改变当前学习进度，但之后将无法恢复到该状态。';
-  static String get settingsFunSnapshotDeleteConfirm => '删除';
-  static String get settingsFunSnapshotDeleted => '实验存档已删除';
-  static String get settingsFunSnapshotRequiredTitle => '需要实验存档';
-  static String get settingsFunSnapshotRequiredMessage =>
-      '请先创建实验存档，再使用会修改学习进度的功能。';
-  static String get settingsFunSnapshotContentChanged =>
-      '课程内容或 Anki 导入已发生变化，无法安全恢复。请删除并重新创建实验存档。';
-  static String settingsFunOperationFailed(Object error) => '操作失败：$error';
-  static String get settingsFunPostponeTitle => '复习时间机器';
-  static String get settingsFunPostponeSubtitle => '将全部有效复习内容推迟 1 天';
-  static String get settingsFunPostponeDialogTitle => '推迟全部复习？';
-  static String settingsFunPostponeDialogMessage(int count) =>
-      '将 $count 个词汇、表达、语法或 Anki 复习计划统一顺延 24 小时。暂停和埋藏卡片不会改变。';
-  static String get settingsFunPostponeConfirm => '推迟 1 天';
-  static String settingsFunPostponeDone(int count) => '⏰ 已将 $count 个复习计划推迟 1 天';
-  static String get settingsFunAutoAnswerTitle => '破解版（自动出答案）';
-  static String get settingsFunAutoAnswerSubtitle => '上课时自动选择正确答案并提交';
-  static String get settingsFunAutoAnswerOn => '🎮 破解模式已开启 — 上课时将自动答题';
-  static String get settingsFunAutoAnswerOff => '破解模式已关闭';
-  static String get settingsFunMaxScoreTitle => '一键满级';
-  static String get settingsFunMaxScoreSubtitle => '将总分设为 99999';
-  static String get settingsFunMaxScoreDialogTitle => '一键满级？';
-  static String get settingsFunMaxScoreDialogMessage =>
-      '你的真实分数将被覆盖为 99999，可通过实验存档恢复。';
-  static String get settingsFunMaxScoreConfirm => '满级';
-  static String get settingsFunMaxScoreDone => '⭐ 总分已设为 99999';
-  static String get settingsFunMaxGemsTitle => '无限宝石';
-  static String get settingsFunMaxGemsSubtitle => '将宝石设为 99999';
-  static String get settingsFunMaxGemsDialogTitle => '无限宝石？';
-  static String get settingsFunMaxGemsDialogMessage =>
-      '你的真实宝石数将被覆盖为 99999，可通过实验存档恢复。';
-  static String get settingsFunMaxGemsConfirm => '无限宝石';
-  static String get settingsFunMaxGemsDone => '💎 宝石已设为 99999';
-  static String get settingsFunAllAchievementsTitle => '全成就解锁';
-  static String get settingsFunAllAchievementsSubtitle => '解锁所有成就';
-  static String get settingsFunAllAchievementsDialogTitle => '全成就解锁？';
-  static String get settingsFunAllAchievementsDialogMessage =>
-      '个人页将把所有成就显示为满级，但不会修改真实学习统计。';
-  static String get settingsFunAllAchievementsConfirm => '解锁';
-  static String get settingsFunAllAchievementsDone => '🏆 所有成就已解锁';
 
   // ── Anki sample ──
   static String get ankiSampleDeckName => '示例 · 土耳其语问候';

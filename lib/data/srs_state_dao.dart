@@ -150,35 +150,6 @@ class SrsStateDao implements ISrsStateStore {
     await query.go();
   }
 
-  /// Count every active schedule that can be moved by the Fun Lab time
-  /// machine. Both currently-due and future rows are included.
-  @override
-  Future<int> countPostponable() async {
-    final count = _db.srsStates.wordId.count();
-    final query = _db.selectOnly(_db.srsStates)
-      ..addColumns([count])
-      ..where(
-        _db.srsStates.isSuspended.equals(false) &
-            _db.srsStates.isBuried.equals(false),
-      );
-    final row = await query.getSingle();
-    return row.read(count) ?? 0;
-  }
-
-  /// Move all active schedules by [duration] atomically, without touching any
-  /// other FSRS field or the review history table.
-  @override
-  Future<int> postponeActiveBy(Duration duration) {
-    return _db.transaction(() {
-      return _db.customUpdate(
-        'UPDATE srs_states SET due_at = due_at + ? '
-        'WHERE is_suspended = 0 AND is_buried = 0',
-        variables: [Variable<int>(duration.inMilliseconds)],
-        updates: {_db.srsStates},
-      );
-    });
-  }
-
   /// Most recent [limit] reviewed rows in [queue] (newest first), filtered
   /// to those that have been reviewed at least once. Optional [since]
   /// narrows to rows reviewed on/after the given instant; optional

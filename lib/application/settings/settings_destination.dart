@@ -23,9 +23,6 @@ enum SettingsDestination {
   dataAndBackup,
   advanced,
   about,
-
-  /// Debug-only developer lab. Never surfaced in release/profile builds.
-  developer,
 }
 
 /// Second-level anchors inside [SettingsDestination.advanced], so external
@@ -59,8 +56,6 @@ extension SettingsDestinationDescriptor on SettingsDestination {
         return AppStrings.settingsCategoryAdvanced;
       case SettingsDestination.about:
         return AppStrings.settingsCategoryAbout;
-      case SettingsDestination.developer:
-        return AppStrings.settingsCategoryFunLab;
     }
   }
 
@@ -80,8 +75,6 @@ extension SettingsDestinationDescriptor on SettingsDestination {
         return AppStrings.settingsCategoryAdvancedSubtitle;
       case SettingsDestination.about:
         return AppStrings.settingsCategoryAboutSubtitle;
-      case SettingsDestination.developer:
-        return AppStrings.settingsCategoryFunLabSubtitle;
     }
   }
 
@@ -101,8 +94,6 @@ extension SettingsDestinationDescriptor on SettingsDestination {
         return Icons.build_rounded;
       case SettingsDestination.about:
         return Icons.info_rounded;
-      case SettingsDestination.developer:
-        return Icons.science_rounded;
     }
   }
 
@@ -124,8 +115,6 @@ extension SettingsDestinationDescriptor on SettingsDestination {
         return const AdvancedSettingsRoute();
       case SettingsDestination.about:
         return const AboutSettingsRoute();
-      case SettingsDestination.developer:
-        return const DeveloperSettingsRoute();
     }
   }
 }

@@ -39,6 +39,18 @@ class UpdateDailyReminderCommand {
     final previousTime = settings.dailyReminderTime;
     final service = getIt<LocalReminderService>();
 
+    // Enabling is a promise the OS has to keep. On a platform where
+    // `flutter_local_notifications` has no registrant (HarmonyOS), the no-op
+    // service would report success and leave the toggle claiming "on" for a
+    // reminder that can never fire — refuse instead, and let disabling stay a
+    // safe no-op.
+    if (enabled && !service.supportsScheduling) {
+      return const SettingsOperationFailure(
+        code: 'reminder.unsupported',
+        userMessage: '当前平台暂不支持每日提醒，不会保存这个开关。',
+      );
+    }
+
     // Snapshot of the old schedule state is implicit: re-applying the old
     // settings below restores it. Schedule the NEW state first…
     try {

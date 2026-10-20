@@ -1,6 +1,8 @@
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/companion_rate_limiter.dart';
@@ -93,14 +95,12 @@ class DictionaryAiProvider extends AiRequestSessionBase {
         messages: <Map<String, dynamic>>[
           {
             'role': 'system',
-            'content': 'You are a language-learning tutor for $language. '
-                '${_prefs.snapshot.toSystemPromptRules()}\n'
-                'Respond with ONLY a JSON object (no markdown fences): '
-                '{"expandedGloss":string,"examples":[string],"pairs":'
-                '[{"a":string,"b":string,"nuance":string,"whenToUseA":string,'
-                '"whenToUseB":string,"examples":[string]}],"mnemonic":string}. '
-                'examples: prefer 3 example sentences in $language. '
-                'mnemonic: one short memory hook in the reply language.',
+            'content': AiPromptCatalog.dictionary(
+              language: language,
+              prefs: _prefs.snapshot,
+              override: AiPromptOverridesStore.resolve()
+                  .textFor(AiPromptFeature.dictionary),
+            ),
           },
           {
             'role': 'user',

@@ -6,6 +6,7 @@
 // 才能让 widget 拿到非空 markdown。
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -80,6 +81,36 @@ void main() {
     expect(releases.first.items, ['only']);
   });
 
+  // 阶段数文案此前硬编码「从原型到 0.9 的 9 个阶段」，每加一个里程碑
+  // 就会立刻说谎。改为从 journeySteps 派生后，这条断言把它钉住：
+  // 阶段数与终点版本必须与数据源一致，不能各写各的。
+  test('journey overview text is derived from journeySteps', () {
+    const steps = ChangelogPage.journeySteps;
+    expect(steps, isNotEmpty);
+    final expected = 'Varnamala Plus 从原型到 ${steps.last.label} 的 '
+        '${steps.length} 个阶段';
+    expect(expected, contains('${steps.length} 个阶段'));
+    expect(expected, contains(steps.last.label));
+  });
+
+  // 应用内 changelog 有两个来源：assets/changelog.md（主）与
+  // ReleaseManifest.fallbackReleases（asset 加载失败时的后援）。
+  // 两者的**首个 release id 必须一致**——否则用户在「asset 读得到」和
+  // 「asset 读不到」两种状态下会看到不同的最新版。
+  test('bundled changelog and fallback manifest agree on the latest release',
+      () {
+    final bundled = parseChangelogMarkdown(
+      File('assets/changelog.md').readAsStringSync(),
+    );
+    expect(bundled, isNotEmpty, reason: 'assets/changelog.md 解析为空');
+    expect(
+      bundled.first.version,
+      ChangelogPage.fallbackReleases.first.version,
+      reason: 'assets/changelog.md 与 ReleaseManifest.fallbackReleases '
+          '的首个 release id 不一致',
+    );
+  });
+
   testWidgets('ChangelogFromAsset falls back to legacy releases on load error',
       (tester) async {
     await installHandler(failHandler);
@@ -96,7 +127,20 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
     }
+    // Same reasoning as the asset test: the journey card's height scales with
+    // the number of milestones, so the older fallback cards may start below
+    // the fold. Scroll to them instead of assuming they are on screen.
+    await tester.scrollUntilVisible(
+      find.text('0.5'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('0.5'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('0.4'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('0.4'), findsWidgets);
   });
 
@@ -118,6 +162,16 @@ void main() {
     }
     final releases = parseChangelogMarkdown(fakeChangelog);
     expect(releases.length, 3);
+    // Scroll both later cards into the tree before asserting. The journey
+    // overview card grows with every released milestone (one row per step),
+    // so a release card that used to sit in the first screen is pushed out
+    // of the default 800x600 viewport as soon as a version is added. Asserting
+    // on "is it rendered at all" must not depend on how tall that card is.
+    await tester.scrollUntilVisible(
+      find.text('1.1.0'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('1.1.0'), findsWidgets);
     // Scroll until 1.0.0 card becomes part of the rendered widget tree
     // (default test viewport is 800x600; production journey + first release

@@ -372,29 +372,45 @@ class _StreakCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // 这行原来是 Row + Spacer：字体放大后「连续学习 N 天」+「本周 N 天」
+          // 一起变宽，Spacer 被压到 0 也放不下，真机收据是
+          // `RIGHT OVERFLOWED BY 12 PIXELS`。改 Wrap 后空间不够时「本周」
+          // 自动落到下一行，够宽时仍靠 spaceBetween 右对齐。
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 4,
             children: [
-              const Icon(Icons.local_fire_department_rounded,
-                  color: TurnaTheme.anatolianClay, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                AppStrings.reviewStreakDays(streak.currentStreakDays),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_fire_department_rounded,
+                      color: TurnaTheme.anatolianClay, size: 20),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      AppStrings.reviewStreakDays(streak.currentStreakDays),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-              ),
-              if (streak.protectedByVoucher) ...[
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: AppStrings.reviewProtectedTooltip,
-                  child: Chip(
-                    avatar: const Icon(Icons.shield_rounded, size: 15),
-                    label: Text(AppStrings.reviewProtectedChip),
-                    visualDensity: VisualDensity.compact,
                   ),
-                ),
-              ],
-              const Spacer(),
+                  if (streak.protectedByVoucher) ...[
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message: AppStrings.reviewProtectedTooltip,
+                      child: Chip(
+                        avatar: const Icon(Icons.shield_rounded, size: 15),
+                        label: Text(AppStrings.reviewProtectedChip),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               Text(
                 AppStrings.reviewThisWeek(streak.activeDaysThisWeek),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(

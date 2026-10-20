@@ -1,5 +1,4 @@
 // Flutter imports:
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -99,16 +98,6 @@ class SettingsPage extends StatelessWidget {
                     _DestinationCard(destinations: _systemDestinations),
                     const SizedBox(height: 16),
                     const _AboutLandingCard(),
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 24),
-                      _LandingSectionTitle(
-                        title: AppStrings.settingsCategoryFunLab,
-                      ),
-                      const SizedBox(height: 10),
-                      const _DestinationCard(
-                        destinations: [SettingsDestination.developer],
-                      ),
-                    ],
                     SizedBox(
                       height: 20 + MediaQuery.paddingOf(context).bottom,
                     ),
@@ -456,7 +445,6 @@ class _DestinationCard extends StatelessWidget {
       SettingsDestination.advanced => TurnaTheme.textSecondary,
       SettingsDestination.about => TurnaTheme.brandTeal,
       SettingsDestination.account => TurnaTheme.brandTeal,
-      SettingsDestination.developer => TurnaTheme.amethystLeague,
     };
     return SettingsNavigationTile(
       key: ValueKey(destination.name),

@@ -26,7 +26,8 @@ void main() {
     setUpAll(() {
       source = File(sourcePath).readAsStringSync();
       final start = source.indexOf('void ensureOfficialAnkiSqlite()');
-      expect(start, greaterThan(-1), reason: 'ensureOfficialAnkiSqlite missing');
+      expect(start, greaterThan(-1),
+          reason: 'ensureOfficialAnkiSqlite missing');
       // Up to the next top-level declaration, so the probe below cannot
       // satisfy an assertion that belongs to ensure().
       final end = source.indexOf('\nDynamicLibrary', start);

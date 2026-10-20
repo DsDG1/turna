@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
-import 'package:turna/application/fun_provider.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -58,22 +57,15 @@ class _DetailPageEntries extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showAllUnlocked = context.select<FunProvider, bool>(
-      (provider) => provider.allAchievementsUnlocked,
-    );
     final achievements = context.watch<AchievementService>();
     final total = AchievementCatalog.totalBadgeCount;
-    final unlocked = showAllUnlocked ? total : achievements.unlockedBadgeCount;
-    final nearComplete = showAllUnlocked
-        ? 0
-        : achievements
-            .progressViews()
-            .where((v) =>
-                !v.isSeriesComplete &&
-                v.nextTier != null &&
-                v.currentProgress > 0)
-            .length;
-    final hasUnseen = !showAllUnlocked && achievements.hasUnseenUnlocks;
+    final unlocked = achievements.unlockedBadgeCount;
+    final nearComplete = achievements
+        .progressViews()
+        .where((v) =>
+            !v.isSeriesComplete && v.nextTier != null && v.currentProgress > 0)
+        .length;
+    final hasUnseen = achievements.hasUnseenUnlocks;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -179,36 +179,57 @@ class _CourseDatabaseV15 extends db.CourseDatabase {
       );
 }
 
-/// v14 contains all live learning tables but predates Fun Lab checkpoints.
-class _CourseDatabaseV14 extends db.CourseDatabase {
-  _CourseDatabaseV14(super.e);
+/// v30 is the last schema that still carried the Fun Lab checkpoint tables.
+class _CourseDatabaseV30 extends db.CourseDatabase {
+  _CourseDatabaseV30(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 30;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
-          // Real v14 databases still carried the NoteStore tables.
-          await _createRetiredNoteStoreTables(m.database);
-          await m.database.customStatement(
-            'ALTER TABLE anki_cards_meta ADD COLUMN suspended '
-            'INTEGER NOT NULL DEFAULT 0',
-          );
-          await m.database.customStatement(
-            'ALTER TABLE anki_cards_meta ADD COLUMN buried_until INTEGER',
-          );
-          await m.database.customStatement(
-            'ALTER TABLE anki_cards_meta ADD COLUMN marked '
-            'INTEGER NOT NULL DEFAULT 0',
-          );
-          await m.database.customStatement(
-            'ALTER TABLE anki_cards_meta ADD COLUMN flag '
-            'INTEGER NOT NULL DEFAULT 0',
-          );
+          await _createRetiredFunLabTables(m.database);
         },
       );
+}
+
+/// Recreates the retired Fun Lab checkpoint tables (pre-v31 shape) for the
+/// migration fixture. Column shapes are irrelevant here — the v31 step only
+/// drops them by name.
+Future<void> _createRetiredFunLabTables(dynamic database) async {
+  await database.customStatement(
+    'CREATE TABLE IF NOT EXISTS fun_lab_snapshot_meta ('
+    'id INTEGER PRIMARY KEY CHECK (id = 1), '
+    'created_at INTEGER NOT NULL, '
+    'content_fingerprint TEXT NOT NULL, '
+    'prefs_json TEXT NOT NULL, '
+    'srs_item_count INTEGER NOT NULL DEFAULT 0)',
+  );
+  await database.customStatement(
+    "CREATE TABLE IF NOT EXISTS fun_lab_snapshot_srs ("
+    "language_code TEXT NOT NULL DEFAULT 'tr', "
+    'word_id TEXT NOT NULL, queue TEXT NOT NULL, '
+    'due_at INTEGER NOT NULL, interval_days INTEGER NOT NULL, '
+    'ease REAL NOT NULL, reps INTEGER NOT NULL, lapses INTEGER NOT NULL, '
+    'is_leech INTEGER NOT NULL, is_suspended INTEGER NOT NULL, '
+    'is_buried INTEGER NOT NULL, type TEXT NOT NULL, '
+    'last_reviewed_at INTEGER, stability REAL, difficulty REAL, '
+    'fsrs_state INTEGER NOT NULL, learning_step INTEGER, '
+    'source_kind TEXT, source_id TEXT, owner_id TEXT, '
+    'PRIMARY KEY (language_code, word_id))',
+  );
+  await database.customStatement(
+    "CREATE TABLE IF NOT EXISTS fun_lab_snapshot_review_events ("
+    'id INTEGER PRIMARY KEY, card_id TEXT NOT NULL, '
+    "language_code TEXT NOT NULL DEFAULT 'tr', queue TEXT NOT NULL)",
+  );
+  await database.customStatement(
+    'CREATE TABLE IF NOT EXISTS fun_lab_snapshot_anki_state ('
+    'import_id TEXT NOT NULL, card_id INTEGER NOT NULL, '
+    'PRIMARY KEY (import_id, card_id))',
+  );
 }
 
 /// A v13 schema (the version before the card-level Anki wordId re-key) used to
@@ -627,15 +648,15 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v14 -> v15 adds Fun Lab checkpoint tables and preserves data',
+    test('v30 -> current drops the retired Fun Lab checkpoint tables',
         () async {
       final path = await _tempDbPath();
-      final oldDb = _CourseDatabaseV14(NativeDatabase(File(path)));
+      final oldDb = _CourseDatabaseV30(NativeDatabase(File(path)));
       await _forceOpen(oldDb);
       await oldDb.into(oldDb.sections).insert(
             const db.SectionsCompanion(
-              id: Value('s-v14'),
-              name: Value('Section V14'),
+              id: Value('s-v30'),
+              name: Value('Section V30'),
             ),
           );
       await oldDb.close();
@@ -643,7 +664,7 @@ void main() {
       final migrated = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(migrated);
       expect(
-          (await migrated.select(migrated.sections).get()).single.id, 's-v14');
+          (await migrated.select(migrated.sections).get()).single.id, 's-v30');
       final tables = await migrated
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table' "
@@ -651,13 +672,9 @@ void main() {
           )
           .get();
       expect(
-        tables.map((row) => row.read<String>('name')),
-        [
-          'fun_lab_snapshot_anki_state',
-          'fun_lab_snapshot_meta',
-          'fun_lab_snapshot_review_events',
-          'fun_lab_snapshot_srs',
-        ],
+        tables,
+        isEmpty,
+        reason: 'v31 drops the Fun Lab checkpoint tables',
       );
 
       await migrated.close();

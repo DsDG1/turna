@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/srs_tutor_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
@@ -16,7 +17,7 @@ import 'package:turna/core/theme.dart';
 
 /// AI 助手功能介绍页 — 常驻手册。
 ///
-/// 从 AI Hub AppBar 右上角 ❓ 进入。一页讲清楚 6 个主推功能（伴学 4 + 复习 2）
+/// 从 AI Hub AppBar 右上角的帮助图标进入。一页讲清楚 6 个主推功能（伴学 4 + 复习 2）
 /// 是干嘛的、什么时候用、怎么操作、有啥小贴士。每张功能卡可直接点开对应功能。
 ///
 /// 文案集中在 AppStrings 的 `aiGuide*` 分组；[_FeatureSpec] 的 5 个 String
@@ -118,14 +119,14 @@ class _HeroCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  TurnaTheme.amethystLeague,
-                  TurnaTheme.brandTeal,
+                  TurnaTheme.brandTealDark,
+                  TurnaTheme.brandTealLight,
                 ],
               ),
               borderRadius: radius,
               boxShadow: [
                 BoxShadow(
-                  color: TurnaTheme.amethystLeague.withValues(alpha: 0.25),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
@@ -289,7 +290,7 @@ final List<_FeatureSpec> _kFeatures = [
   // 3. 收藏的回答
   _FeatureSpec(
     icon: Icons.bookmark_outline_rounded,
-    accent: TurnaTheme.amethystLeague,
+    accent: TurnaTheme.anatolianClay,
     title: AppStrings.aiGuideSavedTitle,
     purpose: AppStrings.aiGuideSavedPurpose,
     scenarios: AppStrings.aiGuideSavedScenarios,
@@ -358,22 +359,17 @@ void _openDepthTutor(BuildContext context) {
 }
 
 void _openTutorMistakes(BuildContext context) {
-  // TutorLaunchSheet 内部自带 mistakes/weakWords 切换；此处打开后用户
-  // 默认进 mistakes。需要从 mistakes 直进时再补 initial 参数。
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) => const TutorLaunchSheet(),
-  );
+  // 侧重由本卡片钉死传下去；面板不再让用户重复选一次。
+  _openTutorSheet(
+      context, const TutorLaunchSheet(focus: SrsTutorFocus.mistakes));
 }
 
 void _openTutorWeak(BuildContext context) {
+  _openTutorSheet(
+      context, const TutorLaunchSheet(focus: SrsTutorFocus.weakWords));
+}
+
+void _openTutorSheet(BuildContext context, Widget sheet) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -383,7 +379,7 @@ void _openTutorWeak(BuildContext context) {
         top: Radius.circular(TurnaTheme.radiusXLarge),
       ),
     ),
-    builder: (_) => const TutorLaunchSheet(),
+    builder: (_) => sheet,
   );
 }
 

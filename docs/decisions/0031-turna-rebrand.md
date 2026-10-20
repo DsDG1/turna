@@ -32,9 +32,11 @@ can tell "intentional retention" from "missed rename".
 | Android `applicationId`       | `com.varnamala.app`              | `me.dsdogs.turna`       |
 | iOS / macOS Bundle ID         | `com.example.varnamala`          | `me.dsdogs.turna`       |
 | Linux Application ID          | `com.example.varnamala`          | `me.dsdogs.turna`       |
-| OHOS Bundle Name              | `me.dsdogs.vernamala`            | `me.dsdogs.turna`       |
+| OHOS Bundle Name              | `me.dsdogs.vernamala`            | `me.dsdogs.turna.hmos`* |
 | Windows / Linux binary name   | `varnamala`                      | `turna`                 |
 | Course editor display name    | Varnamala Course Editor          | Turna Course Editor     |
+
+\* 鸿蒙一行 2026-10-20 由 [ADR 0051](./0051-ohos-bundle-name-unique-vs-android.md) 覆盖为 `me.dsdogs.turna.hmos`：AGC 要求鸿蒙包名不得与安卓 `applicationId` 相同，而本表把它设成了同一个值。
 
 `peacockTeal`, `peacockCyan`, and the rest of the Peacock palette tokens
 stay as-is; visual-token renaming is part of the future visual rework.

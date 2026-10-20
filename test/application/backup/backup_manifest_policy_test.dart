@@ -56,7 +56,6 @@ void main() {
       'settings.nativeLang.builtin',
       LocalStateKeys.aiEngineConfig,
       'ai.replyLanguage',
-      LocalStateKeys.funAutoAnswer,
       LocalStateKeys.gems,
       PrefsConstants.authUser,
     ];

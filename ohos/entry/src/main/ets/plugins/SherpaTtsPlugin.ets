@@ -259,14 +259,14 @@ model.debug = false;
       done(null, `cannot read stage manifest: [${err.code}] ${err.message}`);
       return;
     }
-    const missing = this.firstIncomplete(dir, plan);
-    if (missing === null) {
+    const broken = this.firstIncomplete(dir, plan);
+    if (broken === null) {
       done(dir, null);
       return;
     }
     hilog.warn(DOMAIN, TAG,
-      'staging model into %{public}s (%{public}d files, first missing: %{public}s)',
-      dir, plan.steps.length, missing);
+      'staging model into %{public}s (%{public}d files, first incomplete: %{public}s)',
+      dir, plan.steps.length, broken);
     let index = 0;
     const pump = (): void => {
       const deadline = Date.now() + COPY_BATCH_BUDGET_MS;
@@ -323,44 +323,49 @@ model.debug = false;
   }
 
   /**
-   * The first staged path that is absent or the wrong size, or null when the
+   * The first staged path that is absent **or the wrong size**, or null when the
    * staged model is whole.
    *
    * Size-checked rather than counted. A count is how a truncated 17.8 MB weight
    * file passes as complete — the file is present, the file count is right, and
    * then the engine loads the damaged file and the process dies with no error
    * line anywhere. Which is what happened.
+   *
+   * A wrong size is reported as *incomplete*, not merely logged. Reporting it
+   * was the original shape of this method and it was not enough: the hap on
+   * device carried a CRLF-mangled `tokens.txt` (1075 bytes against the
+   * manifest's 921), the mismatch was dutifully logged on every launch, and the
+   * model was loaded anyway — sherpa-onnx then read the "space" token line as a
+   * duplicate of the literal `3` token and called `exit(-1)`, so the app died
+   * with code 255 about a second after launch with no Dart stack and no crash
+   * file. Returning the path here re-stages the file instead, which is the only
+   * repair available at runtime, and repairs an already-installed sandbox copy
+   * as well as a fresh one.
    */
   private firstIncomplete(dir: string, plan: StagePlan): string | null {
-    plan.sizes.forEach((expected: number, relative: string) => {
-      const path = `${dir}/${relative}`;
+    for (const step of plan.steps) {
+      const path = `${dir}/${step.destRelative}`;
       let actual = -1;
       try {
         actual = fs.statSync(path).size;
       } catch (e) {
         // Absent, which is a size of nothing for this purpose.
       }
-      if (actual !== expected && this.reported !== relative) {
-        this.reported = relative;
-        hilog.warn(DOMAIN, TAG, 'not staged correctly: %{public}s is %{public}d bytes, want %{public}d',
-          relative, actual, expected);
+      if (actual === -1) {
+        return step.destRelative;
       }
-    });
-    for (const step of plan.steps) {
-      if (!this.exists(`${dir}/${step.destRelative}`)) {
+      const expected = plan.sizes.get(step.destRelative);
+      if (expected !== undefined && actual !== expected) {
+        if (this.reported !== step.destRelative) {
+          this.reported = step.destRelative;
+          hilog.warn(DOMAIN, TAG,
+            'not staged correctly: %{public}s is %{public}d bytes, want %{public}d',
+            step.destRelative, actual, expected);
+        }
         return step.destRelative;
       }
     }
     return null;
-  }
-
-  private exists(path: string): boolean {
-    try {
-      return fs.accessSync(path);
-    } catch (e) {
-      // A missing path is the expected answer here, not a failure to report.
-      return false;
-    }
   }
 
   private copyRawFile(rawName: string, dest: string): void {

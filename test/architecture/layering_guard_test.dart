@@ -188,9 +188,6 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
     'lib/data/course_repository.dart', // local-handle construction
   },
   // ── Maintenance / diagnostics / migration serialization ─────────────────
-  'lib/application/fun_lab_snapshot_service.dart': {
-    'lib/data/course_database.dart', // handle: snapshot ctor param
-  },
   'lib/application/maintenance/database_doctor_service.dart': {
     'lib/data/course_database.dart', // drift-ops: integrity checks
   },

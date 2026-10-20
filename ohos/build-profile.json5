@@ -1,24 +1,24 @@
 {
   app: {
-    signingConfigs: [
-      {
-        name: 'default',
-        type: 'HarmonyOS',
-        material: {
-          certpath: 'C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_NGNReT2ELmUAps8Q017ALXX0C3TLDbGL6ZGjjKjuI0=.cer',
-          keyAlias: 'debugKey',
-          keyPassword: '0000001b24a5c326bdb9e1ac65617c599d49bbb98f04c9c928cdcca9e22dbb122a11d92e1cbb11503e684d',
-          profile: 'C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_NGNReT2ELmUAps8Q017ALXX0C3TLDbGL6ZGjjKjuI0=.p7b',
-          signAlg: 'SHA256withECDSA',
-          storeFile: 'C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_NGNReT2ELmUAps8Q017ALXX0C3TLDbGL6ZGjjKjuI0=.p12',
-          storePassword: '0000001b24a5c326bdb9e1ac65617c599d49bbb98f04c9c928cdcca9e22dbb122a11d92e1cbb11503e684d',
-        },
-      },
-    ],
+    // Temporary unsigned variant, written 2026-10-20 so `assembleHap` emits an
+    // unsigned HAP that `hap-sign-tool` can sign outside hvigor.
+    //
+    // Why: this hvigor build refuses plaintext passwords in `signingConfigs`.
+    // A <32-char value fails with 00303116 ("length ... less than 32"); a value
+    // padded past that floor is decrypted as if it were DevEco's blob and fails
+    // with 00303242 ("Invalid initialization vector"). Only DevEco Studio's own
+    // encryptor produces an accepted value, and that is a GUI action.
+    //
+    // The real signing config is parked in `build-profile.json5.release`;
+    // restore it with `cp ohos/build-profile.json5.release ohos/build-profile.json5`
+    // once DevEco has encrypted the passwords.
+    //
+    // `build-profile.json5.release` is **machine-local and git-ignored**: it
+    // carries the plaintext release keystore password, so it must never
+    // reach a commit (`.gitignore` has the rule; see the comment there).
     products: [
       {
         name: 'default',
-        signingConfig: 'default',
         compatibleSdkVersion: '5.1.0(18)',
         runtimeOS: 'HarmonyOS',
       },

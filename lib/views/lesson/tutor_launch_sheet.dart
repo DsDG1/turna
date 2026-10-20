@@ -24,16 +24,34 @@ import 'package:turna/views/widgets/turna_select.dart';
 /// recent mistakes (last 20) or aggregated weak words (same window).
 /// Both call [SrsTutorProvider.tutorPlan] with the current AI engine config
 /// and on success push the resulting lesson into [NewLessonRoute].
+///
+/// [focus] decides who owns the choice:
+///   * `null` — no upstream entry has picked a half yet（学习诊断的单个 CTA）,
+///     面板自己渲染 mistakes / weakWords 两个侧重选项；
+///   * 非空 — 上游（AI Hub 的两张卡、功能手册页的两张卡）已经选好了，
+///     面板不再重复问一遍，只确认并执行。
+///
+/// 计划 2026-10-20：此前无论从哪进都固定 mistakes + 再渲染一次侧重选择，
+/// 造成「大选项点进去又出现同样两个小选项」的重复，且按弱词入口实际开的是错题。
 class TutorLaunchSheet extends StatefulWidget {
-  const TutorLaunchSheet({super.key});
+  const TutorLaunchSheet({super.key, this.focus});
+
+  /// Pre-selected focus. `null` renders the in-sheet chooser.
+  final SrsTutorFocus? focus;
 
   @override
   State<TutorLaunchSheet> createState() => _TutorLaunchSheetState();
 }
 
 class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
-  SrsTutorFocus _focus = SrsTutorFocus.mistakes;
+  late SrsTutorFocus _focus;
   SrsTutorProvider? _providerRef;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus = widget.focus ?? SrsTutorFocus.mistakes;
+  }
 
   @override
   void dispose() {
@@ -80,12 +98,14 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
             _header(context),
             const SizedBox(height: 6),
             Text(
-              AppStrings.tutorLaunchSubtitle,
+              _subtitle,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            _focusChooser(context),
-            const SizedBox(height: 16),
+            if (widget.focus == null) ...[
+              _focusChooser(context),
+              const SizedBox(height: 16),
+            ],
             _primaryButton(context),
             const SizedBox(height: 12),
             Flexible(
@@ -101,6 +121,19 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
     );
   }
 
+  /// 面板标题：上游已选定时用该侧的专属标题，否则用通用「AI 伴学」。
+  String get _title => switch (widget.focus) {
+        SrsTutorFocus.mistakes => AppStrings.aiHubStartTutorMistakes,
+        SrsTutorFocus.weakWords => AppStrings.aiHubStartTutorWeak,
+        null => AppStrings.tutorLaunchTitle,
+      };
+
+  String get _subtitle => switch (widget.focus) {
+        SrsTutorFocus.mistakes => AppStrings.tutorLaunchMistakesSubtitle,
+        SrsTutorFocus.weakWords => AppStrings.tutorLaunchWeakSubtitle,
+        null => AppStrings.tutorLaunchSubtitle,
+      };
+
   Widget _header(BuildContext context) {
     return Row(
       children: [
@@ -109,7 +142,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            AppStrings.tutorLaunchTitle,
+            _title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -189,7 +222,12 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
       builder: (context, snap, _) {
         switch (snap.state) {
           case SrsTutorState.idle:
-            return _hint(context, AppStrings.tutorLaunchIdleHint);
+            return _hint(
+              context,
+              widget.focus == null
+                  ? AppStrings.tutorLaunchIdleHint
+                  : AppStrings.tutorLaunchIdleHintPreselected,
+            );
           case SrsTutorState.gathering:
             return _progress(context, AppStrings.tutorLaunchGathering);
           case SrsTutorState.planning:

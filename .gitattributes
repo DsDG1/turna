@@ -15,3 +15,14 @@ assets/anki_reviewer/** text eol=lf
 # would make that diff unreviewable and a re-vendor look like a whole-file
 # rewrite. Same reason as assets/anki_reviewer/** above.
 third_party/** text eol=lf
+
+# sherpa-onnx TTS model, staged out of rawfile into the app sandbox at runtime.
+# `-text` (binary) rather than `eol=lf` on purpose: the payload mixes an int8
+# ONNX blob, espeak-ng compiled data and two text files, and every one of them
+# must reach the device byte-identical. stage-manifest.tsv pins the byte size of
+# the load-bearing three, and sherpa-onnx's tokens parser *exits the process*
+# (not throws) when it cannot read that file as written — a CRLF checkout turns
+# the "space" token line into a duplicate of the literal `3` token and the app
+# dies with code 255 before Dart sees anything, which is exactly what happened
+# on 2026-10-20. Marking the tree binary makes `core.autocrlf=true` a no-op here.
+ohos/entry/src/main/resources/rawfile/sherpa/** -text

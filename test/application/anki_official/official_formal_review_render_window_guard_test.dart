@@ -86,7 +86,8 @@ void main() {
       // the very card about to be rated.
       expect(coordinator.contains('startAtCardId'), isTrue);
       expect(
-        coordinator.contains('cards.indexWhere((c) => c.cardId == startAtCardId)'),
+        coordinator
+            .contains('cards.indexWhere((c) => c.cardId == startAtCardId)'),
         isTrue,
       );
     });

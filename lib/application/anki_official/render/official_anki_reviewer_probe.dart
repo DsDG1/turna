@@ -35,10 +35,9 @@ Future<void> logOfficialAnkiReviewerProbe() async {
   }
   _probeStarted = true;
   try {
-    final verdict =
-        await officialAnkiReviewerChannel.invokeMethod<String>(
-          OfficialAnkiReviewerProtocol.methodProbeReviewerCapabilities,
-        );
+    final verdict = await officialAnkiReviewerChannel.invokeMethod<String>(
+      OfficialAnkiReviewerProtocol.methodProbeReviewerCapabilities,
+    );
     logger.i('[OhosAnkiReviewerProbe] $verdict');
   } on MissingPluginException catch (e) {
     // The plugin is registered by hand in `EntryAbility`, so "not registered"

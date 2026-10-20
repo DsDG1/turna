@@ -13,6 +13,7 @@ import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Daily reminder toggle + time picker. All changes go through
@@ -48,16 +49,25 @@ class SettingsDailyReminderTile extends StatelessWidget {
           '${t.minute.toString().padLeft(2, '0')}';
     });
 
+    // A platform with no notification registrant (HarmonyOS) cannot schedule
+    // anything, so the toggle would only ever flip a preference that nothing
+    // reads. Disable it and say why instead of letting the tap fail.
+    final schedulable = !getIt.isRegistered<LocalReminderService>() ||
+        getIt<LocalReminderService>().supportsScheduling;
+
     return Column(
       children: [
         SettingsToggleTile(
           icon: Icons.notifications_active_outlined,
           title: AppStrings.settingsDailyReminderTitle,
-          subtitle: AppStrings.settingsDailyReminderSubtitle,
+          subtitle: schedulable
+              ? AppStrings.settingsDailyReminderSubtitle
+              : AppStrings.settingsDailyReminderUnsupported,
           valueSelector: (p) => p.dailyReminderEnabled,
           onChanged: (p, value) => _apply(context, enabled: value),
+          enabled: schedulable,
         ),
-        if (enabled) ...[
+        if (enabled && schedulable) ...[
           settingsTileDivider(context),
           SettingsTile(
             icon: Icons.schedule_rounded,

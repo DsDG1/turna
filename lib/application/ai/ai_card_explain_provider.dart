@@ -3,6 +3,8 @@
 import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
@@ -79,12 +81,12 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
         messages: <Map<String, dynamic>>[
           {
             'role': 'system',
-            'content': 'You are a language-learning companion for $language. '
-                '${_prefs.snapshot.toSystemPromptRules()}\n'
-                'Explain this flashcard briefly to help understanding. '
-                'Do not change or "correct" the card answer keys. '
-                'Note that explanations are for understanding only; the card answer is authoritative. '
-                'Never output course section JSON.',
+            'content': AiPromptCatalog.cardExplain(
+              language: language,
+              prefs: _prefs.snapshot,
+              override: AiPromptOverridesStore.resolve()
+                  .textFor(AiPromptFeature.cardExplain),
+            ),
           },
           {
             'role': 'user',

@@ -15,9 +15,10 @@ import 'package:turna/core/theme.dart';
 //
 // 抽取自 `play_hub_screen.dart`，供练习 Hub 与 AI 页共用，保证两页风格
 // 完全一致。组件签名与原私有版本保持一致，仅去 `_` 改为 public。
-// 2026-08 重构（Play Hub 焕新）：新增 TodayHeroCard / AiAssistantTile /
-// CompactToolTile；SoftCard 及各 tile 支持 onLongPress（长按浮窗交互，
-// 见 info_popup.dart），FocusTile 退役。
+// 2026-08 重构（Play Hub 焕新）：新增 TodayHeroCard / CompactToolTile；
+// SoftCard 及各 tile 支持 onLongPress（长按浮窗交互，见 info_popup.dart），
+// FocusTile 退役。2026-10-20：「AI 助手」横幅（原 AiAssistantTile）撤除，
+// 改为复习队列里的「智能练习」一格，该组件随之删除。
 // 2026-08 重画（去玻璃化）：SoftCard 从「着色玻璃」改为「着色实体面」——
 // 去掉白色羽化光晕（featheredButtonGlow）与内侧顶部霜面高光
 // （softCardSheen + ClipRRect/DecoratedBox），描边从 glassBorder 的白色高光
@@ -245,6 +246,10 @@ class ReviewTile extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final String? badge;
+
+  /// Badge 底色，默认跟随 [accentColor]。用于「未配置」这类需要警示色的
+  /// 非计数徽标（智能练习入口）。
+  final Color? badgeColor;
   final VoidCallback onTap;
   final GestureLongPressCallback? onLongPress;
 
@@ -258,6 +263,7 @@ class ReviewTile extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.badge,
+    this.badgeColor,
     this.tintAlpha = 0.10,
     super.key,
   });
@@ -271,6 +277,8 @@ class ReviewTile extends StatelessWidget {
       tintAlpha: tintAlpha,
       onTap: onTap,
       onLongPress: onLongPress,
+      // 高度基线由外层 AdaptiveCardGrid 的 minChildAspectRatio 给出，
+      // 常驻字体放大时随内容长高（不再靠 GridView 的固定格子高度）。
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -284,13 +292,27 @@ class ReviewTile extends StatelessWidget {
                   size: 22,
                   padding: 8,
                 ),
-                const Spacer(),
-                if (badge != null)
-                  CountBadge(
-                    label: badge!,
-                    color: accentColor,
-                    circular: true,
+                const SizedBox(width: 8),
+                // 「未配置」这类文字徽标在字体放大后会比格子还宽（真机
+                // `RenderFlex overflowed ... on the right`）。右对齐区改用
+                // Expanded + FittedBox(scaleDown)：放得下就保持原字号，
+                // 放不下就缩字，不裁字也不溢出。
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: badge == null
+                        ? const SizedBox.shrink()
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: CountBadge(
+                              label: badge!,
+                              color: badgeColor ?? accentColor,
+                              circular: true,
+                            ),
+                          ),
                   ),
+                ),
               ],
             ),
             const Spacer(),
@@ -466,91 +488,6 @@ class SoftCard extends StatelessWidget {
   }
 }
 
-/// AI 助手行卡：icon chip + 标题 + 引擎状态点 + chevron。合并旧版
-/// 「AI 助手大格 + 引擎状态条」为单行，长按查看引擎配置浮窗。
-class AiAssistantTile extends StatelessWidget {
-  final bool engineReady;
-  final VoidCallback onTap;
-  final GestureLongPressCallback? onLongPress;
-
-  const AiAssistantTile({
-    required this.engineReady,
-    required this.onTap,
-    this.onLongPress,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.amethystLeague);
-    final statusColor = engineReady ? TurnaTheme.success : TurnaTheme.warning;
-
-    return SoftCard(
-      accentColor: TurnaTheme.amethystLeague,
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            AccentIconChip(
-              icon: Icons.auto_awesome_rounded,
-              color: accent,
-              size: 22,
-              padding: 9,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                AppStrings.playAiAssistantTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: TurnaTheme.textPrimaryColor(context),
-                    ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    engineReady
-                        ? Icons.check_circle_rounded
-                        : Icons.error_outline_rounded,
-                    color: statusColor,
-                    size: 13,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    engineReady
-                        ? AppStrings.playAiEngineReady
-                        : AppStrings.playAiEngineNotConfigured,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: accent.withValues(alpha: 0.7),
-              size: 14,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 「练习工具」紧凑格：icon chip + 标题 + 可选副标题，用于三列一行布局。
 class CompactToolTile extends StatelessWidget {
   final String title;
@@ -578,6 +515,8 @@ class CompactToolTile extends StatelessWidget {
       accentColor: accentColor,
       onTap: onTap,
       onLongPress: onLongPress,
+      // 高度基线由外层 AdaptiveCardGrid 的 minChildHeight 给出（旧版是
+      // `SizedBox(height: 104)`），字体放大时随内容长高。
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -586,13 +525,25 @@ class CompactToolTile extends StatelessWidget {
             Row(
               children: [
                 AccentIconChip(icon: icon, color: accent, size: 20, padding: 8),
-                const Spacer(),
-                if (badge != null)
-                  CountBadge(
-                    label: badge!,
-                    color: accentColor,
-                    circular: true,
+                const SizedBox(width: 8),
+                // 同 ReviewTile：文字徽标在字体放大后靠 FittedBox 缩字，
+                // 三列窄格子也不会溢出。
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: badge == null
+                        ? const SizedBox.shrink()
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: CountBadge(
+                              label: badge!,
+                              color: accentColor,
+                              circular: true,
+                            ),
+                          ),
                   ),
+                ),
               ],
             ),
             const Spacer(),

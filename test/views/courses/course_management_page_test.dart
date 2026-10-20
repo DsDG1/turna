@@ -89,6 +89,45 @@ void main() {
     );
   }
 
+  testWidgets('add-course cards survive 200% text scale on a narrow phone',
+      (tester) async {
+    // 真机收据（2026-10-20）：字体放大后「从 Anki 导入课程」/「导入课程包」
+    // 的标题行报 `RIGHT OVERFLOWED BY 3 PIXELS` —— 文字列原先没有宽度约束。
+    await tester.binding.setSurfaceSize(const Size(360, 780));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final courses = _FakeCourseProvider(
+      [builtinEntry, importedEntry],
+      builtinEntry.wireKey,
+    );
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<CourseProvider>.value(value: courses),
+          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+        ],
+        child: MaterialApp(
+          theme: TurnaTheme.lightTheme,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+            ),
+            child: child!,
+          ),
+          home: const CourseManagementPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
+    expect(
+      find.text(AppStrings.courseManagementImportPackTitle),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('renders catalog with meta info and the import entry card',
       (tester) async {
     await pumpPage(tester);
@@ -183,7 +222,8 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  test('the course-pack import failure branches dismiss with pop(), not maybePop()',
+  test(
+      'the course-pack import failure branches dismiss with pop(), not maybePop()',
       () {
     // The progress dialog is pushed with an un-awaited `showDialog` and, when
     // the import throws before the next frame, the dismissal lands while that
@@ -209,7 +249,8 @@ void main() {
     expect(
       RegExp(r'rootNavigator:\s*true\)\.pop\(\)').allMatches(source).length,
       greaterThanOrEqualTo(4),
-      reason: 'expected the success pop plus the three failure-branch dismissals',
+      reason:
+          'expected the success pop plus the three failure-branch dismissals',
     );
   });
 }

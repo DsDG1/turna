@@ -243,6 +243,27 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   int get liveLength => _items.length;
   List<StudyItem> get items => _items;
 
+  int _sessionTotalCards = 0;
+
+  /// How many cards this session is expected to cover — the review header's
+  /// DENOMINATOR. Deliberately NOT [liveLength]: that is the rolling render
+  /// window ([officialInitialRenderWindow]), so using it pinned the OHOS
+  /// header at "1 / 8" no matter how many cards were actually due.
+  ///
+  /// Prefers the session's exact allowed set — the loader narrows it to
+  /// `formalDue ∩ renderable`, which is precisely what this learner owes —
+  /// and falls back to the first queue length seen. Monotonic: answering
+  /// shrinks the live queue, and a card re-shown by a lapse must never make
+  /// the progress bar jump backwards.
+  int get sessionTotalCards {
+    final allowed = session.allowedCardIds;
+    final live = (allowed != null && allowed.isNotEmpty)
+        ? allowed.length
+        : (session.queue?.cards.length ?? 0);
+    if (live > _sessionTotalCards) _sessionTotalCards = live;
+    return _sessionTotalCards;
+  }
+
   /// Snapshot of the scheduler's current card (D4). `null` when the queue
   /// is empty or the current card has no rendered face yet.
   FormalReviewCardSnapshot? currentSnapshot() {

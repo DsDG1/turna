@@ -1,8 +1,21 @@
 diff --git a/rslib/src/import_export/package/apkg/import/mod.rs b/rslib/src/import_export/package/apkg/import/mod.rs
-index 9c8e707cc..8f6496484 100644
+index 9c8e707cc..9c8d99e53 100644
 --- a/rslib/src/import_export/package/apkg/import/mod.rs
 +++ b/rslib/src/import_export/package/apkg/import/mod.rs
-@@ -46,6 +46,7 @@ struct Context<'a> {
+@@ -7,10 +7,12 @@ mod media;
+ mod notes;
+ 
+ use std::fs::File;
++use std::fs::OpenOptions;
+ use std::path::Path;
+ 
+ use anki_io::new_tempfile;
+ use anki_io::open_file;
++use anki_io::open_file_ext;
+ use anki_io::FileIoSnafu;
+ use anki_io::FileOp;
+ pub(crate) use notes::NoteMeta;
+@@ -46,6 +48,7 @@ struct Context<'a> {
      data: ExchangeData,
      usn: Usn,
      progress: ThrottlingProgressHandler<ImportProgress>,
@@ -10,7 +23,7 @@ index 9c8e707cc..8f6496484 100644
  }
  
  impl Collection {
-@@ -53,6 +54,15 @@ impl Collection {
+@@ -53,6 +56,15 @@ impl Collection {
          &mut self,
          path: impl AsRef<Path>,
          options: ImportAnkiPackageOptions,
@@ -26,7 +39,7 @@ index 9c8e707cc..8f6496484 100644
      ) -> Result<OpOutput<NoteLog>> {
          let file = open_file(path)?;
          let archive = ZipArchive::new(file)?;
-@@ -64,10 +74,106 @@ impl Collection {
+@@ -64,10 +76,108 @@ impl Collection {
              col.set_config(BoolKey::WithDeckConfigs, &options.with_deck_configs)?;
              col.set_config(ConfigKey::UpdateNotes, &options.update_notes())?;
              col.set_config(ConfigKey::UpdateNotetypes, &options.update_notetypes())?;
@@ -97,7 +110,9 @@ index 9c8e707cc..8f6496484 100644
 +fn empty_zip_archive() -> Result<(NamedTempFile, ZipArchive<File>)> {
 +    let tempfile = new_tempfile()?;
 +    {
-+        let file = open_file(tempfile.path())?;
++        let mut options = OpenOptions::new();
++        options.read(true).write(true);
++        let file = open_file_ext(tempfile.path(), options)?;
 +        let writer = zip::ZipWriter::new(file);
 +        writer.finish()?;
 +    }
@@ -134,7 +149,7 @@ index 9c8e707cc..8f6496484 100644
  }
  
  impl<'a> Context<'a> {
-@@ -76,6 +182,7 @@ impl<'a> Context<'a> {
+@@ -76,6 +186,7 @@ impl<'a> Context<'a> {
          target_col: &'a mut Collection,
          options: ImportAnkiPackageOptions,
          mut progress: ThrottlingProgressHandler<ImportProgress>,
@@ -142,7 +157,7 @@ index 9c8e707cc..8f6496484 100644
      ) -> Result<Self> {
          let media_manager = target_col.media()?;
          let meta = Meta::from_archive(&mut archive)?;
-@@ -99,6 +206,7 @@ impl<'a> Context<'a> {
+@@ -99,6 +210,7 @@ impl<'a> Context<'a> {
              data,
              usn,
              progress,
@@ -150,7 +165,7 @@ index 9c8e707cc..8f6496484 100644
          })
      }
  
-@@ -109,7 +217,11 @@ impl<'a> Context<'a> {
+@@ -109,7 +221,11 @@ impl<'a> Context<'a> {
              .iter()
              .map(|n| (n.id, n.notetype_id))
              .collect();
@@ -163,7 +178,7 @@ index 9c8e707cc..8f6496484 100644
          let note_imports = self.import_notes_and_notetypes(&mut media_map)?;
          let imported_decks = self.import_decks_and_configs()?;
          self.import_cards_and_revlog(
-@@ -118,7 +230,9 @@ impl<'a> Context<'a> {
+@@ -118,7 +234,9 @@ impl<'a> Context<'a> {
              &note_imports.remapped_templates,
              &imported_decks,
          )?;

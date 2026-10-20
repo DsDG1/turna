@@ -311,7 +311,6 @@ void main() {
 
     test('key CTAs use primaryCtaDecoration (gradient teal)', () {
       for (final path in [
-        'lib/views/splash/components/get_started_button.dart',
         'lib/views/lesson/components/interactions/interaction_renderer.dart',
         'lib/views/lesson/components/lesson_dialogs.dart',
       ]) {

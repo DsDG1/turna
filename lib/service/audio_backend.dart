@@ -174,14 +174,13 @@ class OhosAudioBackend implements AudioBackend {
               'playFile did not answer within ${_playTimeout.inSeconds}s '
               '(player=${slot.wireName}, path=$path)',
             ));
-    await _channel
-        .invokeMethod<void>('awaitCompletion', <String, dynamic>{
+    await _channel.invokeMethod<void>('awaitCompletion', <String, dynamic>{
       'player': slot.wireName,
     }).timeout(const Duration(seconds: 10),
-            onTimeout: () => throw TimeoutException(
-                  'awaitCompletion did not answer within 10s '
-                  '(player=${slot.wireName}, path=$path)',
-                ));
+        onTimeout: () => throw TimeoutException(
+              'awaitCompletion did not answer within 10s '
+              '(player=${slot.wireName}, path=$path)',
+            ));
   }
 
   /// Stops whatever this slot is playing, if anything.

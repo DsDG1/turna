@@ -360,7 +360,8 @@ flutter:
       }
     });
 
-    test('audio and TTS cross the platform boundary by name, on both sides', () {
+    test('audio and TTS cross the platform boundary by name, on both sides',
+        () {
       if (!_companionBuild) return;
 
       // A MethodChannel name is a string, so nothing in either toolchain checks
@@ -412,9 +413,8 @@ flutter:
       // `List` to `Map?` and four tests failed on a TypeError raised inside the
       // platform channel. The production pair stayed correct — which is exactly
       // why a gate has to compare them by source rather than trust the tests.
-      final plugin =
-          File('ohos/entry/src/main/ets/plugins/TtsPlugin.ets')
-              .readAsStringSync();
+      final plugin = File('ohos/entry/src/main/ets/plugins/TtsPlugin.ets')
+          .readAsStringSync();
       final backend =
           File('lib/service/speech_backend.dart').readAsStringSync();
 
@@ -441,9 +441,8 @@ flutter:
       // same answer, and the user gets told the wrong remedy. Which index is
       // which is decided inside the plugin and is not observable from Dart, so
       // this compares the source instead.
-      final plugin =
-          File('ohos/entry/src/main/ets/plugins/TtsPlugin.ets')
-              .readAsStringSync();
+      final plugin = File('ohos/entry/src/main/ets/plugins/TtsPlugin.ets')
+          .readAsStringSync();
       final queryModules =
           RegExp(r'VOICE_QUERY_MODULES\s*:\s*number\[\]\s*=\s*(\[[^\]]*\])')
               .firstMatch(plugin)
@@ -516,7 +515,8 @@ flutter:
       final source = File(
         'lib/application/anki_official/migration/official_anki_engine_kind.dart',
       ).readAsStringSync();
-      final host = source.substring(source.indexOf('static String _hostPlatform'));
+      final host =
+          source.substring(source.indexOf('static String _hostPlatform'));
       final code = host
           .split('\n')
           .where((l) => !l.trimLeft().startsWith('//'))
@@ -630,10 +630,8 @@ flutter:
       if (libs.existsSync()) {
         for (final entry in libs.listSync(recursive: true)) {
           if (entry is File && entry.path.endsWith('.so')) {
-            final abi = entry.path
-                .replaceAll('\\', '/')
-                .split('/')
-                .elementAt(3);
+            final abi =
+                entry.path.replaceAll('\\', '/').split('/').elementAt(3);
             if (abi != 'arm64-v8a') packaged.add(abi);
           }
         }
@@ -647,9 +645,9 @@ flutter:
       // without the engine. `--no-index` is required: without it git
       // consults the index, and a tracked file is by definition not ignored,
       // so the assertion would pass no matter what .gitignore says.
-      final ignored = Process.runSync(
-              'git', ['check-ignore', '-q', '--no-index', lib])
-          .exitCode;
+      final ignored =
+          Process.runSync('git', ['check-ignore', '-q', '--no-index', lib])
+              .exitCode;
       expect(ignored, isNot(0),
           reason: '$lib is committed on purpose; an ignore rule would make '
               'the engine vanish on a fresh clone');
@@ -657,14 +655,14 @@ flutter:
       // The resolver must reach the bare name on HarmonyOS. Asserting the
       // source rather than the return value because `isHarmonyOsTarget` is
       // false on the host SDK, so the branch is unreachable from this test.
-      final transport =
-          File('lib/application/anki_official/engine/'
-                  'official_anki_native_transport.dart')
-              .readAsStringSync();
+      final transport = File('lib/application/anki_official/engine/'
+              'official_anki_native_transport.dart')
+          .readAsStringSync();
       final resolver = transport.substring(
           transport.indexOf('String? resolveOfficialAnkiLibraryPath'));
-      expect(RegExp("isHarmonyOsTarget[\\s\\S]{0,600}?return 'libturna_anki\\.so'")
-          .hasMatch(resolver),
+      expect(
+          RegExp("isHarmonyOsTarget[\\s\\S]{0,600}?return 'libturna_anki\\.so'")
+              .hasMatch(resolver),
           isTrue,
           reason: 'resolveOfficialAnkiLibraryPath must return the bundled '
               'name on HarmonyOS, otherwise the probe reports null and the '

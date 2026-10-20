@@ -23,7 +23,7 @@ Turna 的高级设置是一个四入口的中枢页（AI 连接 / 存储与性�
 - 单牌组覆盖：渲染、JavaScript、智能去解密、抓取延时和网络策略均可覆盖；删除覆盖后即时继承全局值。
 - 恢复默认值：只重置高级偏好和牌组覆盖，不修改 SRS、复习历史、导入数据、AI 配置、主题和无障碍设置。
 
-> 「兼容性诊断」（缺失媒体 / 字段数量 / 空模板 / 平台能力的只读扫描）已从正式高级中心移除：原实现目录 `lib/application/anki/` 整体删除，`lib/` 内已无对应实现。官方 Anki 的导入诊断改为开发者实验室里的 debug-only 入口（`kDebugMode` 门控）。
+> 「兼容性诊断」（缺失媒体 / 字段数量 / 空模板 / 平台能力的只读扫描）已从正式高级中心移除：原实现目录 `lib/application/anki/` 整体删除，`lib/` 内已无对应实现。官方 Anki 的导入诊断入口是 debug-only 的 `OfficialAnkiReviewerRoute`（`DiagnosticsReleaseGuard` / `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` 门控）；原「开发者实验室」设置分类已整体删除。
 
 主要入口与运行时连接点：
 

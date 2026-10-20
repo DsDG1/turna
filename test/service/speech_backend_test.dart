@@ -154,8 +154,7 @@ void main() {
   });
 
   group('OhosSpeechBackend.init', () {
-    test('asks for the requested language and remembers what it got',
-        () async {
+    test('asks for the requested language and remembers what it got', () async {
       final backend = OhosSpeechBackend();
 
       await backend.init(language: 'tr-TR');
@@ -261,7 +260,8 @@ void main() {
       );
     });
 
-    test('malformed entries are dropped rather than crashing the list', () async {
+    test('malformed entries are dropped rather than crashing the list',
+        () async {
       engine.installedVoices = <Object>[
         'not a voice',
         <String, Object>{'person': 0},
@@ -365,14 +365,16 @@ void main() {
 
     test('normalises the plugin\'s several success shapes to true', () async {
       for (final result in <Object?>[1, true, null]) {
-        final backend = FlutterTtsSpeechBackend(_FakeFlutterTts(speakResult: result));
+        final backend =
+            FlutterTtsSpeechBackend(_FakeFlutterTts(speakResult: result));
         expect(await backend.speak('hi'), isTrue, reason: '$result');
       }
     });
 
     test('a zero or false result is a refusal', () async {
       expect(
-        await FlutterTtsSpeechBackend(_FakeFlutterTts(speakResult: 0)).speak('hi'),
+        await FlutterTtsSpeechBackend(_FakeFlutterTts(speakResult: 0))
+            .speak('hi'),
         isFalse,
       );
       expect(
@@ -392,7 +394,8 @@ void main() {
     test('reports no voice list rather than pretending to know one', () async {
       // `flutter_tts` has no "list every voice" call. Returning an empty list
       // keeps callers on their existing per-tag probe path.
-      expect(await FlutterTtsSpeechBackend(_FakeFlutterTts()).availableLanguages(),
+      expect(
+          await FlutterTtsSpeechBackend(_FakeFlutterTts()).availableLanguages(),
           isEmpty);
     });
   });

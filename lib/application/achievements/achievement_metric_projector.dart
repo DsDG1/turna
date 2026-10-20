@@ -219,7 +219,7 @@ class AchievementMetricProjector {
     await _enqueueProjectionWrite((_) => AchievementMetricProjection());
   }
 
-  /// Drop caches after an external restore (import / Fun Lab snapshot).
+  /// Drop caches after an external restore (import / export).
   Future<void> reloadFromPrefs() async {
     await _writeChain;
     _projectionCache = null;

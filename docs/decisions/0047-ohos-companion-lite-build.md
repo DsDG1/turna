@@ -216,7 +216,7 @@ if (!path.isAbsolute(p) && !p.startsWith('.')) p = './' + p
 | DevEco 补丁 | **不需要**。DS-243.24978.46.36.2600461 的 schema 已把 FAQ 所述 `"pattern": "^(\\./|\\.\\./)[\\s\\S]+$"` 换成 `^(.\/)(?!.*\\.\.\/)`；`findBelongProjectPath` 已重写为向上递归找含 `modules` 的 build-profile。FAQ 两处「需管理员改安装目录」的坑在本机已消失 |
 | 镜像分层 | OHOS 镜像只托管 OHOS engine 产物（`3fb08d34…` / `5a2a6a42cc`）；宿主机框架产物在其上 404，须从 `storage.flutter-io.cn` 取。两段预取可解 |
 | Dart 版本 | **3.12.2**，与官方 3.44.5 一致。方案 P-21 的 Dart 版本顾虑关闭；`win32` / `flutter_secure_storage_windows` 两条全局 pin **不需要**（§7） |
-| `ohos/` 平台树 | 由 OHOS SDK 的 `flutter create --platforms ohos` 生成，`bundleName me.dsdogs.turna`，`.metadata` 手工只追加 ohos 一条（`flutter create` 会重写 `.metadata` 与 `pubspec.lock`，两者已回退，见 BASELINE 同日条目） |
+| `ohos/` 平台树 | 由 OHOS SDK 的 `flutter create --platforms ohos` 生成，`bundleName me.dsdogs.turna`（**2026-10-20 起为 `me.dsdogs.turna.hmos`**，见 [ADR 0051](./0051-ohos-bundle-name-unique-vs-android.md)；本行的 `me.dsdogs.turna` 是当时的观测值），`.metadata` 手工只追加 ohos 一条（`flutter create` 会重写 `.metadata` 与 `pubspec.lock`，两者已回退，见 BASELINE 同日条目） |
 | Dart 编译 | **0 错误**。起点 168 错误（`material_ui` 134 + `cupertino_ui` 34），经 §7.1 移植后归零 |
 | ArkTS 编译 | **0 错误**。经 §7.2 shim 后 `CompileArkTS` 通过 |
 | 产物 | `entry-default-unsigned.hap` **175.30 MB** |

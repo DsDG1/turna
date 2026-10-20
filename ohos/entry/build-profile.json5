@@ -12,6 +12,21 @@
         'arm64-v8a',
       ],
     },
+    // `abiFilters` only governs what this module *compiles*; it does not touch
+    // the prebuilt `.so` a HAR ships under `libs/`. `sherpa_onnx`'s HAR carries
+    // a full x86_64 set (onnxruntime 15.0 MB + c-api 4.3 MB + core 0.8 MB +
+    // libc++ 1.3 MB ≈ 21 MB) that landed in the HAP untouched: a release build
+    // measured 2026-10-20 had `libs/x86_64/` at exactly that size alongside
+    // 66 MB of `libs/arm64-v8a/`. Nothing here runs on an emulator, so the
+    // directory is dead weight in install time and every cloud-test run.
+    // `filter.excludes` is the packaging-stage filter that actually removes it.
+    nativeLib: {
+      filter: {
+        excludes: [
+          '**/x86_64/**',
+        ],
+      },
+    },
   },
   "targets": [
     {

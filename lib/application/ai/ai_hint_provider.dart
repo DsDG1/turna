@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/hint_genres.dart';
@@ -328,43 +330,24 @@ class AiHintProvider extends AiStreamingSessionBase {
   }
 
   /// Persona + rules for the hint assistant. Public for snapshot tests.
+  ///
+  /// 文案在 [AiPromptCatalog.hint]（单一来源）；这里只负责把它需要的运行时
+  /// 变量（语言、题型、揭示策略、上下文）准备好。
   @visibleForTesting
   String buildSystemPrompt(AiQuestionContext ctx) {
     final prefs = _prefs.snapshot;
-    final hasAnswer = ctx.hasSubmittedAnswer;
-    final reveal = prefs.allowRevealAnswer || hasAnswer;
-
-    final buf = StringBuffer()
-      ..writeln('You are a language-learning tutor. The learner is practicing '
-          '${ctx.language}.')
-      ..writeln(prefs.toSystemPromptRules())
-      ..writeln('Requirements:')
-      ..writeln(
-          '- First state what this question is testing (grammar point, word '
-          'meaning, sentence pattern, etc.).')
-      ..writeln('- Then give the solving approach or related knowledge points, '
-          'concisely as bullet points.');
-    if (reveal) {
-      buf.writeln(
-          '- The learner has submitted or allow-reveal is on; you may compare '
-          'their answer and clarify the correct form when helpful.');
-    } else {
-      buf.writeln(
-          '- Do not directly restate the correct answer; guide the learner to '
-          'reach it themselves.');
-    }
-    buf
-      ..writeln(
-          '- If the learner asks a follow-up, you may give more specific hints '
-          'step by step, but keep it primarily heuristic.')
-      ..writeln(buildQuestionTypeStrategy(ctx.typeLabel));
-
-    if (prefs.injectLearnerContext &&
-        _learnerContext != null &&
-        !_learnerContext!.isEmpty) {
-      buf.writeln(_learnerContext!.toPromptBlock());
-    }
-    return buf.toString();
+    final reveal = prefs.allowRevealAnswer || ctx.hasSubmittedAnswer;
+    return AiPromptCatalog.hint(
+      language: ctx.language,
+      typeLabel: ctx.typeLabel,
+      allowReveal: reveal,
+      prefs: prefs,
+      learnerContextBlock:
+          prefs.injectLearnerContext && (_learnerContext?.isEmpty == false)
+              ? _learnerContext!.toPromptBlock()
+              : null,
+      override: AiPromptOverridesStore.resolve().textFor(AiPromptFeature.hint),
+    );
   }
 
   /// The first user turn: describe the question for the model.

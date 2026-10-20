@@ -11,6 +11,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/components/stat_app_bar.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/adaptive_card_grid.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 enum MasteryDialogResult { retry, back }
@@ -245,14 +246,13 @@ class _LessonCompletionSummary extends StatelessWidget {
   }
 
   Widget _buildStatsGrid(BuildContext context) {
-    return GridView.count(
-      padding: EdgeInsets.zero,
-      primary: false,
-      shrinkWrap: true,
-      crossAxisCount: 2,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 2.0,
+    // 固定宽高比（childAspectRatio）在系统字体放大后会把两行文字挤出格子，
+    // 真机收据是 `BOTTOM OVERFLOWED BY 25 PIXELS`。改用行高自适应网格，
+    // 2:1 作为常规字号下的高度基线。
+    return AdaptiveCardGrid(
+      columns: 2,
+      spacing: 10,
+      minChildAspectRatio: 2.0,
       children: [
         _StatChip(
           icon: Icons.check_circle_rounded,
@@ -315,26 +315,34 @@ class _LessonCompletionSummary extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: Material(
-            color: Colors.transparent,
-            child: Ink(
-              decoration: TurnaTheme.primaryCtaDecoration(
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                elevated: false,
-              ),
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(true),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                child: Center(
-                  child: Text(
-                    AppStrings.lessonContinueUpper,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: TurnaTheme.textOnPrimary,
+        // 定高 48 在系统字体放大后会把「继续」裁掉（RenderFlex 底部溢出）。
+        // 改成最小高度：常规字号仍是 48，放大后按钮跟着长高。
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: SizedBox(
+            width: double.infinity,
+            child: Material(
+              color: Colors.transparent,
+              child: Ink(
+                decoration: TurnaTheme.primaryCtaDecoration(
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  elevated: false,
+                ),
+                child: InkWell(
+                  onTap: () => Navigator.of(context).pop(true),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: Text(
+                        AppStrings.lessonContinueUpper,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: TurnaTheme.textOnPrimary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -378,10 +386,15 @@ class _AccuracyRing extends StatelessWidget {
         : accuracy >= 0.5
             ? TurnaTheme.warning
             : TurnaTheme.error;
+    // 固定 140 的环在系统字体放大后装不下「0%」+「正确率」两行
+    // （RenderFlex 底部溢出 36px）。环随字号一起长，内层再用 FittedBox
+    // 兜底，极端缩放下也不会裁字。
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.5);
+    final ringSize = 140 + (scale - 1) * 46;
 
     return SizedBox(
-      width: 140,
-      height: 140,
+      width: ringSize,
+      height: ringSize,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -392,24 +405,31 @@ class _AccuracyRing extends StatelessWidget {
             valueColor: AlwaysStoppedAnimation<Color>(ringColor),
           ),
           Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  AppStrings.lessonPercentValue(percent),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: ringColor,
-                      ),
+            child: Padding(
+              padding: EdgeInsets.all(ringSize * 0.14),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStrings.lessonPercentValue(percent),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: ringColor,
+                              ),
+                    ),
+                    Text(
+                      AppStrings.lessonAccuracy,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: TurnaTheme.textHint,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
                 ),
-                Text(
-                  AppStrings.lessonAccuracy,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textHint,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -438,6 +458,9 @@ class _StatChip extends StatelessWidget {
     final displayValue = value ?? 0;
 
     return Container(
+      // alignment 让内容在格子多余高度里居中；高度由 AdaptiveCardGrid 的
+      // minChildAspectRatio 保底，字体放大时随内容撑开。
+      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: TurnaTheme.cardBg(context),
@@ -452,7 +475,6 @@ class _StatChip extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 if (valueText != null)
                   Text(

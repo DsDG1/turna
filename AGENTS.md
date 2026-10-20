@@ -158,14 +158,18 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 
 ---
 
-## 8. 门禁（提交前必跑）
+## 8. 门禁（默认不跑，按需执行）
+
+**默认工作流不跑测试。** 改完直接构建、出包、交付。不要每轮改动都自动展开 `flutter analyze` / `flutter test`，也不要为了让门禁变绿而自行多跑一轮。测试是**用户明确要求时**才执行的验证手段，不是默认步骤。
 
 | 何时 | 命令 |
 |---|---|
 | 改 `@freezed` / `@JsonSerializable` / `@AutoRoute` / `@injectable` / drift 后 | `make gen` |
-| 提交前 | `flutter analyze` + `flutter test --exclude-tags golden` |
+| 用户明确要求验证 / 用户报回归要定位 / 改动本身落在 `test/` 下的门禁断言上 | `flutter analyze` + `flutter test --exclude-tags golden` |
 | 测试数变化 | 更新 `test/BASELINE.md`（前插式，只增不删） |
 | 架构决策 | 在 `docs/decisions/` 加 ADR，编号不复用 |
+
+**「本轮没跑」不等于「规则已改」**：§0 的裁决顺序不变，门禁测试仍是规范的可执行形式。不跑只改变「这次有没有验证」，不改变任何一条禁则的效力——不得把「反正不跑」当作放宽分层的理由。
 
 - **本地绿线是 `flutter test --exclude-tags golden`**；全量含 golden 的既有失配清单与基线只认 `test/BASELINE.md`，本文件不复述。
 - 全量等价：`make ci` = `format-check analyze test test-python lint-gui guard-gui test-gui build-release-smoke`。

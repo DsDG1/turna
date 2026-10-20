@@ -206,7 +206,8 @@ void main() {
         isLedgerConstraintViolation(
           // SQLITE_CONSTRAINT_UNIQUE is 2067; the code comes first in this
           // constructor and the message second.
-          SqliteException(2067, 'UNIQUE constraint failed: gem_ledger.event_id'),
+          SqliteException(
+              2067, 'UNIQUE constraint failed: gem_ledger.event_id'),
         ),
         isTrue,
       );

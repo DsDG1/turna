@@ -240,7 +240,8 @@ abstract final class OfficialAnkiReviewerProtocol {
   /// The reviewer was opened speculatively (P0-1 warm-up) and closed before
   /// any card arrived — the batch never loaded, so this is not a learner
   /// exit and must not settle a session.
-  static const verdictWarmCanceled = 'warm_canceled';}
+  static const verdictWarmCanceled = 'warm_canceled';
+}
 
 /// The chrome state the page owns and the native page cannot derive.
 ///

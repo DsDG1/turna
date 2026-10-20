@@ -171,4 +171,28 @@ void main() {
     expect(holder.config.modelChat, 'deferred-edit');
     expect(find.text('deferred-edit'), findsOneWidget);
   });
+
+  // 2026-10-20 服务商收敛：Kimi / Qwen 从产品移除，只剩 DeepSeek / MiMo / 自定义。
+  testWidgets('provider grid offers only DeepSeek, MiMo and custom',
+      (tester) async {
+    await pumpPage(tester);
+
+    expect(find.text('DeepSeek'), findsOneWidget);
+    expect(find.text('MiMo'), findsOneWidget);
+    expect(find.text(AppStrings.aiConfigCustomProviderLabel), findsOneWidget);
+    expect(find.text('Kimi'), findsNothing);
+    expect(find.text('Qwen'), findsNothing);
+  });
+
+  // 接口类型 / 数据流向 / 责任归属必须在填写现场可见，不能只写在隐私政策里。
+  testWidgets('page states the OpenAI-only endpoint scope and liability',
+      (tester) async {
+    await pumpPage(tester);
+
+    expect(find.text(AppStrings.aiConfigScopeTitle), findsOneWidget);
+    expect(find.text(AppStrings.aiConfigScopeProtocol), findsOneWidget);
+    expect(find.text(AppStrings.aiConfigScopeDataFlow), findsOneWidget);
+    expect(find.text(AppStrings.aiConfigScopeLiability), findsOneWidget);
+    expect(find.text(AppStrings.aiConfigOpenAiCompatHint), findsOneWidget);
+  });
 }

@@ -12,6 +12,7 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
@@ -171,7 +172,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
   void _copy() {
     if (_resultCopyText == null) return;
-    Clipboard.setData(ClipboardData(text: _resultCopyText!));
+    Clipboard.setData(ClipboardData(text: labelAiGenerated(_resultCopyText!)));
     TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
   }
 
@@ -380,10 +381,12 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         _labeled(AppStrings.aiDepthStructure, r.structure),
       ]);
 
+  /// 三种深度解释共用这一个容器，所以显式标识挂在这里：新增一种结果
+  /// 形态也会自动带上《标识办法》要求的提示，不会漏标。
   Widget _card(List<Widget> children) => AiSurfaceCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
+          children: [...children, const AiGeneratedNotice()],
         ),
       );
 

@@ -84,7 +84,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   /// complete, working-looking form whose every submit failed. Gate on the
   /// capability as well, so the "not supported on this platform" card is
   /// actually reachable instead of being dead copy.
-  bool get _supported => _service != null && !isDegraded(OhosDegradation.remoteBackup);
+  bool get _supported =>
+      _service != null && !isDegraded(OhosDegradation.remoteBackup);
 
   bool get _busy => _saving || _testing || _backingUp || _restoring;
 

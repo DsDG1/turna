@@ -39,8 +39,6 @@ import '../application/anki_official/anki_deck_manager.dart' as _i917;
 import '../application/audio_controller.dart' as _i106;
 import '../application/cosmetic_provider.dart' as _i42;
 import '../application/course_provider.dart' as _i1051;
-import '../application/fun_lab_snapshot_service.dart' as _i141;
-import '../application/fun_provider.dart' as _i648;
 import '../application/game_provider.dart' as _i565;
 import '../application/gems_provider.dart' as _i417;
 import '../application/grammar_review_provider.dart' as _i1008;
@@ -420,28 +418,6 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i1008.GrammarReviewProvider>(),
               gh<_i888.IAnkiImportStore>(),
             ));
-    gh.lazySingleton<_i141.FunLabSnapshotService>(
-        () => _i141.FunLabSnapshotService(
-              gh<_i523.AppPrefs>(),
-              gh<_i604.CourseDatabase>(),
-              gh<_i732.ISrsStateStore>(),
-              gh<_i361.SrsProvider>(),
-              gh<_i1008.GrammarReviewProvider>(),
-              gh<_i409.LessonProgressProvider>(),
-              gh<_i551.MistakeProvider>(),
-              gh<_i854.LessonLinkStore>(),
-              gh<_i445.IStudyLogRepository>(),
-              gh<_i620.StudyStatsProvider>(),
-              gh<_i417.GemsProvider>(),
-              gh<_i565.GameProvider>(),
-              gh<_i80.AchievementService>(),
-            ));
-    gh.lazySingleton<_i648.FunProvider>(() => _i648.FunProvider(
-          gh<_i523.AppPrefs>(),
-          gh<_i565.GameProvider>(),
-          gh<_i417.GemsProvider>(),
-          gh<_i141.FunLabSnapshotService>(),
-        ));
     gh.lazySingleton<_i257.MemoryCurveProvider>(() => _i257.MemoryCurveProvider(
           gh<_i280.IReviewHistoryStore>(),
           gh<_i361.SrsProvider>(),

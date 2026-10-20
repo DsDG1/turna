@@ -8,6 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/ai_tutor_chat_session.dart';
@@ -304,36 +306,22 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   }
 
   String _buildSystemPrompt() {
-    final prefs = _prefs.snapshot;
-    final buf = StringBuffer()
-      ..writeln('You are a language-learning companion for $_language. '
-          'You help with questions, sentence correction, and role-play. '
-          'Never output course section/unit/lesson JSON or any importable course schema.')
-      ..writeln(prefs.toSystemPromptRules());
-
-    switch (_mode) {
-      case AiTutorChatMode.qa:
-        buf.writeln(
-            'Mode: Q&A. Answer grammar and usage questions clearly with examples.');
-        break;
-      case AiTutorChatMode.sentenceCheck:
-        buf.writeln(
-            'Mode: sentence check. Correct the learner sentence; note errors '
-            '(span/issue/fix) in plain text; offer a more natural version and one tip.');
-        break;
-      case AiTutorChatMode.roleplay:
-        buf.writeln(
-            'Mode: role-play. Stay in character as the interlocutor in $_language; '
-            'add brief Chinese correction notes when the learner errs.');
-        break;
-    }
-
-    if (prefs.injectLearnerContext &&
-        _learnerContext != null &&
-        !_learnerContext!.isEmpty) {
-      buf.writeln(_learnerContext!.toPromptBlock());
-    }
-    return buf.toString();
+    // 文案单一来源：AI 助手 → 系统提示词 面板读的就是这一份。
+    final modeLine = switch (_mode) {
+      AiTutorChatMode.qa => AiPromptCatalog.freeChatModeQa,
+      AiTutorChatMode.sentenceCheck =>
+        AiPromptCatalog.freeChatModeSentenceCheck,
+      AiTutorChatMode.roleplay =>
+        AiPromptCatalog.freeChatModeRoleplay(_language),
+    };
+    return AiPromptCatalog.freeChat(
+      language: _language,
+      modeLine: modeLine,
+      prefs: _prefs.snapshot,
+      learnerContextBlock: _learnerContext?.toPromptBlock(),
+      override:
+          AiPromptOverridesStore.resolve().textFor(AiPromptFeature.freeChat),
+    );
   }
 
   /// Exposed for prompt snapshot tests.

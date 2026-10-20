@@ -180,6 +180,43 @@ void main() {
     expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
   });
 
+  testWidgets(
+      'streak card does not overflow at 200% text scale on a narrow phone',
+      (tester) async {
+    // 真机收据（2026-10-20）：连续学习行是 Row + Spacer，窄屏放大字体后
+    // 报 `RIGHT OVERFLOWED BY 12 PIXELS`。改成 Wrap 后守回归：默认 800 宽的
+    // 测试屏掩盖过这个问题，所以这里显式压到 360。
+    await tester.binding.setSurfaceSize(const Size(360, 780));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      Provider<ReviewDashboardRepository>.value(
+        value: repo,
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+            ),
+            child: child!,
+          ),
+          home: const ReviewProgressPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // streak 卡在首屏之外（ListView 懒加载），滚下去才会真正布局。
+    for (var i = 0; i < 3; i++) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    // 确认 streak 行确实进了渲染树——否则这条守卫测的是空屏。
+    expect(find.textContaining('连续学习'), findsWidgets);
+  });
+
   testWidgets('focus mode keeps only actionable dashboard sections',
       (tester) async {
     final accessibility = AccessibilityProvider(appPrefs);

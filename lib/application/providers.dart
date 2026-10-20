@@ -19,7 +19,6 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/application/fun_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -158,9 +157,6 @@ final providers = [
   ),
   ChangeNotifierProvider<StudyStatsProvider>(
     create: (_) => getIt<StudyStatsProvider>(),
-  ),
-  ChangeNotifierProvider<FunProvider>(
-    create: (_) => getIt<FunProvider>(),
   ),
   ChangeNotifierProvider<SystemHealthMonitor>(
     create: (_) => getIt<SystemHealthMonitor>(),

@@ -42,8 +42,7 @@ const _arktsSessionPath =
 
 /// The probe's own Range/MIME pair moved under `ets/probe/` in R1; its
 /// production counterpart stayed in `ets/anki/`.
-const _arktsProbeHttpPath =
-    'ohos/entry/src/main/ets/probe/AnkiProbeAssets.ets';
+const _arktsProbeHttpPath = 'ohos/entry/src/main/ets/probe/AnkiProbeAssets.ets';
 const _arktsProdHttpPath = 'ohos/entry/src/main/ets/anki/AnkiHttp.ets';
 
 /// The declared differences between the probe's Range/MIME copy and the
@@ -69,8 +68,10 @@ const _rangeMimeAllowedDifferences = <({
     why: 'the probe still has to leave something to measure when it cannot '
         'classify the header; production must refuse, because a server that '
         'answers 200 to every Range is one the kernel cannot seek in',
-    probeNeedle: r"if \(!raw\.toLowerCase\(\)\.startsWith\(prefix\)\)\s*\{\s*return whole;",
-    prodNeedle: r"if \(!lower\.startsWith\('bytes='\)\)\s*\{\s*return unsatisfiable\(length\);",
+    probeNeedle:
+        r"if \(!raw\.toLowerCase\(\)\.startsWith\(prefix\)\)\s*\{\s*return whole;",
+    prodNeedle:
+        r"if \(!lower\.startsWith\('bytes='\)\)\s*\{\s*return unsatisfiable\(length\);",
   ),
   (
     axis: 'parseRange: unparseable Range spec',
@@ -93,15 +94,15 @@ const _rangeMimeAllowedDifferences = <({
     why: 'production gates on text/* or application/json after stripping the '
         '; parameters; the probe gates on text/* or anything ending in '
         'javascript, which is the only difference its own MIME table needs',
-    probeNeedle: r"mime\.startsWith\('text/'\) \|\| mime\.endsWith\('javascript'\)",
+    probeNeedle:
+        r"mime\.startsWith\('text/'\) \|\| mime\.endsWith\('javascript'\)",
     prodNeedle: r"base\.startsWith\('text/'\) \|\| base === 'application/json'",
   ),
 ];
 
 /// Constants that exist only on the Dart side, each with why.
 const _dartOnly = <String, String>{
-  'ackFieldType':
-      'ArkTS declares ack keys as RenderAck interface members in '
+  'ackFieldType': 'ArkTS declares ack keys as RenderAck interface members in '
       'AnkiReviewerSession.ets; constants cannot name interface fields, so '
       'the interface is needle-checked by this test instead.',
   'ackFieldSide': 'Same reason as ackFieldType.',
@@ -109,9 +110,9 @@ const _dartOnly = <String, String>{
   'ackFieldStableCode': 'Same reason as ackFieldType.',
   'payloadSourceProgress':
       'ArkTS reads payload keys as ReviewerPresentPayload interface members in '
-      'AnkiReviewerSession.ets, because a typed interface cannot be indexed by '
-      'a constant. The field names are therefore needle-checked there instead '
-      'of being mirrored as constants.',
+          'AnkiReviewerSession.ets, because a typed interface cannot be indexed by '
+          'a constant. The field names are therefore needle-checked there instead '
+          'of being mirrored as constants.',
   'payloadCanRedo': 'Same reason as payloadSourceProgress.',
   'payloadCanMutate': 'Same reason as payloadSourceProgress.',
   'payloadChromeTheme': 'Same reason as payloadSourceProgress.',
@@ -122,9 +123,9 @@ const _dartOnly = <String, String>{
 const _arktsOnly = <String, String>{
   'RENDER_ERROR':
       'ArkTS fallback failure code when a report carries no code at all '
-      '(session present catch-up, plugin notifyReviewerFailure default). '
-      'Dart never compares this value — it falls through to the fatal '
-      'default — so it has no Dart twin.',
+          '(session present catch-up, plugin notifyReviewerFailure default). '
+          'Dart never compares this value — it falls through to the fatal '
+          'default — so it has no Dart twin.',
 };
 
 /// The failure-classification sets that must mirror element-for-element.
@@ -164,8 +165,8 @@ void main() {
             '$_arktsProtocolPath (or renamed there): $missingOnArkTS',
       );
 
-      final missingOnDart = arktsExpectedOnDart
-          .difference(dart.keys.map(_upperSnake).toSet());
+      final missingOnDart =
+          arktsExpectedOnDart.difference(dart.keys.map(_upperSnake).toSet());
       expect(
         missingOnDart,
         isEmpty,
@@ -240,9 +241,10 @@ void main() {
     test('classification sets are disjoint; renderTimeout is recoverable', () {
       final overlap = OfficialAnkiReviewerProtocol.recoverableCodes
           .intersection(OfficialAnkiReviewerProtocol.fatalCodes);
-      expect(overlap, isEmpty, reason: 'a code cannot be both retryable and '
-          'fatal — the page and the controller would disagree about whether '
-          'to offer retry');
+      expect(overlap, isEmpty,
+          reason: 'a code cannot be both retryable and '
+              'fatal — the page and the controller would disagree about whether '
+              'to offer retry');
       expect(
         OfficialAnkiReviewerProtocol.recoverableCodes,
         contains(OfficialAnkiReviewerProtocol.renderTimeout),
@@ -393,7 +395,8 @@ void main() {
 String _readArkts(String path) {
   final file = File(path);
   expect(file.existsSync(), isTrue,
-      reason: '$path is missing — if it was relocated, update the path constant '
+      reason:
+          '$path is missing — if it was relocated, update the path constant '
           'next to the allowed-difference table it is read through');
   return file.readAsStringSync();
 }
@@ -419,8 +422,8 @@ Map<String, String> _arktsScalars(String source) {
 
 Map<String, Set<String>> _dartSets(String source) {
   final result = <String, Set<String>>{};
-  for (final match
-      in RegExp(r'static const (\w+) = <String>\{([^}]*)\};').allMatches(source)) {
+  for (final match in RegExp(r'static const (\w+) = <String>\{([^}]*)\};')
+      .allMatches(source)) {
     result[match.group(1)!] = _splitElements(match.group(2)!);
   }
   return result;

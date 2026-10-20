@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
-import 'package:turna/application/fun_provider.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -16,6 +15,7 @@ import 'package:turna/views/profile/achievements/achievement_detail_sheet.dart';
 import 'package:turna/views/profile/achievements/achievement_filter_bar.dart';
 import 'package:turna/views/profile/achievements/achievement_overview_header.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
+import 'package:turna/views/widgets/adaptive_card_grid.dart';
 import 'package:turna/core/theme.dart';
 
 /// Badge-collection achievements home (plan §7.2): overview hero, nearest
@@ -62,13 +62,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
   @override
   Widget build(BuildContext context) {
     final service = context.watch<AchievementService>();
-    final showAllUnlocked =
-        context.select<FunProvider, bool>((p) => p.allAchievementsUnlocked);
 
     final views = service.progressViews();
     final totalCount = AchievementCatalog.totalBadgeCount;
-    final unlockedCount =
-        showAllUnlocked ? totalCount : service.unlockedBadgeCount;
+    final unlockedCount = service.unlockedBadgeCount;
     final latest = service.latestUnlock;
 
     final inProgressViews = views
@@ -108,16 +105,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
                 latestUnlockAt: latest?.unlockedAt,
               ),
             ),
-            if (showAllUnlocked)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text(
-                  AppStrings.achievementsFunPreviewBanner,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                ),
-              ),
             if (nearest.isNotEmpty) ...[
               _SectionTitle(title: AppStrings.achievementsNearestSection),
               ...nearest.map(
@@ -140,18 +127,17 @@ class _AchievementsPageState extends State<AchievementsPage> {
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.98,
+              // 固定宽高比网格在系统字体放大后会把进度行挤出卡片
+              // （真机收据 `BOTTOM OVERFLOWED BY 33 PIXELS`）。改行高自适应，
+              // 0.98 作为常规字号下的高度基线。
+              child: AdaptiveCardGrid(
+                columns: 2,
+                spacing: 12,
+                minChildAspectRatio: 0.98,
                 children: [
                   for (final view in filtered)
                     _GridCard(
                       view: view,
-                      funPreview: showAllUnlocked,
                       onTap: () => _openDetail(context, service, view.seriesId),
                     ),
                 ],
@@ -258,12 +244,10 @@ class _NearestTile extends StatelessWidget {
 
 class _GridCard extends StatelessWidget {
   final AchievementSeriesProgress view;
-  final bool funPreview;
   final VoidCallback onTap;
 
   const _GridCard({
     required this.view,
-    required this.funPreview,
     required this.onTap,
   });
 
@@ -274,7 +258,6 @@ class _GridCard extends StatelessWidget {
     return AchievementBadgeCard(
       series: series,
       progress: view,
-      funPreview: funPreview,
       onTap: onTap,
     );
   }

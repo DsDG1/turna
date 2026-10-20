@@ -167,3 +167,22 @@ flutter_*.log
 # Scratch directory for OHOS device captures (screenshots pulled off a phone
 # while debugging the native reviewer). Machine-local, never project content.
 .ohos-tmp/
+
+# OHOS signing material — never commit these.
+#
+# `ohos/build-profile.json5.release` holds the **plaintext** release
+# keystore password (hvigor refuses anything else, see the comment inside
+# `ohos/build-profile.json5`). Committing it would publish the signing
+# secret of the AppGallery release certificate. The keystore itself lives
+# outside the repo in `~/.ohos/config/turna-release.{cer,p7b,p12}`; this
+# file is only the hvigor-side pointer to it.
+#
+# `ohos/build-profile.json5.unsigned` is a byte-identical working copy of
+# the stripped `build-profile.json5` and carries no additional information.
+ohos/build-profile.json5.release
+ohos/build-profile.json5.unsigned
+
+# One-off scratch scripts. The hvigor password-decrypt probe lived at
+# `tool/_tmp_decrypt_pwd.js` and was explicitly marked "用完即删"; the
+# `_tmp_` prefix is the convention for "delete me, do not commit".
+tool/_tmp_*

@@ -16,7 +16,7 @@
         "name": "EntryAbility",
         "srcEntry": "./ets/entryability/EntryAbility.ets",
         "description": "$string:EntryAbility_desc",
-        "icon": "$media:icon",
+        "icon": "$media:layered_image",
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:icon",
         "startWindowBackground": "$color:start_window_background",
@@ -32,31 +32,28 @@
           }
         ]
       },
-      {
-        // ADR 0050 §6 step 5b probe host. A separate UIAbility rather than a
-        // second entry in `main_pages.json` because `@ohos.router` has been
-        // deprecated since API 18 and this hap declares 5.1.0(18); the ability
-        // boundary is the supported way to put a native page on screen from a
-        // Flutter plugin, and `startAbilityForResult` brings the answer back
-        // through the same call.
-        //
-        // `exported: true` is not an oversight and not a claim that another app
-        // should launch this. A device run showed `startAbilityForResult`
-        // answering `16000001 "The specified ability does not exist"` for an
-        // ability `bm dump` listed as registered, and flipping only this flag
-        // is the documented difference between "declared" and "launchable" on
-        // that path. The ability carries no launcher `skills` and is not
-        // reachable from the system UI; what it exposes is a Web page serving
-        // one synthetic origin.
-        "name": "AnkiReviewerProbeAbility",
-        "srcEntry": "./ets/probe/AnkiReviewerProbeAbility.ets",
-        "description": "$string:EntryAbility_desc",
-        "icon": "$media:icon",
-        "label": "$string:EntryAbility_label",
-        "startWindowIcon": "$media:icon",
-        "startWindowBackground": "$color:start_window_background",
-        "exported": true
-      },
+      // `AnkiReviewerProbeAbility` stays in `ets/probe/` but is deliberately
+      // NOT registered here as of 2026-10-20. It is an `exported: true`
+      // diagnostic ability whose only purpose was ADR 0050's on-device
+      // evidence gathering; a release package carrying a launchable probe is
+      // a finding waiting to happen in the cloud test security pass. Nothing
+      // in `lib/` calls the two probe methods (the startup probe was removed
+      // 2026-10-19), so unregistering costs no product behaviour — the plugin
+      // side keeps `PROBE_ABILITY` and its handler, and they will simply
+      // answer "ability does not exist" if anyone invokes them by hand.
+      //
+      // To take device evidence again, paste the block back:
+      //
+      //   {
+      //     "name": "AnkiReviewerProbeAbility",
+      //     "srcEntry": "./ets/probe/AnkiReviewerProbeAbility.ets",
+      //     "description": "$string:EntryAbility_desc",
+      //     "icon": "$media:icon",
+      //     "label": "$string:EntryAbility_label",
+      //     "startWindowIcon": "$media:icon",
+      //     "startWindowBackground": "$color:start_window_background",
+      //     "exported": true
+      //   },
       // The reviewer itself — ADR 0050 §6 step 5b, route E. Carries no launcher
       // `skills` either: Dart reaches it through the plugin's
       // `startAbilityForResult`, exactly as the probe ability is reached.
@@ -72,7 +69,7 @@
         "name": "AnkiReviewerAbility",
         "srcEntry": "./ets/entryability/AnkiReviewerAbility.ets",
         "description": "$string:EntryAbility_desc",
-        "icon": "$media:icon",
+        "icon": "$media:layered_image",
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:icon",
         "startWindowBackground": "$color:start_window_background",

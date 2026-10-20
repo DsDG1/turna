@@ -171,8 +171,8 @@ void main() {
   test(
       'cross-language media path policy stays aligned across Dart, ArkTS, Kotlin, and Swift (T1)',
       () {
-    final arkts =
-        File('ohos/entry/src/main/ets/anki/AnkiMediaPath.ets').readAsStringSync();
+    final arkts = File('ohos/entry/src/main/ets/anki/AnkiMediaPath.ets')
+        .readAsStringSync();
     final kotlin = File(
       'android/app/src/main/kotlin/me/dsdogs/turna/anki/reviewer/OfficialAnkiMediaPath.kt',
     ).readAsStringSync();
@@ -289,10 +289,8 @@ process.stdout.write(JSON.stringify({ results, rangeChecks, mimeChecks }));
       0,
       reason: 'ArkTS vector runner failed: ${run.stderr}',
     );
-    final payload =
-        jsonDecode(run.stdout as String) as Map<String, dynamic>;
-    final results =
-        (payload['results'] as List).cast<Map<String, dynamic>>();
+    final payload = jsonDecode(run.stdout as String) as Map<String, dynamic>;
+    final results = (payload['results'] as List).cast<Map<String, dynamic>>();
     expect(results.length, vectors.length);
 
     for (var i = 0; i < vectors.length; i++) {
@@ -327,7 +325,8 @@ process.stdout.write(JSON.stringify({ results, rangeChecks, mimeChecks }));
       expect(
         actual['pathMediaName'],
         expectedPath.mediaName,
-        reason: 'ArkTS classifyEncodedPath mediaName mismatch on ${vector['id']}',
+        reason:
+            'ArkTS classifyEncodedPath mediaName mismatch on ${vector['id']}',
       );
     }
 

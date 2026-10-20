@@ -237,8 +237,9 @@ class ProviderBoundToggleTile<T extends ChangeNotifier>
       subtitle: subtitle,
       trailing: settingsAdaptiveSwitch(
         value: value,
-        onChanged:
-            enabled ? (newValue) => onChanged(context.read<T>(), newValue) : null,
+        onChanged: enabled
+            ? (newValue) => onChanged(context.read<T>(), newValue)
+            : null,
       ),
     );
   }

@@ -852,7 +852,7 @@ class _WeeklyBars extends StatelessWidget {
   }
 }
 
-/// AI 助手长按：引擎配置状态。[config] 由调用方在弹窗前读取注入——
+/// 智能练习长按：引擎配置状态。[config] 由调用方在弹窗前读取注入——
 /// 浮窗挂根 Overlay（页面 Provider 树之上），面板内不能做 provider 查找。
 class AiPanelBody extends StatelessWidget {
   final AiEngineConfig config;
@@ -865,9 +865,9 @@ class AiPanelBody extends StatelessWidget {
     final ready = config.isComplete;
 
     return InfoPanelShell(
-      title: AppStrings.playAiAssistantTitle,
+      title: AppStrings.playSmartPracticeTitle,
       icon: Icons.auto_awesome_rounded,
-      accentColor: TurnaTheme.amethystLeague,
+      accentColor: TurnaTheme.brandTeal,
       onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,

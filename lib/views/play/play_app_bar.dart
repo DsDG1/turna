@@ -33,6 +33,5 @@ class PlayAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize =>
-      const Size.fromHeight(TurnaTheme.tabAppBarHeight);
+  Size get preferredSize => const Size.fromHeight(TurnaTheme.tabAppBarHeight);
 }

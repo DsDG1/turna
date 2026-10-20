@@ -87,7 +87,7 @@ class AchievementStateRepository {
     await mutate((_) => AchievementStateDocument.empty);
   }
 
-  /// Drop caches after an external restore (import / Fun Lab snapshot).
+  /// Drop caches after an external restore (import / export).
   Future<void> reloadFromPrefs() async {
     await _writeChain;
     _cache = null;

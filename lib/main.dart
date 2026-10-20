@@ -10,6 +10,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
@@ -71,6 +72,10 @@ Future<void> main() async {
       getIt<AiEngine>().clearCache();
     } catch (_) {/* AiEngine may be unregistered — best-effort cache clear */}
   };
+
+  // 用户对系统提示词的追加要求。必须在第一帧前读回：provider 在首次请求时
+  // 直接同步取文本，晚一步加载会让第一轮对话用不上自定义。
+  await AiPromptOverridesStore.resolve().load();
 
   // Lock the app to portrait unless the user has enabled auto-rotation in
   // Settings (default off). Applied before the first frame so the splash is

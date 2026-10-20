@@ -359,7 +359,7 @@ class AchievementService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Reload persisted state after an external restore (import / Fun Lab).
+  /// Reload persisted state after an external restore (import / export).
   Future<void> reloadFromPrefs() async {
     await _stateRepository.reloadFromPrefs();
     await _projector.reloadFromPrefs();

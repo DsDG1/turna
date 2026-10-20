@@ -56,6 +56,58 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('stats grid does not overflow at 200% text scale',
+        (tester) async {
+      // 真机收据（2026-10-20）：正确/错误/用时/经验四格原由 fixed
+      // childAspectRatio 定高，系统字体放大后报
+      // `BOTTOM OVERFLOWED BY 25 PIXELS`。改用行高自适应网格后守住回归。
+      await tester.binding.setSurfaceSize(const Size(360, 780));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+            ),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () {
+                  showLessonCompletionDialog(
+                    context: context,
+                    isMounted: () => true,
+                    correctCount: 8,
+                    incorrectCount: 2,
+                    totalCount: 10,
+                    durationSeconds: 95,
+                    xpEarned: 25,
+                    gemsEarned: 15,
+                    wasPerfect: false,
+                    questionResults: const [],
+                    random: Random(0),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      // 四格仍在树上（溢出会把它们挤出可视区）。
+      expect(find.text(AppStrings.lessonCorrect), findsOneWidget);
+      expect(find.text(AppStrings.lessonXp), findsOneWidget);
+    });
+
     testWidgets('shows a celebration title', (tester) async {
       await openDialog(tester);
 

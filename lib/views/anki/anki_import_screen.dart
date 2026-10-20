@@ -90,16 +90,20 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             },
           ),
         ),
-        body: Column(
-          children: [
-            WizardStepper(currentStep: controller.state.step),
-            Expanded(
-              child: AnimatedBuilder(
-                animation: controller,
-                builder: (context, _) => _buildBody(context, controller),
+        body: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) => Column(
+            children: [
+              // The stepper must listen to the same controller as the body.
+              // It used to sit outside this AnimatedBuilder, so it rendered
+              // the initial step once and stayed frozen on 选择文件 while the
+              // body advanced underneath it.
+              WizardStepper(currentStep: controller.state.step),
+              Expanded(
+                child: _buildBody(context, controller),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

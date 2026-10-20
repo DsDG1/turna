@@ -14,6 +14,7 @@ must not change production import, render, or SRS paths.
 | Anki license | GNU AGPL v3 or later (`licenses/ANKI-LICENSE`) |
 | Turna patches | `0001-export-progress-state` (`pub use ProgressState`) · `0002-export-clear-study-queues` (`pub fn clear_study_queues` for off-queue answers) · `0003-export-encode-iri-paths` (`pub fn encode_iri_paths` for the bridge display module) · `0004-export-import-progress-view` + `0005-export-import-progress-view-reexport` (`ImportProgressView` for `LATEST_PROGRESS`) · `0006-import-apkg-media-toggle-and-foreign-collection` (staged import / `PROMOTE_STAGING_COLLECTION`) |
 | reproducible tree | `git submodule update --init anki && git -C anki apply ../patches/000*.patch` (the working tree must contain exactly the six applied patches and nothing else) |
+| Turna fork mirror | https://github.com/DsDG1/anki branch `wip/apkg-media-switch` — the pin above with `patches/0001`–`0006` already applied, for fetching the exact tree. The build still pins upstream and replays the patches; the fork is not a build dependency. |
 | last compatibility run | not run; Phase 0 in progress |
 
 Do **not** follow `origin/main`. Do **not** add a Cargo path that points at

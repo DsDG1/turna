@@ -29,6 +29,33 @@ class LocalReminderService {
   bool _initialized = false;
   bool _tzReady = false;
 
+  /// Platforms `flutter_local_notifications` ships a registrant for
+  /// (see its `pubspec.yaml` `flutter.plugin.platforms`).
+  ///
+  /// Matched **by name, not by enum value**, for the same reason as
+  /// `core/ohos_target.dart`: `TargetPlatform.ohos` only exists in the OHOS
+  /// engine fork, so a host-side build cannot name it.
+  static const Set<String> _registeredPlatforms = <String>{
+    'android',
+    'ios',
+    'macos',
+    'linux',
+    'windows',
+  };
+
+  /// Whether this platform can actually schedule a notification.
+  ///
+  /// Everywhere else — HarmonyOS above all — the plugin's platform interface
+  /// keeps its `_instance` unassigned, so the first call throws
+  /// `LateInitializationError: Field '_instance' has not been initialized`.
+  /// That is not a scheduling failure the learner can retry; it is a platform
+  /// gap, and it must not be allowed to abort whatever command called us.
+  ///
+  /// Evaluated per call, never cached, so `debugDefaultTargetPlatformOverride`
+  /// still works in tests.
+  bool get supportsScheduling =>
+      !kIsWeb && _registeredPlatforms.contains(defaultTargetPlatform.name);
+
   /// Notification copy snapshots the learner's current language at schedule
   /// time — the notification itself fires later, without process context.
   String _reminderBody() {
@@ -52,7 +79,7 @@ class LocalReminderService {
   Future<void> Function(bool enabled, TimeOfDay time)? testScheduleHook;
 
   Future<void> init() async {
-    if (kIsWeb) return;
+    if (!supportsScheduling) return;
     if (_initialized) return;
 
     const android = AndroidInitializationSettings('@mipmap/launcher_icon');
@@ -80,7 +107,13 @@ class LocalReminderService {
       await hook(enabled, time);
       return;
     }
-    if (kIsWeb) return;
+    if (!supportsScheduling) {
+      logger.d(
+        'LocalReminderService: ${defaultTargetPlatform.name} has no '
+        'notification registrant; reminder treated as unschedulable',
+      );
+      return;
+    }
     await init();
     if (!enabled) {
       await cancel();
@@ -90,7 +123,7 @@ class LocalReminderService {
   }
 
   Future<void> scheduleDaily(TimeOfDay time) async {
-    if (kIsWeb) return;
+    if (!supportsScheduling) return;
     await init();
 
     final androidDetails = AndroidNotificationDetails(
@@ -171,7 +204,7 @@ class LocalReminderService {
   }
 
   Future<void> cancel() async {
-    if (kIsWeb) return;
+    if (!supportsScheduling) return;
     await _plugin.cancel(notificationId);
   }
 }

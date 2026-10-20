@@ -161,10 +161,6 @@ abstract final class BackupManifestPolicy {
     BackupPrefEntry('ai.allowRevealAnswer', BackupPrefType.bool_),
     BackupPrefEntry('ai.injectLearnerContext', BackupPrefType.bool_),
     BackupPrefEntry('ai.recentCompanionTasks', BackupPrefType.string),
-    // ── fun lab ──
-    BackupPrefEntry(LocalStateKeys.funAutoAnswer, BackupPrefType.bool_),
-    BackupPrefEntry(
-        LocalStateKeys.funAllAchievementsUnlocked, BackupPrefType.bool_),
     // ── account + language ──
     BackupPrefEntry(PrefsConstants.currentLanguage, BackupPrefType.string),
     BackupPrefEntry(PrefsConstants.authUser, BackupPrefType.string),

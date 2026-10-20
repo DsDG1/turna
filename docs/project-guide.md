@@ -326,10 +326,10 @@ Explain → Practice → Rate 三段流（见 2.4）。
 `lib/views/play/play_hub_screen.dart` 是复习流的总入口，信息架构自上而下：
 
 - **队列按 `CourseScope` 切开**（[ADR 0037](./decisions/0037-anki-course-review-unification.md)）：语言课只显示错题 / 单词 / 语法；导入的 Anki 只显示 Anki 复习，并隐藏薄弱单词。「开始今日复习」和个人页快捷入口用的是同一套隔离。
-- **AI 助手行**：单行卡 + 引擎就绪/未配置状态 chip，通往 AI Hub。
+- **智能练习（队列第四格）**：2026-10-20 起，原先队列下方独立的「AI 助手」横幅撤除，入口并入复习队列 —— 语言课是「错题 / 单词 / 语法 / 智能练习」2×2，Anki 课是「Anki 复习 / 智能练习」。短按进 AI Hub（伴学与生成练习），长按弹引擎配置浮窗；引擎未配置时卡上挂「未配置」徽标。课程类型不影响该格存在（Anki 课同样能按错题生成练习）。
 - **练习工具**：语言课是薄弱单词 / 词典 / 复习进度；Anki 课只保留复习进度（导入的牌组没有内置词表，词典入口一并隐藏）。
 
-**长按浮窗交互契约**（`info_popup.dart` + `play_info_panels.dart`）：短按一律直接进页面；长按只在**有数据可看**的入口生效（主卡、四个队列、薄弱单词、复习进度、AI 助手；词典不参与）。浮窗挂在根 Overlay 上、锚定在被按的卡片旁（下方空间不够就翻到上方），打开时从锚点方向缩放 + 逐行滑入（`easeOutBack`），关闭反向；`reducedMotion` 或系统关掉动画时退化成纯淡入淡出；打开时给一次 medium 触感（`sensoryReduce` 打开则跳过）；卡片带 `Semantics(onLongPress)` 长按语义。**注意**：浮窗内容在页面的 Provider 树之上，面板组件一律通过构造注入数据（`PlayQueueSnapshot` / `AiEngineConfig` / `StudyStatsProvider` 实例），不能在面板的 build 里查 inherited provider。
+**长按浮窗交互契约**（`info_popup.dart` + `play_info_panels.dart`）：短按一律直接进页面；长按只在**有数据可看**的入口生效（主卡、四个队列（含智能练习）、薄弱单词、复习进度；词典不参与）。浮窗挂在根 Overlay 上、锚定在被按的卡片旁（下方空间不够就翻到上方），打开时从锚点方向缩放 + 逐行滑入（`easeOutBack`），关闭反向；`reducedMotion` 或系统关掉动画时退化成纯淡入淡出；打开时给一次 medium 触感（`sensoryReduce` 打开则跳过）；卡片带 `Semantics(onLongPress)` 长按语义。**注意**：浮窗内容在页面的 Provider 树之上，面板组件一律通过构造注入数据（`PlayQueueSnapshot` / `AiEngineConfig` / `StudyStatsProvider` 实例），不能在面板的 build 里查 inherited provider。
 
 ---
 
@@ -394,10 +394,10 @@ official_formal_review_coordinator
 |---|---|
 | `ai_engine.dart` | `@lazySingleton` 门面：`chat()` + `requestJson()` + 缓存接线 |
 | `ai_engine_config.dart` | `AiEngineConfig`：双模型（modelChat / modelJson）+ `StrictSchemaMode` + reasoning 支持 |
-| `ai_engine_config_holder.dart` | `@lazySingleton` ChangeNotifier，配置的唯一真理源，**持久化到本地**（配置含 API key，设备上是明文、由用户显式选择；写入绕过日志） |
+| `ai_engine_config_holder.dart` | `@lazySingleton` ChangeNotifier，配置的唯一真理源，**持久化到本地**：非密钥字段进 SharedPreferences，API key 只进平台安全存储（缺插件时降级为会话内） |
 | `ai_http_client.dart` | `postJson` / `postStream` / `probeConnection`；json_schema → json_object 自动回退；`AiCancelToken` 协作式取消 |
 | `ai_cache.dart` | SHA-256 LRU + 磁盘镜像（条件编译 web/io）；key 里不含 API key |
-| `ai_provider_preset.dart` | 预设：deepseek（默认 `deepseek-v4-flash`）/ openai / moonshot / ollama / custom |
+| `ai_provider_preset.dart` | 预设：deepseek（默认 `deepseek-v4.1-flash`）/ mimo（默认 `mimo-v2.6-pro`）/ custom；另含下线预设与旧模型 id 的迁移表 |
 | `ai_recent_tasks_provider.dart` | 最近任务环（最多 20 条，FIFO），AI Hub「继续」区的数据源 |
 
 **设计要点**：引擎层不关心业务领域（只暴露 `chat` + `requestJson`），领域方法、prompt 构建、`parseCompletion` 留在 `AiCourseService`，避免 engine ↔ service 循环依赖。所有 provider 和 Anki 直调都走 `AiEngine`（流式 + 取消 + 缓存），不绕旧 shim。
@@ -408,8 +408,8 @@ official_formal_review_coordinator
 
 - **Hero**：preset / modelChat / modelJson / 脱敏 key 芯片 + 重新配置按钮 + 配置不完整的告警。
 - **Continue**：最近 3 个**可恢复**的任务（`AiRecentTasksProvider` 过滤掉 wish / textbook；`tutorChat` 只在偏好项里已有会话时才恢复）。空态给提示，点击跳对应路由。
-- **Start**：5 个入口——许愿生成 / 教材导入 / 据错题导师 / 据弱词导师 / 深度讲解（带上下文门控）。
-- **Tools**：测试连接（`probeConnection` + 延时）/ 清缓存 / 查看 API 配置。
+- **Start**：伴学 4 格（自由问答 / 学习诊断 / 收藏的讲解 / 深度讲解）+ 两张全宽卡（按错题生成练习 / 按弱词生成练习）。两张卡的侧重由卡片钉死传给 `TutorLaunchSheet(focus:)`，面板不再重复让用户选一次。
+- **偏好与提示词**：`AiExplainPrefsCard`（回复语言 / 深度 / 揭示与上下文注入）之下是「系统提示词」入口（`ai_prompt_sheet.dart`）：只读展示实际发给模型的系统提示词，允许在末尾**追加**自定义要求（默认部分不可替换，见 `ai_prompt_catalog.dart` / `ai_prompt_overrides.dart`）。
 
 ### 7.3 AI 功能清单
 
@@ -438,6 +438,8 @@ official_formal_review_coordinator
 
 - API key / base URL / model 可以持久化到本地（用户可选）；写入绕过日志避免泄密。
 - 「不保存到本地」的横幅在配置页提示安全立场。
+- 配置页常驻「接口与责任边界」卡：只接 OpenAI 兼容 Chat Completions、请求从本机直达用户填的服务商（应用不中转）、内容生成与合规责任归服务商。
+- **鸿蒙（伴生版）**：AI 全在 Flutter 层，网络走纯 Dart `http`，`INTERNET` 权限已声明，因此功能路径完整；但 `flutter_secure_storage` 9.2.4 上游没有 `ohos` 平台声明，密钥会降级为会话内存储（重启需重填，配置页有提示）。**无真机收据。**
 - 附件用临时文件。
 - API key 不写进普通偏好、配置 JSON、日志、导出或缓存；旧明文 key 要等验证迁移成功后才删除（`lib/service/secure_credential_store.dart` + `AiEngineConfigHolder` 的迁移阶段机）。
 - 设置页提供「清除凭据」；**独立的「清除 AI 学习数据」入口没有实现**。

@@ -289,11 +289,6 @@ class LocalStateKeys {
   // UI display locale (app interface language): 'en' | 'zh' | 'system'.
   static const String uiLocale = 'settings.uiLocale';
 
-  // Fun / cheat settings — see FunProvider.
-  static const String funAutoAnswer = 'fun.autoAnswer';
-  static const String funAllAchievementsUnlocked =
-      'fun.allAchievementsUnlocked';
-
   // Remote backup (WebDAV) — config contains the password, so it is written
   // through the raw StreamingSharedPreferences to bypass printBefore (same
   // approach as [aiEngineConfig]). These keys are device-local and never

@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 @RoutePage()
@@ -203,12 +204,25 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.55,
                 ),
-                child: SingleChildScrollView(child: SelectableText(e.body)),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SelectableText(e.body),
+                      // Saved explanations are model output too — copying them
+                      // out must not strip the label (标识办法 §10 forbids
+                      // hiding the notice).
+                      const AiGeneratedNotice(),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: e.body));
+                  Clipboard.setData(
+                      ClipboardData(text: labelAiGenerated(e.body)));
                   TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
                 },
                 icon: const Icon(Icons.copy_rounded),

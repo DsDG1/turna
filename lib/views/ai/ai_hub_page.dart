@@ -16,18 +16,20 @@ import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
+import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
+import 'package:turna/views/ai/ai_prompt_sheet.dart';
 import 'package:turna/core/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
 ///
 /// Redesigned to share the Play Hub's soft-tinted card language
-/// ([SoftCard] / [AccentIconChip] / [ReviewTile] / [ToolsTile]). Reached as a
-/// pushed route from the Play Hub's 「AI 助手」section, so it owns its own
-/// Scaffold + back AppBar.
+/// ([SoftCard] / [AccentIconChip] / [ReviewTile] / [ToolsTile]). Reached from
+/// the Play Hub 复习队列's 「智能练习」tile (2026-10-20：原「AI 助手」横幅撤销，
+/// 入口并进练习队列), so it owns its own Scaffold + back AppBar.
 ///
 /// Three sections in a single scroll view:
-///   1. **Hero** - amethyst->teal gradient card with engine config (preset,
+///   1. **Hero** - teal gradient card with engine config (preset,
 ///      chat model, masked key). Taps open the API config sheet.
 ///   2. **Continue** - the most recent three AI tasks from
 ///      [AiRecentTasksProvider], each tappable if a route is recorded.
@@ -49,12 +51,12 @@ class AiHubPage extends StatelessWidget {
           children: [
             const Icon(
               Icons.auto_awesome_rounded,
-              color: TurnaTheme.amethystLeague,
+              color: TurnaTheme.brandTeal,
               size: 22,
             ),
             const SizedBox(width: 8),
             Text(
-              AppStrings.playAiAssistantTitle,
+              AppStrings.playSmartPracticeTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -75,6 +77,13 @@ class AiHubPage extends StatelessWidget {
           slivers: [
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             const SliverToBoxAdapter(child: _HeroSection()),
+            // AI 助手入口的**页面级**显式标识：用户在产生第一轮输出之前
+            // 就知道这里的内容是模型生成的。单条输出的角标另由
+            // AiMarkdownBody 承担。
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+              sliver: SliverToBoxAdapter(child: AiGeneratedBanner()),
+            ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             const SliverToBoxAdapter(child: _ContinueSection()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -85,6 +94,21 @@ class AiHubPage extends StatelessWidget {
             const SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverToBoxAdapter(child: AiExplainPrefsCard()),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            // 系统提示词：把「AI 到底被交代了什么」摊开给用户看，并允许在
+            // 默认文本之后追加自己的要求（默认部分不可替换）。
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: ToolsTile(
+                  title: AppStrings.aiHubOpenPromptSheet,
+                  subtitle: AppStrings.aiHubOpenPromptSheetSubtitle,
+                  icon: Icons.code_rounded,
+                  accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
+                  onTap: () => showAiPromptSheet(context),
+                ),
+              ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
@@ -121,18 +145,21 @@ class _HeroSection extends StatelessWidget {
               borderRadius: radius,
               child: Ink(
                 decoration: BoxDecoration(
+                  // 青碧渐变（tealDark → tealLight）。此前是 amethyst → teal，
+                  // 读起来是「蓝紫」，与全应用湿地/陶土调性不一致；改用同色系
+                  // 两档保证渐变中间的过渡不发灰，且白字对比始终达标。
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      TurnaTheme.amethystLeague,
-                      TurnaTheme.brandTeal,
+                      TurnaTheme.brandTealDark,
+                      TurnaTheme.brandTealLight,
                     ],
                   ),
                   borderRadius: radius,
                   boxShadow: [
                     BoxShadow(
-                      color: TurnaTheme.amethystLeague.withValues(alpha: 0.25),
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -497,6 +524,33 @@ class _StartSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
           ],
+          const SizedBox(height: 12),
+          // Primary: 用学习数据直接生成练习。页面入口（练习队列的「智能练习」）
+          // 指向这里，所以生成优先，伴学工具随后。
+          // 两张卡各自把侧重钉死在 sheet 里（[TutorLaunchSheet.focus]），
+          // 面板不再重复问一遍「错题还是弱词」。
+          ToolsTile(
+            title: AppStrings.aiHubStartTutorMistakes,
+            subtitle: AppStrings.tutorLaunchByMistakesCta,
+            icon: Icons.history_toggle_off_rounded,
+            accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
+            onTap: () => _openSheet(
+              context,
+              const TutorLaunchSheet(focus: SrsTutorFocus.mistakes),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ToolsTile(
+            title: AppStrings.aiHubStartTutorWeak,
+            subtitle: AppStrings.tutorLaunchByWeakWordsCta,
+            icon: Icons.quiz_rounded,
+            accentColor: TurnaTheme.brandReed.withValues(alpha: 0.85),
+            onTap: () => _openSheet(
+              context,
+              const TutorLaunchSheet(focus: SrsTutorFocus.weakWords),
+            ),
+          ),
+          const SizedBox(height: 20),
           SectionTitle(title: AppStrings.aiHubCompanionSection),
           GridView.count(
             padding: EdgeInsets.zero,
@@ -522,37 +576,18 @@ class _StartSection extends StatelessWidget {
               ReviewTile(
                 title: AppStrings.aiHubStartSaved,
                 icon: Icons.bookmark_outline_rounded,
-                accentColor: TurnaTheme.amethystLeague,
+                accentColor: TurnaTheme.anatolianClay,
                 onTap: () => context.router.push(const AiSavedListRoute()),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartDepthTutor,
                 icon: Icons.account_tree_outlined,
                 accentColor: TurnaTheme.brandReed,
-                onTap: () =>
-                    _openSheet(context, const AiDepthTutorSheet(), null),
+                onTap: () => _openSheet(context, const AiDepthTutorSheet()),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Secondary: generate practice from mistakes/weak words (SRS tutor).
-          ToolsTile(
-            title: AppStrings.aiHubStartTutorMistakes,
-            subtitle: AppStrings.tutorLaunchByMistakesCta,
-            icon: Icons.history_toggle_off_rounded,
-            accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
-            onTap: () => _openSheet(
-                context, const TutorLaunchSheet(), SrsTutorFocus.mistakes),
-          ),
-          const SizedBox(height: 8),
-          ToolsTile(
-            title: AppStrings.aiHubStartTutorWeak,
-            subtitle: AppStrings.tutorLaunchByWeakWordsCta,
-            icon: Icons.quiz_rounded,
-            accentColor: TurnaTheme.brandReed.withValues(alpha: 0.85),
-            onTap: () => _openSheet(
-                context, const TutorLaunchSheet(), SrsTutorFocus.weakWords),
-          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -561,15 +596,7 @@ class _StartSection extends StatelessWidget {
 
 // ─── Shared helpers ───────────────────────────────────────────────────────
 
-void _openSheet(BuildContext context, Widget sheet, Object? focus) {
-  // Pre-seed the tutor focus so the sheet lands on the user's choice.
-  if (sheet is TutorLaunchSheet && focus is SrsTutorFocus) {
-    // The sheet reads focus via setState on its own state; since we can't
-    // pass initial args without exposing a ctor, we let the sheet default
-    // to "mistakes" and rely on the user re-tapping. Acceptable for the
-    // hub entry path - both tiles work, the chip just defaults to one.
-    // (Two-tile pattern is intentional UX; both pre-populate mistakes.)
-  }
+void _openSheet(BuildContext context, Widget sheet) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,

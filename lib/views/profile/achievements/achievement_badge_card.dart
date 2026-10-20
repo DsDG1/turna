@@ -24,27 +24,21 @@ AchievementBadgeStatus badgeStatusOf(AchievementSeriesProgress progress) {
 class AchievementBadgeCard extends StatelessWidget {
   final AchievementSeriesDefinition series;
   final AchievementSeriesProgress progress;
-
-  /// Fun Lab display-only preview: renders everything as unlocked without
-  /// touching the persisted state.
-  final bool funPreview;
   final VoidCallback? onTap;
 
   const AchievementBadgeCard({
     super.key,
     required this.series,
     required this.progress,
-    this.funPreview = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final status =
-        funPreview ? AchievementBadgeStatus.maxed : badgeStatusOf(progress);
+    final status = badgeStatusOf(progress);
     final accent = AchievementUiCatalog.colorFor(series.id);
     final nextTier = progress.nextTier;
-    final isNew = !funPreview && progress.hasUnseenUnlock;
+    final isNew = progress.hasUnseenUnlock;
 
     return Semantics(
       button: true,
@@ -70,19 +64,11 @@ class AchievementBadgeCard extends StatelessWidget {
                       iconKey: series.iconKey,
                       seriesId: series.id,
                       nextRarity: nextTier?.rarity,
-                      completedTiers: funPreview
-                          ? series.tiers.length
-                          : progress.completedTierCount,
+                      completedTiers: progress.completedTierCount,
                       status: status,
                     ),
                     const Spacer(),
-                    if (isNew)
-                      _NewTag(accent: accent)
-                    else if (funPreview)
-                      _NewTag(
-                        accent: TurnaTheme.textHintColor(context),
-                        label: AppStrings.achievementsFunPreviewTag,
-                      ),
+                    if (isNew) _NewTag(accent: accent),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -95,7 +81,7 @@ class AchievementBadgeCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                if (status == AchievementBadgeStatus.maxed || funPreview)
+                if (status == AchievementBadgeStatus.maxed)
                   Text(
                     AppStrings.achievementsStateMaxed,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -233,9 +219,8 @@ class AchievementBadge extends StatelessWidget {
 
 class _NewTag extends StatelessWidget {
   final Color accent;
-  final String? label;
 
-  const _NewTag({required this.accent, this.label});
+  const _NewTag({required this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +231,7 @@ class _NewTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
       ),
       child: Text(
-        label ?? AppStrings.achievementsNewBadgeTag,
+        AppStrings.achievementsNewBadgeTag,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: accent,
               fontWeight: FontWeight.w800,

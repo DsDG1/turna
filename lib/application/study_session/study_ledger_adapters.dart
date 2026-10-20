@@ -62,7 +62,27 @@ class OfficialStudyLedger implements StudyLedger {
       nativeUndoToken: inner,
     );
     _byIdempotency[idempotencyKey] = receipt;
+    // Fold the answer into the due snapshot NOW. A review session only writes
+    // the scheduler; the Play Hub / Home numbers read the snapshot, so without
+    // this the count froze until the next full refresh — and that refresh is
+    // the one thing that had no reliable trigger.
+    _foldAnsweredCard(key);
     return receipt;
+  }
+
+  /// Drops the card from the snapshot's due set once the scheduler stops
+  /// owing it. The judgement comes from the live queue, never from the
+  /// outcome: a learning card answered `good` can still be due today, and a
+  /// lapsed card answered `again` certainly is.
+  void _foldAnsweredCard(CanonicalCardKey key) {
+    if (_inner.isCardStillOwed(key.cardId)) return;
+    final repo = OfficialFormalDueRepository.instance;
+    _mutateDueSnapshot(
+      repo,
+      expectedGeneration: repo.generation,
+      key: key,
+      dropFromDue: true,
+    );
   }
 
   @override
@@ -70,14 +90,27 @@ class OfficialStudyLedger implements StudyLedger {
     final token = receipt.nativeUndoToken;
     if (token is! ReviewEventReceipt) return false;
     final ok = await _inner.undo(token);
-    if (ok) _byIdempotency.remove(receipt.idempotencyKey);
+    if (ok) {
+      _byIdempotency.remove(receipt.idempotencyKey);
+      // The card is owed again: keep the snapshot's due set in step.
+      final repo = OfficialFormalDueRepository.instance;
+      _mutateDueSnapshot(
+        repo,
+        expectedGeneration: repo.generation,
+        key: receipt.cardKey,
+        restoreToDue: true,
+      );
+    }
     return ok;
   }
 
   @override
   Future<bool> redo(StudyEventReceipt receipt) async {
     final ok = await _inner.redo();
-    if (ok) _byIdempotency[receipt.idempotencyKey] = receipt;
+    if (ok) {
+      _byIdempotency[receipt.idempotencyKey] = receipt;
+      _foldAnsweredCard(receipt.cardKey);
+    }
     return ok;
   }
 
@@ -114,20 +147,25 @@ class OfficialStudyLedger implements StudyLedger {
   }
 }
 
-/// Folds a successful engine bury/suspend into the due snapshot via a
+/// Folds a successful engine bury/suspend/answer into the due snapshot via a
 /// full-snapshot CAS mutation (maintainability plan §7.4). On a generation
 /// race the transform re-applies against the fresh snapshot once — the
 /// union semantics cannot clobber newer refresh data, and the write is
 /// never silently dropped.
+///
+/// [dropFromDue] is the answer path: the scheduler no longer owes the card,
+/// so the count has to fall immediately instead of waiting for a refresh.
 void _mutateDueSnapshot(
   OfficialFormalDueRepository repo, {
   required int expectedGeneration,
   required CanonicalCardKey key,
   bool addBuried = false,
   bool addSuspended = false,
+  bool dropFromDue = false,
+  bool restoreToDue = false,
 }) {
   OfficialFormalDuePerSource transform(OfficialFormalDuePerSource current) {
-    final removeDue = addBuried || addSuspended;
+    final removeDue = addBuried || addSuspended || dropFromDue;
     return OfficialFormalDuePerSource(
       importId: current.importId,
       knowledge: current.knowledge,
@@ -135,8 +173,15 @@ void _mutateDueSnapshot(
       // fold mirrors what the scheduler did — the card stops being owed.
       schedulerDueCardIds: removeDue
           ? current.schedulerDueCardIds.difference({key.cardId})
-          : current.schedulerDueCardIds,
-      activePlacementCardIds: current.activePlacementCardIds,
+          : (restoreToDue
+              ? {...current.schedulerDueCardIds, key.cardId}
+              : current.schedulerDueCardIds),
+      // An undo also has to put the card back inside the active placement,
+      // otherwise the membership formula (`due ∩ active − retired`) still
+      // filters it out on a source whose placement set was committed empty.
+      activePlacementCardIds: restoreToDue
+          ? {...current.activePlacementCardIds, key.cardId}
+          : current.activePlacementCardIds,
       introducedCardIds: current.introducedCardIds,
       suspendedCardIds: addSuspended
           ? {...current.suspendedCardIds, key.cardId}

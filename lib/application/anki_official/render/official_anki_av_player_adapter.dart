@@ -19,9 +19,8 @@ class OfficialAnkiAvPlayerAdapter implements OfficialAnkiAvPlayer {
     AudioPlayer? filePlayer,
   })  : _audio = audio,
         _filePlayer = isHarmonyOsTarget ? null : (filePlayer ?? AudioPlayer()),
-        _ohosFiles = isHarmonyOsTarget
-            ? OhosAudioBackend(slot: AudioSlot.speech)
-            : null;
+        _ohosFiles =
+            isHarmonyOsTarget ? OhosAudioBackend(slot: AudioSlot.speech) : null;
 
   final AudioController _audio;
   final AudioPlayer? _filePlayer;

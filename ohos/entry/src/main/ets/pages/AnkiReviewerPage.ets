@@ -667,8 +667,9 @@ struct AnkiReviewerPage {
 
   /// D9: cards still owed, matching Android's `remainingCount` shape — the
   /// current card counts, because it is still unanswered. `progressIndex` is
-  /// `answered + 1` (clamped) and `progressTotal` is `answered + owed`, so the
-  /// owed count is `total - (index - 1)`. Guarded at 0 rather than trusting
+  /// `answered + 1` (clamped) and `progressTotal` is the session's real card
+  /// count (never the render window), so the owed count is
+  /// `total - (index - 1)`. Guarded at 0 rather than trusting
   /// the arithmetic: during boot both fields are 0, and a negative "还剩" line
   /// is worse than no line.
   private remainingCards(): number {

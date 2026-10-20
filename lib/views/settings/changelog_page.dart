@@ -147,7 +147,11 @@ class JourneyOverviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Varnamala Plus 从原型到 0.9 的 9 个阶段',
+            // 阶段数与终点版本都从 journeySteps 派生：写死会在新增一个
+            // 里程碑后立刻说谎（此前硬编码的「9 个阶段」就是这么错的）。
+            'Varnamala Plus 从原型到 '
+            '${ChangelogPage.journeySteps.last.label} 的 '
+            '${ChangelogPage.journeySteps.length} 个阶段',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: TurnaTheme.textHintColor(context),
                 ),

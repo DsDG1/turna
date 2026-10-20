@@ -25,8 +25,7 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const StatAppBar({super.key});
 
   @override
-  Size get preferredSize =>
-      const Size.fromHeight(TurnaTheme.tabAppBarHeight);
+  Size get preferredSize => const Size.fromHeight(TurnaTheme.tabAppBarHeight);
 
   @override
   Widget build(BuildContext context) {

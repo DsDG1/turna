@@ -13,7 +13,7 @@ enum StrictSchemaMode { auto, on, off }
 ///
 /// Supersedes the legacy [AiApiConfig] (kept for back-compat during migration).
 /// Adds the three capabilities the legacy config lacked:
-///   * a [preset] (DeepSeek / Kimi / Qwen / MiMo / custom) so the
+///   * a [preset] (DeepSeek / MiMo / custom) so the
 ///     Settings UI can switch vendors;
 ///   * dual-model routing ([modelChat] / [modelJson]) so cheap conversational
 ///     calls can go to a smaller model;
@@ -161,6 +161,7 @@ class AiEngineConfig {
 
   Map<String, dynamic> toJson({bool includeApiKey = false}) =>
       <String, dynamic>{
+        'schemaVersion': schemaVersion,
         'presetId': preset.id.name,
         // Secrets are excluded by default: the plaintext prefs blob must
         // never carry the API key (Plan 2 §6.3). The legacy inclusive form is
@@ -174,20 +175,48 @@ class AiEngineConfig {
         'supportsReasoningOverride': supportsReasoningOverride,
       };
 
+  /// 持久化 JSON 的当前形状版本。删预设、改模型 id 这类「字段含义变了」的
+  /// 改动必须同时提版本号，并在 [fromJson] 里处理旧形状。
+  ///
+  /// 版本史：
+  ///   * 1（隐式，无该字段）— presetId 含 `kimi` / `qwen`；模型 id 为
+  ///     `deepseek-v4-*` / `mimo-v2.5*`。
+  ///   * 2（2026-10-20）— 服务商收敛为 deepseek / mimo / custom；
+  ///     DeepSeek 升到 4.1、MiMo 升到 2.6。旧值按下表迁移。
+  static const int schemaVersion = 2;
+
   /// Rebuild a config from its [toJson] output. Unknown / missing fields fall
   /// back to the constructor defaults, so a partial or older-shape record
   /// degrades gracefully instead of throwing.
+  ///
+  /// 迁移规则（schemaVersion < 2）：
+  ///   * `presetId` 是已下线预设（`kimi` / `qwen`）→ 转成 `custom`，
+  ///     Base URL 取该厂商原地址，模型沿用用户存的值（没有就取原默认值）。
+  ///     **不能**让枚举兜底成 DeepSeek：那会拼出「deepseek 地址 + kimi 模型」
+  ///     的必失败组合，且界面看不出异常。
+  ///   * 模型 id 命中 [kRetiredModelAliases] 的旧名 → 换成新名。
   factory AiEngineConfig.fromJson(Map<String, dynamic> json) {
-    AiProvider? presetId;
     final rawPreset = json['presetId'];
-    if (rawPreset is String) {
-      for (final p in AiProvider.values) {
-        if (p.name == rawPreset) {
-          presetId = p;
-          break;
-        }
+    final retired = rawPreset is String ? kRetiredPresets[rawPreset] : null;
+
+    AiProvider? presetId;
+    for (final p in AiProvider.values) {
+      if (p.name == rawPreset) {
+        presetId = p;
+        break;
       }
     }
+
+    final preset = retired != null
+        ? kCustomPreset
+        : (presetId != null ? presetFor(presetId) : kDeepseekPreset);
+    final storedCustomBaseUrl = json['customBaseUrl'] as String?;
+
+    String? migrateModel(String? raw) {
+      if (raw == null) return null;
+      return kRetiredModelAliases[raw] ?? raw;
+    }
+
     StrictSchemaMode? strict;
     final rawStrict = json['strictSchema'];
     if (rawStrict is String) {
@@ -199,13 +228,17 @@ class AiEngineConfig {
       }
     }
     return AiEngineConfig(
-      preset: presetId != null ? presetFor(presetId) : kDeepseekPreset,
+      preset: preset,
       apiKey: (json['apiKey'] as String?) ?? '',
-      modelChat: json['modelChat'] as String?,
-      modelJson: json['modelJson'] as String?,
+      // 老配置里模型可能是 null（从未手填），迁移到 custom 后没有预设默认值
+      // 可回落，所以用原厂商的默认模型兜底；用户手填过的值原样保留。
+      modelChat:
+          migrateModel(json['modelChat'] as String?) ?? retired?.defaultModel,
+      modelJson:
+          migrateModel(json['modelJson'] as String?) ?? retired?.defaultModel,
       strictSchema: strict ?? StrictSchemaMode.auto,
       cacheEnabled: (json['cacheEnabled'] as bool?) ?? true,
-      customBaseUrl: json['customBaseUrl'] as String?,
+      customBaseUrl: storedCustomBaseUrl ?? retired?.baseUrl,
       supportsReasoningOverride: json['supportsReasoningOverride'] as bool?,
     );
   }

@@ -197,8 +197,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
             dark: widget.dark,
             comparisonHtml: widget.comparisonHtml,
           );
-          final raw =
-              await channel.invokeMethod<dynamic>('present', payload);
+          final raw = await channel.invokeMethod<dynamic>('present', payload);
           return OfficialAnkiPresentResult.fromNative(raw);
         } catch (error) {
           logger.w('[OfficialAnkiReviewer] present failed $error');
