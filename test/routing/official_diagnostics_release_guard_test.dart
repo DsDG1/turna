@@ -1,4 +1,4 @@
-// Diagnostics release guard tests (plan 34 R8-1 / OS-23): internal
+// Diagnostics release guard tests (ADR 0043): internal
 // Official-Anki routes are unreachable in release builds — deep links are
 // redirected, and diagnostics builds must opt in explicitly.
 

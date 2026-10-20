@@ -1,6 +1,6 @@
 import 'package:turna/core/logger.dart';
 
-/// D8 文件日志通道（step4.md C1，Step 1 发现 #4 的答复）。
+/// D8 文件日志通道（ADR 0043，Step 1 发现 #4 的答复）。
 ///
 /// `LogCapture` 已把全局 [logger] 的事件滚动落盘到
 /// `transparency_log.jsonl`（1MB 轮转 ×3，修复中心可带出）——但 Anki
@@ -24,7 +24,7 @@ void officialAnkiFileLog(
   }
 }
 
-/// 启动恢复日志（doc 41 §7 / step4.md C1 覆盖清单第一项）。
+/// 启动恢复日志（ADR 0043 / ADR 0043 覆盖清单第一项）。
 void officialAnkiStartupLog(Object? message, {bool warning = false}) =>
     officialAnkiFileLog('OfficialAnkiStartup', message, warning: warning);
 

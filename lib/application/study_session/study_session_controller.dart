@@ -54,7 +54,7 @@ class StudySessionController extends ChangeNotifier {
 
   /// Cards with a committed recall outcome this session (undo/redo aware).
   ///
-  /// Live-queue hosts replace [items] after every answer (plan 34 D4), so at
+  /// Live-queue hosts replace [items] after every answer (ADR 0044), so at
   /// completion [totalCount] is the residual scheduler queue — never the
   /// session size. Completion summaries must count with this instead.
   int get answeredCount => rememberedCount + forgottenCount;

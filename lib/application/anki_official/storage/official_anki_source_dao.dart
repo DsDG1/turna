@@ -452,7 +452,7 @@ WHERE mine.source_id = ? AND EXISTS (
   }
 
   // ------------------------------------------------------------------
-  // v2 chain (ADR 0043 D4/D6, step4.md B2/B5). The v2 path writes ONLY the
+  // v2 chain (ADR 0043 D4/D6, ADR 0043/B5). The v2 path writes ONLY the
   // five ledger tables — these helpers never touch the other 13.
   // ------------------------------------------------------------------
 

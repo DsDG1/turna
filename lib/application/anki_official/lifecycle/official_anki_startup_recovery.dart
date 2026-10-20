@@ -66,7 +66,7 @@ class OfficialAnkiStartupRecovery {
           }
         }
       }
-      // K3（step4.md B3）：v2 有活跃 source → 入队整视图重建（无状态、
+      // K3（ADR 0043）：v2 有活跃 source → 入队整视图重建（无状态、
       // 幂等）。engine null（无 v2 数据）时自然跳过。
       if (engine != null && paths != null) {
         try {

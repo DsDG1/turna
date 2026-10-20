@@ -69,6 +69,13 @@ flutter_run.err.log
 flutter_0*.log
 flutter_*.log
 
+# OHOS build + device-launch capture logs. These are HiLog dumps written by
+# the SDK/Gradle and by `hdc shell` during a device session — tens of
+# megabytes of machine-local evidence, referenced by nothing in the repo.
+# The distilled facts live in docs/status.md and test/BASELINE.md.
+build_ohos_*.log
+ohos_launch_*.log
+
 # JVM / Gradle crash dumps accidentally left in android/
 android/hs_err_pid*.log
 android/replay_pid*.log

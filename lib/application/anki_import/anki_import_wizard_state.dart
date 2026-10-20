@@ -190,7 +190,7 @@ sealed class AnkiImportPreviewModel {
   const AnkiImportPreviewModel();
 
   /// The pick-time execution plan stays frozen for the whole flow
-  /// (doc 34 W0-03): later stages never re-read flags.
+  /// (ADR 0043): later stages never re-read flags.
   AnkiImportExecutionPlan get plan;
   String get filePath;
 }

@@ -1,26 +1,20 @@
-# ADR 0026: Local Resource Editor Enhancements
+# ADR 0026 — 本地资源库编辑器增强
 
-## Date
-2026-07-20
+> 状态：Accepted ｜ 日期：2026-07-20
 
-## Status
-Accepted
+## 决策
 
-## Context
-The `ResourceEditorDialog` (local resource library for vocab/expressions/grammar_points) had per-tab add/delete and CSV import/export, but lacked cross-tab search, batch operations, duplicate detection, resource pack import/export, and any way to identify cross-table duplicates between vocab and expressions.
+1. **跨 tab 统一搜索**：`ResourceEditorDialog` 顶部搜索栏同时过滤三个 tab（任意单元格的大小写不敏感子串匹配）；`ResourceTableWidget.apply_filter(text)` 隐藏不匹配行。
+2. **多选批量删除**：表格改用 `ExtendedSelection` 模式；「批量删除」按钮一次删除全部选中行，带确认。
+3. **查重**（`CourseAdapter.detect_duplicates`）：扫描 vocab 与 expressions，按归一化词条（转小写、去空白）匹配；返回 `{type, id, term, duplicate_in}` 字典列表，由「查重」按钮展示。
+4. **资源包导入导出**（`CourseAdapter.export_resource_pack` / `import_resource_pack`）：把三张资源表导出为单个 JSON 文件 `{"vocab": [...], "expressions": [...], "grammar_points": [...]}`；导入支持按 id 合并（跳过重复）或整体替换两种模式。
+## 理由
 
-## Decision
-1. **Cross-tab unified search**: A search bar at the top of `ResourceEditorDialog` filters all three tabs simultaneously (case-insensitive substring match on any cell). `ResourceTableWidget.apply_filter(text)` hides non-matching rows.
+`ResourceEditorDialog`（vocab / expressions / grammar_points 的本地资源库）已有分 tab 的增删与 CSV 导入导出，但缺跨 tab 搜索、批量操作、查重、资源包导入导出，以及任何能识别 vocab 与 expressions 之间跨表重复的方式。
+## 影响与边界
 
-2. **Multi-select batch delete**: Tables now use `ExtendedSelection` mode. A "批量删除" button deletes all selected rows at once with confirmation.
-
-3. **Duplicate detection** (`CourseAdapter.detect_duplicates`): Scans vocab and expressions for matching normalized terms (lowercase, stripped). Returns a list of `{type, id, term, duplicate_in}` dicts. A "查重" button displays results.
-
-4. **Resource pack export/import** (`CourseAdapter.export_resource_pack`/`import_resource_pack`): Exports all three resource lists as a single JSON file `{"vocab": [...], "expressions": [...], "grammar_points": [...]}`. Import supports merge (by id, skip duplicates) or replace mode.
-
-## Consequences
-- Large resource lists can be filtered quickly without per-tab searching.
-- Batch delete reduces repetitive confirmation dialogs.
-- Cross-table duplicates (e.g., "nasılsın?" appearing in both vocab and expressions) are surfaced.
-- Resource packs enable sharing curated resource sets between courses or teams.
-- The pack format is plain JSON, version-controllable in git.
+- 大资源表可快速过滤，不必逐 tab 搜索。
+- 批量删除减少重复的确认对话框。
+- 跨表重复（例如「nasılsın?」同时出现在 vocab 与 expressions）会被暴露。
+- 资源包让整理好的资源集能在课程或团队之间共享。
+- 包格式是纯 JSON，可纳入 git 版本管理。

@@ -64,7 +64,7 @@ class OfficialFormalReviewBatch {
   /// [StudyItem.sessionItemId]. Required when any item uses fidelity.
   final Map<String, AnkiHtmlCard> fidelityInteractions;
 
-  /// Live queue driver (plan 34 D4): when present, the shared host MUST
+  /// Live queue driver (ADR 0044): when present, the shared host MUST
   /// rebuild the batch from the scheduler's refreshed queue after every
   /// mutation instead of advancing a fixed item array.
   final OfficialFormalReviewLiveQueue? liveQueue;

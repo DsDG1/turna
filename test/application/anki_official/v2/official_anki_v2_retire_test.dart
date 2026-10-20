@@ -15,7 +15,7 @@ import 'package:turna/data/course_database.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
-/// step4.md B5（D6/K6）：retiring 删除序列逐段幂等 + 强杀收敛。
+/// ADR 0043（D6/K6）：retiring 删除序列逐段幂等 + 强杀收敛。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();

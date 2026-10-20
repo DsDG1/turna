@@ -18,7 +18,7 @@ OfficialAnkiReviewGateDecision decideOfficialReviewGate({
   if (routedEngine != AnkiEngineKind.official) {
     return OfficialAnkiReviewGateDecision.useLegacy;
   }
-  // Recorded Official owner stays Official (doc 34 W0-06). Cutover pause or
+  // Recorded Official owner stays Official (ADR 0043). Cutover pause or
   // missing capability is fail-closed, never a Legacy assembler.
   if (!cutoverEnabled ||
       !catalogPresent ||

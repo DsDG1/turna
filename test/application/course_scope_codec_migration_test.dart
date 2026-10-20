@@ -1,5 +1,4 @@
-// CourseScope codec + legacy preference migration tests (plan 34 R1-6,
-// OS-03): round-trip, percent-encoding of dynamic segments, legacy value
+// CourseScope codec + legacy preference migration tests (ADR 0043): round-trip, percent-encoding of dynamic segments, legacy value
 // resolution (single/multi official, legacy vs official ambiguity), and
 // idempotent repair.
 

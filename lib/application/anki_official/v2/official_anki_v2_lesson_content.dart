@@ -21,7 +21,7 @@ import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/stage.dart';
 
-/// B6 第 5 读挂点（真机首夜 F6，step4.md）：v2 课时正文派生自卡（D3）。
+/// B6 第 5 读挂点（真机首夜 F6，ADR 0043）：v2 课时正文派生自卡（D3）。
 ///
 /// v2 课时壳的 `content` 恒空（课程树只有结构事实），drift `lessons`/
 /// `lesson_contents` 又按零写入纪律不落 v2 行——`LessonViewModel.loadLesson`

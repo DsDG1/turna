@@ -20,8 +20,7 @@ import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/course/interaction.dart';
 
 /// Production loader that builds an Official formal-review batch for ONE
-/// real source for the shared [AnkiReviewSessionPage] host (doc 34 W5,
-/// plan 34 R2, maintainability plan Waves 2–3).
+/// real source for the shared [AnkiReviewSessionPage] host (ADR 0044).
 ///
 /// Presentations come from [OfficialAnkiEngine.renderCard] with a
 /// fidelity-first policy: rich HTML becomes [FidelityCardPresentation]
@@ -271,7 +270,7 @@ class OfficialFormalReviewProductionLoader {
     }
 
     // Live queue driver: the page rebuilds the batch from the scheduler's
-    // refreshed queue after every mutation (plan 34 D4). Legacy test
+    // refreshed queue after every mutation (ADR 0044). Legacy test
     // overrides without faces run without a live queue.
     final liveQueue = faces.isEmpty
         ? null

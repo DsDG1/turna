@@ -1,6 +1,6 @@
 import 'package:turna/domain/course/language_codes.dart';
 
-/// Typed course scope identity (plan 34 D1).
+/// Typed course scope identity (ADR 0043).
 ///
 /// A course scope names exactly one selectable course: the built-in
 /// language course, one Legacy Anki import, or one Official Anki source.
@@ -76,7 +76,7 @@ class OfficialAnkiCourseScope extends CourseScope {
   String toString() => 'OfficialAnkiCourseScope($profileId, $sourceId)';
 }
 
-/// Versioned, unambiguous codec for persisted course scopes (plan 34 D1).
+/// Versioned, unambiguous codec for persisted course scopes (ADR 0043).
 ///
 /// Wire format:
 /// ```text

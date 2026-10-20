@@ -28,13 +28,13 @@ enum OfficialAnkiMaintenanceKind {
   compactCatalog,
   compactCourse,
 
-  /// ADR 0043 D6 / step4.md B5: drive one v2 source's retiring sequence to
+  /// ADR 0043 D6 / ADR 0043: drive one v2 source's retiring sequence to
   /// completion (engine card delete → ledger final delete → view rebuild →
   /// enqueue byte-reclamation jobs). Idempotent per segment; kill-safe via
   /// the job table.
   v2SourceDelete,
 
-  /// ADR 0043 D3/K3 / step4.md B3: DROP+REBUILD of the v2 course-tree view.
+  /// ADR 0043 D3/K3 / ADR 0043: DROP+REBUILD of the v2 course-tree view.
   /// Stateless, idempotent; enqueued at startup when v2 sources exist and
   /// directly awaited after v2 commit / retire.
   v2ViewRebuild;

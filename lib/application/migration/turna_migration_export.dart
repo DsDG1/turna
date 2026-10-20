@@ -1,4 +1,4 @@
-// Platform-neutral `turna-migration-v1` logical export (doc 34 §5.4).
+// Platform-neutral `turna-migration-v1` logical export (ADR 0043).
 //
 // Used as the OHOS product EOL data-exit path and as a reusable dump of
 // CourseDatabase + related prefs into a zip that Android can stage/validate

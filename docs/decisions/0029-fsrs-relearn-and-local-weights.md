@@ -1,27 +1,12 @@
-# ADR 0029: FSRS Relearn Ladder + Local Weight Fitting
+# ADR 0029 — FSRS Relearn Ladder + Local Weight Fitting
 
-## Date
-2026-07-29
+> 状态：Accepted ｜日期：2026-07-29
 
-## Status
-Accepted
+## 决策
 
-## Context
+### 1. 当日重学阶梯（规则式）
 
-ADR 0028 introduced FSRS with **binary** pass/fail scoring. Remaining gaps:
-
-1. Relearn after fail was a flat 10 minutes (plus a crude total-lapse cap).
-2. All users shared default FSRS weights; no personalization from
-   `review_events` despite having a full local history table.
-
-Four-grade UI remains **out of scope**.
-
-## Decision
-
-### 1. Same-day relearn ladder (rule-based)
-
-Fail streak is **per card per local calendar day** (from
-`ReviewHistoryDao.countFailsOnLocalDay`), not lifetime `lapses`:
+失败连击按**每卡每本地日历日**计（`ReviewHistoryDao.countFailsOnLocalDay`），不是终身 `lapses`：
 
 | Today’s fail # | Next due |
 |----------------|----------|
@@ -30,23 +15,31 @@ Fail streak is **per card per local calendar day** (from
 | 3 | +2 h |
 | ≥4 | next local day |
 
-Applied in `FsrsEngine.reviewWithFailContext` after the package scheduler.
+在包调度器之后由 `FsrsEngine.reviewWithFailContext` 应用。
 
-### 2. Local weight fitting (lite)
+### 2. 本地权重拟合（轻量）
 
-- Persist 21 weights in prefs (`srs.fsrsParameters`); empty = defaults.
-- `FsrsLiteOptimizer`: pure Dart projected SGD on binary cross-entropy over
-  chronological pass/fail sequences built from `review_events`.
-- Minimum **300** reviews; accept only if train loss improves ≥0.5% relative.
-- Manual trigger from settings (“根据学习记录优化”); never silent auto-train.
-- Not guaranteed to match `fsrs-rs` numerically; prioritizes local-first mobile.
+- 21 个权重持久化在偏好（`srs.fsrsParameters`）；为空即用默认值。
+- `FsrsLiteOptimizer`：纯 Dart 投影式 SGD，在 `review_events` 构造的按时间排序 pass/fail 序列上做二元交叉熵。
+- 最少 **300** 条复习记录；仅当训练损失相对改善 ≥0.5% 才接受。
+- 设置页手动触发（「根据学习记录优化」）；绝不静默自动训练。
+- 不保证与 `fsrs-rs` 数值一致；优先本地优先的移动端。
 
-### 3. Binary contract unchanged
+### 3. 二元契约不变
 
-pass/fail only; Anki Hard/Easy still collapse to pass.
+仍然只有 pass/fail；Anki 的 Hard/Easy 仍折叠为 pass。
 
-## Consequences
+## 理由
 
-- Fail spam is less punitive than “always 10 min” and safer than lifetime caps.
-- Personalized weights are optional and reversible.
-- Optimizer is approximate; heavy users may later migrate to FFI `fsrs-rs`.
+ADR 0028 引入 FSRS 与**二元** pass/fail 评分后剩两处缺口：
+
+1. 失败后的重学是固定 10 分钟（外加一个粗糙的终身失败上限）。
+2. 所有用户共用默认 FSRS 权重；`review_events` 有完整本地历史表却无个性化。
+
+四档 UI 仍**不在范围内**。
+
+## 影响与边界
+
+- 连刷失败比「永远 10 分钟」惩罚轻，也比终身上限安全。
+- 个性化权重可选且可回退。
+- 优化器是近似实现；重度用户后续可迁到 FFI `fsrs-rs`。

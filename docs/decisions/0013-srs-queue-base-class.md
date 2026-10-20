@@ -1,18 +1,10 @@
-# ADR 0013: SRS queue base class
+# ADR 0013 — SRS 队列基类
 
-- **Status**: Accepted
-- **Date**: 2026-07-11
-- **Related**: future4 Phase 21, ADR 0007
+> 状态：Accepted ｜日期：2026-07-11 ｜关联：future4 Phase 21、ADR 0007
 
-## Context
+## 决策
 
-`SrsProvider` and `GrammarReviewProvider` duplicated state load/persist,
-SM-2 review, due caching, and lesson-link recording — ~500 lines of near-
-isomorphic code with divergent public method names.
-
-## Decision
-
-Introduce `SrsQueueProvider` (`lib/application/srs_queue_provider.dart`):
+`SrsQueueProvider`（`lib/application/srs_queue_provider.dart`）：
 
 | Concern | Owner |
 |---|---|
@@ -24,11 +16,12 @@ Introduce `SrsQueueProvider` (`lib/application/srs_queue_provider.dart`):
 | Dual expression due cache (Phase 20) | `SrsProvider` only |
 | `markDueNow` | `GrammarReviewProvider` only |
 
-**Not done**: splitting word/expression into two providers (would break
-single-blob prefs and public API).
+## 理由
 
-## Consequences
+`SrsProvider`/`GrammarReviewProvider` 重复状态加载/持久化、SM-2 复习、到期缓存、课时关联——约 500 行近同构代码，公开方法名各异。
 
-- Subclasses are thin facades; behavior covered by existing unit tests.
-- `encodeStateForPersist` lives on the base (benchmarks import base).
-- Call sites unchanged.
+## 影响与边界
+
+- **不做**：把词/表达拆成两个 provider（破坏单 blob 偏好与公开 API）。
+- 子类为薄门面，行为由既有单测覆盖；`encodeStateForPersist` 在基类上（benchmarks import base）。
+- 调用点不变。

@@ -31,7 +31,7 @@ class AnkiImportCompletionCoordinator {
   }) async {
     CourseLoader.invalidateCaches();
     // Refresh the catalog and stay on the user's current course — the
-    // import must never steal the active scope (plan 34 R1-4).
+    // import must never steal the active scope (ADR 0043).
     await courseProvider.reloadCourse();
     final newWire = ankiImportWireKeyFor(courseProvider, importId);
     if (newWire != null) {

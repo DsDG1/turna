@@ -3,7 +3,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine.dart
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 
-/// D2 消费者：决策进配置区（op 41/42，step4.md B1）。
+/// D2 消费者：决策进配置区（op 41/42，ADR 0043）。
 ///
 /// 每个写都是 Collection 内**单事务**（op 42 内部 `set_config_json`），
 /// 杀进程即回滚，无半写（K10）；同值重放结果相同（幂等）；值损坏读取

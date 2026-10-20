@@ -15,7 +15,7 @@
 
 ## 1. 背景与问题
 
-`experienceai.md` §4.1 明确：Experience OS 当前残留两个**加深轴**（非主链路断裂）--
+`experienceai.md` §4.1 明确：Experience OS 当前残留两个**加深轴**（非主链路断裂）——
 
 > 所谓「起步」残留的是 **覆盖面**（更多字段/面板挂内联）与 **持续度**（从按需触发到伴随式），而非主链路断裂。
 
@@ -179,7 +179,7 @@ DeferStore:
 ## 6. 分阶段交付切片
 
 | 切片 | 内容 | 默认 | 粗估测 | 依赖 |
-|------|------|------|--------|------|
+|------|------|--------|------|
 | **P1** ① 多提案常驻 | `evaluate_ambient_batch` + `AmbientBanner` 队列/晋升/折叠 + `_refresh_ambient` 改读 batch + 旧 `evaluate_ambient` 薄封装 | 开 | ~12 | 无 |
 | **P2** ② 稍后回灌 | `defer_store.py` + `experience_defer_json` 持久化 + 回灌规则 + `experience/defer_resurface` 设置 + metrics 2 stage | 关 | ~14 | P1 |
 | **P3** ③ 持续驱动 | `mark_stale()` + 心跳 timer + 编辑提交触发点接线 + `experience/ambient_live` 设置 | 关 | ~10 | P1 |
@@ -264,28 +264,9 @@ make test-gui-full     # 全量（BASELINE 真源）
 
 **开放项**（留远期，不在本批次）：
 
-1. `experience/ambient_mode`（single\|companion）可逆开关 -- 若 P1 默认开 companion 后用户反馈过吵再加；
+1. `experience/ambient_mode`（single|companion）可逆开关 -- 若 P1 默认开 companion 后用户反馈过吵再加；
 2. 跨会话作者意图记忆驱动回灌（与 C-13 `ExperienceMemory` 联动）-- 属 C-13 域；
 3. 多提案优先级的作者画像调权（`author_profile` 影响 priority）-- 需画像成熟度，远期；
 4. ③ 的「内容增量」精确快路径（只重算受影响 section 的 quality）-- 需 section 级脏标记，超本批次。
 
 ---
-
-## 10. 实施记录
-
-**实施记录（v4.66，2026-07-24）**：已按本设计落地 P1–P4 全部切片。
-
-- **P1 多提案常驻**：`proactive.evaluate_ambient_batch`（N≤3 队列 + 去重 + 排序 + archived 跳过 + defer_store 内联隐藏/回灌标签）；`evaluate_ambient` 降为薄封装（向后兼容 1 生产调用方 + 3 测试）；`AmbientBanner` 队列展示（首条展开 + 余折叠 + ✕归档，永不 `setFocus`）；`_refresh_ambient` 改读 batch + `show_proposals`；`_on_ambient_accepted` 改 `_refresh_ambient` 晋升（不清屏）。默认开。
-- **P2 稍后回灌**：新纯模块 `backend/experience/defer_store.py`（`DeferRecord` 闭集 + `DeferStore` 退避 15→30→60min→永久，cap 20 FIFO，永不抛）；`experience_defer_json` QSettings 持久化（镜像 mute）；`_on_ambient_archived` 按 `experience_defer_resurface` 分流（defer vs 会话 archive）；`_refresh_ambient` 接 defer_store + `purge_resolved`；`metrics._AMBIENT_STAGES` 加 `deferred`/`resurfaced`。默认关。**实现偏差**：批处理 defer 逻辑改为内联（隐藏 in_cooldown + 标签 cooled_defer），保留真实 priority，比原「追加 priority=98」更准。
-- **P3 持续驱动**：`ExperienceShell.mark_stale()` + `_content_stale` 标志（`_rebuild_now` 清除）；`app.py` 8s 心跳 `_ambient_heartbeat`（`_on_ambient_heartbeat` 守卫：`ambient_live or defer_resurface` + observer + `isActiveWindow && isVisible`，stale→invalidate 否则 `_refresh_ambient`）；`_on_experience_resources_changed` 改 `mark_stale`。默认关。
-- **P4 对抗+收口**：`test_adversarial_matrix` 加 D26（defer 不 nag + 永久）/ D27（无 setFocus 源码契约）/ D28（accept 经 dispatch 漏斗）。
-
-**实测**：新增测 `test_experience_ambient_batch`(15) · `test_defer_store`(8) · `test_experience_defer_resurface`(6) · `test_experience_ambient_live`(5) · `test_experience_shell` +3(stale) · `test_adversarial_matrix` +3(D26-28) · `test_experience_metrics` +2(stage) · `test_settings_dialog` +1(round-trip) +1(check count 14→16)。L1 fast 1380→约 1399+；gate 32/32 不降。红线保持：能 local 不 LLM / 不抢焦 / 不脏盘（accept 经 `dispatch_experience_action`+确认+Undo）/ 可静音 / observer 三零 / redaction（DeferRecord 闭集无原文）/ 永不抛。无新 G 门禁、不加 Context 维度、不加 policy 字段。
-
-**实施前置确认**（已完成）：
-
-- [x] P1 前确认 `evaluate_ambient` 全部调用方（`grep -rn evaluate_ambient src/`）已兼容薄封装 — 仅 1 生产调用方 + 3 测试；
-- [x] P2 前确认 `experience_defer_json` QSettings 键名不与既有键冲突；
-- [x] P3 前确认 `mark_stale` 与 C-03 `invalidate_focus` 的 stale 语义不冲突（前者内容 stale、后者焦点 fast-path）；
-- [x] 每切片跑 `make test-gui-gate` + 对应新测文件；
-- [x] 对抗测 D26-D28 进 `test_adversarial_matrix` 覆盖表。

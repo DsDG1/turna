@@ -33,7 +33,7 @@ abstract class AnkiImportFacade {
     ).facadeDecision;
   }
 
-  /// Atomic import plan (doc 34 W0). Call once per pick/commit.
+  /// Atomic import plan (ADR 0043). Call once per pick/commit.
   static AnkiImportExecutionPlan planFor(
     OfficialAnkiFeatureFlags flags, {
     bool? cutoverEnabled,

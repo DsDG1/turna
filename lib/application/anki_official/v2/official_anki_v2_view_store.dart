@@ -58,7 +58,7 @@ class OfficialAnkiV2ViewSectionSummary {
   final int lessonCount;
 }
 
-/// course.db v23 视图表的唯一读写点（step4.md B3）。
+/// course.db v23 视图表的唯一读写点（ADR 0043）。
 ///
 /// 重建 = 单事务 DELETE+INSERT（原子换页）：任一时刻读者看到的是完整
 /// 的旧视图或完整的新视图，中途强杀回滚到旧视图（K11「视图无状态，

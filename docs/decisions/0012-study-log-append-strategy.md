@@ -1,37 +1,28 @@
-# ADR 0012: StudyLog append strategy (recent queue)
+# ADR 0012 — `StudyLog` 追加策略（recent 队列）
 
-- **Status**: Accepted
-- **Date**: 2026-07-11
-- **Related**: future4 Phase 20, `StudyLogRepository`
+> 状态：Accepted ｜ 日期：2026-07-11 ｜ 关联：future4 Phase 20、`StudyLogRepository`
 
-## Context
+## 决策
 
-`appendLog` previously read the full 90-day log list, appended one entry,
-purged, and wrote the whole list back — O(n) prefs I/O per activity.
+增量 recent 队列：
 
-## Options considered
+- `study.logs` — 主 90 天日志（键不变）；`study.logs.recent` — 待追加项，**上限 200**。
+- `appendLog`：推入 recent、清过期行；`recent.length >= 200` 时并入主表、清空 recent、对主表做 90 天清理。每日统计更新仍在关键路径（小 map），不变。
+- `readLogs`：主表 + recent 按 id 合并（recent 优先），按时间戳排序。
+- `clearAll`：清两个键 + 每日统计。
+- `_writeChain` 串行化所有写操作（不变）。
 
 | Option | Pros | Cons |
 |---|---|---|
 | **Recent queue** (`study.logs.recent`, cap 200) | Small writes; simple JSON; merge on cap | Need dual-key read merge |
 | Ring buffer single key | One key | Harder purge/merge; worse debug |
 
-## Decision
+## 理由
 
-Use an **incremental recent queue**:
+`appendLog` 原先读全量 90 天日志列表、追加一条、清理、再整表写回——每次活动 O(n) 偏好 I/O。
 
-- `study.logs` — main 90-day log (unchanged key).
-- `study.logs.recent` — pending appends, **cap 200**.
-- On `appendLog`: push to recent; purge stale rows from recent; if
-  `recent.length >= 200`, merge into main, clear recent, purge 90 days on main.
-- On `readLogs`: merge main + recent by id (recent wins), sort by timestamp.
-- On `clearAll`: clear both keys + daily stats.
-- `_writeChain` serializes all mutations (unchanged).
+## 影响与边界
 
-Daily stats updates stay on the critical path (small map) and are unchanged.
-
-## Consequences
-
-- Append of a typical study session only rewrites a small recent JSON array.
-- Full rewrite cost amortizes to every 200 appends (or explicit `flushRecent`).
-- Tests cover merge semantics, cap flush, clear, and corruption of recent.
+- 追加一次典型学习会话只重写小的 recent JSON 数组。
+- 全量重写成本摊到每 200 次追加（或 `flushRecent`）。
+- 测试覆盖合并语义、上限 flush、清空、recent 损坏。

@@ -20,7 +20,7 @@ class AnkiImportDependencies {
     required this.courseProvider,
   });
 
-  /// Pick-time plan resolver (doc 34 W0-03). Production maps straight to
+  /// Pick-time plan resolver (ADR 0043). Production maps straight to
   /// [AnkiImportFacade.planFor]; tests may inject a fail-closed resolver.
   final AnkiImportExecutionPlan Function({
     required OfficialAnkiFeatureFlags flags,

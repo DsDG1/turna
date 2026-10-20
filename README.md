@@ -96,8 +96,8 @@ python tool/build_release.py --version 0.9.0
 | 完整的技术说明（每个模块怎么实现的） | [`docs/project-guide.md`](./docs/project-guide.md) |
 | 所有文档的索引 | [`docs/README.md`](./docs/README.md) |
 | 写代码要遵守的规矩 | [`AGENTS.md`](./AGENTS.md) |
+| 当前状态（迁移口径、平台支持、还没验的） | [`docs/status.md`](./docs/status.md) |
 | 每次改动的测试记录 | [`test/BASELINE.md`](./test/BASELINE.md) |
-| Anki 内核迁移的进度和证据 | [`docs/official-anki-migration/`](./docs/official-anki-migration/README.md) |
 | 为什么这么设计（历史决策） | [`docs/decisions/`](./docs/decisions/) |
 
 ## 致谢

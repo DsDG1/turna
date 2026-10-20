@@ -1,14 +1,16 @@
 # 鸿蒙构建与签名
 
 > 这篇讲**怎么把鸿蒙包构建出来并签上名**。只覆盖伴生版 / Official Anki 档的构建链路；
-> 能力边界（三层口径）见 [`AGENTS.md`](../AGENTS.md) §7.1，决策理由见
+> 能力边界（三层口径）见 [`status.md`](./status.md) §6，决策理由见
 > [ADR 0047](./decisions/0047-ohos-companion-lite-build.md) 与
 > [ADR 0050](./decisions/0050-ohos-official-anki.md)。
 >
 > **本文不含任何口令。** 口令只在本机两处：密钥库目录与被 git 忽略的
 > `ohos/SIGNING.local.md`（见文末「秘密在哪」）。
 
-## 1. 两份 SDK
+## 1. SDK 与工具链
+
+### 1.1 两份 Flutter SDK
 
 | 用途 | SDK | 本机路径 |
 |---|---|---|
@@ -30,6 +32,39 @@ fork 路径来自 `ohos/local.properties` 的 `flutter.sdk`。两份 SDK 必须�
 # fork SDK 侧（codegen / ohos 构建）
 & 'C:\Users\DsDogs\Desktop\developper\flutter_ohos_344\bin\flutter.bat' pub get
 ```
+
+### 1.2 HarmonyOS SDK（DevEco 侧）必须是 Release 档
+
+上面两份是 Flutter SDK；把 ArkTS 编成 hap 的是 **DevEco 自带的 HarmonyOS SDK**。
+它的根目录由 `DEVECO_SDK_HOME` 指定；`ohos/local.properties` 的 `hwsdk.dir` 是 fork
+从同一处写出来的，构建时以环境变量为准。本机现在装在 `D:\1`（DevEco 根），SDK 在
+`D:\1\sdk`。
+
+| 检查 | 位置 | 期望 |
+|---|---|---|
+| SDK 根 | `$env:DEVECO_SDK_HOME` | 指向存在的 `<DevEco>/sdk`；指到已删目录会让 `flutter doctor` 报 `HarmonyOS Sdk not found` |
+| 档位 | `<sdk>/<product>/sdk-pkg.json` 的 `releaseType` | `Release` |
+| 组件 | `<sdk>/<product>/openharmony/{ets,js,native,previewer,toolchains}` | 五个都在 |
+| 打进包的证据 | hap 内 `module.json` 的 `apiReleaseType` | `Release` |
+
+**AGC 的「您的应用使用了 HarmonyOS beta 版本的 API」只认这一项，代码改不掉。**
+`module.json` 的 `apiReleaseType` 跟着打包时用的 SDK 档位走：Beta 档 SDK 打出 `Beta1`，
+Release 档打出 `Release`，SDK 里没有把它翻过来的开关，只能换装 Release 档重打。
+本机 SDK 版本（`sdk-pkg.json` 的 `version`）随 DevEco 安装包走，查当前值即可，不要
+写死在脚本里。
+
+### 1.3 hvigor / ohpm / node
+
+三者都在 DevEco 的 `tools/` 下，需要出现在 `PATH` 上：
+
+| 工具 | 位置 | 本机版本 |
+|---|---|---|
+| hvigor | `<DevEco>/tools/hvigor/bin/hvigorw.bat` | 6.26.8 |
+| ohpm | `<DevEco>/tools/ohpm/bin/ohpm.bat` | 26.0.0.630 |
+| node | `<DevEco>/tools/node` | v24.14.1 |
+
+缺哪个，fork 的 `flutter doctor -v` 就单独报哪个（`Hvigorw is missing` /
+`Ohpm is missing`），不会笼统地说 SDK 有问题。
 
 ## 2. 构建命令
 
@@ -70,6 +105,33 @@ rm -- "ohos/entry/src/main/resources/rawfile/flutter_assets" `
 
 `@freezed` / `@JsonSerializable` / `@AutoRoute` / `@injectable` / drift 改动后，
 用 **fork SDK** 跑 `make gen`，再跑 `build hap`。顺序反了会把官方框架编进去。
+
+### hvigor 6 对 `ohos/hvigor/hvigor-config.json5` 的要求
+
+DevEco 自带的是 hvigor 6.x，拿旧工程的配置会直接死在解析阶段，且错误不提“配置”：
+
+| 症状 | 真因 | 处置 |
+|---|---|---|
+| `00305010` + `TypeError Cannot read properties of undefined (reading 'filter')` | 配置缺 `execution` / `logging` / `debugging` / `nodeOptions` 四段 | 按 DevEco 模板补齐，四段可以为空对象 |
+| `00303027` + `The modelVersion in hvigor-config.json5 is X, and ... in oh-package.json5 is Y` | 两处 `modelVersion` 不一致 | 两处写成同一个值（本项目 `5.1.0`） |
+
+模板在 DevEco 安装目录的插件里（`plugins/codegenie-plugin/previewProject/hvigor/`），
+照抄结构即可，不要照抄它的 `modelVersion`——那个要跟 `oh-package.json5` 对齐。
+
+### 插件清单与 `ProcessRouterMap`
+
+`flutter-hvigor-plugin` 把插件依赖以**空版本**注入 hap 的依赖表，真实路径走 `overrides`。
+如果 `.flutter-plugins-dependencies` 里 `plugins.ohos` 整段缺失（用**官方** SDK 跑过
+`pub get` 就会这样），依赖表就只剩空版本项，hvigor 的 `ProcessRouterMap` 在
+`declareInputs` 上抛 `ENOENT: no such file or directory, stat ''`（`Error Code: 00308018`），
+构建在 ArkTS 编译之前就结束。
+
+处置顺序：
+
+1. 把 fork 的 `bin` 放到 `PATH` 最前，跑 `<fork>/bin/flutter.bat pub get`；
+2. 确认 `.flutter-plugins-dependencies` 的 `plugins.ohos` 是 5 条（本机插件数，变了就按实际）；
+3. 构建时加 `--no-pub`，避免构建过程又跑一次 `pub get`；
+4. hvigor 6.26.8 起这条不再复现；仍停在旧 hvigor 时先升级 DevEco，改项目文件绕不过去。
 
 ## 3. 签名材料：五条硬规则
 
@@ -159,14 +221,24 @@ profile 拒。release profile 是给 AppGallery 分发用的。
 | `00308018` + `SAFE_DELETE_BULK_CONFIRM_REQUIRED` | 工具链批量删保护 | 先删两个缓存目录（§2） |
 | 启动白屏 + `Unknown platform. ohos` | codegen 用了官方 SDK | 用 fork SDK 重跑 `pub get` + codegen |
 | `...the tool couldn't find it: entry-default-signed.hap` | 同 3.4 | 同 3.4 |
+| `HarmonyOS Sdk not found` | `DEVECO_SDK_HOME` 指向不存在的目录 | 指回现装 DevEco 的 `sdk`（§1.2） |
+| `Hvigorw is missing` / `Ohpm is missing` | DevEco `tools/` 不在 `PATH` | 补 `hvigor/bin`、`ohpm/bin`、`node`（§1.3） |
+| AGC：「使用了 HarmonyOS beta 版本的 API」 | 用了 Beta 档 SDK | 换 Release 档 SDK 重打（§1.2） |
+| `00305010` + `reading 'filter'` | `hvigor-config.json5` 缺四段 | 按模板补齐（§2） |
+| `00303027` + `modelVersion ... 5.0.0 ... 5.1.0` | 两处版本不一致 | 对齐成同一个值（§2） |
+| `ENOENT: ... stat ''`（`ProcessRouterMap`） | 插件清单缺 `ohos` 段 / hvigor 太旧 | fork `pub get` + `--no-pub`；hvigor 6.26.8 起不复现（§2） |
 
 ## 5. 验签
 
 ```powershell
-$java='D:\DevEco Studio\jbr\bin\java.exe'
-$jar='D:\DevEco Studio\sdk\default\openharmony\toolchains\lib\hap-sign-tool.jar'
+$java='<DevEco>\jbr\bin\java.exe'
+$jar='<DevEco>\sdk\<product>\openharmony\toolchains\lib\hap-sign-tool.jar'
 & $java -jar $jar verify-app -inFile <file.app> -outCertChain chain.cer -outProfile profile.p7b
 ```
+
+成功时最后两行是 `verify: Verify success` 与 `verify-app success`，中间会打
+`profile type is: release|debug`——**这一行就是“签的是哪一档”的直接证据**，比对着证书
+指纹猜更快。hap 也能直接验（`.app` 的内层 hap 不行，见 §2）。
 
 看 `chain.cer` 的叶证书指纹即可确认签的是哪一代：debug 叶证书与 release 叶证书
 指纹不同（取值见 `ohos/SIGNING.local.md`）。也可以直接按 DER 逐字节比对产物内
@@ -189,8 +261,10 @@ $jar='D:\DevEco Studio\sdk\default\openharmony\toolchains\lib\hap-sign-tool.jar'
 
 ## 7. 未验证 / 已知边界
 
-- release `.app` 已在真机与 AppGallery 侧**未验证**（只验到 `verify-app` 通过、
-  profile 为 `app_gallery` 分发档）。
-- debug 包的真机直装在 2026-10-20 之前有真机收据；本轮重签的包**未再上机**。
+- release `.app` 与独立 release hap 都能用 Release 档 SDK 打出来，`verify-app` 通过、
+  `profile type is: release`、`module.json` 的 `apiReleaseType` 为 `Release`；
+  但**都未真机安装**（release profile 无 `device-ids`，装不上测试机），也未经
+  AppGallery 侧复核。
+- debug 包的真机直装有收据；最近一次重签的包未再上机。
 - Android 侧 `flutter build appbundle` 的 native 符号剥离失败，与本页无关，
   见 `test/BASELINE.md` 对应条目。

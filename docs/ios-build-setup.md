@@ -70,7 +70,7 @@ iOS 侧没有 `dlopen` 可用的 dylib，Anki 核心是以 **staticlib 打进 ap
 ## 3. 构建与验证
 
 ```bash
-# 模拟器（无签名的最快回路；BASELINE 2026-09-26 iOS 批用过这条）
+# 模拟器（无签名的最快回路）
 flutter build ios --simulator --no-codesign
 
 # 逐个校验静态库符号（build.sh 已自动跑过一次，可单独复跑）
@@ -97,7 +97,7 @@ flutter build ipa                            # 出可分发包，需要有效签
 - iOS 已是 Official 产品路径，不是「暂不承诺」：`AnkiImportExecutionPlanner.productModeFor(platform: 'ios')` 返回 `AnkiProductMode.officialAndroid`（Android 沿用同一枚举值），即**导入、正式复习、课程投影都走官方 Core**，与 Android 同源同代码。实现见 `lib/application/anki_official/import/anki_import_execution_plan.dart`。
 - 复习器是 **WKWebView**（不是 `webview_flutter`）：`ios/Runner/AnkiReviewer/` 下三个文件（`OfficialAnkiReviewerView` / `OfficialAnkiSchemeHandler` / `OfficialAnkiReviewerFactory`），在 `AppDelegate` 里用 `registrar(forPlugin: "OfficialAnkiReviewer")` 注册，Dart 侧 `lib/views/anki_official/official_anki_reviewer_view.dart` 在 iOS 上返回 `UiKitView`。
 - 资源经自定义 scheme 提供：`OfficialAnkiSchemeHandler` 注册 `turna-anki://anki.local` 源（`config.setURLSchemeHandler`），服务端渲染资产与媒体按 Range/206 返回。这是代码注册，**不需要在 `Info.plist` 里登记 URL scheme**。
-- 整个 iOS 官方栈由提交 `ec0170ae`（2026-09-26，PR #7）引入；口径与状态以 [doc 34 收据](./official-anki-migration/34-cutover-receipt.md) 为准（**验收 NO-GO、迁移中，不得写「迁移完成」**）。
+- 整个 iOS 官方栈由提交 `ec0170ae`（PR #7）引入；口径与状态以 [`status.md`](./status.md) 为准（**验收 NO-GO、迁移中，不得写「迁移完成」**）。
 
 ---
 
@@ -113,6 +113,6 @@ flutter build ipa                            # 出可分发包，需要有效签
 
 ## 验证状态（不要越读）
 
-- **已验证（仅模拟器）**：`flutter build ios --simulator --no-codesign` 链接通过、7 个 `turna_anki_*` 符号进 `Runner.debug.dylib`；iPhone 17 模拟器（iOS 26.5）上用真实 `.apkg` 走完导入 + 复习器 Q→A 渲染 E2E。收据见 `test/BASELINE.md` 2026-09-26「iOS 官方 Anki 栈接通」条目。
-- **未验证**：真机（clean install / 升级安装 / 强杀恢复）、release 构建与签名、TestFlight/App Store 分发。doc 34 的真机矩阵仍 Held。
+- **已验证（仅模拟器）**：`flutter build ios --simulator --no-codesign` 链接通过、7 个 `turna_anki_*` 符号进 `Runner.debug.dylib`；iPhone 17 模拟器（iOS 26.5）上用真实 `.apkg` 走完导入 + 复习器 Q→A 渲染 E2E。收据见 `test/BASELINE.md`「iOS 官方 Anki 栈接通」条目。
+- **未验证**：真机（clean install / 升级安装 / 强杀恢复）、release 构建与签名、TestFlight / App Store 分发。真机矩阵仍 Held，见 [`status.md`](./status.md) §4。
 - **未核实**：Xcode 版本下限、iOS 26.x SDK 与本工程的具体兼容性边界。

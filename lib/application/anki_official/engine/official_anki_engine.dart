@@ -151,7 +151,7 @@ abstract class OfficialAnkiEngine {
     required int neededNew,
   });
 
-  /// Whole-Collection unused-media GC (doc 41 S5). Never guesses ownership
+  /// Whole-Collection unused-media GC (ADR 0043). Never guesses ownership
   /// by filename prefix.
   Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true});
 

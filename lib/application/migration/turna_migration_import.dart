@@ -1,5 +1,4 @@
-// Android importer for `turna-migration-v1` packages (plan 34 §R7-3 /
-// OS-22). Validation is fail-closed: manifest format/version, SHA256SUMS
+// Android importer for `turna-migration-v1` packages (ADR 0043). Validation is fail-closed: manifest format/version, SHA256SUMS
 // coverage, zip-slip protection and a capacity gate run BEFORE anything is
 // staged. The apply phase is transactional for database rows; a failure
 // rolls back to zero partial restores. Legacy Anki rows are ignored: the

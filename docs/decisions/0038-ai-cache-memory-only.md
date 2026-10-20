@@ -1,31 +1,17 @@
-# ADR 0038: AI response cache is memory-only
+# ADR 0038 — AI 响应缓存仅驻内存
 
-## Status
+> 状态：Accepted
 
-Accepted
+## 决策
 
-## Context
+`AiCache` 是**有界的进程内 LRU**，也是唯一的 AI 响应缓存。**不存在**磁盘挂载 API、磁盘统计项或冷启动提升路径。存储诊断界面把条目报告为内存键，**不把条目数换算成字节数**。
 
-The AI cache exposed an optional synchronous file mirror, but production never
-attached it. Keeping the dormant API and disk-write counters implied durability
-that the product did not provide, while synchronous file operations could block
-the UI isolate if enabled later.
+将来若要做持久化缓存，必须作为**新组件**设计：异步 / isolate I/O、字节与 TTL 上限、记录 `createdAt` 与 `lastAccess`、在失效判定里纳入缓存 schema 与 prompt 版本，并给出明确的可重新生成数据的清理契约。被移除的同步实现**不得恢复**。
+## 理由
 
-## Decision
+AI 缓存原本暴露了一个可选的同步文件镜像，但生产环境从未挂载它。保留这个休眠 API 与磁盘写计数器，暗示了产品并不提供的持久性；而同步文件操作若日后启用，还可能阻塞 UI isolate。
+## 影响与边界
 
-`AiCache` is a bounded, process-local LRU and is the only AI response cache.
-There is no disk attachment API, disk statistic, or cold-start promotion path.
-The storage diagnostics surface reports entries as memory keys and does not
-convert that count into bytes.
-
-Any future persistent cache must be designed as a new component. It must use
-asynchronous/isolate I/O, enforce byte and TTL limits, record `createdAt` and
-`lastAccess`, include cache schema and prompt versions in invalidation, and
-provide an explicit regenerable-data clearing contract. The removed synchronous
-implementation must not be restored.
-
-## Consequences
-
-- Restarting the app intentionally drops cached AI responses.
-- “Clear AI cache” clears only bounded in-memory entries.
-- Cache diagnostics match production behavior and cannot suggest disk usage.
+- 重启应用会**有意**丢弃已缓存的 AI 响应。
+- 「清除 AI 缓存」只清有界的内存条目。
+- 缓存诊断与生产行为一致，不会暗示磁盘占用。

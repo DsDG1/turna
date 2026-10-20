@@ -1,4 +1,4 @@
-// Review All tests (plan 34 R2-3 / OS-13 + maintainability plan Wave 3):
+// Review All tests (ADR 0044):
 // review-all runs through the sequential FormalReviewSourceCoordinator — one
 // real source per loader call, real sourceIds on every card key, failures
 // recorded per source — never a synthetic aggregate source.

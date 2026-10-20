@@ -1,4 +1,4 @@
-// Live formal-review tests (plan 34 R2-2 / OS-12): the shared session
+// Live formal-review tests (ADR 0044): the shared session
 // batch follows the scheduler's refreshed queue. After an answer the
 // batch is rebuilt from the LIVE queue — learning reinsertion and
 // cross-day reordering reach the page, and stale snapshots invalidate.

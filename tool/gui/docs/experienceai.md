@@ -1,24 +1,16 @@
 # Experience AI — 超级深度 AI 融合计划（全 GUI）
 
-> **状态**：**在役上游规范**（原置于 `docs/archive/`，因被 4 篇在役设计文档与
-> 3 个测试持续引用而于 2026-09-27 移回 `docs/`）  
-> **日期**：2026-07-21  
-> **定位**：在 [`ai_configuration_and_features_report.md`](./ai_configuration_and_features_report.md) 引擎能力之上，把 AI 从「工坊功能」升级为 **课程编辑器的中枢神经系统** —— 感知、决策、执行、解释、记忆五层贯通  
-> **范围**：`tool/gui` 全部表面 + 编辑手势 + 数据生命周期 + 协作/发布边界  
-> **层级关系**：
->
-> | 文档 | 解决什么 |
-> |------|----------|
-> | `ai_configuration_and_features_report.md` | 生成稳、质量分、流水线、可感知补丁 |
-> | 布局压缩（工坊） | 参数不重复、一屏可用 |
-> | **本文件 experienceai** | **AI 如何成为默认交互语言，而不是附加按钮** |
+> **状态**：**在役上游规范**（原置于 `docs/archive/`，因被 4 篇在役设计文档与 3 个测试持续引用而移回 `docs/`）
+> **定位**：把 AI 从「工坊功能」升级为 **课程编辑器的中枢神经系统** —— 感知、决策、执行、解释、记忆五层贯通
+> **范围**：`tool/gui` 全部表面 + 编辑手势 + 数据生命周期 + 协作/发布边界
+> **层级关系**：本文件 **experienceai** 解决「AI 如何成为默认交互语言，而不是附加按钮」；布局压缩（工坊）解决参数不重复、一屏可用；引擎能力（生成稳、质量分、流水线、可感知补丁）见 `docs/ai_refactor_contract.md`。
 
 ---
 
 ## 0. 超级野心（三句话）
 
-1. **打开编辑器 = 进入 AI 协作会话**；没有「先找 AI 菜单」这一步。  
-2. **任何可见 UI 状态都可被 AI 读写**（经 preview + undo）；选中即上下文，打字即意图。  
+1. **打开编辑器 = 进入 AI 协作会话**；没有「先找 AI 菜单」这一步。
+2. **任何可见 UI 状态都可被 AI 读写**（经 preview + undo）；选中即上下文，打字即意图。
 3. **人只保留三权**：定目标、批预览、点发布；其余填充、修复、平衡、诊断、解释由系统代劳。
 
 激进 ≠ 失控。JSON 真相源、`course_cli` 写盘门禁、ID 不可默删、导入/发布需人确认 —— 这些是 **硬护栏**。超级融合的是 **深度、广度、主动性、多模态与多 Agent 编排**。
@@ -41,23 +33,11 @@
 
 **现状约 L1–L2 局部**。本计划目标 **默认 L4，可选 L5–L6**。
 
-```
-L0 对话框 ──► L1 多入口 ──► L2 壳层 ──► L3 Context Bus
-                                      │
-                                      ▼
-                               L4 内联共生（默认目标）
-                                      │
-                         ┌────────────┴────────────┐
-                         ▼                         ▼
-                   L5 主动提案               L6 目标 Agent
-                   （Ambient + Queue）       （沙箱 + 人批闸）
-```
-
 ---
 
 ## 2. 为何必须「超级大幅度」
 
-| 仅做 aiEnhance 的上限 | 超级融合要突破的墙 |
+| 仅做引擎增强的上限 | 超级融合要突破的墙 |
 |----------------------|-------------------|
 | 能力在后端，入口仍是「功能列表」 | **交互范式**：NL / 手势 / 静默建议 = 一等公民 |
 | 工坊与主窗双脑 | **单一认知模型**：一个 Context、一套 Skill、一套 Preview |
@@ -74,14 +54,14 @@ L0 对话框 ──► L1 多入口 ──► L2 壳层 ──► L3 Context Bus
 
 ### 3.1 Copilot Dock（常驻副驾驶）
 
-- 右缘可钉面板：当前 selection 卡片、3 条主动建议、迷你对话、最近结果时间线。  
-- **随选中呼吸**：点 lesson → 建议变「填充/平衡题型」；点红 error → 变「修这个」。  
+- 右缘可钉面板：当前 selection 卡片、3 条主动建议、迷你对话、最近结果时间线。
+- **随选中呼吸**：点 lesson → 建议变「填充/平衡题型」；点红 error → 变「修这个」。
 - 支持 **钉住上下文**（钉住 Section3 同时浏览 Section1）。
 
 ### 3.2 Command Palette / 自然语言总线（⌘K）
 
-- 全局快捷键；支持自然语言 + 斜杠命令（`/fix` `/gen` `/fill` `/brief` `/why`）。  
-- 低置信显示 **Scope 确认条**（将改：课 id / 题 id 列表）。  
+- 全局快捷键；支持自然语言 + 斜杠命令（`/fix` `/gen` `/fill` `/brief` `/why`）。
+- 低置信显示 **Scope 确认条**（将改：课 id / 题 id 列表）。
 - 历史意图可重放（「再来一次，但更简单」）。
 
 ### 3.3 Inline Copilot（编辑器内共生）— **超级融合关键**
@@ -97,9 +77,7 @@ L0 对话框 ──► L1 多入口 ──► L2 壳层 ──► L3 Context Bus
 
 ### 3.4 Goal Runner（目标代理，L6）
 
-作者输入目标，例如：
-
-> 「两小时内让 Section 2–4 每节有 intro+practice，词 ≤10，校验 0 error，质量均值 ≥0.7」
+作者输入目标，例如：「两小时内让 Section 2–4 每节有 intro+practice，词 ≤10，校验 0 error，质量均值 ≥0.7」。
 
 系统拆成 **任务图（DAG）** → 沙箱草稿执行 → 每步 checkpoint → 人可跳过/重做 → **最后一次** merge 进课程。
 
@@ -109,32 +87,32 @@ L0 对话框 ──► L1 多入口 ──► L2 壳层 ──► L3 Context Bus
 
 ### 4.1 零到一：从空壳到可试做
 
-1. 打开课程 → Dock 已列出空课 12 节、待补 0、error 3。  
-2. Ambient：「建议：一键填充 Section2 全部空课（A1 购物主题）」。  
-3. 作者改主题三词 → 确认 → Job 进度在底栏。  
+1. 打开课程 → Dock 已列出空课 12 节、待补 0、error 3。
+2. Ambient：「建议：一键填充 Section2 全部空课（A1 购物主题）」。
+3. 作者改主题三词 → 确认 → Job 进度在底栏。
 4. 完成后教师模式可试做；校验自动重跑。
 
 ### 4.2 微观编辑流（秒级）
 
-1. 试做发现干扰项离谱 → 题卡芯片「加强干扰」→ 0.8s 预览 → Enter 应用。  
+1. 试做发现干扰项离谱 → 题卡芯片「加强干扰」→ 0.8s 预览 → Enter 应用。
 2. 全程 **不离开教师模式、不打开工坊**。
 
 ### 4.3 宏观战役流（分钟级）
 
-1. 总览点「最差 3 课」→ 队列：补 transcript ×4、修 MCQ 重复 ×2、清 needs-review ×9。  
-2. Soft Autopilot 自动完成规则安全项；需 LLM 的项等人批。  
+1. 总览点「最差 3 课」→ 队列：补 transcript ×4、修 MCQ 重复 ×2、清 needs-review ×9。
+2. Soft Autopilot 自动完成规则安全项；需 LLM 的项等人批。
 3. 发布 → Brief 绿/黄清单 → 一键清障 → 人点发布。
 
 ### 4.4 教材贯通流
 
-1. 主窗 ⌘K：`从 ~/docs/unit2.pdf 抽词并生成 Section3 practice`。  
-2. 后台：抽取（滑窗）→ 池合并 → grounded 生成 → 草稿 diff 对 Section3。  
+1. 主窗 ⌘K：`从 ~/docs/unit2.pdf 抽词并生成 Section3 practice`。
+2. 后台：抽取（滑窗）→ 池合并 → grounded 生成 → 草稿 diff 对 Section3。
 3. Job Console 可展开逐步日志；主窗不锁死。
 
 ### 4.5 解释权与教学权
 
-1. 点质量「干扰 0.42」→ `/why` 用人话解释规则探针。  
-2. 「按土耳其 A1 敬语统一本 section」→ 结构保护下批量改写 siz/sen。  
+1. 点质量「干扰 0.42」→ `/why` 用人话解释规则探针。
+2. 「按土耳其 A1 敬语统一本 section」→ 结构保护下批量改写 siz/sen。
 3. 作者画像记住「偏好短句」→ 后续 generate 默认注入。
 
 ---
@@ -179,34 +157,21 @@ L0 对话框 ──► L1 多入口 ──► L2 壳层 ──► L3 Context Bus
 ## 6. 超级架构：中枢神经系统
 
 ```
-                         ┌─────────────────┐
-                         │  Author Goals    │
-                         │  ⌘K / Dock / UI  │
-                         └────────┬────────┘
-                                  │
-┌─────────────────────────────────▼─────────────────────────────────┐
-│                    AiExperienceShell (Qt)                          │
-│  Palette · Dock · Ambient · GhostHost · JobTray · StatusStrip     │
-│  SelectionHub · FocusRing · ConflictGuard · Toast/PreviewHost     │
-└─────────────────────────────────┬─────────────────────────────────┘
-                                  │ Intent + ExperienceContext
-┌─────────────────────────────────▼─────────────────────────────────┐
-│                 backend/experience/ (pure Python)                  │
-│  context_bus · intent_router · planner (DAG) · policy · memory     │
-│  skills/* · agents/* · multimodal_ingest · experience_metrics      │
-└───┬─────────────┬─────────────┬─────────────┬─────────────────────┘
-    │             │             │             │
-    ▼             ▼             ▼             ▼
- aiEnhance    CourseAdapter  content_     textbook/
- engines      + undo cmds    quality      knowledge
+Author Goals (⌘K / Dock / UI)
+  → AiExperienceShell (Qt)：Palette · Dock · Ambient · GhostHost · JobTray · StatusStrip
+                        SelectionHub · FocusRing · ConflictGuard · Toast/PreviewHost
+  → Intent + ExperienceContext
+  → backend/experience/ (pure Python)：context_bus · intent_router · planner (DAG) · policy · memory
+                            skills/* · agents/* · multimodal_ingest · experience_metrics
+  → aiEnhance engines · CourseAdapter + undo cmds · content_quality · textbook/knowledge
 ```
 
 ### 6.1 三层智能
 
 | 层 | 组件 | 延迟目标 | 是否必现网 |
 |----|------|----------|------------|
-| **L-local** | 规则探针、scope 正则、空课检测、hygiene | &lt; 50ms | 否 |
-| **L-skill** | 单 skill 一次 LLM（改题/修节点） | &lt; 8s 典型 | 是 |
+| **L-local** | 规则探针、scope 正则、空课检测、hygiene | < 50ms | 否 |
+| **L-skill** | 单 skill 一次 LLM（改题/修节点） | < 8s 典型 | 是 |
 | **L-agent** | 多 skill 规划 + 循环 | 分钟级 | 是 |
 
 **原则**：能 local 解决的绝不先打模型（降本、提「呼吸感」）。
@@ -261,7 +226,7 @@ class ExperienceContext:
 
 ### 6.4 Planner / Goal Agent（L6）
 
-```text
+```
 Goal → decompose → [SkillCall...] with depends_on
      → run in sandbox section copies
      → validate + quality gates per step
@@ -300,162 +265,88 @@ Goal → decompose → [SkillCall...] with depends_on
 
 ## 7. 技能宇宙（扩展表）
 
-在既有 skill 上 **超级加码**（标注 ★ 为超级融合增量）：
+★ 为超级融合增量。
 
-### 7.1 诊断与解释
-
-| Skill | 说明 |
-|-------|------|
-| `course.diagnose` | 全课一页纸 |
-| `course.why` ★ | 任意 error/质量维人话解释 |
-| `course.compare_sections` ★ | 两节难度/词重叠对比 |
-| `publish.brief` | 发布守门 |
-
-### 7.2 生成与生长
-
-| Skill | 说明 |
-|-------|------|
-| `section.generate` / `section.edit` | 整节 |
-| `lesson.fill_empty` | 空课 |
-| `lesson.balance` ★ | 题型配比校正 |
-| `unit.spiral_vocab` ★ | 单元内词汇螺旋复现 |
-| `curriculum.expand_goal` ★ | L6 目标拆解 |
-
-### 7.3 微观改写
-
-| Skill | 说明 |
-|-------|------|
-| `item.rewrite` / `item.generate_similar` | 题级 |
-| `item.ghost_complete` ★ | 字段级补全 |
-| `item.distractor_boost` ★ | 专用干扰项强化 |
-| `item.to_listening` ★ | 题型迁移+transcript |
-
-### 7.4 质量与校验
-
-| Skill | 说明 |
-|-------|------|
-| `validate.fix_batch` | 批修 |
-| `quality.fix_dimension` | 按维修 |
-| `quality.campaign_worst_n` ★ | 最差 N 课战役 |
-| `listening.transcript_gap` | 听力缺口 |
-| `reading.passages_gen` | 阅读生成 |
-
-### 7.5 资源与教材
-
-| Skill | 说明 |
-|-------|------|
-| `resource.fill_stubs` / `resource.dedupe_suggest` | 资源 |
-| `resource.align_pos_tags` ★ | 词性/标签一致 |
-| `textbook.extract_to_pool` / `grounded_generate` | 教材 |
-| `textbook.ingest_multimodal` ★ | 图/扫描件说明→先 OCR 建议再抽 |
-
-### 7.6 协作与元
-
-| Skill | 说明 |
-|-------|------|
-| `git.commit_message` | 说明文案 |
-| `git.explain_diff` ★ | 人话 diff |
-| `help.tour` ★ | 「怎么把听力课做好」导览式步骤（可点执行） |
-| `palette.freeform` | 路由入口 |
+| 组 | Skill | 说明 |
+|----|-------|------|
+| 诊断与解释 | `course.diagnose` | 全课一页纸 |
+| | `course.why` ★ | 任意 error/质量维人话解释 |
+| | `course.compare_sections` ★ | 两节难度/词重叠对比 |
+| | `publish.brief` | 发布守门 |
+| 生成与生长 | `section.generate` / `section.edit` | 整节 |
+| | `lesson.fill_empty` | 空课 |
+| | `lesson.balance` ★ | 题型配比校正 |
+| | `unit.spiral_vocab` ★ | 单元内词汇螺旋复现 |
+| | `curriculum.expand_goal` ★ | L6 目标拆解 |
+| 微观改写 | `item.rewrite` / `item.generate_similar` | 题级 |
+| | `item.ghost_complete` ★ | 字段级补全 |
+| | `item.distractor_boost` ★ | 专用干扰项强化 |
+| | `item.to_listening` ★ | 题型迁移+transcript |
+| 质量与校验 | `validate.fix_batch` | 批修 |
+| | `quality.fix_dimension` | 按维修 |
+| | `quality.campaign_worst_n` ★ | 最差 N 课战役 |
+| | `listening.transcript_gap` | 听力缺口 |
+| | `reading.passages_gen` | 阅读生成 |
+| 资源与教材 | `resource.fill_stubs` / `resource.dedupe_suggest` | 资源 |
+| | `resource.align_pos_tags` ★ | 词性/标签一致 |
+| | `textbook.extract_to_pool` / `grounded_generate` | 教材 |
+| | `textbook.ingest_multimodal` ★ | 图/扫描件说明→先 OCR 建议再抽 |
+| 协作与元 | `git.commit_message` | 说明文案 |
+| | `git.explain_diff` ★ | 人话 diff |
+| | `help.tour` ★ | 「怎么把听力课做好」导览式步骤（可点执行） |
+| | `palette.freeform` | 路由入口 |
 
 ---
 
 ## 8. 全表面超级融合地图
 
-### 8.1 主窗壳 — 「AI 操作系统桌面」
-
-| 元素 | 超级行为 |
-|------|----------|
-| Copilot Dock | 见 §3.1；支持时间线回放结果 |
-| ⌘K Palette | 见 §3.2；支持多选 scope 预填 |
-| Ambient Banner | 可行动建议；滑动归档 |
-| GhostHost | 全局注册可 ghost 的 line edit / plain text |
-| JobTray | 所有 LLM/pipeline 任务；可取消、可钉 |
-| Focus Ring | AI 正在改的节点树/题卡高亮脉冲 |
-| ConflictGuard | 两路 AI 同改一节 → 强制串行或分叉预览 |
-
-### 8.2 课程树 — 「活的课程地图」
-
-| 融合点 | 行为 |
-|--------|------|
-| 节点装饰 | 空课/低质/error/AI 任务中 四态角标 |
-| 选中 | Dock 呼吸建议 |
-| 空课 | 内联「AI 填充」不打开对话框 |
-| 多选节点 | 「批量统一难度/敬语/模板」 |
-| 新建 lesson | 创建后可选「立即 AI 生成 content」 |
-| 搜索框 | 支持语义：「所有缺 transcript 的课」（规则实现优先） |
-
-### 8.3 详情 / 蓝图 / 表单 — 「字段有灵魂」
-
-| 融合点 | 行为 |
-|--------|------|
-| 元数据描述 | Ghost 写描述 |
-| Blueprint 空阶段 | 「生成 3 个听力 phase」 |
-| 交互表单 | 选项列表旁「AI 填干扰项」 |
-| JSON 高级编辑 | 选中 path → 「解释/修复此 path」 |
-
-### 8.4 教师模式 — 「出题工作台」
-
-| 融合点 | 行为 |
-|--------|------|
-| 题卡芯片条 | 一键微观手术 |
-| 试做联动 ★ | 作者自己答错 → 建议改题（可关） |
-| 课进度条旁 | 「复现不足的词」点击生成练习 |
-| 连续改写 | Surgeon 记忆本课风格 |
-| 键盘 | `A` 接受 ghost，`[` `]` 上一条建议 |
-
-### 8.5 资源库 — 「词库智能中台」
-
-| 融合点 | 行为 |
-|--------|------|
-| 多选批量 | 补全/翻译润色/发音/删并建议 |
-| 引用图 | 删词时 AI 提议替换映射表 |
-| 导入 CSV 后 | 自动 diagnose 重复与空译 |
-| 跨表 | vocab↔expression 冲突仲裁建议 |
-
-### 8.6 总览 — 「战役指挥室」
-
-| 融合点 | 行为 |
-|--------|------|
-| 热力图 | 质量 × 空课 × error 三维色 |
-| 战役按钮 | 最差 N / 全部听力缺口 / 发布阻塞项 |
-| 时间估算 ★ | 按 skill 历史耗时估「约 12 分钟」 |
-
-### 8.7 校验 — 「红灯急诊」
-
-| 融合点 | 行为 |
-|--------|------|
-| 修全部 error | 主 CTA |
-| 流式队列 | 非模态进度 |
-| 修后自动 validate | 数字动画 |
-| 解释 | 每条 error 旁 `/why` |
-
-### 8.8 发布 — 「登机口」
-
-| 融合点 | 行为 |
-|--------|------|
-| Brief 强制展示 | 结构红阻断；黄可跳过但记录 |
-| 清障队列 | 一键转 JobTray |
-| 发布说明 | AI 草拟 changelog（人改） |
-
-### 8.9 工坊 — 「重工业厂房」
-
-| 融合点 | 行为 |
-|--------|------|
-| Job Console | 长任务唯一大屏 |
-| 与主窗 selection 双向 | 导入目标默认当前 section |
-| Grounded 池 | 可视化覆盖率动画 |
-| 大附件对话 | 长上下文专区 |
-
-### 8.10 Git / 设置
-
-| 融合点 | 行为 |
-|--------|------|
-| commit/explain | 只读增强 |
-| Experience 模式光谱 | Observer→Goal |
-| 技能图谱开关 | 危险 skill 默认关 |
-| 日预算 / 模型路由可视化 | 成本透明 |
-| 隐私 | 可关「作者画像」；可清 memory |
+| 表面 | 融合点 | 行为 |
+|------|--------|------|
+| **8.1 主窗壳**（AI 操作系统桌面） | Copilot Dock | 见 §3.1；支持时间线回放结果 |
+| | ⌘K Palette | 见 §3.2；支持多选 scope 预填 |
+| | Ambient Banner | 可行动建议；滑动归档 |
+| | GhostHost | 全局注册可 ghost 的 line edit / plain text |
+| | JobTray | 所有 LLM/pipeline 任务；可取消、可钉 |
+| | Focus Ring | AI 正在改的节点树/题卡高亮脉冲 |
+| | ConflictGuard | 两路 AI 同改一节 → 强制串行或分叉预览 |
+| **8.2 课程树**（活的课程地图） | 节点装饰 | 空课/低质/error/AI 任务中 四态角标 |
+| | 选中 | Dock 呼吸建议 |
+| | 空课 | 内联「AI 填充」不打开对话框 |
+| | 多选节点 | 「批量统一难度/敬语/模板」 |
+| | 新建 lesson | 创建后可选「立即 AI 生成 content」 |
+| | 搜索框 | 支持语义：「所有缺 transcript 的课」（规则实现优先） |
+| **8.3 详情 / 蓝图 / 表单**（字段有灵魂） | 元数据描述 | Ghost 写描述 |
+| | Blueprint 空阶段 | 「生成 3 个听力 phase」 |
+| | 交互表单 | 选项列表旁「AI 填干扰项」 |
+| | JSON 高级编辑 | 选中 path → 「解释/修复此 path」 |
+| **8.4 教师模式**（出题工作台） | 题卡芯片条 | 一键微观手术 |
+| | 试做联动 ★ | 作者自己答错 → 建议改题（可关） |
+| | 课进度条旁 | 「复现不足的词」点击生成练习 |
+| | 连续改写 | Surgeon 记忆本课风格 |
+| | 键盘 | `A` 接受 ghost，`[` `]` 上一条建议 |
+| **8.5 资源库**（词库智能中台） | 多选批量 | 补全/翻译润色/发音/删并建议 |
+| | 引用图 | 删词时 AI 提议替换映射表 |
+| | 导入 CSV 后 | 自动 diagnose 重复与空译 |
+| | 跨表 | vocab↔expression 冲突仲裁建议 |
+| **8.6 总览**（战役指挥室） | 热力图 | 质量 × 空课 × error 三维色 |
+| | 战役按钮 | 最差 N / 全部听力缺口 / 发布阻塞项 |
+| | 时间估算 ★ | 按 skill 历史耗时估「约 12 分钟」 |
+| **8.7 校验**（红灯急诊） | 修全部 error | 主 CTA |
+| | 流式队列 | 非模态进度 |
+| | 修后自动 validate | 数字动画 |
+| | 解释 | 每条 error 旁 `/why` |
+| **8.8 发布**（登机口） | Brief 强制展示 | 结构红阻断；黄可跳过但记录 |
+| | 清障队列 | 一键转 JobTray |
+| | 发布说明 | AI 草拟 changelog（人改） |
+| **8.9 工坊**（重工业厂房） | Job Console | 长任务唯一大屏 |
+| | 与主窗 selection 双向 | 导入目标默认当前 section |
+| | Grounded 池 | 可视化覆盖率动画 |
+| | 大附件对话 | 长上下文专区 |
+| **8.10 Git / 设置** | commit/explain | 只读增强 |
+| | Experience 模式光谱 | Observer→Goal |
+| | 技能图谱开关 | 危险 skill 默认关 |
+| | 日预算 / 模型路由可视化 | 成本透明 |
+| | 隐私 | 可关「作者画像」；可清 memory |
 
 ---
 
@@ -496,7 +387,7 @@ Goal → decompose → [SkillCall...] with depends_on
 | 选中空课 | 填充 |
 | validate 出现 error | 修全部 |
 | 保存成功且仍有黄质 | 「是否改善最差课」 |
-| 停留教师模式 &gt; 3min 无操作 | 轻提示「可芯片改题」（可关） |
+| 停留教师模式 > 3min 无操作 | 轻提示「可芯片改题」（可关） |
 | 发布点击 | Brief |
 
 ### 11.2 提案优先级
@@ -530,47 +421,13 @@ P4 风格一致/优化类
 
 ## 13. 分波路线（超级融合版）
 
-### Wave 0 — 中枢骨架（1–2 周）
-
-- Context Bus + Shell（Dock 只读诊断 + Status + JobTray 雏形）  
-- SelectionHub 接线树/教师  
-- 本地 L-local 诊断 &lt;50ms  
-- 退出：打开课即见「健康仪表」
-
-### Wave 1 — 内联共生 L4 起步（2–3 周）
-
-- Ghost 补全（资源 term/translation + 题干）  
-- 教师芯片条 + item skills  
-- ⌘K Palette v1 + intent 规则路由  
-- 校验修全部 + 资源清待补  
-- Patch 细粒度通道  
-- 退出：**不进工坊**完成改题+清校验+清待补
-
-### Wave 2 — 主动与战役 L5（2 周）
-
-- Ambient 提案引擎 + 优先级  
-- 空课一键填充  
-- 总览战役 worst-N  
-- 听力/阅读专项 skill  
-- Focus Ring + ConflictGuard  
-- 退出：半空课→可试做 的操作次数明显下降
-
-### Wave 3 — 目标代理 L6 + 发布（2–3 周）
-
-- Goal Runner + 沙箱 DAG  
-- publish.brief 强制路径  
-- Soft Autopilot 规则安全项  
-- 工坊 = Job Console 一体化  
-- 作者画像（可选）  
-- 退出：一句目标生成多课草稿，人只批 merge/发布
-
-### Wave 4 — 多模态与深度个性化（持续）
-
-- 粘贴大纲→结构、多模态 ingest 建议  
-- 试做联动建议（可关）  
-- 跨课一致性 Agent（敬语/词汇螺旋）  
-- 语音可选、成本路由可视化  
-- 与 Flutter 学情回流（若有日志导出）占位
+| 波次 | 内容 | 退出标准 |
+|------|------|----------|
+| **Wave 0 — 中枢骨架（1–2 周）** | Context Bus + Shell（Dock 只读诊断 + Status + JobTray 雏形）；SelectionHub 接线树/教师；本地 L-local 诊断 <50ms | 打开课即见「健康仪表」 |
+| **Wave 1 — 内联共生 L4 起步（2–3 周）** | Ghost 补全（资源 term/translation + 题干）；教师芯片条 + item skills；⌘K Palette v1 + intent 规则路由；校验修全部 + 资源清待补；Patch 细粒度通道 | **不进工坊**完成改题+清校验+清待补 |
+| **Wave 2 — 主动与战役 L5（2 周）** | Ambient 提案引擎 + 优先级；空课一键填充；总览战役 worst-N；听力/阅读专项 skill；Focus Ring + ConflictGuard | 半空课→可试做 的操作次数明显下降 |
+| **Wave 3 — 目标代理 L6 + 发布（2–3 周）** | Goal Runner + 沙箱 DAG；publish.brief 强制路径；Soft Autopilot 规则安全项；工坊 = Job Console 一体化；作者画像（可选） | 一句目标生成多课草稿，人只批 merge/发布 |
+| **Wave 4 — 多模态与深度个性化（持续）** | 粘贴大纲→结构、多模态 ingest 建议；试做联动建议（可关）；跨课一致性 Agent（敬语/词汇螺旋）；语音可选、成本路由可视化；与 Flutter 学情回流（若有日志导出）占位 | — |
 
 ---
 
@@ -631,11 +488,11 @@ P4 风格一致/优化类
 
 ## 17. Wave 0 开工包（保持可执行）
 
-1. `ExperienceContext` 组装（选中 + validate 计数 + 空课列表 + hygiene）  
-2. 主窗 **Dock**：仪表 + 3 建议（跳转/打开校验/填充空课入口占位）  
-3. **JobTray + StatusStrip** 统一 busy  
-4. 单测三种课态：空/有 error/健康  
-5. 链到 `aiEnhance` 引擎，不复制生成逻辑  
+1. `ExperienceContext` 组装（选中 + validate 计数 + 空课列表 + hygiene）
+2. 主窗 **Dock**：仪表 + 3 建议（跳转/打开校验/填充空课入口占位）
+3. **JobTray + StatusStrip** 统一 busy
+4. 单测三种课态：空/有 error/健康
+5. 链到 `aiEnhance` 引擎，不复制生成逻辑
 6. 可选：一页 ADR「Experience OS 硬护栏」
 
 ---
@@ -669,20 +526,11 @@ P4 风格一致/优化类
 
 ---
 
-## 20. 变更记录
-
-| 日期 | 说明 |
-|------|------|
-| 2026-07-21 | v1：Experience OS 初版 |
-| 2026-07-21 | **v2 超级融合**：L0–L6 深度阶梯；Inline/Ghost/Goal Runner；三层智能与多 Agent 角色；Patch 协议；主动性系统；多模态；扩展技能宇宙与表面地图；指标与风险加强 |
-
----
-
 ## 21. 参考
 
 | 资源 | 路径 |
 |------|------|
-| 引擎与感知 | `tool/gui/docs/ai_configuration_and_features_report.md` |
+| 分层契约与门禁基线 | `tool/gui/docs/ai_refactor_contract.md` |
 | GUI README | `tool/gui/README.md` |
 | 测试基线 | `tool/gui/tests/BASELINE.md` |
 | 课程契约 | `docs/authoring/course-layout.md` |

@@ -36,7 +36,7 @@
 
 **生命周期**：纯内存快照。附件在工坊增删 → 工坊推送新快照 → Shell 注入 → 关课 `set_adapter(None)` 时一并清空（对齐 §12.4 #8「关课清空」检查项）。
 
-**落盘决策**：**不落盘**。理由：① 对齐 C-13「默认零落盘」与 Timeline「默认仅内存」的既有 ADR（§15）；② 附件原文属 §14.5.3「用户未保存的隐私附件原文」，落盘即制造泄密面；③ 快照只是导航/感知元数据，重建成本为零（用户重新拖入即可）。
+**落盘决策**：**不落盘**。① 对齐 C-13「默认零落盘」与 Timeline「默认仅内存」的既有 ADR（§15）；② 附件原文属 §14.5.3「用户未保存的隐私附件原文」，落盘即制造泄密面；③ 快照只是导航/感知元数据，重建成本为零（用户重新拖入即可）。
 
 ## 3. 设计决定二：快照形状（数据契约）
 
@@ -62,12 +62,7 @@ normalize_attachments(raw) -> list[dict]           # 任意输入 → 闭集形�
 format_attachments_line(attachments) -> str        # Dock 一行，如「附件 3 · 2 PDF · 1 图」
 ```
 
-约束（对齐 `workshop_draft.py` 既有约定）：
-
-- 所有值强转（str/int/float），`name` 只取 `os.path.basename`；
-- `preview_hash` 由抽取内容计算，**不**存内容本身；
-- 整个 body 包防御，任何单条损坏不拖垮 rebuild（§14.5.2「quality 计算异常 → 跳过」同款精神）；
-- 列表 cap（建议 ≤50 条），防病态输入。
+约束（对齐 `workshop_draft.py` 既有约定）：所有值强转（str/int/float），`name` 只取 `os.path.basename`；`preview_hash` 由抽取内容计算，**不**存内容本身；整个 body 包防御，任何单条损坏不拖垮 rebuild（§14.5.2「quality 计算异常 → 跳过」同款精神）；列表 cap（建议 ≤50 条），防病态输入。
 
 ### 3.2 注入链路（复制 workshop_draft 模式）
 
@@ -90,11 +85,7 @@ ExperienceContext.attachments                      # 已有占位字段，类型
 
 ### 3.3 原文取用（间接引用）
 
-Context 消费者（未来 skill）需要原文时，**不得**从 Context 取，而是：
-
-```text
-skill 持 ref_id → app 层查当前工坊 AttachmentBar → 取 AttachmentRecord.content
-```
+Context 消费者（未来 skill）需要原文时，**不得**从 Context 取，而是：skill 持 ref_id → app 层查当前工坊 AttachmentBar → 取 `AttachmentRecord.content`。
 
 ref_id 失效（附件已删 / 工坊已关）→ skill 走「无附件」降级路径，**禁止**报错阻塞（§14.5.2 失败安全默认）。本切片没有消费原文的 skill，仅定义此约定供后续（如 M-03 OCR 链、附件感知生成）遵守。
 
@@ -111,11 +102,7 @@ ref_id 失效（附件已删 / 工坊已关）→ skill 走「无附件」降级
 | scope | `{"count": N, "ref_ids": [...][:20]}`——只放 id/计数，**不放 name 以外的任何内容**，name 也仅在 Dock 行展示不进 scope |
 | 入口 | Dock 建议 + ⌘K 斜杠候选 `/attachments`（路由黄金集同步 +1） |
 
-**明确不做**（本切片）：
-
-- 不自动把附件内容喂给 LLM（「能 local 不 LLM」原则 + 费用红线 §14）；
-- 不做 OCR/语音/截图（M-03/M-04/M-05 另行，且各自需独立默认关开关）；
-- 不做「附件 ↔ 课程缺口」的语义匹配（需 LLM，属 E4 后续切片，届时新键默认关）。
+**明确不做**（本切片）：不自动把附件内容喂给 LLM（「能 local 不 LLM」原则 + 费用红线 §14）；不做 OCR/语音/截图（M-03/M-04/M-05 另行，且各自需独立默认关开关）；不做「附件 ↔ 课程缺口」的语义匹配（需 LLM，属 E4 后续切片，届时新键默认关）。
 
 ## 5. 设计决定四：§14.5.3 redaction 规则（核心待定项）
 
@@ -140,15 +127,11 @@ ref_id 失效（附件已删 / 工坊已关）→ skill 走「无附件」降级
 
 ## 6. 与既有契约的一致性检查
 
-### 6.1 设置键
+**6.1 设置键**：**不新增设置键**。附件快照注入是只读感知（非 AI 写、非 LLM、非主动提案），与 `workshop_draft` 同级——后者亦无独立开关。§6.4「新能力默认关」针对的是有侧效应的能力（写树/LLM/自动应用）；纯 Context 字段填充不属于此列。Observer 模式下注入照常（observer 约束的是 AI 行为，不是上下文可见性，§5.2「Observer 不得半关」针对 AI 侧效应）。
 
-**决定**：**不新增设置键**。附件快照注入是只读感知（非 AI 写、非 LLM、非主动提案），与 `workshop_draft` 同级——后者亦无独立开关。§6.4「新能力默认关」针对的是有侧效应的能力（写树/LLM/自动应用）；纯 Context 字段填充不属于此列。Observer 模式下注入照常（observer 约束的是 AI 行为，不是上下文可见性，§5.2「Observer 不得半关」针对 AI 侧效应）。
+**6.2 policy.py**：**不加字段**。本切片无 AI 写、无 LLM、无危险 action；`attachment.open_in_workshop` 是只读导航，`can_dispatch` 现有规则（`needs_confirm=False` 放行）已覆盖。
 
-### 6.2 policy.py
-
-**决定**：**不加字段**。本切片无 AI 写、无 LLM、无危险 action；`attachment.open_in_workshop` 是只读导航，`can_dispatch` 现有规则（`needs_confirm=False` 放行）已覆盖。
-
-### 6.3 测试规划（实施切片时执行）
+**6.3 测试规划（实施切片时执行）**
 
 | 层 | 测试 | 预估用例数 |
 |----|------|-----------|
@@ -159,9 +142,7 @@ ref_id 失效（附件已删 / 工坊已关）→ skill 走「无附件」降级
 
 预估 BASELINE +16 上下；门禁（G9–G16）不受影响，无需新 G 项（无危险面）。
 
-### 6.4 实施步骤预览（本轮不执行）
-
-按 §12.1/§12.2 清单，后续实施切片最小步骤：
+**6.4 实施步骤预览（本轮不执行）**：按 §12.1/§12.2 清单，后续实施切片最小步骤：
 
 1. 新建 `src/backend/experience/attachments.py`（§3.1 四件套）；
 2. `context_bus.py`：`build_experience_context` 加 `attachments=` 参数；`local_suggestions` 加 P2 条目；

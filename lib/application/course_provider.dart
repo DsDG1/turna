@@ -61,7 +61,7 @@ class CourseScopeSwitchException implements Exception {
 /// that inserting a new section/unit/lesson in the middle of the tree
 /// cannot shift the user's view onto a different node.
 ///
-/// The active course is identified by a typed [CourseScope] (plan 34 D1):
+/// The active course is identified by a typed [CourseScope] (ADR 0043):
 /// the built-in language course, one Legacy Anki import, or one Official
 /// Anki source. String scope matching lives only in [CourseScopeCodec] and
 /// the one-time preference migrator — business code compares typed scopes.
@@ -874,8 +874,7 @@ class CourseProvider extends ChangeNotifier {
   }
 
   /// Keep only the sections belonging to the active scope: built-in course
-  /// (everything except ALL Anki sections — legacy and official alike,
-  /// plan 34 R1-2) or exactly one source's sections.
+  /// (everything except ALL Anki sections → legacy and official alike, ADR 0043) or exactly one source's sections.
   List<Section> _applyScopeFilter(List<Section> shells) {
     return [
       for (final s in shells)
@@ -912,7 +911,7 @@ class CourseProvider extends ChangeNotifier {
 
   /// True for every Legacy or Official Anki section regardless of level
   /// tagging — the builtin language course must never show either
-  /// (plan 34 R1-2).
+  /// (ADR 0043).
   static bool _isAnyAnkiSection(Section s) {
     return s.level == 'Anki' ||
         s.level == 'OfficialAnki' ||

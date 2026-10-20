@@ -18,7 +18,7 @@ import 'package:turna/di/injection.dart';
 /// ② `runRetireJob`——worker 幂等执行引擎删除（op 32 按
 ///   `anki_source_cards` 所有权清单分批；缺卡无害）；
 /// ③ 终删账本行（只删 v2 五表中有行的三张）+ 视图重建；
-/// ④ 媒体 GC / VACUUM 走 maintenance job（沿用 doc 41 S5/S7）。
+/// ④ 媒体 GC / VACUUM 走 maintenance job（沿用 ADR 0043）。
 ///
 /// 任何一段强杀 → 重启 `runPending` 由 job 表驱动续跑，source 停在
 /// `retiring` 且修复中心可见——**不产生无主且不可见的卡**。每段幂等。
@@ -164,7 +164,7 @@ class OfficialAnkiV2RetireService {
     }
     await _makeSourceInvisible(sourceId);
 
-    // ④ 字节回收走既有 maintenance job（doc 41 S5/S7 语义）。
+    // ④ 字节回收走既有 maintenance job（ADR 0043 语义）。
     final jobs = OfficialAnkiMaintenanceJobDao(catalog);
     final profileId = source.profileId;
     jobs.enqueue(

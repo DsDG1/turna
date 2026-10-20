@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 
-/// ADR 0041 retired the OHOS *product line*; ADR 0047 authorises a *companion
+/// The retired ADR 0041 ended the OHOS *product line*; ADR 0047 authorises a *companion
 /// lite build* instead. The switch is the presence of `ohos/` itself, so a
 /// partial revert re-arms the EOL branch automatically.
 ///
@@ -544,7 +544,7 @@ flutter:
           reason: 'probe must accept HarmonyOS via the single predicate');
     });
 
-    test('Official native ABI packaging is arm64-only (doc 34 §14.2)', () {
+    test('Official native ABI packaging is arm64-only (ADR 0044)', () {
       final gradle = File('android/app/build.gradle').readAsStringSync();
       // Active abiFilters assignment would conflict with Flutter's
       // --target-platform split; comments documenting that rule are fine.
@@ -585,7 +585,7 @@ flutter:
               .toList()
           : const <String>[];
       expect(abiDirs, everyElement('arm64-v8a'),
-          reason: 'jniLibs must package arm64-v8a only (doc 34 §14.2)');
+          reason: 'jniLibs must package arm64-v8a only (ADR 0044)');
     });
 
     test('companion hap ships the arm64 Anki engine in libs/arm64-v8a', () {
@@ -865,11 +865,9 @@ void _scanFile(File file, Iterable<String> needles, List<String> violations) {
   }
   for (final needle in needles) {
     if (content.contains(needle)) {
-      // ADR / doc 34 may mention the forbidden strings while documenting EOL.
+      // ADR 0047 may mention the forbidden strings while documenting scope.
       final path = file.path.replaceAll('\\', '/');
-      if (path.endsWith('0041-ohos-product-eol.md')) continue;
       if (path.endsWith('0047-ohos-companion-lite-build.md')) continue;
-      if (path.contains('34-official-anki-production-cutover')) continue;
       if (path.contains('ohos_eol_architecture_guard_test.dart')) continue;
       violations.add('$path -> $needle');
     }

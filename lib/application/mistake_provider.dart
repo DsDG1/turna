@@ -166,7 +166,7 @@ class MistakeProvider extends ChangeNotifier {
   int get count => entries.length;
 
   /// Most recent [max] mistakes (FIFO tail — newest last). Used by the
-  /// personalized tutor ([SrsTutorProvider]) to assemble context.
+  /// AI practice source-context builder to assemble learner evidence.
   List<MistakeEntry> recentMistakes({int max = 20}) {
     if (max <= 0) return const <MistakeEntry>[];
     final list = entries;

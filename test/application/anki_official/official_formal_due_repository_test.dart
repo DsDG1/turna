@@ -1,5 +1,4 @@
-// OfficialFormalDueRepository tests (plan 34 R3 / OS-15 + maintainability
-// plan Wave 1): the six-set formula, fail-closed unknowns (never a guessed
+// OfficialFormalDueRepository tests (ADR 0044): the six-set formula, fail-closed unknowns (never a guessed
 // zero), generation-based staleness with CAS commits, and per-source
 // isolation.
 
@@ -82,7 +81,7 @@ void main() {
       placement: {9, 10},
     );
     expect(per.formalDueCount, isNull,
-        reason: 'the count is unknown; 0 would be a guess (plan 34 R3-1)');
+        reason: 'the count is unknown; 0 would be a guess (ADR 0044)');
     expect(per.formalDueCardKeys, isEmpty);
     expect(per.knowledge, FormalDueKnowledge.unknown);
   });

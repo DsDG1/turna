@@ -7,7 +7,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 
-/// Result of a user-initiated database optimize (doc 41 §12.4 forceCompact).
+/// Result of a user-initiated database optimize (ADR 0043 forceCompact).
 class OfficialStorageOptimizeResult {
   const OfficialStorageOptimizeResult({
     required this.ok,

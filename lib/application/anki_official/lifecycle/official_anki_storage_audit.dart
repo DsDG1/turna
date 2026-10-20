@@ -6,7 +6,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-/// Read-only storage census (doc 41 S0). Receipts contain only ids, hashes,
+/// Read-only storage census (ADR 0043). Receipts contain only ids, hashes,
 /// counts, bytes, phases and error codes.
 class OfficialAnkiStorageAudit {
   const OfficialAnkiStorageAudit();

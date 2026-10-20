@@ -122,7 +122,7 @@ class OfficialAnkiCapabilityMatrix {
       case 'linux':
       case 'macos':
         // Host FFI may exist for tests; product Anki remains unavailable and
-        // must not open a Legacy writer (doc 34 platform matrix).
+        // must not open a Legacy writer (platform matrix, ADR 0050).
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: true,

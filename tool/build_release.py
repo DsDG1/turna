@@ -167,7 +167,7 @@ def assert_native_in_artifact(artifact: Path) -> None:
     if other_abis:
         print(
             f"error: {artifact.name} contains extra JNI ABI dirs {other_abis} "
-            "without a matching Official Anki .so policy (doc 34 §14.2: "
+            "without a matching Official Anki .so policy (ADR 0044: "
             "arm64-v8a only). Do not ship a fat APK that installs on ABIs "
             "where libturna_anki.so is missing.",
             file=sys.stderr,

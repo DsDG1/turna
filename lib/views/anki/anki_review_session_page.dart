@@ -343,8 +343,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     // a separate ability and covers this page, so Flutter stops producing
     // frames while it is up: the stage that would present the first card is
     // never built, and the learner was left on an empty reviewer until the
-    // 60 s idle deadline closed it (device, 2026-10-18; doc 34 records the
-    // same "waiting for a frame" root cause). Opening it after the batch keeps
+    // 60 s idle deadline closed it (真机记录；ADR 0050 记下了同一个 "waiting for a frame" 根因). Opening it after the batch keeps
     // the frame that presents card 1.
     final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;
     final OfficialFormalReviewLoadResult? loadResult;
@@ -404,7 +403,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
           resolver: StudyLedgerResolver(official: readyBatch.ledger),
           onEffects: (item, receipt) async {
             StudyProductAnalytics.instance.record(receipt);
-            // Live scheduler contract (plan 34 D4): every committed answer
+            // Live scheduler contract (ADR 0044): every committed answer
             // rebuilds the batch from the refreshed queue, so learning
             // reinsertion and cross-day reordering reach the page.
             await liveQueue?.rebuildFromLiveQueue();
@@ -939,7 +938,7 @@ class _AnkiStudySessionView extends StatelessWidget {
   final OfficialReviewSession? officialSession;
 
   /// Live queue driver for official owners; mutations (bury/suspend) refresh
-  /// the batch through it (plan 34 D4).
+  /// the batch through it (ADR 0044).
   final OfficialFormalReviewLiveQueue? liveQueue;
 
   /// Wave 2 §8.3: retries the blocked current card in the same session.

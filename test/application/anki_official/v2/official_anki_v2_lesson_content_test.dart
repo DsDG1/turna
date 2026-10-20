@@ -21,9 +21,9 @@ import 'package:turna/domain/course/interaction.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
-/// step4.md B6 第 5 读挂点（真机 F6）：v2 课时正文派生自卡。
+/// ADR 0043 B6 第 5 读挂点（真机 F6）：v2 课时正文派生自卡。
 ///
-/// 上夜教训（v2-first-device-findings.md §四）：host 测试必须覆盖用户流
+/// 上夜教训（ADR 0044）：host 测试必须覆盖用户流
 /// ——本文件的核心断言不是「派生出了东西」，而是「派生出的 interaction
 /// 能被复习链解析回正确的卡」（答题↔卡联动）+ 零写入纪律。
 void main() {

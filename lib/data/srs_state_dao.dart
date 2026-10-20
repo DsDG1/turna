@@ -154,7 +154,7 @@ class SrsStateDao implements ISrsStateStore {
   /// to those that have been reviewed at least once. Optional [since]
   /// narrows to rows reviewed on/after the given instant; optional
   /// [languageCode] keeps other languages out of the tutor context. Used
-  /// by the personalized tutor ([SrsTutorProvider]) to assemble context.
+  /// by the AI practice source-context builder to assemble learner evidence.
   @override
   Future<List<SrsWord>> recentReviews({
     String queue = 'srs',

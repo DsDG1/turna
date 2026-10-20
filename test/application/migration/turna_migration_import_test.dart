@@ -1,4 +1,4 @@
-// turna-migration-v1 import tests (plan 34 §R7 / OS-22): export → import
+// turna-migration-v1 import tests (ADR 0043): export → import
 // round-trip, checksum tampering, zip-slip, schema-too-new and the
 // legacy-ignore disposition — imported Anki rows are ignored entirely
 // (v1 retired, Step 6).
@@ -88,7 +88,7 @@ void main() {
     expect(result.applied, isTrue);
     expect(result.legacyIgnoredImports, ['legacy-imp-1']);
     // The LIVE legacy tables stay empty — the v1 scheduler is gone and the
-    // import must never resurrect it (plan 34 §R7-3 / Step 6).
+    // import must never resurrect it (ADR 0043).
     // The target had no anki imports before and must still have none.
     final liveImports = await target
         .customSelect(

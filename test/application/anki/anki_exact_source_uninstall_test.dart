@@ -1,4 +1,4 @@
-// Exact-source identity tests (plan 34 R1-1/R1-7): section-id parsing must
+// Exact-source identity tests (ADR 0043): section-id parsing must
 // recover the COMPLETE sourceId — `split('-').first` style truncation
 // turned every official source into the bogus `src`, breaking switching,
 // ordering and uninstall precision.

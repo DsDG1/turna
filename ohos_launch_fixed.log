@@ -51630,7 +51630,9 @@
 10-20 20:00:50.306  1621  4167 E C01550/fusion_host/bt_vendor: p_evt_buf->len less than hci evt cmd cmpl min is 4.
 10-20 20:00:50.318  4022 25088 I C00104/bluetooth_service/Bluetooth: [18]A2dpGetRssi g_currentRssi :-53, peerAddr: 00:00:**:**:**:00
 10-20 20:00:50.318  4022 25088 I C00104/bluetooth_service/Bluetooth: [3]ReadRssiTransferToUpper 4321
-10-20 20:00:50.318  4022 25088 E C00102/bluetooth_service/hw_btif_if: ### ASSERT : <private> line <private> <private> (<private>) ###
+10-20 20:00:50.318  4022 25088 E C00102/bluetooth_service/hw_btif_if: 
+#
+## ASSERT : <private> line <private> <private> (<private>) ###
 10-20 20:00:50.318  4022 25088 W C00104/bluetooth_service/hw_bt_hci: [18]btu_hcif_log_event_metrics: incoming connection bda a8:6e:**:**:**:52 cod 0x240404 link_type 1
 10-20 20:00:50.318  4022 25088 W C00104/bluetooth_service/hw_bt_hci: [18]btu_hcif_connection_request_evt: incoming connection bda a8:6e:**:**:**:52 cod 0x240404 link_type 1
 10-20 20:00:50.325  4022 25088 I C00104/bluetooth_service/bt_l2cap: [18]l2c_link_hci_conn_req: addr=a8:6e:**:**:**:52
@@ -52261,7 +52263,9 @@
 10-20 20:00:50.782  4022 25090 I C00104/bluetooth_service/Bluetooth: [3]HwTwsReportUuidToUpper 1234
 10-20 20:00:50.782  4022 25090 I C00104/bluetooth_service/bt_btif: [3]HwTwsReportUuidToUpper: HAL bt_hal_cbacks->remote_device_properties_cb
 10-20 20:00:50.782  4022 25089 I C00104/bluetooth_service/Bluetooth: [3]HwBtifMediaPreemptCapCallback 4321
-10-20 20:00:50.782  4022 25089 E C00102/bluetooth_service/hw_btif_if: ### ASSERT : <private> line <private> <private> (<private>) ###
+10-20 20:00:50.782  4022 25089 E C00102/bluetooth_service/hw_btif_if: 
+#
+## ASSERT : <private> line <private> <private> (<private>) ###
 10-20 20:00:50.782  4022 25094 I C00102/bluetooth_service/bt_service_adapter_properties: [5](ParseDeviceUuid)uuid_0: 00001203-0000-1000-8000-00805F9B34FB
 10-20 20:00:50.782  4022 25094 I C00102/bluetooth_service/bt_service_adapter_properties: [5](ParseDeviceUuid)uuid_1: 00001108-0000-1000-8000-00805F9B34FB
 10-20 20:00:50.782  4022 25094 I C00102/bluetooth_service/bt_service_adapter_properties: [5](ParseDeviceUuid)uuid_2: 00001112-0000-1000-8000-00805F9B34FB

@@ -7,12 +7,11 @@
 # worktree on every run. The default therefore lands in build/ (gitignored);
 # override with OFFICIAL_ANKI_HASH_OUT.
 #
-# The 2026-10-19 docs cleanup removed the old default
-# (docs/official-anki-migration/artifacts/p4r2/...) because that directory was
-# moved into docs/official-anki-migration/archive/artifacts/ on 2026-09-27 and
-# the path was never updated. The historical snapshot at
-# docs/official-anki-migration/archive/artifacts/p4r2/native-hash-manifest.txt
-# is deliberately left untouched — this script must not overwrite it.
+# The docs cleanup removed the old default (docs/official-anki-migration/
+# artifacts/p4r2/...) and its archived snapshot: both were version-controlled
+# paths for a build artifact, and the archived copy was a dead pointer anyway.
+# Output now only ever lands in build/ (gitignored) or wherever
+# OFFICIAL_ANKI_HASH_OUT points.
 set -euo pipefail
 
 project="$(cd "$(dirname "$0")/.." && pwd)"

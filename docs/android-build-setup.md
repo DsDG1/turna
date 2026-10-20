@@ -1,6 +1,6 @@
 # Android 构建说明
 
-> 本项目使用**官方 Flutter SDK**，主力产品平台为 **Android**。OHOS / OpenHarmony **产品级**支持已退役（见 [ADR 0041](./decisions/0041-ohos-product-eol.md) 与 [doc 34](./official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md)），但存在**不进主交付**的伴生轻量版（[ADR 0047](./decisions/0047-ohos-companion-lite-build.md)）。**本页只讲 Android**；伴生版的 fork SDK 与 `flutter build hap` 口径见 [AGENTS.md](../AGENTS.md) §9.1 与 ADR 0047，**两者不可混用**。
+> 本项目使用**官方 Flutter SDK**，主力产品平台为 **Android**。鸿蒙的**产品级**支持已退役，但存在**不进主交付**的伴生轻量版（[ADR 0047](./decisions/0047-ohos-companion-lite-build.md)）。三层口径（产品级 / 伴生版 / Official Anki）与 Hold 项见 [`status.md`](./status.md) §6。**本页只讲 Android**；伴生版的 fork SDK 与 `flutter build hap` 口径见 [AGENTS.md](../AGENTS.md) §9.1 与 ADR 0047，**两者不可混用**。
 >
 > 维护者快速入口：构建报错时先看 [常见错误速查](#常见错误速查)。
 
@@ -15,7 +15,7 @@
 flutter pub get
 # 3. 构建
 flutter build apk --debug
-# 4. 发布 APK 仅 arm64（Official native，doc 34 §14.2）
+# 4. 发布 APK 仅 arm64（Official native，ADR 0044）
 flutter build apk --release --split-per-abi --target-platform android-arm64
 ```
 
@@ -87,36 +87,31 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ## 与 OHOS 伴生版的关系
 
-> **2026-10-07 订正本节**：原文写「仓库不再包含 `ohos/` 产品 target」，自
-> [ADR 0047](./decisions/0047-ohos-companion-lite-build.md)（提交 `8ab24246`）起**已失真**——
-> `ohos/` 作为伴生版存在。原文逐字保留在下方括号内，读的时候以本节正文为准。
+`ohos/` 目录在仓库里存在，它是**伴生版**的产品 target（[ADR 0047](./decisions/0047-ohos-companion-lite-build.md)）。它是 Android 构建的一部分，但**不随正式版发布**，也不进主 CI。
 
-**仍然成立的三条：**
+**成立的三条：**
 
 - 不引入 OHOS fork 补丁工具链（补丁脚本与补丁目录，ADR 0047 §2 第 6 条点名的那两个
   路径）保持删除，伴生版走预编译 SDK 路线。
 - 伴生版**要求** HarmonyOS Flutter fork，但**不要求**对 pub cache / Flutter SDK 打外部补丁
   （自维护的两处 Flutter 侧移植都在仓库内、受版本控制、由门禁断言，见 ADR 0047 §7）。
 - 残留 OHOS 安装的数据出口见 `lib/application/migration/turna_migration_export.dart`
-  （`turna-migration-v1`）与 ADR 0041。
+  （`turna-migration-v1`）与 [ADR 0050](./decisions/0050-ohos-official-anki.md)。
 
-**已不成立的一条：** ~~仓库不再包含 `ohos/` 产品 target 或 OHOS fork 补丁目录/脚本。~~
-`ohos/` 与 5 条钉 ref 的社区 fork override 已随伴生版恢复（清单见 ADR 0047 §6），
+`ohos/` 与 5 条钉 ref 的社区 fork override 随伴生版存在（清单见 ADR 0047 §6），
 受 `ohos_eol_architecture_guard_test.dart` 的 override ratchet 约束。
 
-**依赖排查提示更正：** 上表「`file_picker` / notifications 行为异常 → 确认 `pubspec.yaml`
+**依赖排查提示：** 上表「`file_picker` / notifications 行为异常 → 确认 `pubspec.yaml`
 **无** OHOS community Git `dependency_overrides`」这条在伴生树下**会误导**——
 `shared_preferences` / `path_provider` / `url_launcher` / `package_info_plus` /
 `share_plus` 五条 override 是伴生版的**预期状态**。Android 侧遇到插件行为异常时，
 应改查 `flutter --version` 确认当前用的是官方 SDK 而非 fork。
 
-**Official Anki 的鸿蒙口径：** 引擎层已在鸿蒙真机验证可行（[ADR 0046](./decisions/0046-ohos-anki-core-probe.md)），
-全档接线已授权（[ADR 0050](./decisions/0050-ohos-official-anki.md)）且**接线步 0–5b 已施工**
-（步 0–4：2026-10-08 真机收据覆盖引擎 dlopen / 内存 SQLite / 平台路由 / 降级拆除，导入入口已开放；
-步 5b：2026-10-14 夜真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进全链路走通，见
-[34 收据](./official-anki-migration/34-cutover-receipt.md)「鸿蒙步 5b 真机首卡收据」）；
-余项为真机导入、课程学习解锁与遗留打磨项。
-**步 6 独立 CI 未做**，明细见 ADR 0050 §6。
+**Official Anki 的鸿蒙口径：** 引擎层已在鸿蒙真机验证可行，全档接线已授权
+（[ADR 0050](./decisions/0050-ohos-official-anki.md)）且**接线步 0–5b 已施工**
+——真机首卡全链路（渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复）已走通；
+余项为真机导入、课程学习解锁与步 6 独立 CI 首跑收据。
+当前口径与 Hold 项见 [`status.md`](./status.md) §6。
 本页的 arm64-only ABI 约束目前只约束 Android 产物（鸿蒙伴生版另有一份提交进
 `ohos/entry/libs/arm64-v8a/` 的 `.so`，由 `ohos_eol_architecture_guard_test.dart` 断言）。
 
@@ -128,7 +123,7 @@ Official native (`libturna_anki.so`) is packaged for **arm64-v8a** only:
 flutter build apk --release --split-per-abi --target-platform android-arm64
 ```
 
-Do not ship a fat multi-ABI APK that claims other ABIs without matching `libturna_anki.so` (doc 34 §14.2 — fail closed, never Legacy fallback).
+Do not ship a fat multi-ABI APK that claims other ABIs without matching `libturna_anki.so` (ADR 0044 — fail closed, never Legacy fallback).
 
 ### Remaining dart-defines
 
@@ -141,4 +136,4 @@ Production Official capabilities are **not** toggled per-feature. `OfficialAnkiF
 | `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS` | `false` | Reviewer diagnostics |
 | `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER` | `false` | Course answers write Official scheduler |
 
-Do not pass `TURNA_OFFICIAL_ANKI_ENGINE` / `IMPORT` / `GRAY_COHORT` / `OFFICIAL_FIRST_IMPORT` — those dart-defines were collapsed (doc 34 C4).
+Do not pass `TURNA_OFFICIAL_ANKI_ENGINE` / `IMPORT` / `GRAY_COHORT` / `OFFICIAL_FIRST_IMPORT` — those dart-defines were collapsed (ADR 0043).

@@ -14,7 +14,7 @@ import 'package:turna/di/injection.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
-/// step4.md B6：读面分叉——flag 关 = v1 原样（零回归），flag 开 = 视图供
+/// ADR 0043 B6：读面分叉——flag 关 = v1 原样（零回归），flag 开 = 视图供
 /// 课程树 / 复习链课时→卡映射。挂载点 = `OfficialAnkiLessonCardIndex`
 /// （复习链 P0 单源，复习页/练习中心真实消费的解析面）。
 void main() {

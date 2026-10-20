@@ -26,7 +26,7 @@
 
 | 决策点 | 决定 | 理由 |
 |--------|------|------|
-| 粒度 | section 级 | 「后续课」语义只在同 section 内成立（词库 `section.words` 是 section 范围）；跨 section 词汇重叠属 K-03 `compare_sections` 域，不混入 |
+| 粒度 | section 级 | 「后续课」语义只在同 section 内成立（词库 `section.words` 是 section 范围）；跨 section 词汇重叠属 K-03 `compare_sections` 域 |
 | 引入定义 | 最早出现 `showWord` 引用某 word_id 的课（按 unit→lesson 序） | `showWord` 是「首次呈现」，唯一合适的引入信号 |
 | 复现定义 | 引入课**之后**任一非-`showWord` 练习命中该词（显式 `wordId`/`wordIds`/`correctWordIds` 或 term echo 于 options/expected/source/prompt） | 复用 `content_quality._count_practice_hits_for_words` 的 term-echo 启发式，不复制统计逻辑 |
 | 同课练习 | **不算**后续复现 | 同一课内的 MCQ 视为「首次呈现的一部分」而非螺旋回环；须严格「更靠后的课」 |
@@ -89,15 +89,11 @@ QMessageBox.question 确认（列前 12 个未复现词 + 引入课）
 
 ## 6. 与既有契约的一致性检查
 
-### 6.1 设置键
+**6.1 设置键**：**不新增设置键**。K-08 是「确认后写」技能（非自动应用、非 LLM ghost、非 Soft autopilot），与 K-07 `lesson.balance` 同级——后者亦无独立开关。§6.4「新能力默认关」针对有静默侧效应的能力；经人确认闸的写操作不在列。Observer 模式下经 `can_dispatch` 拒绝（`needs_confirm=True` 写 action，observer 零 AI 写）。
 
-**决定**：**不新增设置键**。K-08 是「确认后写」技能（非自动应用、非 LLM ghost、非 Soft autopilot），与 K-07 `lesson.balance` 同级——后者亦无独立开关。§6.4「新能力默认关」针对有静默侧效应的能力；经人确认闸的写操作不在列。Observer 模式下经 `can_dispatch` 拒绝（`needs_confirm=True` 写 action，observer 零 AI 写）。
+**6.2 policy.py**：**不加字段**。无危险 action、无新默认开关；`can_dispatch` 现有规则覆盖（`needs_confirm=True` + observer 零 AI 写 + M-08 预算闸）。
 
-### 6.2 policy.py
-
-**决定**：**不加字段**。无危险 action、无新默认开关；`can_dispatch` 现有规则覆盖（`needs_confirm=True` + observer 零 AI 写 + M-08 预算闸）。
-
-### 6.3 红线（对齐 §6.2 / §14.5）
+**6.3 红线（对齐 §6.2 / §14.5）**
 
 | 红线 | 落地 |
 |------|------|
@@ -108,16 +104,7 @@ QMessageBox.question 确认（列前 12 个未复现词 + 引入课）
 | redaction | Context 字段/scope 闭集，无题目原文 |
 | 失败安全 | 评估器永不抛；挂死路径走 statusBar 不模态（offscreen QMessageBox 经测试 patch） |
 
-### 6.4 测试（已执行）
-
-| 层 | 测试 | 数 |
-|----|------|----|
-| 评估器 | 空/无词/有复现/无复现/同课练习不算/term echo/跨 unit/闭集无原文 | 8 |
-| Context | 建议仅在有缺口时产出 / scope 闭集 / 健康无建议 | 2 |
-| 路由 | `/spiral` 精确 / 关键词 / 黄金集 +1 | 3 |
-| 契约 | needs_confirm 非 dangerous | 1 |
-| 派发 | 无 course_dir / 健康 / 确认跑 worker+instruction / 拒绝计 rejected / Guard busy / diff cancel / scope 回推 | 7 |
-| **合计** | | **21** |
+**6.4 测试（已执行）**：评估器 8（空/无词/有复现/无复现/同课练习不算/term echo/跨 unit/闭集无原文）、Context 2（建议仅在有缺口时产出 / scope 闭集 / 健康无建议）、路由 3（`/spiral` 精确 / 关键词 / 黄金集 +1）、契约 1（needs_confirm 非 dangerous）、派发 7（无 course_dir / 健康 / 确认跑 worker+instruction / 拒绝计 rejected / Guard busy / diff cancel / scope 回推），**合计 21**。
 
 实测：1674 → **1695**（+21），全量 336s 绿（skipped=3），门禁 32/32 不变。
 

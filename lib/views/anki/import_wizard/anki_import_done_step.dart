@@ -6,8 +6,7 @@ import 'package:turna/core/theme.dart';
 
 /// Done step (maintainability plan §10.5): renders the unified
 /// [AnkiImportSummary] and the completion actions. "完成" pops without
-/// switching courses; "立即学习" is the ONLY action that switches (plan 34
-/// R1-4) — both are forwarded as page-level intents.
+/// switching courses; "立即学习" is the ONLY action that switches (ADR 0043) — both are forwarded as page-level intents.
 class AnkiImportDoneStep extends StatelessWidget {
   const AnkiImportDoneStep({
     super.key,
@@ -139,7 +138,7 @@ class AnkiImportDoneStep extends StatelessWidget {
             const SizedBox(height: 8),
             // Secondary action: open course management with the new course
             // highlighted (switch / reorder / inspect) — a distinct
-            // destination from "Done", which simply returns (plan 34 R1-4).
+            // destination from "Done", which simply returns (ADR 0043).
             OutlinedButton.icon(
               onPressed: onViewDecks,
               icon: const Icon(Icons.list_alt_rounded, size: 18),

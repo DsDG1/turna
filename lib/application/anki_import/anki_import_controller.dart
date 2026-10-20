@@ -25,7 +25,7 @@ import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
 /// File extensions accepted by the Anki import wizard.
-/// `.colpkg` is picked and routes to human guidance (doc 34 W4-08).
+/// `.colpkg` is picked and routes to human guidance (ADR 0043).
 const List<String> kAnkiImportExtensions = ['apkg', 'colpkg'];
 
 /// Wizard state-machine owner (maintainability plan §10.1/§10.2).
@@ -46,7 +46,7 @@ class AnkiImportController extends ChangeNotifier {
   AnkiImportWizardState _state = const AnkiImportSelecting();
   AnkiImportWizardState get state => _state;
 
-  /// The pick-time plan frozen for the whole flow (doc 34 W0-03). Null
+  /// The pick-time plan frozen for the whole flow (ADR 0043). Null
   /// outside parse/preview/commit.
   AnkiImportExecutionPlan? get plan => switch (_state) {
         AnkiImportPreviewing(:final preview) => preview.plan,
@@ -116,7 +116,7 @@ class AnkiImportController extends ChangeNotifier {
   }
 
   /// Entry for a concrete path (picker or tests). Computes the ONE
-  /// atomic plan for the whole import (doc 34 W0) and dispatches to the
+  /// atomic plan for the whole import (ADR 0043) and dispatches to the
   /// official-first saga. Unsupported / fail-closed plans produce zero
   /// sources and return to Selecting with the mapped error.
   Future<void> proceedWithPath(String path) =>

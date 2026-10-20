@@ -18,7 +18,7 @@ import 'package:turna/data/course_database.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
-/// step4.md B1+B2：v2 导入链全流程 + **零写入守卫**。
+/// ADR 0043：v2 导入链全流程 + **零写入守卫**。
 ///
 /// 守卫两层：
 /// 1. catalog 侧 statement 级——sqlite3 `updates` 钩子记录每一次

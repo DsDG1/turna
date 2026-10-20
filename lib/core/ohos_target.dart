@@ -30,7 +30,7 @@ bool get isHarmonyOsTarget => defaultTargetPlatform.name == 'ohos';
 ///   1. The shared catalog (`OfficialAnkiDatabase`) is a `sqlite3` FFI database
 ///      and the platform ships no `libsqlite3.so`, so it cannot be opened.
 ///   2. The engine itself is **not** blocked — its SQLite is `bundled` and
-///      statically linked into `libturna_anki.so`, verified on device (ADR 0046).
+///      statically linked into `libturna_anki.so`, verified on device (ADR 0050).
 ///      What is missing is packaging, the catalog override, and the ArkTS
 ///      reviewer. ADR 0050 authorises all of them; this entry is removed by the
 ///      wiring batch, not before.

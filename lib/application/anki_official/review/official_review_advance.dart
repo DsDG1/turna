@@ -9,7 +9,7 @@ import 'package:turna/domain/review/recall_outcome.dart';
 
 /// Moves the controller to the scheduler's current card.
 ///
-/// Live scheduler contract (plan 34 D4): after every committed mutation the
+/// Live scheduler contract (ADR 0044): after every committed mutation the
 /// next card is the scheduler's refreshed [OfficialReviewSession.current] —
 /// never index+1 over a batch list that just shrank or reordered.
 ///

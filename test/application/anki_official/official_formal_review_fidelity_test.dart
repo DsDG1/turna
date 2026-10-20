@@ -1,4 +1,4 @@
-// Official formal-review fidelity tests (plan 34 R2-1 / OS-11): rendered
+// Official formal-review fidelity tests (ADR 0044): rendered
 // HTML with markup must become FidelityCardPresentation — stripping rich
 // HTML into a flip card is not an accepted downgrade. Plain-text cards
 // stay flip. Typed answers and CSS ride along with the fidelity face.

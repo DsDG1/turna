@@ -51,7 +51,7 @@ class OfficialAnkiV2CommitResult {
   final bool includeMedia;
 }
 
-/// v2 导入链的发布段（step4.md B1+B2）：staging/preview 与 v1 共用
+/// v2 导入链的发布段（ADR 0043）：staging/preview 与 v1 共用
 /// （saga.startStaging 只写 sources/attempts 两张账本表），提交段整体
 /// 由本服务接管——
 ///

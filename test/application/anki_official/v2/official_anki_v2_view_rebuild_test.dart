@@ -16,7 +16,7 @@ import 'package:turna/data/course_database.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
-/// step4.md B3：视图 DROP+REBUILD 的幂等 / 取消 / 占位 / retiring 排除。
+/// ADR 0043：视图 DROP+REBUILD 的幂等 / 取消 / 占位 / retiring 排除。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();

@@ -66,7 +66,7 @@ Turna 的高级设置是一个四入口的中枢页（AI 连接 / 存储与性�
 
 `SystemHealthMonitor` 在应用启动时安装，直接监听 `LogCapture` 的全局日志流，不依赖用户打开透明度报告。状态通过本机偏好持久化。
 
-> 本节口径 = ADR 0040（`docs/decisions/0040-system-health-state-machine.md`，2026-08-24）。旧的「累计扣分 + 强制跳转 + 锁页」模型已整体废弃，下文不再描述。
+> 本节口径 = ADR 0040（[`decisions/0040-system-health-state-machine.md`](./decisions/0040-system-health-state-machine.md)）。状态机取代了旧的「累计扣分 + 强制跳转 + 锁页」模型，下文只描述状态机。
 
 ### 状态机
 

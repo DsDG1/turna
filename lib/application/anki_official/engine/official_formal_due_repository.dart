@@ -8,7 +8,7 @@ import 'package:turna/application/anki_official/engine/official_formal_due_updat
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
-/// How much a due number can be trusted (plan 34 D6 / R3-1).
+/// How much a due number can be trusted (ADR 0044).
 enum FormalDueKnowledge {
   /// The six sets were read successfully — the count is exact.
   known,
@@ -22,7 +22,7 @@ enum FormalDueKnowledge {
   unavailable,
 }
 
-/// The six formal-due sets for one Official source (plan 34 §R3).
+/// The six formal-due sets for one Official source (ADR 0044).
 ///
 /// The membership formula is `schedulerDue ∩ activePlacement − suspended
 /// − buried − retired`. The subtraction terms are load-bearing: Anki's
@@ -79,14 +79,14 @@ class OfficialFormalDuePerSource {
   }
 
   /// Exact count; `null` when unknown — never a guessed zero and never a
-  /// schedulerDue fallback (plan 34 R3-1).
+  /// schedulerDue fallback (ADR 0044).
   int? get formalDueCount =>
       knowledge == FormalDueKnowledge.known ? formalDueCardKeys.length : null;
 }
 
 /// Immutable snapshot of every source's due state plus sync-level health.
 /// Carries a generation so a late async refresh can detect it is stale and
-/// drop its result instead of overwriting newer data (plan 34 R3-3).
+/// drop its result instead of overwriting newer data (ADR 0044).
 @immutable
 class OfficialFormalDueSnapshot {
   const OfficialFormalDueSnapshot({
@@ -165,8 +165,7 @@ enum OfficialFormalDueCommitResult {
   missingSource,
 }
 
-/// The single production writer for Official formal-due state (plan 34 D6,
-/// maintainability plan Wave 1).
+/// The single production writer for Official formal-due state (ADR 0044).
 ///
 /// Home, Play Hub, Profile, Review All and Stats read [snapshot]; the ONLY
 /// way state changes is one atomic [commit] of a complete

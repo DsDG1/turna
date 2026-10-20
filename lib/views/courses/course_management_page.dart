@@ -38,7 +38,7 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// points.
 ///
 /// [highlightWire] briefly highlights one catalog entry (v1 scope wire key)
-/// — used by the import wizard's "view decks" action (plan 34 R1-4).
+/// — used by the import wizard's "view decks" action (ADR 0043).
 @RoutePage()
 class CourseManagementPage extends StatelessWidget {
   const CourseManagementPage({super.key, this.highlightWire});
@@ -418,7 +418,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     BuildContext context,
     CourseCatalogEntry entry,
   ) async {
-    // Exact-source confirmation (plan 34 R1-7): display name, short source
+    // Exact-source confirmation (ADR 0043): display name, short source
     // id and card count, so deleting one source can never be confused with
     // a sibling sharing the `src-` prefix.
     final bool isBuiltin = entry.isBuiltin;

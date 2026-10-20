@@ -464,7 +464,7 @@ CREATE TABLE IF NOT EXISTS anki_cleanup_receipts (
     );
   }
 
-  /// ADR 0043 D4 / step4.md B2: the v2 ledger. Sources record which chain
+  /// ADR 0043 D4 / ADR 0043: the v2 ledger. Sources record which chain
   /// imported them ('v1' | 'v2') so the read path can serve both
   /// generations, and attempts absorb the receipt that v1 kept in the
   /// `anki_import_attempt_notes` side table (note ids + scope + pre-import

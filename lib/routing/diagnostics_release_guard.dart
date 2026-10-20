@@ -2,12 +2,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:turna/routing/routing.gr.dart';
 
-/// Release gate for internal / diagnostics routes (plan 34 R8-1).
+/// Release gate for internal / diagnostics routes (ADR 0043).
 ///
 /// Official-Anki reviewer and source-management pages stay flag-gated
 /// diagnostics surfaces. The mapping page is a product import step
 /// (doc 42 P2) and the repair center is a product storage surface
-/// (doc 41 S8); neither is in [guardedRouteNames].
+/// (ADR 0043); neither is in [guardedRouteNames].
 ///
 /// Diagnostics builds opt in explicitly via the
 /// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` dart-define.

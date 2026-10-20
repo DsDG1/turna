@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-/// Turna 配置区命名空间（ADR 0043 D2 / step3.md op 42 语义）：
+/// Turna 配置区命名空间（ADR 0043 D2 / ADR 0043 语义）：
 /// 写侧强制 `turna.` 前缀，值恒为 JSON object，`null` = 删除。
 ///
-/// v2 决策键清单（step4.md B1/B6）：
+/// v2 决策键清单（ADR 0043）：
 /// - `turna.import.mapping.<sourceId>`   字段映射晋升决策
 /// - `turna.course.placement.<deckId>`   牌组→课程放置决策
 /// - `turna.course.scope`                课程 scope 选择（B6：切换=改一个键）

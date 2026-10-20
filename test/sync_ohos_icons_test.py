@@ -39,7 +39,7 @@ class CommittedIconTests(unittest.TestCase):
         if not sync_ohos_icons.SOURCE.exists():
             raise unittest.SkipTest("brand source render is missing")
         if not sync_ohos_icons.TARGETS[0].exists():
-            raise unittest.SkipTest("ohos/ is absent; ADR 0041 retired it")
+            raise unittest.SkipTest("ohos/ is absent; the product line was retired")
         cls.generated = sync_ohos_icons.build_icon()
 
     def test_targets_exist(self) -> None:

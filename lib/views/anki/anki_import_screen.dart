@@ -434,7 +434,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   /// "Start learning now": switch to the freshly-imported course and pop
   /// back to the Learn tab. This is the ONLY done action that switches
-  /// the active course (plan 34 R1-4).
+  /// the active course (ADR 0043).
   Future<void> _startLearningNow(AnkiImportController controller) async {
     final importId = controllerCompletedImportId(controller);
     if (importId != null) {

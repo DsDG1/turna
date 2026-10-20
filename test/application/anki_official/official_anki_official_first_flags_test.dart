@@ -17,7 +17,7 @@ void main() {
   test('p5f_official_first_import_defaults_on_for_production', () {
     final env = OfficialAnkiFeatureFlags.fromEnvironment();
     expect(env.officialFirstImport, isTrue,
-        reason: 'doc 34: Official-first is the Android production default');
+        reason: 'Official-first is the Android production default (ADR 0043)');
     expect(env.allowsOfficialFirstImport, isTrue);
     expect(env.allowsOfficialScheduler, isTrue);
     expect(env.courseGradesScheduler, isFalse);

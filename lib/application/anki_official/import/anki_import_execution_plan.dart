@@ -3,7 +3,7 @@ import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
-/// Product-level Anki mode for the running build (doc 34 W0).
+/// Product-level Anki mode for the running build (ADR 0043).
 ///
 /// Legacy is not a product mode for new imports — it remains a migration
 /// read path only. Production is either Official (Android / iOS) or Anki
@@ -91,7 +91,7 @@ class AnkiImportExecutionPlan {
   bool get persistedOwnerIsOfficial => owner == AnkiImportOwner.official;
 }
 
-/// Single resolver for product mode + import execution plan (doc 34 W0).
+/// Single resolver for product mode + import execution plan (ADR 0043).
 ///
 /// Invariants:
 /// - `actual writer == persisted owner == review route owner` for any plan

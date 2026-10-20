@@ -52,6 +52,6 @@ Android 应用配置已入库：`android/app/google-services.json`、`lib/fireba
 
 ## 限制
 
-- 产物仅 **arm64-v8a**（与 `build_release.py` / doc 34 §14.2 一致）。
+- 产物仅 **arm64-v8a**（与 `build_release.py` / ADR 0044 一致）。
 - 应用侧已接 `firebase_core` + `lib/firebase_options.dart`（仅 Android）。未加 Analytics / App Distribution 客户端 SDK；测试员用 **App Tester** 安装分发 APK。
 - 首次上传前必须已配置 `FIREBASE_SERVICE_ACCOUNT`、tester 组 `testers`（或 dispatch 时改 `groups`），否则 upload step 会失败。

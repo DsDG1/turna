@@ -12,7 +12,7 @@ import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
 
-/// One selectable course in the course catalog (plan 34 D2).
+/// One selectable course in the course catalog (ADR 0043).
 ///
 /// Entries are built from the source catalog — never by reverse-parsing
 /// section ids — so a full Official `sourceId` (e.g. `src-4f8b…`) survives
@@ -41,7 +41,7 @@ class CourseCatalogEntry {
   final int sectionCount;
 
   /// Cards owned by this source (projection index for Official, cards_meta
-  /// for Legacy). Shown in the uninstall confirmation (plan 34 R1-7).
+  /// for Legacy). Shown in the uninstall confirmation (ADR 0043).
   final int cardCount;
 
   String get wireKey => scope.wireKey;
@@ -74,7 +74,7 @@ class CourseCatalog {
 
   /// Full sourceId parsed from a section id using the LAST `-s<digits>`
   /// boundary — never `split('-').first`, which truncates `src-…` ids
-  /// to the bogus `src` (plan 34 R1-1).
+  /// to the bogus `src` (ADR 0043).
   static String? officialSourceIdFromSectionId(String sectionId) {
     if (!sectionId.startsWith('official-anki-')) return null;
     var body = sectionId.substring('official-anki-'.length);
@@ -273,7 +273,7 @@ class CourseCatalog {
   }
 
   /// Whether [sectionId] belongs to [scope]. Exact ownership only — never a
-  /// prefix that could span two sources (plan 34 R1-3).
+  /// prefix that could span two sources (ADR 0043).
   static bool sectionBelongsToScope(
     CourseScope scope,
     String sectionId, {

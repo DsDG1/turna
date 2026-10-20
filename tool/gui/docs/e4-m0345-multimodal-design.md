@@ -57,11 +57,7 @@ run_ocr(path_or_bytes, *, lang: str) -> tuple[str, OCR_STATUS]
 build_ocr_suggestion(attachment_ref, status) -> dict | None  # 闭集建议，原文不进
 ```
 
-**红线**：
-- OCR 文本**不进 Context**（保持 M-01 闭集快照不变）；OCR 后转为「文本类 AttachmentRecord」进工坊侧，经 `ref_id` 间接取用，与 M-01 §3.3 同款；
-- `build_ocr_suggestion` 的 scope 仅 `{ref_id, kind, status}`——**不放 OCR 文本、不放路径**；
-- OCR 失败（缺依赖/缺二进制/空文本）→ 仅 statusBar + Dock 建议降级，**不阻塞**任何既有保存/生成（§14.5.2 失败安全）；
-- 系统二进制路径/OCR 文本**永不进 telemetry**（§14.5.3）。
+**红线**：OCR 文本**不进 Context**（保持 M-01 闭集快照不变），OCR 后转为「文本类 AttachmentRecord」进工坊侧、经 `ref_id` 间接取用（与 M-01 §3.3 同款）；`build_ocr_suggestion` 的 scope 仅 `{ref_id, kind, status}`——**不放 OCR 文本、不放路径**；OCR 失败（缺依赖/缺二进制/空文本）→ 仅 statusBar + Dock 建议降级，**不阻塞**任何既有保存/生成（§14.5.2 失败安全）；系统二进制路径/OCR 文本**永不进 telemetry**（§14.5.3）。
 
 ### 1.4 接入与入口
 
@@ -80,30 +76,6 @@ build_ocr_suggestion(attachment_ref, status) -> dict | None  # 闭集建议，�
 | `ref_id`、`kind`、`status`（ok/missing_dep/...）、OCR 触发计数 | OCR 抽出文本任何片段 |
 | `action_id`、触发附件计数 | 系统二进制绝对路径、附件完整磁盘路径 |
 | 是否成功（bool） | 被截图页/区域坐标（若未来扩页面级） |
-
-### 1.6 实施记录（v4.40，2026-07-22）
-
-已按本设计 §1 落地 M-03（**图片附件 + 扫描 PDF 触发**，v4.40 + v4.41）：
-
-- 纯模块 `src/backend/experience/ocr_skill.py`（无 Qt，永不抛）：`is_ocr_enabled` / `ocr_available`（懒探 `pytesseract` + `shutil.which("tesseract")`）/ `run_ocr(path, *, lang)`（PIL+pytesseract 懒；课程 lang 优先、缺 lang 包降级 `eng`；`TesseractNotFoundError`->`missing_binary`；非图->`no_text`）/ `ocr_all_images`（筛 `image_url` record，线程安全，供 `AiRequestWorker` 跑）/ `build_ocr_suggestion`（闭集 scope）。
-- `actions.textbook.ocr_suggest`（`needs_confirm=False`，非 dangerous，不入 `DANGEROUS_ACTION_IDS`）；`intent_router` `/ocr`（slash-only，不加自由文本关键词）；黄金 71->72。
-- `settings.experience_ocr_enabled` 默认 false（五处 round-trip）+ `settings_dialog`「体验 OS」复选框。
-- 工坊回流：`WorkshopWindow.add_attachment_record` / `attachment_records` + `DesignPanel.add_attachment_record` -- OCR 文本写成 temp `.txt` -> 文本类 `AttachmentRecord` -> `attachments_changed` -> M-01 链 + Dock 刷新（temp 文件随条 cleanup，无泄漏）。
-- 派发 `experience_skills_mixin._experience_ocr`（镜像 K-24/M-05）：开关 -> 取工坊图片附件 -> `ocr_available` -> `AiRequestWorker` 跑 `ocr_all_images`（`kind=local` job）-> 文本 record 回流 -> timeline 仅 `action_id` + 闭集 scope `{count, status}`（**不记** OCR 文本/路径，§14.5.3）-> metrics。
-- `tests/test_experience_ocr.py` +27（is_ocr_enabled 3 / ocr_available 3 / run_ocr 6 含 lang 降级 / ocr_all_images 2 / build_suggestion 2 / 契约 1 / 路由 4 / 派发 6）+ `test_experience_actions.open_only` 登记 + `test_experience_flags_round_trip_matrix` +subTest。
-
-红线保持：只读不写课程树、无 Guard/sandbox/Undo、非 dangerous；默认关；OCR 文本/路径不进 Context/telemetry；永不抛；observer 经 `can_dispatch` 放行只读。基线 1763->**1790**，门禁 32/32，黄金 71->72。
-
-**v4.41 触发补全**（2026-07-22）：
-1. 扫描 PDF **触发** ✅ -- `_add_attachment_paths` 抽取失败（含「扫描」）+ 开关开 + `ocr_available` -> `QMessageBox.question` 加时提议 -> emit `ocr_requested(temp_path,name,unlink_after=True)`（不进条、不 unlink，temp 归 OCR；否/不可用维持 warn+skip）；`run_ocr` 加 PDF 分支（PyMuPDF `fitz` 懒渲染 200dpi -> PIL -> `_ocr_pil_image`，缺 fitz->`missing_dep`）。
-2. 工坊内 per-chip OCR 按钮 ✅ -- `AttachmentBar` 图片 chip 加「OCR」按钮（仅 `_ocr_enabled` 时）+ `ocr_requested = Signal(str,str,bool)` + `set_ocr_enabled`；信号链 bar->design_panel->workshop_window->app（图片 chip `unlink_after=False`；扫描 PDF `unlink_after=True`）。
-3. `_experience_ocr` 重构 ✅ -- `records=None`（/ocr-all + dedup）vs `records=[...]`（单 record）+ `unlink_after` 清理 orphan 扫描 PDF temp。
-
-**v4.42 Dock 建议 + 维护硬化**（2026-07-23）：
-4. Dock `local_suggestion` ✅ -- `local_suggestions(..., ocr_enabled=False)` kwarg；开关开 + `ctx.attachments` 含 `kind=="image"` -> P2 `textbook.ocr_suggest`（scope 闭集 `{count}`）；`ExperienceShell.set_ocr_enabled` hint + app `_sync_workshop_ocr_enabled` 推 + `clear_experience_session` 关课清位。**M-03 与设计 §1.4 完全对齐**（工坊按钮 + Dock/⌘K 建议 + 扫描 PDF 加时提议 + 图片 chip 全交付）。
-5. 维护：删 `ocr_all_images` v4.40 兼容包装（无 src 调用方）+ 其测试；清陈旧 BASELINE 文案。
-
-M-03 现已无延迟项。
 
 ## 2. M-04 语音→Palette
 
@@ -149,19 +121,6 @@ build_voice_metrics(ok: bool) -> dict                       # 闭集 metrics：c
 |------|--------|
 | 语音输入触发计数、`status`、是否成功（bool） | 转录文本任何片段（用户未保存的语音原文） |
 | `action_id`、所用引擎名 | 音频波形/base64、麦克风设备名 |
-
-### 2.6 实施记录（v4.44，2026-07-23）
-
-已按本设计 §2 落地 M-04：
-
-- 纯模块 `src/backend/experience/voice_skill.py`（无 Qt，永不抛）：`is_voice_palette_enabled` / `voice_available`（懒探 `speech_recognition` + `pyaudio`）/ `transcribe_once`（默认 `recognize_sphinx` 离线；可注入 recognizer/source 供测）/ `build_voice_metrics` 闭集 `{status,ok,engine}` / `status_message`。
-- 设置 `experience/voice_palette` 默认 false（`settings.py` 五处 + `settings_dialog`「体验 OS」复选框）。
-- `CommandPalette`：输入行旁麦克风 `QToolButton`（默认隐藏）+ `set_voice_enabled` / `set_voice_busy` / `set_input_text`（**不** emit `command_triggered`）+ `voice_requested`。
-- `palette_controller.transcribe_to_palette`：开关关 / offscreen / 缺依赖 → statusBar 非模态；JobTray `voice-palette` kind=local + worker 跑 `transcribe_once` → 成功则 `set_input_text`；timeline 仅闭集 scope（**无原文**）。
-- `open_command_palette`：读 settings 推 mic 可见性 + 接线 `voice_requested`；parent 仅在 host 为 QWidget 时传入。
-- `tests/test_experience_voice.py` +21；门禁 32/32；黄金集不变（无新斜杠）。
-
-红线保持：输入通道非写树、无 Guard/sandbox/Undo、非 dangerous；默认关；可选依赖懒加载；**不自动 dispatch**；§14.5.3 转录原文不进 telemetry；offscreen 不触麦。
 
 ## 3. M-05 试做截图解释
 
@@ -209,19 +168,6 @@ build_screenshot_attachment(png_bytes, *, name="screenshot") -> AttachmentRecord
 | 截图触发计数、`status`、是否成功（bool） | 截图 PNG/base64 任何片段 |
 | `action_id`、解释回复**短摘要**（≤80 字，调用方截断） | 解释回复全文、截图区域坐标含其他窗口内容 |
 
-### 3.6 实施记录（v4.38，2026-07-22）
-
-已按本设计 §3 落地 M-05：
-
-- 纯模块 `src/backend/experience/screenshot_skill.py`（无 Qt）：`is_screenshot_explain_enabled` / `png_bytes_to_data_url` / `build_screenshot_messages`（OpenAI 兼容 text+image_url，空 PNG 降级 text-only）/ `run_screenshot_skill`（懒 import `request_chat`/`_content_text`，temperature=0.4）/ `truncate_reply`（≤80，供 redaction）。永不抛。
-- 应用层控制器 `src/application/screenshot_controller.py`（可 Qt，守 §7.4）：`capture_widget_to_png_bytes`（`QWidget.grab()` → `QImage` → PNG bytes，None→`no_window`，异常归一 `failed`）+ `explain_current(win)`（镜像 K-24 `_experience_git_skill`：未开启/无配置/无窗/offscreen→statusBar 非模态 → job → `_make_ai_worker` → `_on_ok`/`_on_err` → 复用 `_show_git_skill_result` 只读预览）。
-- `actions.app.screenshot_explain`（`needs_confirm=False`，非 dangerous，不入 `DANGEROUS_ACTION_IDS`）；`intent_router` `/screenshot-explain` + 关键词；黄金 67→68。
-- 设置 `experience/screenshot_explain` 默认 false（`settings.py` 五处：字段/load/构造/save/clone + `settings_dialog.py` 「体验 OS」tab 复选框三处）。
-- 派发分支 `experience_skills_mixin._on_experience_suggestion` → `explain_current(self)`。
-- `tests/test_experience_screenshot.py` +25（message builder 4 / run skill 3 / redaction 3 / enabled 4 / 契约 1 / 路由 3 / 截图 2 / 控制器派发 5：未开启/offscreen/无配置/全路径预览/AI 错误非模态）。
-
-红线保持：只读不写树、无 Guard/sandbox/Undo、非 dangerous；默认关；§14.5.3 redaction（Timeline 只记 action_id + 固定短标签，不记截图/回复原文，测试断言 `_record_experience_event` scope={} 且 reply/base64 不进 args）；offscreen 守卫复用 K-24 `app.platformName() == "offscreen"`；永不抛。基线 1695→**1720**（+25），全量 338s 绿（skipped=3），门禁 32/32。**M-03 ✅ v4.40–v4.42 · M-04 ✅ v4.44**（见 §1.6 / §2.6）。
-
 ## 4. 与既有契约的一致性检查
 
 ### 4.1 设置键（三切片统一）
@@ -257,17 +203,6 @@ build_screenshot_attachment(png_bytes, *, name="screenshot") -> AttachmentRecord
 | M-05 | `is_screenshot_explain_enabled`/`build_screenshot_attachment` 闭集/redaction | ~5（controller 截图用 Qt 测） |
 
 预估合计 **+19 测**，门禁 32 不变（三切片无危险面，不开新 G）。黄金集 +2（`/ocr` `/screenshot-explain`；M-04 不加斜杠，按钮入口）。
-
-### 4.5 实施步骤预览（本文档不执行）
-
-各切片独立可发，互不依赖。最小步骤（以 M-03 为例，M-04/M-05 同形）：
-
-1. 新建 `src/backend/experience/ocr_skill.py`（§1.3 四件套）；
-2. `actions.py` 注册 `textbook.ocr_suggest`（`needs_confirm=False`）；`intent_router` `/ocr`；
-3. `settings.py` 加 `experience/ocr_enabled` 默认 false + 设置 UI 复选框；
-4. `experience_skills_mixin._experience_ocr`：开关/`ocr_available` → `run_ocr` → 转 AttachmentRecord 经 `attachments_changed`；
-5. 工坊附件条「OCR」按钮（开关关时隐藏）；
-6. 测试（§4.4）+ BASELINE + experienceai.md §2/§8/§11/§16.3/§17（实施时升次版本）。
 
 ## 5. 风险与开放项
 

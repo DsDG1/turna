@@ -1,7 +1,7 @@
 /// Production Android replica: one product bundle (Official import / render /
 /// scheduler / official-first). Constructor stays all-false for tests; use
 /// [copyWith] to opt capabilities on. Per-capability dart-defines were
-/// collapsed (doc 34 C4).
+/// collapsed (ADR 0043).
 ///
 /// Remaining dart-defines on this class are **opt-in only**:
 /// - `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`
@@ -95,7 +95,7 @@ class OfficialAnkiFeatureFlags {
 
   /// Official saga runs before any Turna-side write and the course tree is
   /// projected from the official collection (no Dart apkg parse on this path).
-  /// Production default is on (doc 34); requires projection/course-entry.
+  /// Production default is on (ADR 0043); requires projection/course-entry.
   bool get allowsOfficialFirstImport =>
       officialFirstImport && allowsOfficialImport && allowsCourseEntry;
 

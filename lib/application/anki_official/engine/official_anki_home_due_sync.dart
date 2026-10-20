@@ -94,7 +94,7 @@ class OfficialAnkiHomeDueSync {
   Future<void> _collectAndCommit() async {
     final repo = OfficialFormalDueRepository.instance;
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
-      // Owner routing still needs recorded Official ids (doc 34 W0-06).
+      // Owner routing still needs recorded Official ids (ADR 0043).
       // Due numbers stay unavailable while cutover is paused.
       _commitOrDrop(
         repo,
@@ -220,7 +220,7 @@ class OfficialAnkiHomeDueSync {
         Future<Set<int>> fetchBuriedCardIds({int? deckId}) => fetchByQuery(
             deckId == null ? 'is:buried' : 'deck:$deckId is:buried');
 
-        // Exact card-id formal due (doc 34 W5 / plan 34 R3): all six sets
+        // Exact card-id formal due (ADR 0044): all six sets
         // per source, never count approximation. The router is pure — it
         // only collects. `is:new`/`is:learn` match on card type, so the
         // due search must negate suspended/buried explicitly (the formula
@@ -288,7 +288,7 @@ class OfficialAnkiHomeDueSync {
     } on OfficialAnkiException catch (error) {
       if (error.code == OfficialAnkiErrorCode.pageTokenStale) rethrow;
       // Failed refresh: keep the last good six sets and mark unavailable —
-      // never zero, never a partial guess (plan 34 R3-3). The repository
+      // never zero, never a partial guess (ADR 0044). The repository
       // was never touched mid-collect, so there is nothing to roll back.
       repo.markUnavailable(error);
     } catch (error) {

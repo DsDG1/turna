@@ -11,7 +11,7 @@ import 'package:turna/domain/course/interaction.dart';
 
 export 'package:turna/application/anki_official/review/official_formal_review_results.dart';
 
-/// One live formal-review card (plan 34 D4 / OS-10).
+/// One live formal-review card (ADR 0044).
 ///
 /// A snapshot is valid for exactly one scheduler `current`: answering (or
 /// any queue mutation) invalidates it, and the next card always comes from
@@ -72,7 +72,7 @@ class OfficialRenderedFace {
 }
 
 /// Renders official cards into shared-session presentations with a
-/// fidelity-first policy (plan 34 R2-1): cards whose rendered HTML carries
+/// fidelity-first policy (ADR 0044): cards whose rendered HTML carries
 /// markup become [FidelityCardPresentation]; only genuinely plain-text
 /// cards stay [FlipCardPresentation]. Stripping rich HTML into a flip card
 /// is not an accepted downgrade.
@@ -162,7 +162,7 @@ class OfficialFormalReviewRenderer {
 }
 
 /// Drives the shared session host from the scheduler's LIVE queue
-/// (plan 34 D4 / OS-12).
+/// (ADR 0044).
 ///
 /// The batch's [items] list is mutated in place after every answer: the
 /// answered card's next appearance (learning reinsertion, cross-day

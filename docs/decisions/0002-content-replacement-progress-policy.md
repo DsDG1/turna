@@ -1,85 +1,51 @@
-# ADR 0002: Content Replacement Progress Policy
+# ADR 0002 — Content Replacement Progress Policy
 
-- **Status**: Accepted
-- **Date**: 2026-07-10
-- **Related**: `future3.md` Phase 13, Phase 20
+> **Status**: Accepted ｜ **Date**: 2026-07-10 ｜ **Related**: Phase 13、Phase 20
+## 决策
 
-## Context
+当随包课程的 `version` 上升且 app 检测到已有用户进度时，启动时显示**一个非阻塞对话框**，只有两个选项：
 
-Varnamala is currently in a transitional state: the course is labeled "Swahili" and its grammar points are real Swahili, but `vocab.json` still contains Kannada placeholder words (`Naanu`, `Neenu`, `Howdu`, etc.). `future3.md` Phase 20 will perform a full replacement of these placeholders with real Swahili vocabulary.
+1. **Reset progress** — 清空所有 completed lesson IDs、perfect lesson IDs、SRS 卡片、学习统计与错题本记录，用新课程从头开始。
+2. **Keep progress** — 保留 completed lesson IDs 与其它记录。用户从中断处继续，但某些此前标记完成的课时可能已包含新词/新句。
+## 理由
 
-When the underlying word inventory changes, user progress records (completed lessons, SRS intervals, mistake log entries) may no longer make semantic sense. For example:
+应用当时处于过渡态：课程标着「Swahili」、语法点是真实斯瓦希里语，但 `vocab.json` 里仍是卡纳达语占位词（`Naanu`、`Neenu`、`Howdu` 等）。后续 Phase 20 会把这些占位词整体替换成真实斯瓦希里语词汇。
 
-- A user may have "learned" the word `w-naanu` (Kannada for "I"), but after replacement the same `wordId` will point to `w-mimi` (Swahili for "I").
-- Lesson texts, MCQ options, and fill-in-the-blank answers will change language entirely.
-- Mistake log entries may reference words whose translations have changed.
+底层词表一变，用户进度记录（完成的课时、SRS 间隔、错题本条目）可能不再有语义：
+### 被否决的选项
 
-We need a policy for how the app behaves when a content version bump occurs after such a large-scale replacement.
-
-## Decision
-
-When the bundled course `version` increases and the app detects existing user progress, it will show a single non-blocking dialog at startup with the following choices:
-
-1. **Reset progress** — Clear all completed lesson IDs, perfect lesson IDs, SRS cards, study stats, and mistake log entries. Start fresh with the new Swahili content.
-2. **Keep progress** — Preserve completed lesson IDs and other records. The user continues from where they left off, but some previously completed lessons may now contain new words/phrases.
-
-The dialog will include a brief explanation: "The Swahili course has been updated with new words and lessons. You can start over or continue with your current progress."
-
-## Consequences
+- **Silently reset everyone**：数据一致性最简单，但对活跃用户不尊重。
+- **Migrate progress word-by-word**：尝试用 `migration/vocab_map.json` 把旧 SRS 卡片映射到新词。
+## 影响与边界
 
 ### Reset progress
 
-- **Pros**: Clean slate; SRS intervals and mistake logs are semantically consistent with the new content; avoids confusion from Kannada remnants.
-- **Cons**: Users lose their streak/lesson completion history; may feel punitive if they have invested significant time.
-
+- **优点**：干净起点；SRS 间隔与错题本和新内容语义一致；避免卡纳达语残留造成的困惑。
+- **缺点**：用户失去连胜/课时完成历史；若已投入大量时间，可能感觉被惩罚。
 ### Keep progress
 
-- **Pros**: Respects user time investment; no forced restart.
-- **Cons**: SRS cards may reference old Kannada terms; mistake logs may point to changed translations; some lessons marked "completed" will show new content on revisit.
+- **优点**：尊重用户的时间投入；不强制重启。
+- **缺点**：SRS 卡片可能仍引用旧卡纳达语词条；错题本可能指向译义已变的词；某些标记「已完成」的课时回访时会显示新内容。
+### 实施约束
 
-### Implementation notes
+- 对话框**每个内容版本只弹一次**。
+- 默认选项是 **Keep progress**（非破坏性）。
+- 选择结果被持久化，后续启动不再弹同一版本的对话框。
+- 本策略适用于 Phase 20 的卡纳达语 → 斯瓦希里语替换，也适用于未来任何重大内容版本变更。
+### 落地形态
 
-- The dialog is shown only once per content version bump.
-- The default selection is "Keep progress" (non-destructive).
-- The choice is persisted so the dialog does not reappear on subsequent launches.
-- This policy applies to the Kannada → Swahili replacement in Phase 20 and to any future major content version changes.
-- The `SettingsPage` already provides a manual "Reset lesson progress" action (added in the future3 pre-work), so users can reset later even if they choose "Keep progress" initially.
+- **检测**：`CourseRepository.contentVersion()` 读 `contentVersion` meta（`DatabaseSeeder` 写入的 `index+expressions` 复合版本），与 `LocalStateKeys.contentVersionAcknowledged` 比较。
+- **触发点**：`HomePage._maybePromptContentUpdate`，在 `initSession` 的连胜检查之后 post-frame 运行。**仅当用户已有进度**（`GameProvider.completedLessonIds` 非空）时弹；全新安装静默确认，永不看到对话框。
+- **对话框**：`ContentUpdateDialog`（`lib/views/content_update/`），`barrierDismissible: false`，返回 typed `ContentUpdateChoice`——「Keep progress」（默认）/「Reset progress」。
+- **重置动作**（选「Reset progress」时清）：`GameProvider.resetLessonProgress()`、`MistakeProvider.clear()`、`StudyLogRepository.clearAll()`，以及新增的 `SrsProvider.clear()` / `GrammarReviewProvider.clear()`（Phase 17 之前 SRS 队列没有重置方法）。
+- **持久化**：无论选哪个，都把 `contentVersionAcknowledged` 置为当前存储版本，同一版本不再弹。
+- 跨 Phase 17 升级的既有安装会看到一次性 reseed（它们的 meta 是旧的单段 `"5"`，与新的 `"5+1"` 不同）——这正是有进度的用户会看到弹窗的原因。
+- **重置动作**（选「Reset progress」时清）：`GameProvider.resetLessonProgress()`、`MistakeProvider.clear()`、`StudyLogRepository.clearAll()`，以及新增的 `SrsProvider.clear()` / `GrammarReviewProvider.clear()`（Phase 17 之前 SRS 队列没有重置方法）。
+- **持久化**：无论选哪个，都把 `contentVersionAcknowledged` 置为当前存储版本，同一版本不再弹。
+- 跨 Phase 17 升级的既有安装会看到一次性 reseed（它们的 meta 是旧的单段 `"5"`，与新的 `"5+1"` 不同）——这正是有进度的用户会看到弹窗的原因。
+### 相关代码
 
-## Alternatives considered
-
-- **Silently reset everyone**: Simplest for data consistency, but disrespectful to active users.
-- **Migrate progress word-by-word**: Attempt to map old SRS cards to new Swahili words using `migration/vocab_map.json`. Rejected because the Kannada → Swahili change is a full language swap, not a 1:1 content update; semantic migration is unreliable and could create confusing cards.
-- **Keep progress silently with no prompt**: Avoids friction but leaves users with inconsistent data and no awareness that the course changed.
-
-## Related code
+- `lib/views/settings/settings_page.dart` — 手动重置入口
 
 - `lib/application/game_provider.dart` — `resetLessonProgress()`
-- `lib/application/course_provider.dart` — content version detection
-- `lib/views/settings/settings_page.dart` — manual reset action
-- `migration/vocab_map.json` — mapping table driving the replacement
-
-## Phase 17 implementation notes
-
-The prompt was wired up in future4 Phase 17 (does not require new content —
-the version format change itself is the trigger):
-
-- **Detection**: `CourseRepository.contentVersion()` reads the stored
-  `contentVersion` meta (the composite `index+expressions` version written by
-  `DatabaseSeeder`, see ADR 0009). The trigger compares it to
-  `LocalStateKeys.contentVersionAcknowledged`.
-- **Trigger point**: `HomePage._maybePromptContentUpdate`, run post-frame in
-  `initSession` after the streak check. The dialog is shown only when the user
-  has existing progress (`GameProvider.completedLessonIds` non-empty); fresh
-  installs silently acknowledge and never see the dialog.
-- **Dialog**: `ContentUpdateDialog` (`lib/views/content_update/`), `barrierDismissible: false`, returns a typed `ContentUpdateChoice` — "Keep progress" (default) / "Reset progress".
-- **Reset action** (the "Reset progress" choice) clears:
-  `GameProvider.resetLessonProgress()`, `MistakeProvider.clear()`,
-  `StudyLogRepository.clearAll()`, and the new `SrsProvider.clear()` /
-  `GrammarReviewProvider.clear()` (the SRS queues had no reset method before
-  Phase 17).
-- **Persistence**: on either choice, `contentVersionAcknowledged` is set to
-  the current stored version so the dialog does not recur for the same
-  version.
-- Existing installs upgrading past Phase 17 see a one-time reseed (their meta
-  is the old single-component `"5"`, which differs from the new `"5+1"`),
-  which is exactly what makes the prompt fire for users with progress.
+- `lib/application/course_provider.dart` — 内容版本检测

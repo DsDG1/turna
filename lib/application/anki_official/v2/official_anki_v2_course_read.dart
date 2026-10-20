@@ -10,7 +10,7 @@ import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 
-/// B6：v2 课程树读面（step4.md）。
+/// B6：v2 课程树读面（ADR 0043）。
 ///
 /// - 课程树壳从 `anki_course_tree_view` 长出来（与 v1 投影片壳并存，
 ///   两代数据同时可见）；

@@ -278,7 +278,7 @@ class OfficialAnkiMaintenanceRunner {
   final CourseDatabase? course;
 
   /// User-initiated optimize ignores the freelist ratio/byte thresholds
-  /// (doc 41 §12.4). Automatic jobs still apply them.
+  /// (ADR 0043). Automatic jobs still apply them.
   final bool forceCompact;
 
   static const freelistBytesThreshold = 16 * 1024 * 1024;
@@ -395,7 +395,7 @@ class OfficialAnkiMaintenanceRunner {
           // on any collection that has tag/deck/notetype rows. Only the
           // engine can compact it, so fail the job into retry_wait and let
           // a later run with the engine open complete it (same keep-alive
-          // contract as v2_source_delete, step4.md B5/K6).
+          // contract as v2_source_delete, ADR 0043/K6).
           throw StateError('compact_collection requires engine');
         }
         try {
@@ -414,7 +414,7 @@ class OfficialAnkiMaintenanceRunner {
       case OfficialAnkiMaintenanceKind.compactCourse:
         return compactCourseDatabase(course, force: forceCompact);
       case OfficialAnkiMaintenanceKind.v2SourceDelete:
-        // step4.md B5：retiring 序列的 job 体。引擎缺席时抛错 →
+        // ADR 0043：retiring 序列的 job 体。引擎缺席时抛错 →
         // markFailed(retry_wait) 保活 job（K6：绝不把未删引擎的 source
         // 标完成）；source 缺席 = 已终删（幂等重放）。
         final engine = this.engine;
@@ -433,7 +433,7 @@ class OfficialAnkiMaintenanceRunner {
         ).runRetireJob(sourceId: sourceId);
         return const OfficialAnkiCompactResult();
       case OfficialAnkiMaintenanceKind.v2ViewRebuild:
-        // step4.md B3/K3：无状态视图整建，重启即重跑（幂等）。
+        // ADR 0043/K3：无状态视图整建，重启即重跑（幂等）。
         final engine = this.engine;
         if (engine == null) {
           throw StateError('v2_view_rebuild requires engine');
@@ -451,7 +451,7 @@ class OfficialAnkiMaintenanceRunner {
     }
   }
 
-  /// VACUUM [CourseDatabase] on the live Drift connection (doc 41 §12.3):
+  /// VACUUM [CourseDatabase] on the live Drift connection (ADR 0043):
   /// not nested in a transaction, then verify schema version still matches.
   static Future<OfficialAnkiCompactResult> compactCourseDatabase(
     CourseDatabase? db, {

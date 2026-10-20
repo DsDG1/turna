@@ -180,7 +180,7 @@ WHERE attempt_id = ? AND state = ?
     );
   }
 
-  /// v2 receipt absorb（ADR 0043 D4 / step4.md B2，catalog v13）：note
+  /// v2 receipt absorb（ADR 0043 D4 / ADR 0043，catalog v13）：note
   /// ids 直接进 attempt 行——不再写 `anki_import_attempt_notes` 侧表。
   /// importPackage 返回后立刻调用，单条 UPDATE 即落账，把 K2 的「无
   /// receipt 窗口」压到最小；重放同值幂等。

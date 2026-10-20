@@ -1,25 +1,28 @@
-# ADR 0028: FSRS Continuous Memory Model for SRS
+# ADR 0028 — FSRS Continuous Memory Model for SRS
 
-## Date
-2026-07-29
+> 状态：Accepted ｜ 日期：2026-07-29
 
-## Status
-Accepted
+## 决策
 
-## Context
+1. 引入 `SrsScheduler` 抽象，含 `review`、`previewIntervalDays`、`retrievability`、`masteryScore`。
+2. 默认实现：**FSRS** via `package:fsrs`（默认权重、`desiredRetention = 0.9`、最大间隔 730d、relearn ~10m）。
+3. 保留 `Sm2Engine` 作 legacy scheduler 供测试/兼容；生产队列用 FSRS。
+4. 扩展 `SrsWord` + `srs_states`（schema **v8**），加 `stability`、`difficulty`、`fsrsState`、`learningStep`。
+5. **二元评分（锁死）：** 唯一面向用户的结果是 **pass / fail**（记住·做对 / 没记住·做错），映射到 FSRS Again / Good。四键 Again/Hard/Good/Easy UI **不在范围内**（不是推迟）。
+6. 记忆曲线用 FSRS \(R(t,S)\)，不用 `exp(-Δt / intervalDays)`。
+7. 成熟度 chip 文案：新卡 / 巩固中 / 长期记忆 / 顽固——**没有「毕业掌握」**。
+8. 课时练习评级（对/错）在词条/语法点 id 已知时走同一条 pass/fail 管线。
 
-Varnamala’s SRS core was a tuned **SM-2** (`lib/core/sm2.dart`) with binary
-grades (认识 / 不认识). Profile maturity chips labelled cards as
-`new / young / mature / leech` based on `intervalDays >= 21`. That UI pattern
-reads like a **Leitner-style four-box “graduation”**, but:
+## 理由
 
-1. SM-2 does **not** predict recall probability \(R(t)\).
-2. “Mature” is only a workload bucket — not “mastered forever”.
-3. Failures still use coarse rules (young → 1 day; mature ×0.2).
-4. ADR 0027 already stores per-card `review_events`, so a probabilistic model
-   can use real history.
+SRS 核心原是调参过的 **SM-2**（`lib/core/sm2.dart`），二元评分（认识/不认识）；Profile 成熟度 chip 依据 `intervalDays >= 21` 把卡标为 `new / young / mature / leech`——这套 UI 读起来像 **Leitner 式四盒「毕业」**，但：
 
-### Research summary
+1. SM-2 不预测召回概率 \(R(t)\)。
+2. 「Mature」只是工作负载分桶，不是「掌握后永不再复习」。
+3. 失败仍走粗糙规则（young → 1 天；mature ×0.2）。
+4. 本地已有逐卡 `review_events` 历史，概率模型可直接用真实历史。
+
+**掌握的产品定义（本文）**：连续信号 \(R_{\text{now}}\) 与稳定度 \(S\)（预测 \(R \approx 0.9\) 前的天数），**不是**「过了第 4 阶段 / 永不再复习」。
 
 | Source | Role |
 |--------|------|
@@ -30,36 +33,11 @@ reads like a **Leitner-style four-box “graduation”**, but:
 | Ye et al., KDD 2022 (DHP / FSRS lineage) | DSR model + cost-optimal scheduling under target retention |
 | FSRS (open-spaced-repetition; Anki 23.10+) | Production D/S/R scheduler; open benchmark superiority vs Anki SM-2 |
 
-**Product definition of mastery (this ADR):** continuous signals
-\(R_{\text{now}}\) and stability \(S\) (days until predicted \(R \approx 0.9\)),
-**not** “passed stage 4 / never review again”.
+## 影响与边界
 
-## Decision
-
-1. Introduce `SrsScheduler` abstraction with `review`, `previewIntervalDays`,
-   `retrievability`, `masteryScore`.
-2. Default implementation: **FSRS** via `package:fsrs` (default weights,
-   `desiredRetention = 0.9`, max interval 730d, relearn ~10m).
-3. Keep `Sm2Engine` as legacy scheduler for tests/compat; production queue uses FSRS.
-4. Extend `SrsWord` + `srs_states` (schema **v8**) with `stability`,
-   `difficulty`, `fsrsState`, `learningStep`.
-5. **Binary-only scoring (locked):** the only user-facing outcomes are
-   **pass / fail** (记住·做对 / 没记住·做错). Mapped to FSRS Again / Good.
-   Four-button Again/Hard/Good/Easy UI is **out of scope** (not deferred).
-6. Memory curve uses FSRS \(R(t,S)\), not `exp(-Δt / intervalDays)`.
-7. Maturity chip copy: 新卡 / 巩固中 / 长期记忆 / 顽固 — no “毕业掌握”.
-8. Lesson exercise grades (correct / incorrect) feed the same pass/fail
-   pipeline as flashcard self-rates when a word/expression id is known.
-
-## Consequences
-
-- Scheduling optimizes for target retention, not ease-factor heuristics.
-- Lapses use post-lapse stability (no hard reset to “stage 1” forever).
-- Cards never leave the queue solely by stage count; long intervals still exist.
-- One-time migration seeds \(S,D\) from SM-2 `intervalDays`/`ease` when FSRS
-  fields are null.
-- Anki revlog Hard/Easy collapse to pass on import; UI never exposes four grades.
-- Personal weight optimization remains future work (needs large local history).
-- Desired retention \(R_{\text{desired}}\) is user-tunable (default 0.9) without
-  adding grade buttons.
-
+- 调度优化目标留存率，不是 ease-factor 启发式。
+- 遗忘（lapse）用 post-lapse stability，不永远硬重置到「stage 1」；卡不会仅因阶段计数离开队列，长间隔仍然存在。
+- 一次性迁移在 FSRS 字段为空时从 SM-2 `intervalDays`/`ease` 播种 \(S,D\)。
+- Anki revlog 的 Hard/Easy 导入时折叠为 pass；UI 从不暴露四档。
+- 目标留存率 \(R_{\text{desired}}\) 可由用户调节（默认 0.9），不需要新增评分按钮。
+- 个性化权重优化部分已由 [ADR 0029](./0029-fsrs-relearn-and-local-weights.md) 修订。

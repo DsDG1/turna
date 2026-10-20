@@ -1,6 +1,6 @@
 // Official-first production import: saga before any Turna-side write
 // (failure → zero Turna rows). Flag-off must fail-closed rather than
-// reopen a Legacy writer (doc 34 W0).
+// reopen a Legacy writer (ADR 0043).
 //
 // The wizard is driven through the real file-pick flow with a faked
 // platform picker; the official saga runs in-process against a fake

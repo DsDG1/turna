@@ -1,26 +1,18 @@
 # ADR 0031 — Turna Rebrand (Non-Visual)
 
-- **Status:** Accepted
-- **Date:** 2026-08-03
-- **Source plan:** `~/Desktop/Turna改名计划.md` (user-authored)
-- **Scope:** non-visual renaming only — product copy, Dart package & symbols, native platform identities, desktop/Web/OHOS names, course editor name, docs, compatibility migration.
-- **Out of scope:** logo, app icons, launcher images, mascot artwork, `assets/images/mala/*` files, theme colour values, peacock visual tokens.
+> 状态：**已接受**｜日期：2026-08-03｜范围：仅非视觉改名 —— 产品文案、Dart 包与符号、原生平台标识、桌面 / Web / OHOS 名称、课程编辑器名、文档、兼容迁移。
+>
+> 方案原文：`~/Desktop/Turna改名计划.md`（用户自撰，仓库外）
+>
+> 不在范围：logo、应用图标、启动图、吉祥物美术、`assets/images/mala/*` 文件、主题色值、孔雀视觉 token。
 
-## Context
+## 理由
 
-The `Varnamalaplus` repository inherits its product name from upstream
-`Varnamala`. Every layer — Dart package, native config, desktop launcher,
-Web manifest, OHOS bundle, course editor, and docs — still carries
-`Varnamala`/`varnamala`/`vernamala` identifiers. The product has not yet
-shipped, so this is the last natural window to align identity before a
-public release without having to deal with app-store upgrade compatibility.
+产品名继承自上游 `Varnamala`：Dart 包、原生配置、桌面启动器、Web manifest、OHOS bundle、课程编辑器、文档各层都还带着 `Varnamala` / `varnamala` / `vernamala` 标识。产品尚未发布，这是**公开发布前对齐身份、不必处理应用商店升级兼容的最后窗口**。改名由外部计划 `~/Desktop/Turna改名计划.md` 驱动；本 ADR 记录改名矩阵、迁移策略与审计规则，使后来者能区分「有意保留」与「漏改」。
 
-The work is being driven from an external plan in
-`~/Desktop/Turna改名计划.md`. This ADR records the agreed rename
-matrix, the migration strategy, and the audit rules so future contributors
-can tell "intentional retention" from "missed rename".
+## 决策
 
-## Naming matrix
+### 命名矩阵
 
 | Object                        | Current                          | Target                  |
 |-------------------------------|----------------------------------|-------------------------|
@@ -36,50 +28,41 @@ can tell "intentional retention" from "missed rename".
 | Windows / Linux binary name   | `varnamala`                      | `turna`                 |
 | Course editor display name    | Varnamala Course Editor          | Turna Course Editor     |
 
-\* 鸿蒙一行 2026-10-20 由 [ADR 0051](./0051-ohos-bundle-name-unique-vs-android.md) 覆盖为 `me.dsdogs.turna.hmos`：AGC 要求鸿蒙包名不得与安卓 `applicationId` 相同，而本表把它设成了同一个值。
+\* 鸿蒙一行已由 [ADR 0051](./0051-ohos-bundle-name-unique-vs-android.md) 覆盖为 `me.dsdogs.turna.hmos`：AGC 要求鸿蒙包名不得与安卓 `applicationId` 相同。本文关于 Peacock token 保留原样的结论已由 [ADR 0033](./0033-turna-wetland-crane-palette.md) 修订：`peacock*` 别名按该 ADR 删除。
 
-`peacockTeal`, `peacockCyan`, and the rest of the Peacock palette tokens
-stay as-is; visual-token renaming is part of the future visual rework.
-
-## In scope
+### 范围内
 
 - User-visible product copy everywhere a user sees the brand.
-- Dart package name, import paths, and brand class names.
-- Android, iOS, macOS, Windows, Linux, Web, and OHOS application names
-  and publishing identities.
+- Dart package name, import paths, brand class names.
+- Android, iOS, macOS, Windows, Linux, Web, OHOS application names and publishing identities.
 - Course editor display name (`tool/gui`).
 - Compatibility migration for local settings (QSettings) and config dirs.
-- Current README, dev docs, user guides, and non-historical docs.
-- Test files, generated code, and build configs — current product name.
+- Current README, dev docs, user guides, non-historical docs.
+- Test files, generated code, build configs — current product name.
 
-## Out of scope
+### 范围外
 
 - `assets/images/app_logo*.png`.
 - `assets/images/mala/` mascot artwork.
-- Android launcher icon, iOS/macOS `AppIcon`, Web icon, Windows ICO,
-  OHOS icon.
+- Android launcher icon, iOS/macOS `AppIcon`, Web icon, Windows ICO, OHOS icon.
 - iOS `LaunchImage` and other launch imagery.
 - Image file paths and image-only fields in `assets.gen.dart`.
 - Theme colour values; the Peacock palette overall.
 - Course JSON schema, SQLite table names, content IDs.
 - Upstream repo name, historical commits, old release facts.
 
-Because icons are untouched, the renamed APK/bundle will still show the
-old visual assets in dev. That state is acceptable pre-launch; the
-follow-up Turna visual-assets task closes the loop before public release.
+图标不动，重命名后的 APK/bundle 在开发期仍显示旧视觉资产；发布前由后续视觉资产任务收口。
 
-## Implementation principles
+### 实施原则
 
 1. Baseline before mechanical search-replace.
-2. User-visible copy and technical identity land in separate stages so
-   build errors stay localised.
+2. User-visible copy and technical identity land in separate stages so build errors stay localised.
 3. Generated files are owned by the generator — never hand-edit them.
 4. Upstream / old releases stay named *Varnamala*; we don't rewrite history.
-5. Old local configs are read-compatible, with a one-shot migration to the
-   new namespace; old config is not auto-deleted.
+5. Old local configs are read-compatible, with a one-shot migration to the new namespace; old config is not auto-deleted.
 6. Each stage lands as its own commit so reverts stay narrow.
 
-## Execution stages
+### 执行阶段
 
 | # | Stage | Anchor commit message | Key files |
 |---|-------|------------------------|-----------|
@@ -88,118 +71,62 @@ follow-up Turna visual-assets task closes the loop before public release.
 | 3 | Dart package & symbols | `refactor: rename Flutter package and Dart symbols to Turna` | `pubspec.yaml`; `package:varnamala/→package:turna/` everywhere; `VarnamalaApp`→`TurnaApp`; `VarnamalaTheme`→`TurnaTheme`; `about_varnamala_page.dart`→`about_turna_page.dart`; rerun `build_runner` |
 | 4 | Native identities | `chore: rename native application identities to Turna` | `android/app/build.gradle`, `AndroidManifest.xml`, Kotlin package path; iOS `Info.plist`/`project.pbxproj`; macOS `AppInfo.xcconfig`/`pbxproj`; Windows `CMakeLists.txt`/`main.cpp`/`Runner.rc`; Linux `CMakeLists.txt`/`my_application.cc`; Web `index.html`/`manifest.json`; OHOS `oh-package.json5` + AppScope resources |
 | 5 | Editor + local-data compat | `refactor: rename course editor and migrate local settings` | `tool/gui/*`; `QSettings("Turna","CourseEditor")` with read-from-old on first run; `.varnamala`/`.varnamala-gui` → `.turna`/`.turna-gui` (with read-compat); `.varnamala-backup` preserved |
-| 6 | Docs | `docs: document Turna rebrand and preserve upstream attribution` | `README.md`, `CLAUDE.md`, project analysis, course authoring guide, GUI user docs, release/build notes |
+| 6 | Docs | `docs: document Turna rebrand and preserve upstream attribution` | `README.md`, `CLAUDE.md`（已删）, project analysis, course authoring guide, GUI user docs, release/build notes |
 | — | Final verification | (no commit, audit only) | `flutter pub get` + `dart format .` + `flutter analyze` + `flutter test`; platform build per §11.2; old-name audit per §11.4 |
 
-## Migration strategy (local data)
+### 本地数据迁移
 
-### QSettings (`tool/gui`)
-
-Read order on first run after the upgrade:
+QSettings（`tool/gui`）升级后首次运行的读取顺序：
 
 1. Look up `QSettings("Turna","CourseEditor")`.
 2. If empty, read `QSettings("Varnamala","CourseEditor")`.
-3. Copy the value into the new `Turna` settings and proceed with the new
-   key from there.
-4. Never delete the old `Varnamala` key — leave it for any user who
-   rolls back the binary.
+3. Copy the value into the new `Turna` settings and proceed with the new key from there.
+4. Never delete the old `Varnamala` key — leave it for any user who rolls back the binary.
 
-### Local directories
+本地目录：`.varnamala` → `.turna`（用户配置目录）；`.varnamala-gui` → `.turna-gui`（编辑器配置目录）；两者迁移方式一致 —— 读旧目录，回退，写穿到新目录，不删除旧目录。`.varnamala-backup` 是课程内部备份格式，**保留**：改名会使既有课程备份与测试夹具失效。
 
-- `.varnamala` → `.turna` (user config dir).
-- `.varnamala-gui` → `.turna-gui` (editor config dir).
-- Both migrations: read the old dir, fall back, write through to the new
-  one; do not delete the old dir.
-- `.varnamala-backup` is a course-internal backup format. **Keep it.**
-  Renaming it would invalidate existing course backups and test fixtures.
+不迁移的协议：course JSON schema 与字段名、SQLite 表名与库结构、既有 course / vocab / lesson ID、Anki 导入格式与学习进度数据结构。
 
-### Protocols that do not migrate
+### 关于页的上游署名规则
 
-- Course JSON schema and field names.
-- SQLite table names and DB structure.
-- Existing course / vocab / lesson IDs.
-- Anki import format and study-progress data structures.
-
-## About-page rule (upstream attribution)
-
-The about page is rewritten as *Turna* but must not lie about provenance.
-The accepted wording pattern:
+关于页改写为 *Turna*，但不得谎称出身。措辞模板：
 
 > Turna 是一款本地优先的土耳其语学习应用，基于开源项目 Varnamala 开发。
 
-Keep:
+保留 `github.com/rshrc/Varnamala` 链接、上游作者与社区署名、全部 license 文本。
 
-- `github.com/rshrc/Varnamala` link.
-- Upstream author and community attribution.
-- All license texts.
+## 影响与边界
 
-## Retention rules — what we deliberately do **not** rename
+### 有意保留的 `Varnamala` 引用（不是回归）
 
-A reviewer should treat the following hits as **legitimately retained**
-`Varnamala` references, not regressions:
+复核者应把下列命中视为**有意保留**：
 
-- Upstream repo names, links, and community credits (`README`, `About`,
-  `LICENSE`).
-- Historical entries inside `CHANGELOG` / ADRs.
-- One-shot migration code in `tool/gui` (read-old-write-new for
-  QSettings + local dirs). Includes:
-  - `tool/gui/src/application/settings.py` — `LEGACY_ORG_NAME`,
-    `app_data_dir(legacy_name=…)`, `course_clones_dir(legacy_name=…)`,
-    `migrate_legacy_varnamala_qsettings`.
-  - `tool/gui/src/app.py` — `migrate_legacy_varnamala_qsettings` call site.
-  - `tool/gui/src/backend/credential_store.py` —
-    `_KEYRING_SERVICE_LEGACY = "varnamala.git"` and the legacy read path.
-  - `tool/gui/src/backend/ai_config_file.py` —
-    `CONFIG_KIND_LEGACY = "varnamala.ai_config"` (dual-kind acceptance).
-- `.varnamala-backup` paths in course-internal backup logic and fixtures
-  (`tool/gui/src/backend/course_adapter.py`,
-  `assets/courses/turkish/.gitignore`, BASELINE history files).
-- Generated Flutter / Hvigor cache files that bake in the absolute path
-  to the on-disk repo root (`ios/Flutter/Generated.xcconfig`,
-  `macos/Flutter/ephemeral/Flutter-Generated.xcconfig`,
-  `windows/flutter/ephemeral/generated_config.cmake`,
-  `ohos/.hvigor/**`). These regenerate from the directory path on every
-  build and are not part of the source-of-truth.
-- Physical upstream repo slug `Varnamalaplus` in `README.md`'s `git clone`
-  command (line 43–44) and inside `file:///` slugs in older analysis
-  docs — the upstream directory has not been renamed, so URLs and
-  path slugs referencing it stay.
-- Test baseline history files (`test/BASELINE.md`,
-  `tool/gui/tests/BASELINE.md`) — describe historical test outcomes
-  that pre-date the rebrand; only the *current-reality* line is updated.
+- 上游仓库名、链接与社区署名（`README`、`About`、`LICENSE`）。
+- `CHANGELOG` / ADR 里的历史条目。
+- `tool/gui` 一次性迁移代码（读旧写新，QSettings + 本地目录）：`tool/gui/src/application/settings.py`（`LEGACY_ORG_NAME`、`app_data_dir(legacy_name=…)`、`course_clones_dir(legacy_name=…)`、`migrate_legacy_varnamala_qsettings`）、`tool/gui/src/app.py`（调用点）、`tool/gui/src/backend/credential_store.py`（`_KEYRING_SERVICE_LEGACY = "varnamala.git"` 与旧读取路径）、`tool/gui/src/backend/ai_config_file.py`（`CONFIG_KIND_LEGACY = "varnamala.ai_config"`，双 kind 接受）。
+- 课程内部备份逻辑与夹具里的 `.varnamala-backup` 路径（`tool/gui/src/backend/course_adapter.py`、`assets/courses/turkish/.gitignore`、BASELINE 历史文件）。
+- 烘入仓库根绝对路径的 Flutter / Hvigor 生成缓存（`ios/Flutter/Generated.xcconfig`、`macos/Flutter/ephemeral/Flutter-Generated.xcconfig`、`windows/flutter/ephemeral/generated_config.cmake`、`ohos/.hvigor/**`）：按目录路径重建，不属于真源。
+- 上游物理仓库名 `Varnamalaplus`（`README.md` 的 `git clone` 命令、旧分析文档的 `file:///` slug）：上游目录未改名，URL 与 slug 保持。
+- 测试基线历史文件（`test/BASELINE.md`、`tool/gui/tests/BASELINE.md`）：描述改名前的测试结果，只更新「当前现状」一行。
 
-Everything else — current product copy, current `package:` imports,
-current platform display names, current publish IDs — must end up
-`Turna` / `turna` / `me.dsdogs.turna`.
+除以上之外，当前产品文案、当前 `package:` 导入、当前平台显示名与当前发布标识必须全部为 `Turna` / `turna` / `me.dsdogs.turna`。
 
-## Acceptance criteria (from the source plan §12)
+### 验收口径
 
-The rebrand is "done" iff:
+改名「完成」当且仅当：
 
 - [ ] All user-visible product copy is `Turna`.
-- [ ] Dart package is `turna`; no `package:varnamala/` imports remain in
-      committed code.
+- [ ] Dart package is `turna`; no `package:varnamala/` imports remain in committed code.
 - [ ] Root widget and brand theme class use `Turna` naming.
 - [ ] Android, Apple, Linux, Windows, Web, OHOS identities are unified.
-- [ ] Android `applicationId` and Apple `Bundle ID` confirmed as the
-      long-term release values (`me.dsdogs.turna`).
+- [ ] Android `applicationId` and Apple `Bundle ID` confirmed as the long-term release values (`me.dsdogs.turna`).
 - [ ] Course editor displays as `Turna Course Editor`.
-- [ ] Old GUI settings and local directories have read-compat or
-      one-shot migration in place.
-- [ ] Upstream Varnamala attribution, links, and historical records
-      preserved.
+- [ ] Old GUI settings and local directories have read-compat or one-shot migration in place.
+- [ ] Upstream Varnamala attribution, links, and historical records preserved.
 - [ ] No images, icons, mascot files were modified.
 - [ ] Static checks, unit tests, and available platform builds pass.
-- [ ] Every remaining `Varnamala` hit has a documented "intentional"
-      reason under §"Retention rules".
+- [ ] Every remaining `Varnamala` hit has a documented "intentional" reason under 「有意保留的 `Varnamala` 引用」.
 
-## Follow-up task (out of this ADR)
+### 后续（不在本 ADR 范围）
 
-A separate visual-assets round will handle:
-
-- Turna logo, new mascot and pose sets.
-- App icons for Android / iOS / macOS / Windows / Web / OHOS.
-- Splash and store artwork.
-- Re-evaluating whether the Peacock palette stays.
-
-The visual task must precede any public release.
+单独的视觉资产批次负责：Turna logo、新吉祥物与姿势组、各平台应用图标、启动图与商店物料、重新评估 Peacock 调色板是否保留。视觉任务必须先于任何公开发布。
