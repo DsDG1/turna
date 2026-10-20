@@ -82,7 +82,11 @@ void main() {
     expect(find.text(AppStrings.aiHubStartWish), findsNothing);
     expect(find.text(AppStrings.aiHubStartTextbook), findsNothing);
     expect(find.text(AppStrings.aiHubStartTutorChat), findsOneWidget);
-    expect(find.text(AppStrings.aiNotConfiguredTitle), findsWidgets);
+    // 「生成练习」标题下那张「去配置」卡已撤除（2026-10-21）：连接配置的
+    // 页面级入口只剩页首引擎卡与 设置 → 高级 → AI 连接，未配置说明由生成
+    // 面板内的纯文案承担。
+    expect(find.text(AppStrings.aiNotConfiguredTitle), findsNothing);
+    expect(find.text(AppStrings.aiNotConfiguredCta), findsNothing);
   });
 
   testWidgets('saved explanation list/search works via store + UI text',

@@ -9,15 +9,14 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/ai_tutor_chat_session.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:turna/application/srs_tutor_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
-import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
+import 'package:turna/views/ai/components/ai_practice_library_section.dart';
+import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
 import 'package:turna/views/ai/ai_prompt_sheet.dart';
 import 'package:turna/core/theme.dart';
 
@@ -83,6 +82,14 @@ class AiHubPage extends StatelessWidget {
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
               sliver: SliverToBoxAdapter(child: AiGeneratedBanner()),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            // 生成物不再直接写课程树：它们先进入「我的练习」，在这里看进度、
+            // 开工、存放或删除。生成任务由 app 级队列承载，切页不中断。
+            SliverToBoxAdapter(
+              child: AiPracticeLibrarySection(
+                onGenerate: () => showAiPracticeGenerateSheet(context),
+              ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             const SliverToBoxAdapter(child: _ContinueSection()),
@@ -505,49 +512,34 @@ class _StartSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final complete =
-        context.select<AiEngineConfigHolder, bool>((h) => h.config.isComplete);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 不在「生成练习」标题下再放一张「去配置」卡：连接配置的唯一页面级
+          // 入口是页首引擎卡（以及 设置 → 高级 → AI 连接），未配置时的说明
+          // 由生成面板内的纯文案承担（AppStrings.aiPracticeNotConfigured）。
           SectionTitle(title: AppStrings.aiHubNew),
-          if (!complete) ...[
-            SoftCard(
-              accentColor: TurnaTheme.warning,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: AiNotConfiguredPanel(compact: true),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
           const SizedBox(height: 12),
-          // Primary: 用学习数据直接生成练习。页面入口（练习队列的「智能练习」）
-          // 指向这里，所以生成优先，伴学工具随后。
-          // 两张卡各自把侧重钉死在 sheet 里（[TutorLaunchSheet.focus]），
-          // 面板不再重复问一遍「错题还是弱词」。
+          // Primary: 用学习数据或自定义主题生成一份练习/课程草稿。生成在
+          // app 级后台队列里跑，关掉面板后仍继续；结果进入「我的练习」。
           ToolsTile(
-            title: AppStrings.aiHubStartTutorMistakes,
-            subtitle: AppStrings.tutorLaunchByMistakesCta,
+            title: AppStrings.aiPracticeEntryDataTitle,
+            subtitle: AppStrings.aiPracticeEntryDataSubtitle,
             icon: Icons.history_toggle_off_rounded,
             accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
-            onTap: () => _openSheet(
-              context,
-              const TutorLaunchSheet(focus: SrsTutorFocus.mistakes),
-            ),
+            onTap: () => showAiPracticeGenerateSheet(context),
           ),
           const SizedBox(height: 8),
           ToolsTile(
-            title: AppStrings.aiHubStartTutorWeak,
-            subtitle: AppStrings.tutorLaunchByWeakWordsCta,
-            icon: Icons.quiz_rounded,
+            title: AppStrings.aiPracticeSourceCustom,
+            subtitle: AppStrings.aiPracticeEntryCustomSubtitle,
+            icon: Icons.school_rounded,
             accentColor: TurnaTheme.brandReed.withValues(alpha: 0.85),
-            onTap: () => _openSheet(
+            onTap: () => showAiPracticeGenerateSheet(
               context,
-              const TutorLaunchSheet(focus: SrsTutorFocus.weakWords),
+              customMode: true,
             ),
           ),
           const SizedBox(height: 20),
@@ -620,8 +612,6 @@ void _openConfig(BuildContext context) {
 /// recorded kind) to be handled at compile time.
 void _navigateByRoute(BuildContext context, AiRecentTaskRoute route) {
   switch (route) {
-    case AiRecentTaskRoute.wishChat:
-      context.router.push(const AiWishChatRoute());
     case AiRecentTaskRoute.textbookImport:
       context.router.push(const TextbookImportRoute());
     case AiRecentTaskRoute.tutorChat:
