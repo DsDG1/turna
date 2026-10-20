@@ -201,12 +201,54 @@ void main() {
     expect(raw.contains('sk-session'), isFalse);
   });
 
+  test('a store that cannot prove persistence is never reported as secure',
+      () async {
+    // The reported bug shape: `isPersistent` says "yes" (nothing has failed
+    // yet), while the key written at the previous shutdown is already gone.
+    await sp.setString(
+      LocalStateKeys.aiEngineConfig,
+      jsonEncode(
+        const AiEngineConfig(apiKey: '').copyWith(modelChat: 'm1').toJson(),
+      ),
+    );
+
+    final holder = bootstrap(store: _UnverifiableStore());
+    await holder.loadPersisted();
+
+    expect(holder.keyStorageKind, AiKeyStorageKind.sessionOnly);
+    expect(holder.keyPersistedAcrossRestarts, isFalse);
+    expect(holder.config.apiKey, isEmpty);
+  });
+
   test('toJson default excludes apiKey; includeApiKey only for legacy reads',
       () {
     const config = AiEngineConfig(apiKey: 'sk-never-in-blob');
     expect(config.toJson().containsKey('apiKey'), isFalse);
     expect(config.toJson(includeApiKey: true)['apiKey'], 'sk-never-in-blob');
   });
+}
+
+/// Claims persistence up front, cannot round-trip anything — a stand-in for a
+/// platform plug-in that is registered but dead.
+class _UnverifiableStore
+    implements ICredentialStore, IPersistentCredentialProbe {
+  @override
+  bool get isPersistent => true;
+
+  @override
+  Future<bool> probePersistence() async => false;
+
+  @override
+  Future<void> write(String id, String value) async {}
+
+  @override
+  Future<String?> read(String id) async => null;
+
+  @override
+  Future<void> delete(String id) async {}
+
+  @override
+  Future<void> deleteAll() async {}
 }
 
 class _EphemeralStore implements ICredentialStore {

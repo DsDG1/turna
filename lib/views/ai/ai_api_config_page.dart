@@ -418,10 +418,23 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                       controller: _modelJsonCtrl,
                       decoration: aiSheetInputDecoration(
                         context,
-                        hint: AppStrings.settingsModelHint,
+                        // 留空 = 跟聊天模型一样。不写清楚的话，`custom` 预设下
+                        // 空着会被当成「没配」——服务端只回 unknown model。
+                        hint: AppStrings.aiHubFieldModelJsonHint,
                       ),
                       onChanged: (_) => _scheduleCommit(),
                     ),
+                    if (_draft.preset.supportedModels.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _ModelQuickPick(
+                        models: _draft.preset.supportedModels,
+                        selectedModel: _modelJsonCtrl.text.trim(),
+                        onSelected: (model) {
+                          _modelJsonCtrl.text = model;
+                          _scheduleCommit();
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     _ReasoningToggle(
                       enabled: _draft.reasoningEnabled,
@@ -1152,29 +1165,46 @@ class _FooterHint extends StatelessWidget {
 }
 
 /// Surfaces credential-storage facts the user needs: session-only platforms
-/// (key lost on restart) and failed migrations (plaintext kept + retry hint).
+/// (key lost on restart), failed migrations (plaintext kept + retry hint), and
+/// — the common case — confirmation that the key is encrypted on device and
+/// survives a restart.
 class _CredentialSafetyNotice extends StatelessWidget {
   const _CredentialSafetyNotice();
 
   @override
   Widget build(BuildContext context) {
     return Selector<AiEngineConfigHolder,
-        (AiKeyStorageKind, AiCredentialMigrationStatus)>(
-      selector: (_, holder) => (holder.keyStorageKind, holder.migrationStatus),
+        (AiKeyStorageKind, AiCredentialMigrationStatus, bool)>(
+      selector: (_, holder) => (
+        holder.keyStorageKind,
+        holder.migrationStatus,
+        holder.config.apiKey.isNotEmpty,
+      ),
       builder: (context, state, _) {
-        final (kind, migration) = state;
-        if (kind == AiKeyStorageKind.unknown &&
-            migration != AiCredentialMigrationStatus.failed) {
-          return const SizedBox.shrink();
-        }
+        final (kind, migration, hasKey) = state;
         final isFailure = migration == AiCredentialMigrationStatus.failed;
         final isSession = kind == AiKeyStorageKind.sessionOnly;
-        if (!isFailure && !isSession) return const SizedBox.shrink();
+        final isPersisted = kind == AiKeyStorageKind.secure && hasKey;
+        if (!isFailure && !isSession && !isPersisted) {
+          return const SizedBox.shrink();
+        }
 
-        final accent = isFailure ? TurnaTheme.error : TurnaTheme.warning;
-        final message = isFailure
-            ? AppStrings.aiConfigMigrationPendingNotice
-            : AppStrings.aiConfigSessionKeyNotice;
+        final IconData icon;
+        final Color accent;
+        final String message;
+        if (isFailure) {
+          icon = Icons.shield_outlined;
+          accent = TurnaTheme.error;
+          message = AppStrings.aiConfigMigrationPendingNotice;
+        } else if (isSession) {
+          icon = Icons.shield_outlined;
+          accent = TurnaTheme.warning;
+          message = AppStrings.aiConfigSessionKeyNotice;
+        } else {
+          icon = Icons.verified_user_outlined;
+          accent = TurnaTheme.brandSky;
+          message = AppStrings.aiConfigKeyPersistedNotice;
+        }
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -1184,7 +1214,7 @@ class _CredentialSafetyNotice extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.shield_outlined, size: 18, color: accent),
+              Icon(icon, size: 18, color: accent),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

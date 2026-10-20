@@ -9,6 +9,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
@@ -101,7 +102,15 @@ class AiEngineConfigHolder extends ChangeNotifier {
   /// listeners. Callers should build the next config with
   /// [AiEngineConfig.copyWith] (or construct fresh) and pass it in.
   Future<void> updateConfig(AiEngineConfig next) async {
+    final previousBaseUrl = _config.baseUrl;
     _config = next;
+    // The `json_schema` capability probe is keyed by Base URL. A provider
+    // switch or an edited URL must not inherit a verdict recorded against a
+    // different endpoint, or `auto` would keep downgrading to `json_object`
+    // based on a stale rejection.
+    if (next.baseUrl != previousBaseUrl) {
+      _resetCapabilityProbes();
+    }
     notifyListeners();
     await _persist();
   }
@@ -143,21 +152,25 @@ class AiEngineConfigHolder extends ChangeNotifier {
       return;
     }
 
-    _keyStorageKind = _credentials.isPersistent
-        ? AiKeyStorageKind.secure
-        : AiKeyStorageKind.sessionOnly;
-
     if (stored == null) {
       _migrationStatus = AiCredentialMigrationStatus.notNeeded;
+      // Nothing stored yet, so no read can prove or disprove the store. Probe
+      // it now: the settings page shows a persistence status line before the
+      // first key is ever written.
+      await _refreshKeyStorageKind();
       return;
     }
 
     if (legacyPlaintextKey.isEmpty) {
-      // Modern shape: key already lives in the secure store.
+      // Read first, then classify: a failing read is exactly what proves the
+      // store is session-only, and the store latches that verdict. Classifying
+      // before the read meant "saved securely" was claimed for a key that had
+      // been silently dropped at the previous shutdown.
       final secureKey = await _readStoredKey();
       _migrationStatus = AiCredentialMigrationStatus.done;
       _lastPersistedKey = secureKey ?? '';
       _config = stored.copyWith(apiKey: secureKey ?? '');
+      await _refreshKeyStorageKind();
       notifyListeners();
       return;
     }
@@ -181,6 +194,7 @@ class AiEngineConfigHolder extends ChangeNotifier {
       _config = sanitized.copyWith(apiKey: legacyPlaintextKey);
       _migrationStatus = AiCredentialMigrationStatus.done;
       await prefs.setBool(LocalStateKeys.aiCredentialMigrated, value: true);
+      await _refreshKeyStorageKind();
     } catch (error) {
       migrationFailedStage = 'migrate';
       if (kDebugMode) {
@@ -190,11 +204,32 @@ class AiEngineConfigHolder extends ChangeNotifier {
       // Never delete the plaintext on failure — the user's key must survive.
       _config = stored;
       _migrationStatus = AiCredentialMigrationStatus.failed;
+      await _refreshKeyStorageKind();
     }
     notifyListeners();
   }
 
   // ─── Internals ──────────────────────────────────────────────────────────
+
+  /// Re-derive [keyStorageKind] from the store.
+  ///
+  /// Prefers a round-trip probe over the synchronous [ICredentialStore
+  /// .isPersistent] flag: the flag can only guess before the store has been
+  /// exercised, and guessing "persistent" is what hid the missing OHOS plug-in.
+  Future<void> _refreshKeyStorageKind() async {
+    var persistent = _credentials.isPersistent;
+    // `is` cannot promote across unrelated interfaces, so the cast is explicit.
+    if (_credentials is IPersistentCredentialProbe) {
+      try {
+        persistent = await (_credentials as IPersistentCredentialProbe)
+            .probePersistence();
+      } catch (_) {
+        persistent = false;
+      }
+    }
+    _keyStorageKind =
+        persistent ? AiKeyStorageKind.secure : AiKeyStorageKind.sessionOnly;
+  }
 
   Future<void> _persist() async {
     _persistConfigJson();
@@ -254,6 +289,20 @@ class AiEngineConfigHolder extends ChangeNotifier {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Drop `AiHttpClient`'s per-Base-URL `json_schema` verdicts.
+  ///
+  /// Guarded the same way as [_prefs]: the holder is constructed in tests that
+  /// never register the engine, and a missing engine only means the next call
+  /// re-probes the endpoint.
+  void _resetCapabilityProbes() {
+    if (!getIt.isRegistered<AiEngine>()) return;
+    try {
+      getIt<AiEngine>().resetCapabilityProbes();
+    } catch (_) {
+      // Engine unresolvable — the probe is best-effort process state.
     }
   }
 

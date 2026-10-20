@@ -20,6 +20,17 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   flutter_secure_storage: ^9.2.4
+  # OHOS native side of flutter_secure_storage (ArkTS, same method channel as
+  # MethodChannelFlutterSecureStorage). No pub.dev release exists for OHOS, and
+  # the app-facing package above has no way to declare it as a default_package,
+  # so it is added here as a direct dependency: that is what makes the Flutter
+  # tool emit it into ohos/entry/.../GeneratedPluginRegistrant.ets. It declares
+  # only the `ohos` platform, so Android/iOS/desktop builds are unaffected.
+  flutter_secure_storage_ohos:
+    git:
+      url: https://gitcode.com/openharmony-sig/fluttertpc_flutter_secure_storage.git
+      path: flutter_secure_storage_ohos
+      ref: 9.2.4-ohos-1.0.0
   flutter_tts: ^4.0.2
   freezed_annotation: ^3.1.0
   fsrs: ^2.0.1
@@ -111,6 +122,11 @@ dependency_overrides:
     path: third_party/flutter/material_ui
   cupertino_ui:
     path: third_party/flutter/cupertino_ui
+  # Vendored 9.2.4 + one local patch: an `operatingSystem == 'ohos'` arm in
+  # `_selectOptions`, which upstream lacks (it threw UnsupportedError, so the AI
+  # API key never reached the Keystore on HarmonyOS). See the vendored pubspec.
+  flutter_secure_storage:
+    path: third_party/flutter/flutter_secure_storage
   shared_preferences:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git

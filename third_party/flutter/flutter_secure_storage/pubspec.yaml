@@ -1,0 +1,66 @@
+# Vendored copy of pub.dev flutter_secure_storage 9.2.4 (Apache-2.0, see LICENSE).
+#
+# Local patch: exactly one change, in `lib/flutter_secure_storage.dart`
+# `_selectOptions` -- a `Platform.operatingSystem == 'ohos'` arm that returns an
+# empty option map instead of throwing `UnsupportedError`. Upstream has no OHOS
+# arm, which made every credential read/write throw on HarmonyOS and silently
+# left the API key in memory only (see
+# docs/decisions/0055-ai-credential-persistence-ohos.md).
+#
+# Platform impls stay federated: android/ios in-tree, linux/macos/web/windows
+# from pub as before. The OHOS native side is registered separately by depending
+# on `flutter_secure_storage_ohos` in the app pubspec, because this package
+# cannot express a `default_package` for a package it does not depend on.
+name: flutter_secure_storage
+description: Flutter Secure Storage provides API to store data in secure storage. Keychain is used in iOS, KeyStore based solution is used in Android.
+version: 9.2.4
+repository: https://github.com/mogol/flutter_secure_storage/tree/develop/flutter_secure_storage
+
+environment:
+  sdk: ">=2.12.0 <4.0.0"
+  flutter: ">=2.0.0"
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.it_nomads.fluttersecurestorage
+        pluginClass: FlutterSecureStoragePlugin
+      ios:
+        pluginClass: FlutterSecureStoragePlugin
+      linux:
+        default_package: flutter_secure_storage_linux
+      macos:
+        default_package: flutter_secure_storage_macos
+      web:
+        default_package: flutter_secure_storage_web
+      windows:
+        default_package: flutter_secure_storage_windows
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The design on https://flutter.dev/go/federated-plugins was to leave
+  # implementation constraints as "any". We cannot do it right now as it fails pub publish
+  # validation, so we set a ^ constraint.
+  # https://github.com/flutter/flutter/issues/46264
+  flutter_secure_storage_linux: ^1.2.2
+  flutter_secure_storage_macos: ^3.1.3
+  flutter_secure_storage_platform_interface: ^1.1.2
+  flutter_secure_storage_web: ^1.2.1
+  flutter_secure_storage_windows: ^3.1.2
+  meta: ^1.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lint: ^2.0.0
+
+# We need to manually declare supported platforms, because pub.dev won't find them.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:

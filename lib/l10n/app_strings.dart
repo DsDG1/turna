@@ -278,11 +278,11 @@ class AppStrings {
   static String get aiGuideLabelSteps => '操作流程';
 
   static String get aiGuideFreeChatTitle => '自由问答';
-  static String get aiGuideFreeChatPurpose => '跟 AI 老师自由对话，问任何土耳其语相关问题。';
+  static String get aiGuideFreeChatPurpose => '跟 AI 老师自由对话，问任何语言学习相关的问题。';
   static List<String> get aiGuideFreeChatScenarios => const [
         '学完一个语法点想再追问',
         '想知道某个词的真实用法和例句',
-        '想让 AI 解释一段土耳其语句子',
+        '想让 AI 解释某个句子或说法',
       ];
   static List<String> get aiGuideFreeChatSteps => const [
         '点击卡片进入聊天页',
@@ -291,7 +291,7 @@ class AppStrings {
         '满意的回答可点「收藏」',
       ];
   static String get aiGuideFreeChatTip =>
-      '问题越具体，AI 越懂你。比如「-dık 与 -acak 的区别」比「教我语法」有用。';
+      '问题越具体，AI 越懂你。指出具体词句或语法点，比「教我语法」有用得多。';
 
   static String get aiGuideDiagnosisTitle => '学习诊断';
   static String get aiGuideDiagnosisPurpose => '让 AI 看你的学习数据，告诉你现在卡在哪、下一步该练什么。';
@@ -532,7 +532,7 @@ class AppStrings {
   static String get settingsExportProgressTitle => '进度数据';
   static String get settingsExportProgressSubtitle => 'SRS、得分、连续学习天数、错题、成就';
   static String get settingsExportCourseTitle => '课程内容';
-  static String get settingsExportCourseSubtitle => '内置土耳其语课程 JSON 文件';
+  static String get settingsExportCourseSubtitle => '内置课程 JSON 文件';
   static String get settingsExportButton => '导出';
   static String get settingsExporting => '导出中…';
   static String get settingsAboutTurna => '关于 Turna';
@@ -637,8 +637,8 @@ class AppStrings {
   static String get settingsTtsChecking => '正在检查设备 TTS 引擎…';
   static String settingsTtsReady(String locale) =>
       'Google TTS 就绪（$locale）——推荐用于学习';
-  static String get settingsTtsGoogleInstalledMissingVoice =>
-      'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
+  static String settingsTtsGoogleInstalledMissingVoice(String languageName) =>
+      'Google 已安装——请在系统 TTS 设置中下载$languageName语音数据';
   static String settingsTtsVoiceMissing(String name) =>
       '$name 语音未就绪——打开系统 TTS 设置';
   static String settingsTtsGoogleMissing(Object oem) =>
@@ -841,7 +841,7 @@ class AppStrings {
   static String get privacyDetailsAiTitle => 'AI 功能';
   static String get privacyDetailsAiIntro => '联网行为由你在 AI API 配置中选择的平台决定';
   static String get privacyDetailsAiBody =>
-      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、Anki 卡片讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「练习 → 智能练习 → 顶部引擎卡（AI API 配置）」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥仅保存在本机偏好中（退出输入框即丢弃输入），不会上传到任何第三方。';
+      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、Anki 卡片讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「练习 → 智能练习 → 顶部引擎卡（AI API 配置）」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥经系统安全存储加密保存在本机（Android Keystore / iOS 钥匙串 / 鸿蒙加密偏好），不写入普通偏好、不进日志、不上传任何第三方，重启应用后仍然有效。';
   // 可选网络行为：外部链接
   static String get privacyDetailsExternalLinksTitle => '可选网络行为：外部链接';
   static String get privacyDetailsExternalLinksIntro => '打开外部链接时 Turna 的行为';
@@ -1006,7 +1006,7 @@ class AppStrings {
       '$grammarDue 个语法点待复习';
   static String get playGrammarReviewSubtitleEmpty => '暂无待复习语法';
   static String get playDailyChallengeTitle => '每日挑战';
-  static String get playDailyChallengeSubtitle => '随机 15 题——测试你的土耳其语';
+  static String get playDailyChallengeSubtitle => '随机 15 题——测一测今天学到的';
   static String get playWeakWordsTitle => '薄弱单词';
   static String playWeakWordsSubtitleWithCount(int weakCount) =>
       '$weakCount 个单词在过去 30 天内错过两次';
@@ -1393,7 +1393,6 @@ class AppStrings {
   static String lessonDurationSeconds(int seconds) => '$seconds秒';
   static String lessonDurationMinutes(int minutes, int seconds) =>
       '$minutes分$seconds秒';
-  static String get lessonAiHelperTooltip => 'AI 课程助手';
   static String get lessonAiHintTooltip => 'AI 提示';
   static String get lessonNoContent => '无内容';
   static String get lessonLessonFallback => '课程';
@@ -1421,8 +1420,7 @@ class AppStrings {
   static String get aiGroundedGenerationTitle => '基于已有内容生成';
   static String get aiGroundedGenerationSubtitle => '复用现有的词汇、表达和语法点';
   static String get aiExtraInstructionsLabel => '额外说明（可选）';
-  static String get aiEmptyHintWish =>
-      '告诉 AI 你想要什么课程。例如：\n「我想教土耳其语旅行用语——问候和点餐。」';
+  static String get aiEmptyHintWish => '告诉 AI 你想要什么课程。例如：\n「我想教旅行用语——问候和点餐。」';
   static String aiErrorBubble(Object error) => '错误：$error';
   static String get aiCourseGenerated => '课程已生成';
   static String aiAiExplanation(String explanation) => 'AI 说明：$explanation';
@@ -1480,23 +1478,6 @@ class AppStrings {
   static String aiTextbookErrorFooter(Object error) => '错误：$error';
   static String get aiTextbookExtractKnowledge => '提取知识';
   static String get aiTextbookImportSections => '导入章节';
-  static String get aiLessonHelperTitle => 'AI 课程助手';
-  static String get aiLessonHelperHint => '例如「让这个更简单」或「添加 3 个练习」';
-  static String get aiLessonHelperInstructionLabel => '指令';
-  static String get aiLessonHelperChipMakeEasier => '降低难度';
-  static String get aiLessonHelperChipMakeHarder => '提高难度';
-  static String get aiLessonHelperChipAddExercises => '添加 3 个练习';
-  static String get aiLessonHelperChipListening => '改为听力练习';
-  static String get aiLessonHelperChipPolish => '优化提示词';
-  static String aiLessonHelperError(Object error) => '出错了：$error';
-  static String get aiLessonHelperErrorUnknown => '出错了：未知错误';
-  static String get aiLessonHelperPreviewTitle => '预览';
-  static String get aiLessonHelperTransformationReady => '转换已就绪。点击应用以更新课程。';
-  static String get aiLessonHelperTransform => '转换';
-  static String aiLessonHelperInvalidJson(Object error) => '无效的课程 JSON：$error';
-  static String get aiLessonHelperLessonUpdated => '课程已更新。';
-  static String get aiLessonHelperUndoAvailable => '可以撤销上次 AI 改课。';
-  static String aiLessonHelperUpdateFailed(Object error) => '更新失败：$error';
   static String get aiTutorTitle => 'AI 导师';
   static String aiTutorTitleWithType(String typeLabel) => 'AI 导师 · $typeLabel';
   static String get aiEmptyHintTutor => 'AI 正在为此问题准备解释…';
@@ -1536,12 +1517,42 @@ class AppStrings {
   static String get aiErrorCancelled => '已停止生成';
   static String get aiErrorParseFailed => '模型返回格式异常，请重试';
 
+  /// 供应商拒收模型 id（`unknown model` 一族）。这类失败重试没用，只能在
+  /// 设置里把名字改对，所以说清去哪改，而不是给一句「稍后重试」。
+  static String get aiErrorModelUnavailable => '当前模型不可用，请到 AI 设置里核对模型名';
+
   /// The endpoint answered 3xx. Fixed copy with no status or body in it: the
   /// request is never followed (it carries the API key), so the user has to
   /// enter the final URL themselves.
   static String get aiErrorEndpointRedirect => '接口地址发生跳转，出于安全考虑未自动跟随，请填写最终地址';
+
+  /// The reply hit the output-token ceiling (`finish_reason: length`), so the
+  /// JSON was cut mid-way. Retrying is pointless — the request has to ask for
+  /// less content.
+  static String get aiErrorTruncated => '输出过长被截断，请减少内容规模后重试';
+
   static String get aiErrorUnknown => 'AI 请求失败，请稍后重试';
   static String get aiStopGenerating => '停止';
+
+  // ── AI session usage (Advanced → AI engine tunables) ──
+  static String get aiUsageTitle => '本会话用量';
+
+  /// [requests] counts completed calls, [cacheHits] the locally served share,
+  /// and the two token counts come from the endpoint's own `usage` block.
+  /// [usageReports] is how many calls actually carried one — some gateways
+  /// omit it, and "0 tokens" must not be read as "nothing was spent".
+  static String aiUsageSubtitle({
+    required int requests,
+    required int cacheHits,
+    required int promptTokens,
+    required int completionTokens,
+    required int usageReports,
+  }) {
+    if (requests == 0) return '本次启动后还没有发起请求';
+    final cache = cacheHits > 0 ? '（命中缓存 $cacheHits）' : '';
+    if (usageReports == 0) return '请求 $requests$cache · 服务商未上报 token 用量';
+    return '请求 $requests$cache · 输入 $promptTokens / 输出 $completionTokens tokens';
+  }
   static String get aiDisclaimer => 'AI 可能有误，请以课程与词典为准';
   static String get aiNotConfiguredBody => '配置 AI 后即可使用伴学功能';
   static String get aiNotConfiguredCta => '去配置';
@@ -1553,15 +1564,6 @@ class AppStrings {
       '第 $current/$total 步';
   static String get accountResetExportFirst => '先导出备份';
   static String get settingsImporting => '导入中…';
-  static String get aiLessonHelperNoLesson => '未选择课时';
-  static String get aiLessonHelperApplyConfirmTitle => '应用这次 AI 改课？';
-  static String get aiLessonHelperApplyConfirmBody => '将覆盖当前课时。应用后可在提示条里撤销这一次。';
-  static String get aiLessonHelperUndone => '已撤销这次改课';
-  static String get aiLessonHelperUndoFailed => '撤销失败，课时仍是改后的内容。';
-  static String aiLessonHelperCountChange(int before, int after) =>
-      '题目数：$before → $after';
-  static String aiLessonHelperTitleChange(String before, String after) =>
-      '标题：$before → $after';
   static String get aiSavedDeleted => '已删除收藏';
   static String aiSavedSourceLabel(String source) {
     switch (source) {
@@ -1608,14 +1610,21 @@ class AppStrings {
       '写在这里的内容会以「Additional requirements from the learner」为标题追加到末尾。'
       '适合写风格、举例偏好、用词限制；与上面默认规则冲突时以默认规则为准。';
   static String get aiPromptCustomPlaceholder =>
-      '例如：解释时先给一个土耳其语例句，再给中文说明；不要用「其实」「简单来说」这类词。';
+      '例如：解释时先给一个目标语言例句，再给中文说明；不要用「其实」「简单来说」这类词。';
   static String get aiPromptUsingDefault => '当前使用默认提示词';
   static String get aiPromptSave => '保存';
   static String get aiPromptSaved => '已保存，下一次请求生效';
   static String get aiPromptResetDefault => '恢复默认';
+  static String get aiPromptResetAll => '全部恢复默认';
+  static String get aiPromptResetAllTitle => '把所有提示词恢复默认？';
+  static String aiPromptResetAllBody(int count) =>
+      '将清除你在 $count 个功能里追加的要求。默认提示词本来就不受影响，清完立即生效。';
+  static String get aiPromptResetAllConfirm => '全部恢复';
+  static String get aiPromptResetAllDone => '已全部恢复默认';
   static String get aiPromptResetDone => '已清除你的额外要求';
   static String get aiPromptSheetFooter =>
       '默认部分不开放替换：删掉「不许输出课程 JSON」或「未作答时别给答案」会让功能直接坏掉。'
+      '课程 / 改课 / 定制复习这类要产出 JSON 的功能，schema 契约写在用户消息里，不在这段提示词里。'
       '响应缓存以提示词内容参与计算，改完下一次请求就会重新生成，无需手动清缓存。';
 
   // ── Free tutor chat ──
@@ -1686,6 +1695,73 @@ class AppStrings {
   static String get tutorLaunchErrorUnknown => '生成失败，请稍后再试。';
   static String tutorLaunchSaved(String name) => '已生成：$name，跳转中...';
 
+  // ── 我的练习（AI 生成练习库 / 后台队列） ──
+  static String get aiPracticeSectionTitle => '我的练习';
+  static String get aiPracticeSectionEmpty =>
+      '还没有生成过练习。按错题、弱词或自定义主题生成一份，生成期间可以继续做别的。';
+  static String get aiPracticeViewAll => '查看全部';
+  static String get aiPracticeQueued => '排队中';
+  static String get aiPracticeGenerating => '生成中';
+  static String get aiPracticeReady => '待练习';
+  static String get aiPracticeFailed => '生成失败';
+  static String get aiPracticeInterrupted => '已中断';
+  static String get aiPracticePinned => '已存放';
+  static String aiPracticeProgress(int done, int total) => '$done/$total 课';
+  static String get aiPracticeStart => '开始练习';
+  static String get aiPracticePin => '存放';
+  static String get aiPracticeUnpin => '取消存放';
+  static String get aiPracticeAdjust => '调整这份练习';
+  static String get aiPracticeAdjustHint => '例如：把题干改短一点，多考一个语法点';
+  static String get aiPracticeAdjusted => '练习已更新';
+  static String aiPracticeAdjustFailed(Object error) => '调整失败：$error';
+  static String get aiPracticeDelete => '删除';
+  static String get aiPracticeRetry => '重试';
+  static String get aiPracticeCancel => '取消生成';
+  static String get aiPracticeSelect => '选择';
+  static String get aiPracticeSelectAll => '全选';
+  static String get aiPracticeExitSelect => '完成';
+  static String get aiPracticeDeleteTitle => '删除选中的练习？';
+  static String aiPracticeDeleteBody(int count) =>
+      '将删除 $count 份生成记录，不影响课程进度与错题。';
+  static String aiPracticeDeleted(int count) => '已删除 $count 份练习';
+  static String aiPracticeDeleteFailed(Object error) => '删除失败：$error';
+  static String get aiPracticePinnedToast => '已存放';
+  static String get aiPracticeUnpinnedToast => '已取消存放';
+  static String get aiPracticeLoadFailed => '练习库加载失败，点此重试';
+  static String get aiPracticeGenerateTitle => '生成练习';
+  static String get aiPracticeEntryDataTitle => '按学习数据生成';
+  static String get aiPracticeModeData => '按学习数据';
+  static String get aiPracticeModeCustom => '自定义课程';
+  static String aiPracticeLessonPlan(int count) => '共 $count 课';
+  static String get aiPracticeEntryDataSubtitle => '错题 / 弱词 / 难懂点，后台生成';
+  static String get aiPracticeEntryCustomSubtitle => '主题 + 单元 × 课数';
+  static String get aiPracticeSourceLabel => '来源';
+  static String get aiPracticeSourceMistakes => '最近错题';
+  static String get aiPracticeSourceWeakWords => '弱词';
+  static String get aiPracticeSourceDifficult => '难懂点';
+  static String get aiPracticeSourceCustom => '自定义课程';
+  static String get aiPracticeLevelLabel => '难度';
+  static String get aiPracticeStartGeneration => '开始生成';
+  static String get aiPracticeBackgroundHint =>
+      '生成会在后台进行，你可以继续做别的；完成后会出现在「我的练习」。';
+  static String get aiPracticeNotConfigured => '请先在智能练习顶部配置 AI。';
+  static String get aiPracticeCustomTopic => '主题';
+  static String get aiPracticeCustomTopicHint => '例如：餐厅点餐、过去时复习';
+  static String get aiPracticeCustomUnits => '单元数';
+  static String get aiPracticeCustomLessons => '每单元课数';
+  static String get aiPracticeCustomTemplate => '课型';
+  static String get aiPracticeCustomDesignBrief => '编排意图（可选）';
+  static String get aiPracticeCustomGrounded => '复用当前课程词表';
+  static String aiPracticeEstimatedCalls(int calls) => '预计 $calls 次模型调用';
+  static String get aiPracticeRunnerTitle => 'AI 练习';
+  static String get aiPracticeRunnerEmpty => '这份练习还没有可用的题目。';
+  static String get aiPracticeRunnerNext => '下一课';
+  static String get aiPracticeRunnerFinish => '完成';
+  static String get aiPracticeMasteryFailed => '正确率不足 80%，再试一次？';
+  static String get aiPracticeEnd => '结束';
+  static String get aiPracticeRunnerSummary => '练习完成';
+  static String get aiPracticeRunnerBackToLibrary => '返回我的练习';
+
   // ── AI Hub (Phase 2.3 + companion) ──
   static String get commonNavAiHub => 'AI';
   static String get aiHubTitle => 'AI Hub';
@@ -1723,6 +1799,10 @@ class AppStrings {
   static String get aiHubFieldBaseUrlHintPreset => '来自所选预设，不可编辑';
   static String get aiHubFieldModelChat => '聊天模型';
   static String get aiHubFieldModelJson => 'JSON 模型';
+
+  /// 空着的 JSON 模型不是「没配」，而是「跟聊天模型一样」。写清楚这一点，
+  /// 用户才不会以为这里漏填会导致请求失败。
+  static String get aiHubFieldModelJsonHint => '留空则与聊天模型相同';
   static String get aiHubFieldStrictSchema => '严格 JSON 模式';
   static String get aiHubFieldCacheEnabled => '启用缓存';
   static String get aiHubFieldCacheEnabledHint => '关闭后每次都会重新请求模型';
@@ -1793,6 +1873,8 @@ class AppStrings {
       '该服务商未声明推理支持，开启会向端点发送推理字段，可能被拒绝';
   static String get aiConfigSessionKeyNotice =>
       '此平台没有持久安全存储，密钥仅本次会话有效：关闭应用后需要重新输入。密钥不会写入普通偏好。';
+  static String get aiConfigKeyPersistedNotice =>
+      '密钥已加密保存在本机系统安全存储中：重启应用后仍然有效，无需重新输入。换机或卸载应用会清除。';
   static String get aiConfigMigrationPendingNotice =>
       '凭据安全迁移尚未完成，当前仍使用旧存储。重启应用会自动重试；如持续出现请在重新输入密钥前备份它。';
 
@@ -2474,7 +2556,7 @@ class AppStrings {
 
   // ── Dictionary ──
   static String get dictionaryTitle => '词典';
-  static String get dictionarySearchHint => '搜索土耳其语或中文…';
+  static String get dictionarySearchHint => '搜索单词、释义或例句…';
   static String get dictionarySearchEmpty => '搜索单词、短语和语法';
   static String get dictionaryNoMatches => '无匹配结果';
   static String get dictionaryKindWord => '单词';
@@ -2605,7 +2687,7 @@ class AppStrings {
   static String get reviewEmptyHint => '还没有卡片。导入课程或 Anki 牌组后开始学习。';
   static String get reviewRefreshFailedKeptOld => '刷新失败，正在显示上一次的数据。';
   static String get reviewProgressSourceAll => '全部';
-  static String get reviewProgressSourceCourse => '课程 · 土耳其语';
+  static String get reviewProgressSourceCourse => '课程';
   static String get reviewProgressSourceGrammar => '语法';
   static String reviewProgressSourceAnki(String id) {
     final short = id.length > 8 ? id.substring(0, 8) : id;
@@ -2703,7 +2785,7 @@ class AppStrings {
 
   // ── Content Update ──
   static String get contentUpdateTitle => '课程已更新';
-  static String get contentUpdateMessage => '土耳其语课程已更新了新单词和课程。你可以重新开始或继续当前进度。';
+  static String get contentUpdateMessage => '课程已更新新单词和课时。你可以重新开始或继续当前进度。';
   static String get contentUpdateKeepProgress => '保留进度';
   static String get contentUpdateResetProgress => '重置进度';
   static String get contentUpdateBannerMessage => '课程内容已更新，可保留进度或重置后重学。';
@@ -2722,11 +2804,11 @@ class AppStrings {
   static String splashVoiceMissingBody(String name) =>
       '已安装 Google 文字转语音，但尚未下载$name语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装$name语音数据。';
   static String get splashGoogleTtsMissingTitle => 'Google TTS 不可用';
-  static String get splashGoogleTtsMissingBody =>
-      '此设备未显示 Google 文字转语音（或包可见性阻止了引擎发现）。\n\n安装「Google 语音识别与合成」，设为首选引擎，并下载土耳其语语音。';
+  static String splashGoogleTtsMissingBody(String languageName) =>
+      '此设备未显示 Google 文字转语音（或包可见性阻止了引擎发现）。\n\n安装「Google 语音识别与合成」，设为首选引擎，并下载$languageName语音。';
   static String get splashGoogleTtsNotReadyTitle => 'Google TTS 不可用';
-  static String get splashGoogleTtsNotReadyBody =>
-      '首选系统语音未就绪。请安装 Google TTS 和土耳其语语音包。';
+  static String splashGoogleTtsNotReadyBody(String languageName) =>
+      '首选系统语音未就绪。请安装 Google TTS 和$languageName语音包。';
   static String get splashKeepCurrentVoice => '保持当前语音';
   static String get splashTtsSettings => 'TTS 设置';
   static String get splashInstallGoogleTts => '安装 Google TTS';
