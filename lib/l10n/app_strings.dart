@@ -1553,6 +1553,7 @@ class AppStrings {
     if (usageReports == 0) return '请求 $requests$cache · 服务商未上报 token 用量';
     return '请求 $requests$cache · 输入 $promptTokens / 输出 $completionTokens tokens';
   }
+
   static String get aiDisclaimer => 'AI 可能有误，请以课程与词典为准';
   static String get aiNotConfiguredBody => '配置 AI 后即可使用伴学功能';
   static String get aiNotConfiguredCta => '去配置';
@@ -1761,6 +1762,35 @@ class AppStrings {
   static String get aiPracticeEnd => '结束';
   static String get aiPracticeRunnerSummary => '练习完成';
   static String get aiPracticeRunnerBackToLibrary => '返回我的练习';
+
+  // ── 我的练习：收藏 / 草稿 / 任务 收纳结构（ADR 0054） ──
+  static String get aiPracticeGroupFavorites => '收藏 · 永久保存';
+  static String get aiPracticeGroupDrafts => '草稿';
+  static String get aiPracticeGroupTasks => '生成任务';
+  static String aiPracticeGroupCount(int count) => '$count';
+  static String aiPracticeExpiresInDays(int days) => '还剩 $days 天';
+  static String get aiPracticeExpiringToday => '今天过期';
+  static String get aiPracticeExpiringBadge => '即将过期';
+  static String get aiPracticePermanentTag => '永久';
+  static String get aiPracticeFavorite => '收藏并永久保存';
+  static String get aiPracticeUnfavorite => '取消收藏';
+  static String get aiPracticeFavoritedToast => '已收藏，永久保存';
+  static String get aiPracticeUnfavoritedToast => '已取消收藏，7 天后过期';
+  static String get aiPracticeExpiryHint => 'AI 生成的课程默认保存 7 天后自动清理。收藏后永久保留。';
+  static String aiPracticeSweptOnOpen(int count) => '已清理 $count 份过期课程';
+  static String get aiPracticeDetailTitle => '课程详情';
+  static String get aiPracticeDetailOutline => '目录';
+  static String get aiPracticeDetailQuality => '内容核验';
+  static String get aiPracticeDetailQualityPassed => '结构、答案与生词覆盖全部通过';
+  static String aiPracticeDetailQualityBlocked(int count) => '$count 处复核未通过';
+  static String aiPracticeDetailQualityAdvisory(int count) => '$count 条质量提示';
+  static String get aiPracticeDetailVersions => '生成历史';
+  static String aiPracticeDetailVersion(int index) => '第 $index 版';
+  static String get aiPracticeDetailNoReport => '这一版生成时还没有核验记录';
+  static String aiPracticeDetailItems(int count) => '$count 道题';
+  static String get aiPracticeDetailEmpty => '这一版没有可展示的目录。';
+  static String get aiPracticeRegenerate => '重新生成一版';
+  static String get aiPracticeDetailExpired => '已过期';
 
   // ── AI Hub (Phase 2.3 + companion) ──
   static String get commonNavAiHub => 'AI';

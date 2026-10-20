@@ -6207,6 +6207,1166 @@ class MistakeAggregatesCompanion extends UpdateCompanion<MistakeAggregate> {
   }
 }
 
+class $AiCoursesTable extends AiCourses
+    with TableInfo<$AiCoursesTable, AiCourseRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AiCoursesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceKindMeta =
+      const VerificationMeta('sourceKind');
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+      'source_kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _levelMeta = const VerificationMeta('level');
+  @override
+  late final GeneratedColumn<String> level = GeneratedColumn<String>(
+      'level', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('A1'));
+  static const VerificationMeta _topicMeta = const VerificationMeta('topic');
+  @override
+  late final GeneratedColumn<String> topic = GeneratedColumn<String>(
+      'topic', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _pinnedMeta = const VerificationMeta('pinned');
+  @override
+  late final GeneratedColumn<bool> pinned = GeneratedColumn<bool>(
+      'pinned', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("pinned" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _expiresAtMsMeta =
+      const VerificationMeta('expiresAtMs');
+  @override
+  late final GeneratedColumn<int> expiresAtMs = GeneratedColumn<int>(
+      'expires_at_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMsMeta =
+      const VerificationMeta('createdAtMs');
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+      'created_at_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMsMeta =
+      const VerificationMeta('updatedAtMs');
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+      'updated_at_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        languageCode,
+        title,
+        sourceKind,
+        level,
+        topic,
+        pinned,
+        expiresAtMs,
+        createdAtMs,
+        updatedAtMs
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ai_courses';
+  @override
+  VerificationContext validateIntegrity(Insertable<AiCourseRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+          _sourceKindMeta,
+          sourceKind.isAcceptableOrUnknown(
+              data['source_kind']!, _sourceKindMeta));
+    } else if (isInserting) {
+      context.missing(_sourceKindMeta);
+    }
+    if (data.containsKey('level')) {
+      context.handle(
+          _levelMeta, level.isAcceptableOrUnknown(data['level']!, _levelMeta));
+    }
+    if (data.containsKey('topic')) {
+      context.handle(
+          _topicMeta, topic.isAcceptableOrUnknown(data['topic']!, _topicMeta));
+    }
+    if (data.containsKey('pinned')) {
+      context.handle(_pinnedMeta,
+          pinned.isAcceptableOrUnknown(data['pinned']!, _pinnedMeta));
+    }
+    if (data.containsKey('expires_at_ms')) {
+      context.handle(
+          _expiresAtMsMeta,
+          expiresAtMs.isAcceptableOrUnknown(
+              data['expires_at_ms']!, _expiresAtMsMeta));
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+          _createdAtMsMeta,
+          createdAtMs.isAcceptableOrUnknown(
+              data['created_at_ms']!, _createdAtMsMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+          _updatedAtMsMeta,
+          updatedAtMs.isAcceptableOrUnknown(
+              data['updated_at_ms']!, _updatedAtMsMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AiCourseRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AiCourseRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      sourceKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_kind'])!,
+      level: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}level'])!,
+      topic: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}topic'])!,
+      pinned: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}pinned'])!,
+      expiresAtMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}expires_at_ms']),
+      createdAtMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_ms'])!,
+      updatedAtMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at_ms'])!,
+    );
+  }
+
+  @override
+  $AiCoursesTable createAlias(String alias) {
+    return $AiCoursesTable(attachedDatabase, alias);
+  }
+}
+
+class AiCourseRow extends DataClass implements Insertable<AiCourseRow> {
+  final String id;
+  final String languageCode;
+  final String title;
+
+  /// [AiPracticeSource] wire name (`mistakes` / `weakWords` / `difficult` /
+  /// `custom`).
+  final String sourceKind;
+
+  /// CEFR-ish level the course was generated for.
+  final String level;
+
+  /// Topic / design brief tail, shown as the course description.
+  final String topic;
+
+  /// Favourited ("收藏"): exempt from [expiresAtMs] and never swept.
+  final bool pinned;
+
+  /// Epoch ms when the draft is deleted; null = permanent (favourited).
+  final int? expiresAtMs;
+  final int createdAtMs;
+  final int updatedAtMs;
+  const AiCourseRow(
+      {required this.id,
+      required this.languageCode,
+      required this.title,
+      required this.sourceKind,
+      required this.level,
+      required this.topic,
+      required this.pinned,
+      this.expiresAtMs,
+      required this.createdAtMs,
+      required this.updatedAtMs});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
+    map['title'] = Variable<String>(title);
+    map['source_kind'] = Variable<String>(sourceKind);
+    map['level'] = Variable<String>(level);
+    map['topic'] = Variable<String>(topic);
+    map['pinned'] = Variable<bool>(pinned);
+    if (!nullToAbsent || expiresAtMs != null) {
+      map['expires_at_ms'] = Variable<int>(expiresAtMs);
+    }
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
+    return map;
+  }
+
+  AiCoursesCompanion toCompanion(bool nullToAbsent) {
+    return AiCoursesCompanion(
+      id: Value(id),
+      languageCode: Value(languageCode),
+      title: Value(title),
+      sourceKind: Value(sourceKind),
+      level: Value(level),
+      topic: Value(topic),
+      pinned: Value(pinned),
+      expiresAtMs: expiresAtMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAtMs),
+      createdAtMs: Value(createdAtMs),
+      updatedAtMs: Value(updatedAtMs),
+    );
+  }
+
+  factory AiCourseRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AiCourseRow(
+      id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
+      title: serializer.fromJson<String>(json['title']),
+      sourceKind: serializer.fromJson<String>(json['sourceKind']),
+      level: serializer.fromJson<String>(json['level']),
+      topic: serializer.fromJson<String>(json['topic']),
+      pinned: serializer.fromJson<bool>(json['pinned']),
+      expiresAtMs: serializer.fromJson<int?>(json['expiresAtMs']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
+      'title': serializer.toJson<String>(title),
+      'sourceKind': serializer.toJson<String>(sourceKind),
+      'level': serializer.toJson<String>(level),
+      'topic': serializer.toJson<String>(topic),
+      'pinned': serializer.toJson<bool>(pinned),
+      'expiresAtMs': serializer.toJson<int?>(expiresAtMs),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
+    };
+  }
+
+  AiCourseRow copyWith(
+          {String? id,
+          String? languageCode,
+          String? title,
+          String? sourceKind,
+          String? level,
+          String? topic,
+          bool? pinned,
+          Value<int?> expiresAtMs = const Value.absent(),
+          int? createdAtMs,
+          int? updatedAtMs}) =>
+      AiCourseRow(
+        id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
+        title: title ?? this.title,
+        sourceKind: sourceKind ?? this.sourceKind,
+        level: level ?? this.level,
+        topic: topic ?? this.topic,
+        pinned: pinned ?? this.pinned,
+        expiresAtMs: expiresAtMs.present ? expiresAtMs.value : this.expiresAtMs,
+        createdAtMs: createdAtMs ?? this.createdAtMs,
+        updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+      );
+  AiCourseRow copyWithCompanion(AiCoursesCompanion data) {
+    return AiCourseRow(
+      id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
+      title: data.title.present ? data.title.value : this.title,
+      sourceKind:
+          data.sourceKind.present ? data.sourceKind.value : this.sourceKind,
+      level: data.level.present ? data.level.value : this.level,
+      topic: data.topic.present ? data.topic.value : this.topic,
+      pinned: data.pinned.present ? data.pinned.value : this.pinned,
+      expiresAtMs:
+          data.expiresAtMs.present ? data.expiresAtMs.value : this.expiresAtMs,
+      createdAtMs:
+          data.createdAtMs.present ? data.createdAtMs.value : this.createdAtMs,
+      updatedAtMs:
+          data.updatedAtMs.present ? data.updatedAtMs.value : this.updatedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiCourseRow(')
+          ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
+          ..write('title: $title, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('level: $level, ')
+          ..write('topic: $topic, ')
+          ..write('pinned: $pinned, ')
+          ..write('expiresAtMs: $expiresAtMs, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('updatedAtMs: $updatedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, languageCode, title, sourceKind, level,
+      topic, pinned, expiresAtMs, createdAtMs, updatedAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AiCourseRow &&
+          other.id == this.id &&
+          other.languageCode == this.languageCode &&
+          other.title == this.title &&
+          other.sourceKind == this.sourceKind &&
+          other.level == this.level &&
+          other.topic == this.topic &&
+          other.pinned == this.pinned &&
+          other.expiresAtMs == this.expiresAtMs &&
+          other.createdAtMs == this.createdAtMs &&
+          other.updatedAtMs == this.updatedAtMs);
+}
+
+class AiCoursesCompanion extends UpdateCompanion<AiCourseRow> {
+  final Value<String> id;
+  final Value<String> languageCode;
+  final Value<String> title;
+  final Value<String> sourceKind;
+  final Value<String> level;
+  final Value<String> topic;
+  final Value<bool> pinned;
+  final Value<int?> expiresAtMs;
+  final Value<int> createdAtMs;
+  final Value<int> updatedAtMs;
+  final Value<int> rowid;
+  const AiCoursesCompanion({
+    this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
+    this.title = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.level = const Value.absent(),
+    this.topic = const Value.absent(),
+    this.pinned = const Value.absent(),
+    this.expiresAtMs = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AiCoursesCompanion.insert({
+    required String id,
+    this.languageCode = const Value.absent(),
+    required String title,
+    required String sourceKind,
+    this.level = const Value.absent(),
+    this.topic = const Value.absent(),
+    this.pinned = const Value.absent(),
+    this.expiresAtMs = const Value.absent(),
+    required int createdAtMs,
+    required int updatedAtMs,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        title = Value(title),
+        sourceKind = Value(sourceKind),
+        createdAtMs = Value(createdAtMs),
+        updatedAtMs = Value(updatedAtMs);
+  static Insertable<AiCourseRow> custom({
+    Expression<String>? id,
+    Expression<String>? languageCode,
+    Expression<String>? title,
+    Expression<String>? sourceKind,
+    Expression<String>? level,
+    Expression<String>? topic,
+    Expression<bool>? pinned,
+    Expression<int>? expiresAtMs,
+    Expression<int>? createdAtMs,
+    Expression<int>? updatedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
+      if (title != null) 'title': title,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (level != null) 'level': level,
+      if (topic != null) 'topic': topic,
+      if (pinned != null) 'pinned': pinned,
+      if (expiresAtMs != null) 'expires_at_ms': expiresAtMs,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AiCoursesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? languageCode,
+      Value<String>? title,
+      Value<String>? sourceKind,
+      Value<String>? level,
+      Value<String>? topic,
+      Value<bool>? pinned,
+      Value<int?>? expiresAtMs,
+      Value<int>? createdAtMs,
+      Value<int>? updatedAtMs,
+      Value<int>? rowid}) {
+    return AiCoursesCompanion(
+      id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
+      title: title ?? this.title,
+      sourceKind: sourceKind ?? this.sourceKind,
+      level: level ?? this.level,
+      topic: topic ?? this.topic,
+      pinned: pinned ?? this.pinned,
+      expiresAtMs: expiresAtMs ?? this.expiresAtMs,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<String>(level.value);
+    }
+    if (topic.present) {
+      map['topic'] = Variable<String>(topic.value);
+    }
+    if (pinned.present) {
+      map['pinned'] = Variable<bool>(pinned.value);
+    }
+    if (expiresAtMs.present) {
+      map['expires_at_ms'] = Variable<int>(expiresAtMs.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiCoursesCompanion(')
+          ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
+          ..write('title: $title, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('level: $level, ')
+          ..write('topic: $topic, ')
+          ..write('pinned: $pinned, ')
+          ..write('expiresAtMs: $expiresAtMs, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AiCourseVersionsTable extends AiCourseVersions
+    with TableInfo<$AiCourseVersionsTable, AiCourseVersionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AiCourseVersionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _courseIdMeta =
+      const VerificationMeta('courseId');
+  @override
+  late final GeneratedColumn<String> courseId = GeneratedColumn<String>(
+      'course_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sectionJsonMeta =
+      const VerificationMeta('sectionJson');
+  @override
+  late final GeneratedColumn<String> sectionJson = GeneratedColumn<String>(
+      'section_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _requestJsonMeta =
+      const VerificationMeta('requestJson');
+  @override
+  late final GeneratedColumn<String> requestJson = GeneratedColumn<String>(
+      'request_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _qualityJsonMeta =
+      const VerificationMeta('qualityJson');
+  @override
+  late final GeneratedColumn<String> qualityJson = GeneratedColumn<String>(
+      'quality_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _progressDoneMeta =
+      const VerificationMeta('progressDone');
+  @override
+  late final GeneratedColumn<int> progressDone = GeneratedColumn<int>(
+      'progress_done', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _progressTotalMeta =
+      const VerificationMeta('progressTotal');
+  @override
+  late final GeneratedColumn<int> progressTotal = GeneratedColumn<int>(
+      'progress_total', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _errorMessageMeta =
+      const VerificationMeta('errorMessage');
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+      'error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _explanationMeta =
+      const VerificationMeta('explanation');
+  @override
+  late final GeneratedColumn<String> explanation = GeneratedColumn<String>(
+      'explanation', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMsMeta =
+      const VerificationMeta('createdAtMs');
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+      'created_at_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMsMeta =
+      const VerificationMeta('updatedAtMs');
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+      'updated_at_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        courseId,
+        status,
+        sectionJson,
+        requestJson,
+        qualityJson,
+        progressDone,
+        progressTotal,
+        errorMessage,
+        explanation,
+        createdAtMs,
+        updatedAtMs
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ai_course_versions';
+  @override
+  VerificationContext validateIntegrity(Insertable<AiCourseVersionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('course_id')) {
+      context.handle(_courseIdMeta,
+          courseId.isAcceptableOrUnknown(data['course_id']!, _courseIdMeta));
+    } else if (isInserting) {
+      context.missing(_courseIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('section_json')) {
+      context.handle(
+          _sectionJsonMeta,
+          sectionJson.isAcceptableOrUnknown(
+              data['section_json']!, _sectionJsonMeta));
+    }
+    if (data.containsKey('request_json')) {
+      context.handle(
+          _requestJsonMeta,
+          requestJson.isAcceptableOrUnknown(
+              data['request_json']!, _requestJsonMeta));
+    }
+    if (data.containsKey('quality_json')) {
+      context.handle(
+          _qualityJsonMeta,
+          qualityJson.isAcceptableOrUnknown(
+              data['quality_json']!, _qualityJsonMeta));
+    }
+    if (data.containsKey('progress_done')) {
+      context.handle(
+          _progressDoneMeta,
+          progressDone.isAcceptableOrUnknown(
+              data['progress_done']!, _progressDoneMeta));
+    }
+    if (data.containsKey('progress_total')) {
+      context.handle(
+          _progressTotalMeta,
+          progressTotal.isAcceptableOrUnknown(
+              data['progress_total']!, _progressTotalMeta));
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+          _errorMessageMeta,
+          errorMessage.isAcceptableOrUnknown(
+              data['error_message']!, _errorMessageMeta));
+    }
+    if (data.containsKey('explanation')) {
+      context.handle(
+          _explanationMeta,
+          explanation.isAcceptableOrUnknown(
+              data['explanation']!, _explanationMeta));
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+          _createdAtMsMeta,
+          createdAtMs.isAcceptableOrUnknown(
+              data['created_at_ms']!, _createdAtMsMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+          _updatedAtMsMeta,
+          updatedAtMs.isAcceptableOrUnknown(
+              data['updated_at_ms']!, _updatedAtMsMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AiCourseVersionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AiCourseVersionRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      courseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}course_id'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      sectionJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}section_json']),
+      requestJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}request_json'])!,
+      qualityJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}quality_json']),
+      progressDone: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}progress_done'])!,
+      progressTotal: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}progress_total'])!,
+      errorMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error_message']),
+      explanation: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}explanation']),
+      createdAtMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_ms'])!,
+      updatedAtMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at_ms'])!,
+    );
+  }
+
+  @override
+  $AiCourseVersionsTable createAlias(String alias) {
+    return $AiCourseVersionsTable(attachedDatabase, alias);
+  }
+}
+
+class AiCourseVersionRow extends DataClass
+    implements Insertable<AiCourseVersionRow> {
+  final String id;
+  final String courseId;
+
+  /// [AiPracticeStatus] wire name.
+  final String status;
+
+  /// Canonical section JSON from `docs/authoring/course-layout.md`; null until
+  /// the generator completes.
+  final String? sectionJson;
+
+  /// Generation spec snapshot used by retry after failure / interruption.
+  final String requestJson;
+
+  /// Verification report JSON (blocking + advisory findings).
+  final String? qualityJson;
+  final int progressDone;
+  final int progressTotal;
+  final String? errorMessage;
+  final String? explanation;
+  final int createdAtMs;
+  final int updatedAtMs;
+  const AiCourseVersionRow(
+      {required this.id,
+      required this.courseId,
+      required this.status,
+      this.sectionJson,
+      required this.requestJson,
+      this.qualityJson,
+      required this.progressDone,
+      required this.progressTotal,
+      this.errorMessage,
+      this.explanation,
+      required this.createdAtMs,
+      required this.updatedAtMs});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['course_id'] = Variable<String>(courseId);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || sectionJson != null) {
+      map['section_json'] = Variable<String>(sectionJson);
+    }
+    map['request_json'] = Variable<String>(requestJson);
+    if (!nullToAbsent || qualityJson != null) {
+      map['quality_json'] = Variable<String>(qualityJson);
+    }
+    map['progress_done'] = Variable<int>(progressDone);
+    map['progress_total'] = Variable<int>(progressTotal);
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    if (!nullToAbsent || explanation != null) {
+      map['explanation'] = Variable<String>(explanation);
+    }
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
+    return map;
+  }
+
+  AiCourseVersionsCompanion toCompanion(bool nullToAbsent) {
+    return AiCourseVersionsCompanion(
+      id: Value(id),
+      courseId: Value(courseId),
+      status: Value(status),
+      sectionJson: sectionJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sectionJson),
+      requestJson: Value(requestJson),
+      qualityJson: qualityJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qualityJson),
+      progressDone: Value(progressDone),
+      progressTotal: Value(progressTotal),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      explanation: explanation == null && nullToAbsent
+          ? const Value.absent()
+          : Value(explanation),
+      createdAtMs: Value(createdAtMs),
+      updatedAtMs: Value(updatedAtMs),
+    );
+  }
+
+  factory AiCourseVersionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AiCourseVersionRow(
+      id: serializer.fromJson<String>(json['id']),
+      courseId: serializer.fromJson<String>(json['courseId']),
+      status: serializer.fromJson<String>(json['status']),
+      sectionJson: serializer.fromJson<String?>(json['sectionJson']),
+      requestJson: serializer.fromJson<String>(json['requestJson']),
+      qualityJson: serializer.fromJson<String?>(json['qualityJson']),
+      progressDone: serializer.fromJson<int>(json['progressDone']),
+      progressTotal: serializer.fromJson<int>(json['progressTotal']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      explanation: serializer.fromJson<String?>(json['explanation']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'courseId': serializer.toJson<String>(courseId),
+      'status': serializer.toJson<String>(status),
+      'sectionJson': serializer.toJson<String?>(sectionJson),
+      'requestJson': serializer.toJson<String>(requestJson),
+      'qualityJson': serializer.toJson<String?>(qualityJson),
+      'progressDone': serializer.toJson<int>(progressDone),
+      'progressTotal': serializer.toJson<int>(progressTotal),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'explanation': serializer.toJson<String?>(explanation),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
+    };
+  }
+
+  AiCourseVersionRow copyWith(
+          {String? id,
+          String? courseId,
+          String? status,
+          Value<String?> sectionJson = const Value.absent(),
+          String? requestJson,
+          Value<String?> qualityJson = const Value.absent(),
+          int? progressDone,
+          int? progressTotal,
+          Value<String?> errorMessage = const Value.absent(),
+          Value<String?> explanation = const Value.absent(),
+          int? createdAtMs,
+          int? updatedAtMs}) =>
+      AiCourseVersionRow(
+        id: id ?? this.id,
+        courseId: courseId ?? this.courseId,
+        status: status ?? this.status,
+        sectionJson: sectionJson.present ? sectionJson.value : this.sectionJson,
+        requestJson: requestJson ?? this.requestJson,
+        qualityJson: qualityJson.present ? qualityJson.value : this.qualityJson,
+        progressDone: progressDone ?? this.progressDone,
+        progressTotal: progressTotal ?? this.progressTotal,
+        errorMessage:
+            errorMessage.present ? errorMessage.value : this.errorMessage,
+        explanation: explanation.present ? explanation.value : this.explanation,
+        createdAtMs: createdAtMs ?? this.createdAtMs,
+        updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+      );
+  AiCourseVersionRow copyWithCompanion(AiCourseVersionsCompanion data) {
+    return AiCourseVersionRow(
+      id: data.id.present ? data.id.value : this.id,
+      courseId: data.courseId.present ? data.courseId.value : this.courseId,
+      status: data.status.present ? data.status.value : this.status,
+      sectionJson:
+          data.sectionJson.present ? data.sectionJson.value : this.sectionJson,
+      requestJson:
+          data.requestJson.present ? data.requestJson.value : this.requestJson,
+      qualityJson:
+          data.qualityJson.present ? data.qualityJson.value : this.qualityJson,
+      progressDone: data.progressDone.present
+          ? data.progressDone.value
+          : this.progressDone,
+      progressTotal: data.progressTotal.present
+          ? data.progressTotal.value
+          : this.progressTotal,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      explanation:
+          data.explanation.present ? data.explanation.value : this.explanation,
+      createdAtMs:
+          data.createdAtMs.present ? data.createdAtMs.value : this.createdAtMs,
+      updatedAtMs:
+          data.updatedAtMs.present ? data.updatedAtMs.value : this.updatedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiCourseVersionRow(')
+          ..write('id: $id, ')
+          ..write('courseId: $courseId, ')
+          ..write('status: $status, ')
+          ..write('sectionJson: $sectionJson, ')
+          ..write('requestJson: $requestJson, ')
+          ..write('qualityJson: $qualityJson, ')
+          ..write('progressDone: $progressDone, ')
+          ..write('progressTotal: $progressTotal, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('explanation: $explanation, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('updatedAtMs: $updatedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      courseId,
+      status,
+      sectionJson,
+      requestJson,
+      qualityJson,
+      progressDone,
+      progressTotal,
+      errorMessage,
+      explanation,
+      createdAtMs,
+      updatedAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AiCourseVersionRow &&
+          other.id == this.id &&
+          other.courseId == this.courseId &&
+          other.status == this.status &&
+          other.sectionJson == this.sectionJson &&
+          other.requestJson == this.requestJson &&
+          other.qualityJson == this.qualityJson &&
+          other.progressDone == this.progressDone &&
+          other.progressTotal == this.progressTotal &&
+          other.errorMessage == this.errorMessage &&
+          other.explanation == this.explanation &&
+          other.createdAtMs == this.createdAtMs &&
+          other.updatedAtMs == this.updatedAtMs);
+}
+
+class AiCourseVersionsCompanion extends UpdateCompanion<AiCourseVersionRow> {
+  final Value<String> id;
+  final Value<String> courseId;
+  final Value<String> status;
+  final Value<String?> sectionJson;
+  final Value<String> requestJson;
+  final Value<String?> qualityJson;
+  final Value<int> progressDone;
+  final Value<int> progressTotal;
+  final Value<String?> errorMessage;
+  final Value<String?> explanation;
+  final Value<int> createdAtMs;
+  final Value<int> updatedAtMs;
+  final Value<int> rowid;
+  const AiCourseVersionsCompanion({
+    this.id = const Value.absent(),
+    this.courseId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sectionJson = const Value.absent(),
+    this.requestJson = const Value.absent(),
+    this.qualityJson = const Value.absent(),
+    this.progressDone = const Value.absent(),
+    this.progressTotal = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.explanation = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AiCourseVersionsCompanion.insert({
+    required String id,
+    required String courseId,
+    required String status,
+    this.sectionJson = const Value.absent(),
+    this.requestJson = const Value.absent(),
+    this.qualityJson = const Value.absent(),
+    this.progressDone = const Value.absent(),
+    this.progressTotal = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.explanation = const Value.absent(),
+    required int createdAtMs,
+    required int updatedAtMs,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        courseId = Value(courseId),
+        status = Value(status),
+        createdAtMs = Value(createdAtMs),
+        updatedAtMs = Value(updatedAtMs);
+  static Insertable<AiCourseVersionRow> custom({
+    Expression<String>? id,
+    Expression<String>? courseId,
+    Expression<String>? status,
+    Expression<String>? sectionJson,
+    Expression<String>? requestJson,
+    Expression<String>? qualityJson,
+    Expression<int>? progressDone,
+    Expression<int>? progressTotal,
+    Expression<String>? errorMessage,
+    Expression<String>? explanation,
+    Expression<int>? createdAtMs,
+    Expression<int>? updatedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (courseId != null) 'course_id': courseId,
+      if (status != null) 'status': status,
+      if (sectionJson != null) 'section_json': sectionJson,
+      if (requestJson != null) 'request_json': requestJson,
+      if (qualityJson != null) 'quality_json': qualityJson,
+      if (progressDone != null) 'progress_done': progressDone,
+      if (progressTotal != null) 'progress_total': progressTotal,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (explanation != null) 'explanation': explanation,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AiCourseVersionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? courseId,
+      Value<String>? status,
+      Value<String?>? sectionJson,
+      Value<String>? requestJson,
+      Value<String?>? qualityJson,
+      Value<int>? progressDone,
+      Value<int>? progressTotal,
+      Value<String?>? errorMessage,
+      Value<String?>? explanation,
+      Value<int>? createdAtMs,
+      Value<int>? updatedAtMs,
+      Value<int>? rowid}) {
+    return AiCourseVersionsCompanion(
+      id: id ?? this.id,
+      courseId: courseId ?? this.courseId,
+      status: status ?? this.status,
+      sectionJson: sectionJson ?? this.sectionJson,
+      requestJson: requestJson ?? this.requestJson,
+      qualityJson: qualityJson ?? this.qualityJson,
+      progressDone: progressDone ?? this.progressDone,
+      progressTotal: progressTotal ?? this.progressTotal,
+      errorMessage: errorMessage ?? this.errorMessage,
+      explanation: explanation ?? this.explanation,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (courseId.present) {
+      map['course_id'] = Variable<String>(courseId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (sectionJson.present) {
+      map['section_json'] = Variable<String>(sectionJson.value);
+    }
+    if (requestJson.present) {
+      map['request_json'] = Variable<String>(requestJson.value);
+    }
+    if (qualityJson.present) {
+      map['quality_json'] = Variable<String>(qualityJson.value);
+    }
+    if (progressDone.present) {
+      map['progress_done'] = Variable<int>(progressDone.value);
+    }
+    if (progressTotal.present) {
+      map['progress_total'] = Variable<int>(progressTotal.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (explanation.present) {
+      map['explanation'] = Variable<String>(explanation.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiCourseVersionsCompanion(')
+          ..write('id: $id, ')
+          ..write('courseId: $courseId, ')
+          ..write('status: $status, ')
+          ..write('sectionJson: $sectionJson, ')
+          ..write('requestJson: $requestJson, ')
+          ..write('qualityJson: $qualityJson, ')
+          ..write('progressDone: $progressDone, ')
+          ..write('progressTotal: $progressTotal, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('explanation: $explanation, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$CourseDatabase extends GeneratedDatabase {
   _$CourseDatabase(QueryExecutor e) : super(e);
   $CourseDatabaseManager get managers => $CourseDatabaseManager(this);
@@ -6224,6 +7384,9 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
   late final $MistakesTable mistakes = $MistakesTable(this);
   late final $MistakeAggregatesTable mistakeAggregates =
       $MistakeAggregatesTable(this);
+  late final $AiCoursesTable aiCourses = $AiCoursesTable(this);
+  late final $AiCourseVersionsTable aiCourseVersions =
+      $AiCourseVersionsTable(this);
   late final Index reviewEventsCardIdx = Index('review_events_card_idx',
       'CREATE INDEX review_events_card_idx ON review_events (card_id)');
   late final Index reviewEventsTimeIdx = Index('review_events_time_idx',
@@ -6251,6 +7414,8 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
         reviewEvents,
         mistakes,
         mistakeAggregates,
+        aiCourses,
+        aiCourseVersions,
         reviewEventsCardIdx,
         reviewEventsTimeIdx,
         reviewEventsSourceIdx,
@@ -9257,6 +10422,537 @@ typedef $$MistakeAggregatesTableProcessedTableManager = ProcessedTableManager<
     ),
     MistakeAggregate,
     PrefetchHooks Function()>;
+typedef $$AiCoursesTableCreateCompanionBuilder = AiCoursesCompanion Function({
+  required String id,
+  Value<String> languageCode,
+  required String title,
+  required String sourceKind,
+  Value<String> level,
+  Value<String> topic,
+  Value<bool> pinned,
+  Value<int?> expiresAtMs,
+  required int createdAtMs,
+  required int updatedAtMs,
+  Value<int> rowid,
+});
+typedef $$AiCoursesTableUpdateCompanionBuilder = AiCoursesCompanion Function({
+  Value<String> id,
+  Value<String> languageCode,
+  Value<String> title,
+  Value<String> sourceKind,
+  Value<String> level,
+  Value<String> topic,
+  Value<bool> pinned,
+  Value<int?> expiresAtMs,
+  Value<int> createdAtMs,
+  Value<int> updatedAtMs,
+  Value<int> rowid,
+});
+
+class $$AiCoursesTableFilterComposer
+    extends Composer<_$CourseDatabase, $AiCoursesTable> {
+  $$AiCoursesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get level => $composableBuilder(
+      column: $table.level, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get topic => $composableBuilder(
+      column: $table.topic, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get pinned => $composableBuilder(
+      column: $table.pinned, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get expiresAtMs => $composableBuilder(
+      column: $table.expiresAtMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+      column: $table.createdAtMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+      column: $table.updatedAtMs, builder: (column) => ColumnFilters(column));
+}
+
+class $$AiCoursesTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AiCoursesTable> {
+  $$AiCoursesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get level => $composableBuilder(
+      column: $table.level, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get topic => $composableBuilder(
+      column: $table.topic, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get pinned => $composableBuilder(
+      column: $table.pinned, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get expiresAtMs => $composableBuilder(
+      column: $table.expiresAtMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+      column: $table.createdAtMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+      column: $table.updatedAtMs, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AiCoursesTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AiCoursesTable> {
+  $$AiCoursesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => column);
+
+  GeneratedColumn<String> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
+
+  GeneratedColumn<String> get topic =>
+      $composableBuilder(column: $table.topic, builder: (column) => column);
+
+  GeneratedColumn<bool> get pinned =>
+      $composableBuilder(column: $table.pinned, builder: (column) => column);
+
+  GeneratedColumn<int> get expiresAtMs => $composableBuilder(
+      column: $table.expiresAtMs, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+      column: $table.createdAtMs, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+      column: $table.updatedAtMs, builder: (column) => column);
+}
+
+class $$AiCoursesTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AiCoursesTable,
+    AiCourseRow,
+    $$AiCoursesTableFilterComposer,
+    $$AiCoursesTableOrderingComposer,
+    $$AiCoursesTableAnnotationComposer,
+    $$AiCoursesTableCreateCompanionBuilder,
+    $$AiCoursesTableUpdateCompanionBuilder,
+    (
+      AiCourseRow,
+      BaseReferences<_$CourseDatabase, $AiCoursesTable, AiCourseRow>
+    ),
+    AiCourseRow,
+    PrefetchHooks Function()> {
+  $$AiCoursesTableTableManager(_$CourseDatabase db, $AiCoursesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AiCoursesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AiCoursesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AiCoursesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> sourceKind = const Value.absent(),
+            Value<String> level = const Value.absent(),
+            Value<String> topic = const Value.absent(),
+            Value<bool> pinned = const Value.absent(),
+            Value<int?> expiresAtMs = const Value.absent(),
+            Value<int> createdAtMs = const Value.absent(),
+            Value<int> updatedAtMs = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiCoursesCompanion(
+            id: id,
+            languageCode: languageCode,
+            title: title,
+            sourceKind: sourceKind,
+            level: level,
+            topic: topic,
+            pinned: pinned,
+            expiresAtMs: expiresAtMs,
+            createdAtMs: createdAtMs,
+            updatedAtMs: updatedAtMs,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String> languageCode = const Value.absent(),
+            required String title,
+            required String sourceKind,
+            Value<String> level = const Value.absent(),
+            Value<String> topic = const Value.absent(),
+            Value<bool> pinned = const Value.absent(),
+            Value<int?> expiresAtMs = const Value.absent(),
+            required int createdAtMs,
+            required int updatedAtMs,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiCoursesCompanion.insert(
+            id: id,
+            languageCode: languageCode,
+            title: title,
+            sourceKind: sourceKind,
+            level: level,
+            topic: topic,
+            pinned: pinned,
+            expiresAtMs: expiresAtMs,
+            createdAtMs: createdAtMs,
+            updatedAtMs: updatedAtMs,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AiCoursesTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AiCoursesTable,
+    AiCourseRow,
+    $$AiCoursesTableFilterComposer,
+    $$AiCoursesTableOrderingComposer,
+    $$AiCoursesTableAnnotationComposer,
+    $$AiCoursesTableCreateCompanionBuilder,
+    $$AiCoursesTableUpdateCompanionBuilder,
+    (
+      AiCourseRow,
+      BaseReferences<_$CourseDatabase, $AiCoursesTable, AiCourseRow>
+    ),
+    AiCourseRow,
+    PrefetchHooks Function()>;
+typedef $$AiCourseVersionsTableCreateCompanionBuilder
+    = AiCourseVersionsCompanion Function({
+  required String id,
+  required String courseId,
+  required String status,
+  Value<String?> sectionJson,
+  Value<String> requestJson,
+  Value<String?> qualityJson,
+  Value<int> progressDone,
+  Value<int> progressTotal,
+  Value<String?> errorMessage,
+  Value<String?> explanation,
+  required int createdAtMs,
+  required int updatedAtMs,
+  Value<int> rowid,
+});
+typedef $$AiCourseVersionsTableUpdateCompanionBuilder
+    = AiCourseVersionsCompanion Function({
+  Value<String> id,
+  Value<String> courseId,
+  Value<String> status,
+  Value<String?> sectionJson,
+  Value<String> requestJson,
+  Value<String?> qualityJson,
+  Value<int> progressDone,
+  Value<int> progressTotal,
+  Value<String?> errorMessage,
+  Value<String?> explanation,
+  Value<int> createdAtMs,
+  Value<int> updatedAtMs,
+  Value<int> rowid,
+});
+
+class $$AiCourseVersionsTableFilterComposer
+    extends Composer<_$CourseDatabase, $AiCourseVersionsTable> {
+  $$AiCourseVersionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get courseId => $composableBuilder(
+      column: $table.courseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sectionJson => $composableBuilder(
+      column: $table.sectionJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get requestJson => $composableBuilder(
+      column: $table.requestJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get qualityJson => $composableBuilder(
+      column: $table.qualityJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get progressDone => $composableBuilder(
+      column: $table.progressDone, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get progressTotal => $composableBuilder(
+      column: $table.progressTotal, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get explanation => $composableBuilder(
+      column: $table.explanation, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+      column: $table.createdAtMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+      column: $table.updatedAtMs, builder: (column) => ColumnFilters(column));
+}
+
+class $$AiCourseVersionsTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AiCourseVersionsTable> {
+  $$AiCourseVersionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get courseId => $composableBuilder(
+      column: $table.courseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sectionJson => $composableBuilder(
+      column: $table.sectionJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get requestJson => $composableBuilder(
+      column: $table.requestJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get qualityJson => $composableBuilder(
+      column: $table.qualityJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get progressDone => $composableBuilder(
+      column: $table.progressDone,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get progressTotal => $composableBuilder(
+      column: $table.progressTotal,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get explanation => $composableBuilder(
+      column: $table.explanation, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+      column: $table.createdAtMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+      column: $table.updatedAtMs, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AiCourseVersionsTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AiCourseVersionsTable> {
+  $$AiCourseVersionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get courseId =>
+      $composableBuilder(column: $table.courseId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get sectionJson => $composableBuilder(
+      column: $table.sectionJson, builder: (column) => column);
+
+  GeneratedColumn<String> get requestJson => $composableBuilder(
+      column: $table.requestJson, builder: (column) => column);
+
+  GeneratedColumn<String> get qualityJson => $composableBuilder(
+      column: $table.qualityJson, builder: (column) => column);
+
+  GeneratedColumn<int> get progressDone => $composableBuilder(
+      column: $table.progressDone, builder: (column) => column);
+
+  GeneratedColumn<int> get progressTotal => $composableBuilder(
+      column: $table.progressTotal, builder: (column) => column);
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => column);
+
+  GeneratedColumn<String> get explanation => $composableBuilder(
+      column: $table.explanation, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+      column: $table.createdAtMs, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+      column: $table.updatedAtMs, builder: (column) => column);
+}
+
+class $$AiCourseVersionsTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AiCourseVersionsTable,
+    AiCourseVersionRow,
+    $$AiCourseVersionsTableFilterComposer,
+    $$AiCourseVersionsTableOrderingComposer,
+    $$AiCourseVersionsTableAnnotationComposer,
+    $$AiCourseVersionsTableCreateCompanionBuilder,
+    $$AiCourseVersionsTableUpdateCompanionBuilder,
+    (
+      AiCourseVersionRow,
+      BaseReferences<_$CourseDatabase, $AiCourseVersionsTable,
+          AiCourseVersionRow>
+    ),
+    AiCourseVersionRow,
+    PrefetchHooks Function()> {
+  $$AiCourseVersionsTableTableManager(
+      _$CourseDatabase db, $AiCourseVersionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AiCourseVersionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AiCourseVersionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AiCourseVersionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> courseId = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> sectionJson = const Value.absent(),
+            Value<String> requestJson = const Value.absent(),
+            Value<String?> qualityJson = const Value.absent(),
+            Value<int> progressDone = const Value.absent(),
+            Value<int> progressTotal = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<String?> explanation = const Value.absent(),
+            Value<int> createdAtMs = const Value.absent(),
+            Value<int> updatedAtMs = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiCourseVersionsCompanion(
+            id: id,
+            courseId: courseId,
+            status: status,
+            sectionJson: sectionJson,
+            requestJson: requestJson,
+            qualityJson: qualityJson,
+            progressDone: progressDone,
+            progressTotal: progressTotal,
+            errorMessage: errorMessage,
+            explanation: explanation,
+            createdAtMs: createdAtMs,
+            updatedAtMs: updatedAtMs,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String courseId,
+            required String status,
+            Value<String?> sectionJson = const Value.absent(),
+            Value<String> requestJson = const Value.absent(),
+            Value<String?> qualityJson = const Value.absent(),
+            Value<int> progressDone = const Value.absent(),
+            Value<int> progressTotal = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<String?> explanation = const Value.absent(),
+            required int createdAtMs,
+            required int updatedAtMs,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiCourseVersionsCompanion.insert(
+            id: id,
+            courseId: courseId,
+            status: status,
+            sectionJson: sectionJson,
+            requestJson: requestJson,
+            qualityJson: qualityJson,
+            progressDone: progressDone,
+            progressTotal: progressTotal,
+            errorMessage: errorMessage,
+            explanation: explanation,
+            createdAtMs: createdAtMs,
+            updatedAtMs: updatedAtMs,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AiCourseVersionsTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AiCourseVersionsTable,
+    AiCourseVersionRow,
+    $$AiCourseVersionsTableFilterComposer,
+    $$AiCourseVersionsTableOrderingComposer,
+    $$AiCourseVersionsTableAnnotationComposer,
+    $$AiCourseVersionsTableCreateCompanionBuilder,
+    $$AiCourseVersionsTableUpdateCompanionBuilder,
+    (
+      AiCourseVersionRow,
+      BaseReferences<_$CourseDatabase, $AiCourseVersionsTable,
+          AiCourseVersionRow>
+    ),
+    AiCourseVersionRow,
+    PrefetchHooks Function()>;
 
 class $CourseDatabaseManager {
   final _$CourseDatabase _db;
@@ -9287,4 +10983,8 @@ class $CourseDatabaseManager {
       $$MistakesTableTableManager(_db, _db.mistakes);
   $$MistakeAggregatesTableTableManager get mistakeAggregates =>
       $$MistakeAggregatesTableTableManager(_db, _db.mistakeAggregates);
+  $$AiCoursesTableTableManager get aiCourses =>
+      $$AiCoursesTableTableManager(_db, _db.aiCourses);
+  $$AiCourseVersionsTableTableManager get aiCourseVersions =>
+      $$AiCourseVersionsTableTableManager(_db, _db.aiCourseVersions);
 }

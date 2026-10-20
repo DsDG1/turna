@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:turna/application/srs_tutor_provider.dart';
+import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:turna/views/lesson/tutor_launch_sheet.dart';
+import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/core/theme.dart';
 
@@ -359,27 +359,17 @@ void _openDepthTutor(BuildContext context) {
 }
 
 void _openTutorMistakes(BuildContext context) {
-  // 侧重由本卡片钉死传下去；面板不再让用户重复选一次。
-  _openTutorSheet(
-      context, const TutorLaunchSheet(focus: SrsTutorFocus.mistakes));
+  // 侧重由本卡片钉死传下去；生成进入后台队列，不再阻塞在本页。
+  showAiPracticeGenerateSheet(
+    context,
+    source: AiPracticeSource.mistakes,
+  );
 }
 
 void _openTutorWeak(BuildContext context) {
-  _openTutorSheet(
-      context, const TutorLaunchSheet(focus: SrsTutorFocus.weakWords));
-}
-
-void _openTutorSheet(BuildContext context, Widget sheet) {
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) => sheet,
+  showAiPracticeGenerateSheet(
+    context,
+    source: AiPracticeSource.weakWords,
   );
 }
 

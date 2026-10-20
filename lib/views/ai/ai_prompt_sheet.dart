@@ -90,6 +90,40 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
     TurnaSnackBar.maybeShow(context, AppStrings.aiPromptResetDone);
   }
 
+  /// 一键把**所有**功能的追加要求清掉。
+  ///
+  /// 只清追加块：默认提示词本来就不可改，所以「全部恢复默认」在任何时刻都是
+  /// 安全操作，不需要逐个功能点一遍。
+  Future<void> _resetAll() async {
+    final count = _store.customised.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppStrings.aiPromptResetAllTitle),
+        content: Text(AppStrings.aiPromptResetAllBody(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(AppStrings.aiPromptResetAllConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _store.clearAll();
+    if (!mounted) return;
+    setState(() {
+      _dirty = false;
+      _overrideCtrl.text = _store.textFor(_feature);
+    });
+    TurnaSnackBar.maybeShow(context, AppStrings.aiPromptResetAllDone);
+  }
+
   @override
   Widget build(BuildContext context) {
     final language = context.watch<LanguageProvider>().displayName;
@@ -131,6 +165,17 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
               ),
               const SizedBox(height: 12),
               _featureChips(context),
+              if (_store.customised.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _resetAll,
+                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                    label: Text(AppStrings.aiPromptResetAll),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Flexible(
                 child: ListView(

@@ -1,26 +1,16 @@
 // Dart imports:
 import 'dart:convert';
 
+// Flutter imports:
+import 'package:flutter/foundation.dart';
+
 // Package imports:
 import 'package:drift/drift.dart' show Value;
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/ai/ai_course_service.dart';
-import 'package:turna/application/ai/ai_course_spec.dart';
-import 'package:turna/application/ai/ai_error_mapper.dart';
-import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
-import 'package:turna/application/ai/ai_prompt_builder.dart';
-import 'package:turna/application/ai/ai_recent_task_log.dart';
-import 'package:turna/application/ai/ai_streaming_session_base.dart';
-import 'package:turna/application/ai/engine/ai_cancel_token.dart';
-import 'package:turna/application/ai/engine/ai_engine.dart';
-import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/ai_resource_consistency.dart';
-import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/di/injection.dart';
@@ -28,228 +18,17 @@ import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
 
-/// State machine for the AI course generation flow.
-enum AiCourseState { idle, generating, generated, saving, saved, error }
-
-/// Holds in-memory AI configuration and orchestrates generate → preview →
-/// save-to-DB. The [AiApiConfig] is intentionally **never persisted**.
+/// Persistence helpers for course-shaped JSON produced by importers and the
+/// AI practice pipeline.
 ///
-/// Generated course JSON is kept in [_generatedJson] for the user to edit
-/// before saving. Saving writes a new section (and its units/lessons/content
-/// blobs + top-level resources) into [CourseDatabase], then invalidates
-/// [CourseLoader] caches so the course tree refreshes.
+/// Generation itself lives in `application/ai/practice/` (phased outline →
+/// lesson fill). This provider only writes a validated section tree into
+/// `course.db` (and refreshes the loader caches) — the job-queue/library path
+/// deliberately does **not** call it, because generated drafts stay outside the
+/// course tree until the learner asks for them.
 @lazySingleton
-class AiCourseProvider extends AiRequestSessionBase {
-  AiCourseProvider(
-      {AiEngine? engine, AiGroundedResourceProvider? groundedProvider})
-      : _engine = engine ?? getIt<AiEngine>(),
-        _service = AiCourseService(),
-        _groundedProvider =
-            groundedProvider ?? getIt<AiGroundedResourceProvider>();
-
-  AiCourseProvider.withEngine(this._engine,
-      {AiGroundedResourceProvider? groundedProvider})
-      : _service = AiCourseService(),
-        _groundedProvider =
-            groundedProvider ?? getIt<AiGroundedResourceProvider>();
-
-  final AiEngine _engine;
-  final AiCourseService _service;
-  final AiGroundedResourceProvider _groundedProvider;
-
-  /// Lazy lookup of the shared config holder (registered in DI and exposed in
-  /// `providers.dart` as a `ChangeNotifierProvider`). The holder is the single
-  /// source of truth for AI config since the Phase 4 migration; this provider
-  /// no longer keeps a separate config field.
-  AiEngineConfigHolder get _holder => getIt<AiEngineConfigHolder>();
-
-  AiCourseState _state = AiCourseState.idle;
-  AiCourseState get state => _state;
-
-  AiErrorMapping? _errorMapping;
-  AiErrorMapping? get errorMapping => _errorMapping;
-  String? get error => _errorMapping?.message;
-
-  /// Editable raw JSON of the last generated course. `null` until generation
-  /// succeeds.
-  String? _generatedJson;
-  String? get generatedJson => _generatedJson;
-
-  /// Parsed section id of the last generated course.
-  String? _generatedSectionId;
-  String? get generatedSectionId => _generatedSectionId;
-
-  /// Optional plain-language explanation (wish mode sets this).
-  String? _explanation;
-  String? get explanation => _explanation;
-
-  // --- Generation flow ---
-
-  /// Calls the AI endpoint with [spec] and stores the result for preview.
-  /// Runs validateSection + resource self-consistency; on errors retries the
-  /// AI once (C3 self-heal).
-  Future<void> generate(AiCourseSpec spec) async {
-    final session = beginStreamingSession();
-    _errorMapping = null;
-    _state = AiCourseState.generating;
-    _generatedJson = null;
-    _generatedSectionId = null;
-    _explanation = null;
-    notifySessionListeners();
-    try {
-      final applied = _service.applyGenreToSpec(spec);
-      final groundedContext = await _loadGroundedContext(applied);
-      final messages = <Map<String, dynamic>>[
-        {
-          'role': 'system',
-          'content':
-              'You are a language-course authoring assistant. You output ONLY valid JSON, no prose, no markdown fences.',
-        },
-        {
-          'role': 'user',
-          'content': buildPrompt(applied, groundedContext: groundedContext),
-        },
-      ];
-      var result = _service.parseCompletion(
-        (await _engine.requestJson(
-          config: _holder.config,
-          messages: messages,
-          temperature: 0.4,
-          timeout: const Duration(seconds: 120),
-          cancelToken: session.cancelToken,
-        ))
-            .body,
-      );
-      if (!isCurrentSession(session)) return;
-      // C3 self-heal: if the validator reports errors, re-prompt once with
-      // the errors listed. The retry's prompt differs so it won't hit the
-      // cache; the first attempt is cacheable for repeat-clicks.
-      final errors = _validateGenerated(result.parsed);
-      if (errors.isNotEmpty) {
-        final correction =
-            'The previous version has the following validation errors. Fix them and output only the complete corrected JSON:\n- ${errors.join('\n- ')}';
-        messages
-            .add({'role': 'assistant', 'content': jsonEncode(result.parsed)});
-        messages.add({'role': 'user', 'content': correction});
-        result = _service.parseCompletion(
-          (await _engine.requestJson(
-            config: _holder.config,
-            messages: messages,
-            temperature: 0.2,
-            timeout: const Duration(seconds: 120),
-            cancelToken: session.cancelToken,
-          ))
-              .body,
-        );
-        if (!isCurrentSession(session)) return;
-      }
-      _generatedJson = result.rawJson;
-      _generatedSectionId = result.parsed['id'] as String?;
-      _state = AiCourseState.generated;
-      recordAiRecentTask(
-        kind: AiTaskKind.courseGenerate,
-        summary: '${spec.topic} · ${spec.level}',
-      );
-    } on AiCancelled {
-      if (!isCurrentSession(session)) return;
-      _state = AiCourseState.idle;
-    } catch (e) {
-      if (!isCurrentSession(session)) return;
-      logger.w('AiCourseProvider.generate failed: $e');
-      _errorMapping = AiErrorMapper.map(e);
-      _state = AiCourseState.error;
-    } finally {
-      finishStreamingSession(session);
-    }
-    notifySessionListeners();
-  }
-
-  /// Loads existing resources when [spec.groundedMode] is enabled.
-  Future<String?> _loadGroundedContext(AiCourseSpec spec) async {
-    if (!spec.groundedMode) return null;
-    await _groundedProvider.load(scope: spec.resourceScope);
-    if (_groundedProvider.error != null) {
-      logger.w(
-          'AiCourseProvider grounded load failed: ${_groundedProvider.error}');
-      return null;
-    }
-    return _groundedProvider.formatContext(
-      maxResources: spec.maxGroundedResources,
-    );
-  }
-
-  /// Validator used by [requestCourseWithRetry]. Combines structural
-  /// validation ([validateSection]) with resource self-consistency (already
-  /// enforced inside [AiCourseService.parseCompletion], so this mainly
-  /// re-checks the structure).
-  List<String> _validateGenerated(Map<String, dynamic> parsed) {
-    final errors = <String>[];
-    try {
-      final wordIds = <String>{
-        for (final w in (parsed['words'] as List? ?? const []))
-          if (w is Map) w['id']?.toString() ?? '',
-      }..remove('');
-      final exprIds = <String>{
-        for (final e in (parsed['expressions'] as List? ?? const []))
-          if (e is Map) e['id']?.toString() ?? '',
-      }..remove('');
-      final section = Section.fromJson(_normalizeForSave(parsed));
-      validateSection(section, wordIds, exprIds);
-    } on CourseValidationException catch (e) {
-      errors.addAll(e.errors);
-    } catch (e) {
-      errors.add(e.toString());
-    }
-    return errors;
-  }
-
-  /// Replace the editable JSON (e.g. user edited it in the preview screen).
-  void updateGeneratedJson(String raw) {
-    _generatedJson = raw;
-    try {
-      final parsed = jsonDecode(raw) as Map<String, dynamic>;
-      _generatedSectionId = parsed['id'] as String?;
-    } catch (_) {
-      // Keep raw; validation happens on save.
-    }
-    notifySessionListeners();
-  }
-
-  /// Set the plain-language explanation (used by wish provider).
-  void setExplanation(String? text) {
-    _explanation = text;
-    notifySessionListeners();
-  }
-
-  /// Persists the current generated JSON as a new section in the course DB,
-  /// including its top-level resources, then refreshes [CourseLoader] caches.
-  /// Throws on invalid JSON or DB write failure.
-  Future<void> save() async {
-    final raw = _generatedJson;
-    if (raw == null) {
-      throw StateError('No generated course to save.');
-    }
-    _errorMapping = null;
-    _state = AiCourseState.saving;
-    notifySessionListeners();
-    try {
-      final parsed = jsonDecode(raw) as Map<String, dynamic>;
-      normalizeResources(parsed);
-      autoFixResources(parsed);
-      checkResourceSelfConsistency(parsed);
-      final section = Section.fromJson(_normalizeForSave(parsed));
-      await _writeSectionToDb(section, parsed);
-      CourseLoader.invalidateCaches();
-      _state = AiCourseState.saved;
-    } catch (e, st) {
-      logger.e('AiCourseProvider.save failed', error: e, stackTrace: st);
-      _errorMapping = AiErrorMapper.map(e);
-      _state = AiCourseState.error;
-      notifySessionListeners();
-      rethrow;
-    }
-    notifySessionListeners();
-  }
+class AiCourseProvider extends ChangeNotifier {
+  AiCourseProvider();
 
   /// Persists an arbitrary section JSON (e.g. from textbook import) into the
   /// DB after normalization and validation. Used by importers that already
@@ -263,8 +42,12 @@ class AiCourseProvider extends AiRequestSessionBase {
     CourseLoader.invalidateCaches();
   }
 
-  /// Updates a single existing lesson and its content in the DB. Used by the
-  /// AI lesson helper. The caller is responsible for validating [lesson].
+  /// Updates a single existing lesson and its content in the DB.
+  ///
+  /// Not wired to any surface today (the in-lesson AI editor is gone); kept as
+  /// the single validated write path for a future editor so lesson edits never
+  /// grow a second DB writer. The caller is responsible for validating
+  /// [lesson].
   Future<void> updateLessonInDb(Lesson lesson) async {
     final database = getIt<db.CourseDatabase>();
 
@@ -304,26 +87,6 @@ class AiCourseProvider extends AiRequestSessionBase {
           );
     });
     CourseLoader.invalidateCaches();
-  }
-
-  /// Reset to idle, dropping any generated/edited JSON.
-  void reset() {
-    abandonStreamingSession();
-    _state = AiCourseState.idle;
-    _errorMapping = null;
-    _generatedJson = null;
-    _generatedSectionId = null;
-    _explanation = null;
-    notifySessionListeners();
-  }
-
-  /// Cancel the in-flight generation (if any) and return to idle, keeping any
-  /// previously generated JSON. A no-op when not generating.
-  void cancel() {
-    if (_state != AiCourseState.generating) return;
-    cancelStreamingSession();
-    _state = AiCourseState.idle;
-    notifySessionListeners();
   }
 
   // --- DB write ---

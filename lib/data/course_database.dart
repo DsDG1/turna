@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 
 // Project imports:
 import 'package:turna/core/logger.dart';
+import 'package:turna/domain/ai/ai_course.dart' show kAiCourseDraftTtl;
 
 part 'course_database.g.dart';
 
@@ -269,6 +270,80 @@ class MistakeAggregates extends Table {
   Set<Column> get primaryKey => {languageCode};
 }
 
+/// AI-generated courses ("我的练习" in the AI Hub) — the **collection** row.
+///
+/// Deliberately separate from [Sections] / [Units] / [Lessons]:
+/// [DatabaseSeeder] clears those tables whenever the bundled content version
+/// changes, so storing drafts there would delete them on a content update and
+/// would also leak them into the Learn tab's course tree.
+///
+/// Split from [AiCourseVersions] so the library can behave like a shelf: the
+/// collection keeps identity, favourite flag and expiry while every generation
+/// attempt is appended as a version. See ADR 0054.
+@DataClassName('AiCourseRow')
+class AiCourses extends Table {
+  TextColumn get id => text()();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
+  TextColumn get title => text()();
+
+  /// [AiPracticeSource] wire name (`mistakes` / `weakWords` / `difficult` /
+  /// `custom`).
+  TextColumn get sourceKind => text()();
+
+  /// CEFR-ish level the course was generated for.
+  TextColumn get level => text().withDefault(const Constant('A1'))();
+
+  /// Topic / design brief tail, shown as the course description.
+  TextColumn get topic => text().withDefault(const Constant(''))();
+
+  /// Favourited ("收藏"): exempt from [expiresAtMs] and never swept.
+  BoolColumn get pinned => boolean().withDefault(const Constant(false))();
+
+  /// Epoch ms when the draft is deleted; null = permanent (favourited).
+  IntColumn get expiresAtMs => integer().nullable()();
+
+  IntColumn get createdAtMs => integer()();
+  IntColumn get updatedAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// One generation attempt of an [AiCourses] row.
+///
+/// `course_id` is an index (not a foreign key) so deleting a course can be done
+/// in one statement per table without relying on SQLite FK enforcement being
+/// enabled on every open.
+@DataClassName('AiCourseVersionRow')
+class AiCourseVersions extends Table {
+  TextColumn get id => text()();
+  TextColumn get courseId => text()();
+
+  /// [AiPracticeStatus] wire name.
+  TextColumn get status => text()();
+
+  /// Canonical section JSON from `docs/authoring/course-layout.md`; null until
+  /// the generator completes.
+  TextColumn get sectionJson => text().nullable()();
+
+  /// Generation spec snapshot used by retry after failure / interruption.
+  TextColumn get requestJson => text().withDefault(const Constant('{}'))();
+
+  /// Verification report JSON (blocking + advisory findings).
+  TextColumn get qualityJson => text().nullable()();
+
+  IntColumn get progressDone => integer().withDefault(const Constant(0))();
+  IntColumn get progressTotal => integer().withDefault(const Constant(0))();
+  TextColumn get errorMessage => text().nullable()();
+  TextColumn get explanation => text().nullable()();
+
+  IntColumn get createdAtMs => integer()();
+  IntColumn get updatedAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Sections,
@@ -284,6 +359,8 @@ class MistakeAggregates extends Table {
     ReviewEvents,
     Mistakes,
     MistakeAggregates,
+    AiCourses,
+    AiCourseVersions,
   ],
 )
 class CourseDatabase extends _$CourseDatabase {
@@ -291,7 +368,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 31;
+  static const int kSchemaVersion = 33;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -300,6 +377,7 @@ class CourseDatabase extends _$CourseDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+          await _createAiCourseVersionIndex(m.database);
           await _addAnkiStateColumns(m.database);
           await _ensureAnkiCanonicalV2(m.database);
           await _ensureAnkiUnificationTables(m.database);
@@ -335,6 +413,9 @@ class CourseDatabase extends _$CourseDatabase {
               'anki_course_tree_view',
               'mistakes',
               'mistake_aggregates',
+              'ai_practice_sets',
+              'ai_courses',
+              'ai_course_versions',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -464,7 +545,7 @@ class CourseDatabase extends _$CourseDatabase {
                 .customStatement('DROP TABLE IF EXISTS anki_prerendered_html');
           }
           if (from < 23) {
-            // v23 (ADR 0043 D3 / step4.md B3): the v2 course-tree view —
+            // v23 (ADR 0043): the v2 course-tree view —
             // the ONLY course-tree storage for v2-chain sources. A
             // stateless materialized view: one row per card, DROP+REBUILD
             // at any time from Collection + config decisions + ledger. The
@@ -472,7 +553,7 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureV2CourseTreeView(m.database);
           }
           if (from < 24) {
-            // v24 (ADR 0043 D4 / ADR 0044 / step6.md): drop all 11 legacy v1
+            // v24 (ADR 0044): drop all 11 legacy v1
             // anki projection, placement, presentation, and migration tables.
             // Only anki_course_tree_view and anki_card_introduction_states remain.
             const ankiTablesToDrop = [
@@ -614,8 +695,135 @@ class CourseDatabase extends _$CourseDatabase {
               await m.database.customStatement('DROP TABLE IF EXISTS $table');
             }
           }
+          if (from < 32) {
+            // v32: AI practice drafts live in their own table so a bundled
+            // content reseed (which clears the language course tables) cannot
+            // delete them and so they never enter the Learn tabs course tree.
+            // v33 replaces this single flat table with the course/version pair,
+            // so only build it when the v33 step below will not run.
+            await m.database.customStatement(
+              'CREATE TABLE IF NOT EXISTS ai_practice_sets ('
+              'id TEXT NOT NULL PRIMARY KEY, '
+              "language_code TEXT NOT NULL DEFAULT 'tr', "
+              'title TEXT NOT NULL, '
+              'source_kind TEXT NOT NULL, '
+              'status TEXT NOT NULL, '
+              'section_json TEXT NULL, '
+              "request_json TEXT NOT NULL DEFAULT '{}', "
+              'progress_done INTEGER NOT NULL DEFAULT 0, '
+              'progress_total INTEGER NOT NULL DEFAULT 0, '
+              'error_message TEXT NULL, '
+              'explanation TEXT NULL, '
+              'pinned INTEGER NOT NULL DEFAULT 0, '
+              'created_at_ms INTEGER NOT NULL, '
+              'updated_at_ms INTEGER NOT NULL)',
+            );
+          }
+          if (from < 33) {
+            await _migrateToAiCourseLibrary(m.database);
+          }
         },
       );
+
+  /// v33: versions are always read per course, newest first.
+  static Future<void> _createAiCourseVersionIndex(GeneratedDatabase db) {
+    return db.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_ai_course_versions_course '
+      'ON ai_course_versions (course_id, created_at_ms DESC)',
+    );
+  }
+
+  /// v33: split the flat `ai_practice_sets` table into a course (collection)
+  /// row plus one version row per generation attempt.
+  ///
+  /// Existing drafts are copied 1:1 — each old row becomes a course with a
+  /// single version, and its expiry is `created_at + 7d`; a row already older
+  /// than the TTL is kept with a deadline in the past so the next sweep removes
+  /// it exactly as the new retention policy promises (no upgrade-time data
+  /// loss beyond what the policy would have done anyway, and favourited rows
+  /// survive because they come across with `pinned = 1` and no deadline).
+  static Future<void> _migrateToAiCourseLibrary(GeneratedDatabase db) async {
+    await db.customStatement(
+      'CREATE TABLE IF NOT EXISTS ai_courses ('
+      'id TEXT NOT NULL PRIMARY KEY, '
+      "language_code TEXT NOT NULL DEFAULT 'tr', "
+      'title TEXT NOT NULL, '
+      'source_kind TEXT NOT NULL, '
+      "level TEXT NOT NULL DEFAULT 'A1', "
+      "topic TEXT NOT NULL DEFAULT '', "
+      'pinned INTEGER NOT NULL DEFAULT 0, '
+      'expires_at_ms INTEGER NULL, '
+      'created_at_ms INTEGER NOT NULL, '
+      'updated_at_ms INTEGER NOT NULL)',
+    );
+    await db.customStatement(
+      'CREATE TABLE IF NOT EXISTS ai_course_versions ('
+      'id TEXT NOT NULL PRIMARY KEY, '
+      'course_id TEXT NOT NULL, '
+      'status TEXT NOT NULL, '
+      'section_json TEXT NULL, '
+      "request_json TEXT NOT NULL DEFAULT '{}', "
+      'quality_json TEXT NULL, '
+      'progress_done INTEGER NOT NULL DEFAULT 0, '
+      'progress_total INTEGER NOT NULL DEFAULT 0, '
+      'error_message TEXT NULL, '
+      'explanation TEXT NULL, '
+      'created_at_ms INTEGER NOT NULL, '
+      'updated_at_ms INTEGER NOT NULL)',
+    );
+    await _createAiCourseVersionIndex(db);
+
+    final legacy = await db
+        .customSelect(
+          'SELECT * FROM ai_practice_sets',
+        )
+        .get()
+        .catchError((Object _) => const <QueryRow>[]);
+    for (final row in legacy) {
+      final id = row.read<String>('id');
+      final pinned = row.read<int>('pinned') != 0;
+      final createdAt = row.read<int>('created_at_ms');
+      final updatedAt = row.read<int>('updated_at_ms');
+      await db.customStatement(
+        'INSERT OR REPLACE INTO ai_courses (id, language_code, title, '
+        'source_kind, level, topic, pinned, expires_at_ms, created_at_ms, '
+        'updated_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          row.read<String>('language_code'),
+          row.read<String>('title'),
+          row.read<String>('source_kind'),
+          'A1',
+          '',
+          pinned ? 1 : 0,
+          pinned ? null : createdAt + kAiCourseDraftTtl.inMilliseconds,
+          createdAt,
+          updatedAt,
+        ],
+      );
+      await db.customStatement(
+        'INSERT OR REPLACE INTO ai_course_versions (id, course_id, status, '
+        'section_json, request_json, quality_json, progress_done, '
+        'progress_total, error_message, explanation, created_at_ms, '
+        'updated_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          id,
+          row.read<String>('status'),
+          row.data['section_json'],
+          row.read<String>('request_json'),
+          null,
+          row.read<int>('progress_done'),
+          row.read<int>('progress_total'),
+          row.data['error_message'],
+          row.data['explanation'],
+          createdAt,
+          updatedAt,
+        ],
+      );
+    }
+    await db.customStatement('DROP TABLE IF EXISTS ai_practice_sets');
+  }
 
   /// v25: language dimension on content + practice tables, composite PKs
   /// for vocab/grammar/expressions/srs, mistakes table, contentVersion:tr.
@@ -1219,7 +1427,7 @@ class CourseDatabase extends _$CourseDatabase {
     );
     await addColumn('anki_imports', 'last_error', 'TEXT');
 
-    // v24 (step6.md) dropped the v1 projection tables this helper used to
+    // v24 (ADR 0044) dropped the v1 projection tables this helper used to
     // create; the NoteStore indexes retired with their tables (plan P2) —
     // only the raw-SQL columns above survive here.
   }

@@ -11,12 +11,11 @@ import 'package:turna/application/ai/ai_course_provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
-import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
-import 'package:turna/application/ai/ai_wish_provider.dart';
 import 'package:turna/application/ai/dictionary_ai_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
@@ -32,7 +31,6 @@ import 'package:turna/application/review_dashboard/review_dashboard_repository.d
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/application/srs_tutor_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/application/theme_provider.dart';
@@ -43,21 +41,15 @@ import 'package:turna/di/injection.dart';
 /// (stateful services are `@lazySingleton` — see Wave A).
 final providers = [
   // Stateful AI providers must resolve their GetIt lazySingletons — the same
-  // instances constructor-injected collaborators receive (SrsTutorProvider
-  // writes AiCourseProvider via getIt; the helper sheet reads it via the
-  // tree). TextbookImportProvider is the exception: no GetIt registration and
-  // no service-side consumer, so the tree stays its single construction site.
+  // instances constructor-injected collaborators receive (the practice queue
+  // and the importer both write through GetIt singletons). TextbookImportProvider
+  // is the exception: no GetIt registration and no service-side consumer, so
+  // the tree stays its single construction site.
   ChangeNotifierProvider<AiCourseProvider>(
     create: (_) => getIt<AiCourseProvider>(),
   ),
-  ChangeNotifierProvider<AiWishProvider>(
-    create: (_) => getIt<AiWishProvider>(),
-  ),
   ChangeNotifierProvider<AiGroundedResourceProvider>(
     create: (_) => getIt<AiGroundedResourceProvider>(),
-  ),
-  ChangeNotifierProvider<AiLessonHelperProvider>(
-    create: (_) => getIt<AiLessonHelperProvider>(),
   ),
   ChangeNotifierProvider<TextbookImportProvider>(
     create: (_) => TextbookImportProvider(),
@@ -108,6 +100,12 @@ final providers = [
       return p;
     },
   ),
+  // App-level AI practice queue/library. Lives above the router so a
+  // generation job survives tab/page navigation; DB work is deferred to
+  // `restoreOnStartup`/`ensureLoaded` until the course DB is ready.
+  ChangeNotifierProvider<AiPracticeJobQueue>(
+    create: (_) => getIt<AiPracticeJobQueue>(),
+  ),
   ChangeNotifierProvider<ThemeProvider>(
     create: (_) => getIt<ThemeProvider>(),
   ),
@@ -145,9 +143,6 @@ final providers = [
   ),
   ChangeNotifierProvider<GrammarReviewProvider>(
     create: (_) => getIt<GrammarReviewProvider>(),
-  ),
-  ChangeNotifierProvider<SrsTutorProvider>(
-    create: (_) => getIt<SrsTutorProvider>(),
   ),
   ChangeNotifierProvider<MistakeProvider>(
     create: (_) => getIt<MistakeProvider>(),

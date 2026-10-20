@@ -99,4 +99,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(store.textFor(AiPromptFeature.freeChat), '');
   });
+
+  // 「全部恢复默认」：一次清掉所有功能的追加文本，不用逐个点。
+  testWidgets('one tap restores every feature to default', (tester) async {
+    final store = AiPromptOverridesStore.resolve();
+    await store.setText(AiPromptFeature.freeChat, '先给例句再解释。');
+    await store.setText(AiPromptFeature.diagnosis, '控制在五题内。');
+    expect(store.customised, hasLength(2));
+
+    await pumpSheet(tester);
+    await tester.tap(find.text(AppStrings.aiPromptResetAll));
+    await tester.pumpAndSettle();
+
+    // 先确认：一次误触不该清掉别人的自定义。
+    expect(find.text(AppStrings.aiPromptResetAllTitle), findsOneWidget);
+    await tester.tap(find.text(AppStrings.aiPromptResetAllConfirm));
+    await tester.pumpAndSettle();
+
+    expect(store.customised, isEmpty);
+    expect(store.textFor(AiPromptFeature.diagnosis), '');
+    // 编辑器回到「默认」状态，而不是显示空的省略文本。
+    expect(find.text(AppStrings.aiPromptUsingDefault), findsOneWidget);
+  });
 }

@@ -12,9 +12,6 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
-import 'package:turna/application/ai/ai_course_provider.dart';
-import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
-import 'package:turna/application/ai/ai_lesson_undo_store.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
@@ -27,19 +24,15 @@ import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/core/logger.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
-import 'package:turna/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:turna/views/lesson/components/lesson_ai_undo_banner.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
-import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/core/theme.dart';
 
 @RoutePage()
@@ -142,7 +135,6 @@ class _NewLessonPageState extends State<NewLessonPage>
               vm: _vm,
               onClose: () => _onClosePressed(context),
               onAiHint: () => _openAiHint(context, _vm),
-              onAiHelper: () => _openAiHelper(context, _vm),
             ),
             body: _LessonBody(
               vm: _vm,
@@ -161,7 +153,6 @@ class _NewLessonPageState extends State<NewLessonPage>
                 );
               },
               onAdvance: () => _vm.advance(),
-              onRestoreAiLesson: _restoreAiLesson,
               scrollController: _lessonScroll,
             ),
           ),
@@ -265,52 +256,6 @@ class _NewLessonPageState extends State<NewLessonPage>
         },
       ),
     );
-  }
-
-  Future<void> _openAiHelper(BuildContext context, LessonViewModel vm) async {
-    final config = context.read<AiEngineConfigHolder>().config;
-    if (!config.isComplete) {
-      await _showAiConfigPrompt(context);
-      return;
-    }
-
-    final lesson = vm.lesson;
-    if (lesson == null) return;
-
-    final helperProvider = context.read<AiLessonHelperProvider>();
-    helperProvider.setLesson(lesson);
-
-    if (!context.mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: TurnaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(TurnaTheme.radiusXLarge),
-        ),
-      ),
-      builder: (_) => const AiLessonHelperSheet(),
-    );
-  }
-
-  Future<void> _restoreAiLesson(Lesson snapshot) async {
-    await AiLessonUndoStore.instance.clear();
-    if (getIt.isRegistered<AiLessonHelperProvider>()) {
-      getIt<AiLessonHelperProvider>().takeApplyUndo();
-    }
-    try {
-      await getIt<AiCourseProvider>().updateLessonInDb(snapshot);
-      await _vm.loadLesson(snapshot.id);
-    } catch (e, st) {
-      logger.w('Persisted lesson undo failed', error: e, stackTrace: st);
-      if (getIt.isRegistered<AiLessonHelperProvider>()) {
-        getIt<AiLessonHelperProvider>().armApplyUndo(snapshot);
-      }
-      await AiLessonUndoStore.instance.save(snapshot);
-      if (!mounted) return;
-      TurnaSnackBar.show(context, AppStrings.aiLessonHelperUndoFailed);
-    }
   }
 
   /// Routes the user to the AI connection page when the engine is not
@@ -442,13 +387,11 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final LessonViewModel vm;
   final VoidCallback? onClose;
   final VoidCallback onAiHint;
-  final VoidCallback onAiHelper;
 
   const _LessonAppBar({
     required this.vm,
     required this.onClose,
     required this.onAiHint,
-    required this.onAiHelper,
   });
 
   @override
@@ -514,14 +457,6 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            tooltip: AppStrings.lessonAiHelperTooltip,
-            icon: Icon(
-              Icons.auto_fix_high,
-              color: TurnaTheme.textPrimaryColor(context),
-            ),
-            onPressed: onAiHelper,
-          ),
           if (s.aiEligible)
             IconButton(
               tooltip: AppStrings.lessonAiHintTooltip,
@@ -566,7 +501,6 @@ class _LessonBody extends StatelessWidget {
   final VoidCallback onRetry;
   final OnInteractionSubmit onSubmit;
   final VoidCallback onAdvance;
-  final Future<void> Function(Lesson snapshot) onRestoreAiLesson;
   final ScrollController scrollController;
 
   const _LessonBody({
@@ -577,7 +511,6 @@ class _LessonBody extends StatelessWidget {
     required this.onRetry,
     required this.onSubmit,
     required this.onAdvance,
-    required this.onRestoreAiLesson,
     required this.scrollController,
   });
 
@@ -666,10 +599,6 @@ class _LessonBody extends StatelessWidget {
 
         return Column(
           children: [
-            LessonAiUndoBanner(
-              lessonId: lesson.id,
-              onRestore: onRestoreAiLesson,
-            ),
             Expanded(
               child: PracticeSessionBody(
                 stageName: vm.currentStageName,

@@ -123,6 +123,67 @@ void main() {
       );
       expect(preview, contains('运行时注入'));
     });
+
+    // 回归：Anki 卡片的语言由导入的牌组决定，不由课程决定。从前这里一律
+    // 套「for Turkish」，导入日语 / 英语牌组后 AI 仍把卡片当土耳其语讲。
+    test('card explain without a language asks the model to infer it', () {
+      final prompt = AiPromptCatalog.cardExplain(
+        language: null,
+        prefs: prefs,
+      );
+      expect(prompt, contains('imported Anki deck'));
+      expect(prompt, contains('infer it from the card text'));
+      expect(prompt, isNot(contains('companion for Turkish')));
+      // 产品边界不因语言未知而放松。
+      expect(prompt, contains('the card answer is authoritative'));
+      expect(prompt, contains('Never output course section JSON'));
+
+      // 空串与 null 同义：上游传 '' 时不能变成「for 」这种半句话。
+      final blank = AiPromptCatalog.cardExplain(language: '  ', prefs: prefs);
+      expect(blank, prompt);
+    });
+
+    test('card explain for a course card still names the language', () {
+      final prompt = AiPromptCatalog.cardExplain(
+        language: 'Turkish',
+        prefs: prefs,
+      );
+      expect(prompt,
+          startsWith('You are a language-learning companion for Turkish.'));
+      expect(prompt, isNot(contains('imported Anki deck')));
+    });
+
+    // 面板要能列出「全部」可改的提示词：每个功能都得有非空默认文本，且追加
+    // 要求能生效——缺一条就会在面板里显示空白。
+    test('every feature has a default text that accepts an override', () {
+      for (final feature in AiPromptFeature.values) {
+        final base = AiPromptCatalog.preview(
+          feature: feature,
+          language: 'Turkish',
+          prefs: prefs,
+        );
+        expect(base.trim(), isNotEmpty, reason: '${feature.name} 默认文本为空');
+
+        final customised = AiPromptCatalog.preview(
+          feature: feature,
+          language: 'Turkish',
+          prefs: prefs,
+          override: 'Keep sentences short.',
+        );
+        expect(customised, contains('Keep sentences short.'),
+            reason: '${feature.name} 的追加要求没有生效');
+        expect(customised, startsWith(base));
+      }
+    });
+
+    test('course generation differs only by the conversation clause', () {
+      final plain = AiPromptCatalog.courseGeneration();
+      final convo = AiPromptCatalog.courseGeneration(fromConversation: true);
+      expect(plain, contains('You output ONLY valid JSON'));
+      expect(plain, isNot(contains('conversation history')));
+      expect(convo, contains('conversation history'));
+      expect(convo, startsWith(plain));
+    });
   });
 
   group('AiPromptOverridesStore', () {
@@ -149,6 +210,27 @@ void main() {
       await store.setText(AiPromptFeature.freeChat, '   ');
       expect(store.isOverridden(AiPromptFeature.freeChat), isFalse);
       expect(store.textFor(AiPromptFeature.freeChat), '');
+    });
+
+    // 面板上的「全部恢复默认」：一次清掉所有功能的追加文本，默认提示词不动。
+    test('clearAll drops every feature at once', () async {
+      final store = AiPromptOverridesStore();
+      await store.setText(AiPromptFeature.freeChat, 'a');
+      await store.setText(AiPromptFeature.diagnosis, 'b');
+      await store.setText(AiPromptFeature.courseGeneration, 'c');
+      expect(store.customised, hasLength(3));
+
+      await store.clearAll();
+
+      expect(store.customised, isEmpty);
+      expect(store.textFor(AiPromptFeature.diagnosis), '');
+      // 清完仍是「默认」，不是「空提示词」。
+      final base = AiPromptCatalog.preview(
+        feature: AiPromptFeature.diagnosis,
+        language: 'Turkish',
+        prefs: const AiExplainPrefsSnapshot(),
+      );
+      expect(base, contains('language-learning coach'));
     });
 
     test('overlong text is truncated to the documented cap', () async {

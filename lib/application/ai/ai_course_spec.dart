@@ -12,6 +12,7 @@ class AiCourseSpec {
     this.template = 'mixed',
     this.useGenreBatch = false,
     this.extraInstructions = '',
+    this.designBrief = '',
     this.groundedMode = false,
     this.resourceScope = const ['words', 'expressions', 'grammarPoints'],
     this.maxGroundedResources = 200,
@@ -46,6 +47,10 @@ class AiCourseSpec {
   /// Optional extra instructions appended to the prompt.
   final String extraInstructions;
 
+  /// Course-design intent ("编排意图") carried into the outline and lesson
+  /// prompts. Mirrors tool-gui's `AiCourseSpec.design_brief`.
+  final String designBrief;
+
   /// When true, the AI is grounded to reuse existing course resources instead of
   /// inventing new ones. Mirrors tool-gui design-panel grounding.
   final bool groundedMode;
@@ -67,6 +72,7 @@ class AiCourseSpec {
     String? template,
     bool? useGenreBatch,
     String? extraInstructions,
+    String? designBrief,
     bool? groundedMode,
     List<String>? resourceScope,
     int? maxGroundedResources,
@@ -81,6 +87,7 @@ class AiCourseSpec {
         template: template ?? this.template,
         useGenreBatch: useGenreBatch ?? this.useGenreBatch,
         extraInstructions: extraInstructions ?? this.extraInstructions,
+        designBrief: designBrief ?? this.designBrief,
         groundedMode: groundedMode ?? this.groundedMode,
         resourceScope: resourceScope ?? this.resourceScope,
         maxGroundedResources: maxGroundedResources ?? this.maxGroundedResources,

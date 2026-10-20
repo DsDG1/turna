@@ -16,6 +16,7 @@ import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
+import 'package:turna/domain/review/review_source.dart';
 import 'package:turna/application/review/review_ledger_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
@@ -225,6 +226,17 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
     _audioController.speak(text);
   }
 
+  /// 讲解用的目标语言。
+  ///
+  /// 课程卡片的语言就是当前课程语言；Anki 卡片来自用户导入的牌组，语言可能
+  /// 与课程完全无关（日语卡、英语卡……）。此前这里一律传当前课程语言，于是
+  /// 进了 Anki 之后 AI 仍把每张卡当土耳其语讲。Anki 来源返回 `null`，交给
+  /// 提示词要求模型从卡片文本自己判断。
+  String? _aiLanguageForCard(ReviewItem item) => switch (item.source) {
+        TurnaCourseSource() => context.read<LanguageProvider>().displayName,
+        LegacyAnkiSource() || OfficialAnkiSource() => null,
+      };
+
   void _openAiTutor() {
     final item = _controller.currentItem;
     if (item == null) return;
@@ -234,7 +246,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
     final context_ = const AiCardContextResolver().resolve(
       item,
       answerRevealed: _controller.isRevealed,
-      language: context.read<LanguageProvider>().ttsLanguageCode,
+      language: _aiLanguageForCard(item),
     );
     if (!context_.supported) {
       TurnaSnackBar.show(context, AppStrings.aiCardExplainUnsupported);

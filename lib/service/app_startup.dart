@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/course_provider.dart';
@@ -112,6 +113,17 @@ Future<void> _hydrateAfterSeed() async {
 
   await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
   await getIt<CourseProvider>().load();
+
+  // AI practice library: rewrite jobs whose process died as interrupted, apply
+  // the retention policy, and hydrate the in-memory list. Deferred off the
+  // startup critical path — the hub also retries `ensureLoaded()` on open.
+  unawaited(() async {
+    try {
+      await getIt<AiPracticeJobQueue>().restoreOnStartup();
+    } catch (e) {
+      logger.d('[AiPractice] startup restore skipped: $e');
+    }
+  }());
 
   unawaited(() async {
     try {

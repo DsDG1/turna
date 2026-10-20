@@ -1,5 +1,7 @@
 // Project imports:
 import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
@@ -30,9 +32,12 @@ Future<String> explainGeneratedCourse({
     messages: <Map<String, dynamic>>[
       {
         'role': 'system',
-        'content':
-            'You are a language-course design assistant who explains course '
-                'content in plain ${spec.sourceLanguage}.',
+        'content': AiPromptCatalog.courseExplainer(
+          sourceLanguage: spec.sourceLanguage,
+          override: AiPromptOverridesStore.overrideFor(
+            AiPromptFeature.courseExplainer,
+          ),
+        ),
       },
       {'role': 'user', 'content': prompt},
     ],

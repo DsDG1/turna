@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
@@ -260,6 +261,15 @@ class _PlayHubScreenState extends State<PlayHubScreen>
         snapshot.ankiUnavailable ? null : snapshot.ankiDueCount;
     final engineReady =
         context.select((AiEngineConfigHolder h) => h.config.isComplete);
+    ({bool active, int ready}) practiceStatus = (active: false, ready: 0);
+    try {
+      practiceStatus =
+          context.select<AiPracticeJobQueue, ({bool active, int ready})>(
+        (q) => (active: q.hasActiveJob, ready: q.readyCount),
+      );
+    } catch (_) {
+      // Optional dependency: widget tests pump the hub without the queue.
+    }
     final ankiCourse = snapshot.ankiCourse;
 
     return RepaintBoundary(
@@ -403,7 +413,11 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                       icon: Icons.auto_awesome_rounded,
                       accentColor: TurnaTheme.brandTeal,
                       badge: engineReady
-                          ? null
+                          ? (practiceStatus.active
+                              ? '…'
+                              : practiceStatus.ready > 0
+                                  ? '${practiceStatus.ready}'
+                                  : null)
                           : AppStrings.playAiEngineNotConfigured,
                       badgeColor: TurnaTheme.warning,
                       onTap: () => context.router.push(const AiHubRoute()),

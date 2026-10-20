@@ -34,6 +34,14 @@ enum AiPromptFeature {
   diagnosis(
     label: '学习诊断',
     usage: 'AI Hub → 学习诊断（返回固定 JSON）',
+  ),
+  courseGeneration(
+    label: '练习 / 课程生成',
+    usage: 'AI 练习与自定义课程（返回固定 JSON；schema 契约在用户消息里）',
+  ),
+  courseExplainer(
+    label: '课程说明',
+    usage: 'AI 建课完成后生成一段纯文本说明',
   );
 
   const AiPromptFeature({required this.label, required this.usage});
@@ -108,12 +116,24 @@ abstract final class AiPromptCatalog {
   }
 
   /// 复习卡片讲解（单轮，允许流式）。
+  ///
+  /// [language] 为 `null` 表示这张卡片的语言不由课程决定：Anki 牌组是用户
+  /// 自己导入的，可能根本不是当前课程的语言。这时不能替模型认领一个语言，
+  /// 只能要求它从卡片文本自己判断——否则一张日语卡会被当成土耳其语讲解。
   static String cardExplain({
-    required String language,
+    required String? language,
     required AiExplainPrefsSnapshot prefs,
     String override = '',
   }) {
-    final base = 'You are a language-learning companion for $language. '
+    final name = language?.trim() ?? '';
+    final identity = name.isEmpty
+        ? 'You are a language-learning companion. This card comes from an '
+            "imported Anki deck, so the card's language is not known in "
+            'advance: infer it from the card text itself, never assume the '
+            'current course language, and name the language only when the '
+            'text makes it obvious.'
+        : 'You are a language-learning companion for $name.';
+    final base = '$identity '
         '${prefs.toSystemPromptRules()}\n'
         'Explain this flashcard briefly to help understanding. '
         'Do not change or "correct" the card answer keys. '
@@ -179,6 +199,37 @@ abstract final class AiPromptCatalog {
     }
     return applyOverride(buf.toString(), override);
   }
+
+  /// 课程生成：只有角色与输出边界。schema 契约在用户消息里，不开放改写。
+  ///
+  /// [fromConversation] 预留给多轮对齐的建课路径；当前 AI 练习走分阶段
+  /// 大纲 + 分课提示词，不使用对话模式。
+  static String courseGeneration({
+    bool fromConversation = false,
+    String override = '',
+  }) {
+    final buf = StringBuffer(
+      'You are a language-course authoring assistant. You output ONLY valid '
+      'JSON, no prose, no markdown fences.',
+    );
+    if (fromConversation) {
+      buf.write(" The conversation history below captures the teacher's "
+          'requirements. Generate the final course JSON based on those '
+          'requirements.');
+    }
+    return applyOverride(buf.toString(), override);
+  }
+
+  /// 建课完成后的一段纯文本说明（用课程源语言写）。
+  static String courseExplainer({
+    required String sourceLanguage,
+    String override = '',
+  }) =>
+      applyOverride(
+        'You are a language-course design assistant who explains course '
+        'content in plain $sourceLanguage.',
+        override,
+      );
 
   /// 学习诊断（返回固定 JSON）。
   static String diagnosis({
@@ -255,6 +306,10 @@ abstract final class AiPromptCatalog {
           learnerContextBlock: placeholder,
           override: override,
         );
+      case AiPromptFeature.courseGeneration:
+        return courseGeneration(override: override);
+      case AiPromptFeature.courseExplainer:
+        return courseExplainer(sourceLanguage: 'Chinese', override: override);
     }
   }
 }

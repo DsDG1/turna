@@ -1,6 +1,3 @@
-// Dart imports:
-import 'dart:convert';
-
 // Project imports:
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_genre.dart';
@@ -275,56 +272,6 @@ String buildPrompt(AiCourseSpec spec, {String? groundedContext}) {
     '',
     _buildJsonSchemaExample(spec),
   ]);
-  return parts.join('\n');
-}
-
-/// Build the prompt that transforms a single lesson according to the user's
-/// instruction. Mirrors tool-gui's `ai_generator.py:request_lesson_transform`.
-String buildLessonTransformPrompt({
-  required Map<String, dynamic> lessonJson,
-  required String instruction,
-  required Set<String> resourceIds,
-}) {
-  final parts = <String>[
-    'Modify the following language lesson according to the instruction.',
-    'Return the COMPLETE modified lesson JSON (do not return a diff or partial JSON).',
-    '',
-    'Instruction: $instruction',
-    '',
-    'Allowed resource IDs (reuse these, do not invent new words/expressions/grammar unless truly necessary):',
-    if (resourceIds.isEmpty)
-      '(none yet — only create resources that are genuinely needed)'
-    else
-      resourceIds.join(', '),
-    '',
-    'Current lesson JSON:',
-    jsonEncode(lessonJson),
-  ];
-  return parts.join('\n');
-}
-
-/// Build the prompt that transforms a single interaction item. Mirrors
-/// tool-gui's `ai_generator.py:request_item_transform`.
-String buildItemTransformPrompt({
-  required Map<String, dynamic> itemJson,
-  required String instruction,
-  required Set<String> resourceIds,
-}) {
-  final parts = <String>[
-    'Modify the following lesson interaction item according to the instruction.',
-    'Return the COMPLETE modified item JSON (do not return a diff or partial JSON).',
-    '',
-    'Instruction: $instruction',
-    '',
-    'Allowed resource IDs (reuse these, do not invent new resources unless truly necessary):',
-    if (resourceIds.isEmpty)
-      '(none yet — only create resources that are genuinely needed)'
-    else
-      resourceIds.join(', '),
-    '',
-    'Current item JSON:',
-    jsonEncode(itemJson),
-  ];
   return parts.join('\n');
 }
 

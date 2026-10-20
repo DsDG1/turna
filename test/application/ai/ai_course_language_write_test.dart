@@ -1,23 +1,16 @@
 // Regression tests for multi-language AI write paths:
 //
-// - `saveSectionJson` / `save` must tag every row with the owning
-//   `language_code` (payload `language` field wins, else the active practice
-//   language). The composite PK is (language_code, id), so the old 'tr'
-//   column default both mislabeled non-Turkish content and forked duplicate
-//   rows on update.
+// - `saveSectionJson` must tag every row with the owning `language_code`
+//   (payload `language` field wins, else the active practice language). The
+//   composite PK is (language_code, id), so the old 'tr' column default both
+//   mislabeled non-Turkish content and forked duplicate rows on update.
 // - Writing a section/unit/lesson id that another language already owns
 //   must fail loudly — runtime lookups are by bare id, so duplicates throw
 //   downstream.
 // - `updateLessonInDb` must upsert under the existing row's language, not
 //   fork a (tr, id) twin that breaks `lessonById`'s getSingleOrNull.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:turna/application/ai/ai_course_provider.dart';
-import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
-import 'package:turna/application/ai/engine/ai_cache.dart';
-import 'package:turna/application/ai/engine/ai_engine.dart';
-import 'package:turna/application/ai/engine/ai_http_client.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_repository.dart';
@@ -84,17 +77,7 @@ Map<String, dynamic> _sectionPayload({
   };
 }
 
-AiCourseProvider _provider() => AiCourseProvider.withEngine(
-      AiEngine(
-        AiHttpClient.withClient(
-            MockClient((_) async => http.Response('', 500))),
-        AiCache.forTest(maxEntries: 0, enabled: false),
-      ),
-      // Explicit grounded provider: this suite wires a partial GetIt (repo
-      // only, no configureDependencies), so the constructor's singleton
-      // fallback would throw here.
-      groundedProvider: AiGroundedResourceProvider(),
-    );
+AiCourseProvider _provider() => AiCourseProvider();
 
 Future<List<String>> _languagesOf(
   db.CourseDatabase database,

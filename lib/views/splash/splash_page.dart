@@ -88,11 +88,11 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
       ),
     TtsPreferredStatus.googleMissing => (
         AppStrings.splashGoogleTtsMissingTitle,
-        AppStrings.splashGoogleTtsMissingBody,
+        AppStrings.splashGoogleTtsMissingBody(languageName),
       ),
     TtsPreferredStatus.ready => (
         AppStrings.splashGoogleTtsNotReadyTitle,
-        AppStrings.splashGoogleTtsNotReadyBody,
+        AppStrings.splashGoogleTtsNotReadyBody(languageName),
       ),
   };
 

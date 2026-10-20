@@ -27,14 +27,16 @@ import '../application/achievements/achievement_state_repository.dart' as _i927;
 import '../application/ai/ai_course_provider.dart' as _i859;
 import '../application/ai/ai_explain_prefs.dart' as _i450;
 import '../application/ai/ai_grounded_resource_provider.dart' as _i1068;
-import '../application/ai/ai_lesson_helper_provider.dart' as _i872;
 import '../application/ai/ai_saved_explanations.dart' as _i495;
-import '../application/ai/ai_wish_provider.dart' as _i561;
 import '../application/ai/engine/ai_cache.dart' as _i423;
 import '../application/ai/engine/ai_engine.dart' as _i717;
 import '../application/ai/engine/ai_engine_config_holder.dart' as _i691;
 import '../application/ai/engine/ai_http_client.dart' as _i518;
 import '../application/ai/engine/ai_recent_tasks_provider.dart' as _i687;
+import '../application/ai/engine/ai_usage_meter.dart' as _i644;
+import '../application/ai/practice/ai_practice_generator.dart' as _i1041;
+import '../application/ai/practice/ai_practice_job_queue.dart' as _i543;
+import '../application/ai/practice/ai_practice_source_context.dart' as _i372;
 import '../application/anki_official/anki_deck_manager.dart' as _i917;
 import '../application/audio_controller.dart' as _i106;
 import '../application/cosmetic_provider.dart' as _i42;
@@ -68,12 +70,12 @@ import '../application/settings/commands/update_daily_reminder_command.dart'
     as _i841;
 import '../application/settings_provider.dart' as _i793;
 import '../application/srs_provider.dart' as _i361;
-import '../application/srs_tutor_provider.dart' as _i669;
 import '../application/streak_provider.dart' as _i927;
 import '../application/study_stats_provider.dart' as _i620;
 import '../application/system_health_monitor.dart' as _i412;
 import '../application/theme_provider.dart' as _i151;
 import '../courses/languages/vocab_audio_resolver.dart' as _i73;
+import '../data/ai_practice_repository.dart' as _i648;
 import '../data/anki_import_dao.dart' as _i151;
 import '../data/course_database.dart' as _i604;
 import '../data/course_repository.dart' as _i848;
@@ -83,6 +85,7 @@ import '../data/srs_state_dao.dart' as _i336;
 import '../data/study_log_repository.dart' as _i889;
 import '../domain/audio/anki_audio_resolver.dart' as _i180;
 import '../domain/audio/vocab_audio_resolver.dart' as _i188;
+import '../domain/repositories/i_ai_practice_repository.dart' as _i318;
 import '../domain/repositories/i_anki_import_store.dart' as _i888;
 import '../domain/repositories/i_course_repository.dart' as _i876;
 import '../domain/repositories/i_credential_store.dart' as _i1034;
@@ -169,6 +172,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i767.TranslateSentenceRenderer>(
         () => _i767.TranslateSentenceRenderer());
     gh.factory<_i757.TypeTheWordRenderer>(() => _i757.TypeTheWordRenderer());
+    gh.lazySingleton<_i859.AiCourseProvider>(() => _i859.AiCourseProvider());
     gh.lazySingleton<_i423.AiCache>(() => _i423.AiCache());
     gh.lazySingleton<_i518.AiHttpClient>(() => _i518.AiHttpClient());
     gh.lazySingleton<_i687.AiRecentTasksProvider>(
@@ -223,11 +227,10 @@ extension GetItInjectableX on _i174.GetIt {
       () => audioModule.audioPlayer,
       instanceName: 'audioPlayer',
     );
-    gh.lazySingleton<_i669.SrsTutorProvider>(() => _i669.SrsTutorProvider(
-          engine: gh<_i717.AiEngine>(),
-          courseProvider: gh<_i859.AiCourseProvider>(),
-          mistakeProvider: gh<_i551.MistakeProvider>(),
-          srsDao: gh<_i732.ISrsStateStore>(),
+    gh.lazySingleton<_i717.AiEngine>(() => _i717.AiEngine(
+          gh<_i518.AiHttpClient>(),
+          gh<_i423.AiCache>(),
+          meter: gh<_i644.AiUsageMeter>(),
         ));
     gh.lazySingleton<_i188.VocabAudioResolver>(
         () => _i73.VocabAudioResolverImpl());
@@ -273,23 +276,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i1051.CourseProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i793.SettingsProvider>(
         () => _i793.SettingsProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i859.AiCourseProvider>(() => _i859.AiCourseProvider(
-          engine: gh<_i717.AiEngine>(),
-          groundedProvider: gh<_i1068.AiGroundedResourceProvider>(),
-        ));
-    gh.lazySingleton<_i872.AiLessonHelperProvider>(
-        () => _i872.AiLessonHelperProvider(
-              engine: gh<_i717.AiEngine>(),
-              groundedProvider: gh<_i1068.AiGroundedResourceProvider>(),
-            ));
-    gh.lazySingleton<_i561.AiWishProvider>(() => _i561.AiWishProvider(
-          engine: gh<_i717.AiEngine>(),
-          groundedProvider: gh<_i1068.AiGroundedResourceProvider>(),
-        ));
-    gh.lazySingleton<_i717.AiEngine>(() => _i717.AiEngine(
-          gh<_i518.AiHttpClient>(),
-          gh<_i423.AiCache>(),
-        ));
+    gh.lazySingleton<_i318.IAiPracticeRepository>(
+        () => _i648.AiPracticeRepository(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i1068.AiGroundedResourceProvider>(() =>
         _i1068.AiGroundedResourceProvider(
             repository: gh<_i876.ICourseRepository>()));
@@ -362,6 +350,11 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i80.AchievementService>(),
               gh<_i620.StudyStatsProvider>(),
             ));
+    gh.lazySingleton<_i1041.AiPracticeGenerator>(
+        () => _i1041.AiPracticeGenerator(
+              gh<_i717.AiEngine>(),
+              gh<_i1068.AiGroundedResourceProvider>(),
+            ));
     gh.lazySingleton<_i1008.GrammarReviewProvider>(
         () => _i1008.GrammarReviewProvider(
               gh<_i523.AppPrefs>(),
@@ -391,6 +384,13 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i532.ReadingShortAnswerRenderer>(),
               gh<_i940.AnkiCardRenderer>(),
               gh<_i702.AnkiHtmlCardRetiredRenderer>(),
+            ));
+    gh.lazySingleton<_i372.AiPracticeSourceContextBuilder>(
+        () => _i372.AiPracticeSourceContextBuilder(
+              gh<_i551.MistakeProvider>(),
+              gh<_i361.SrsProvider>(),
+              gh<_i1008.GrammarReviewProvider>(),
+              gh<_i876.ICourseRepository>(),
             ));
     gh.lazySingleton<_i253.RestoreNormalizationService>(
         () => serviceModule.restoreNormalizationService(
@@ -434,6 +434,13 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i523.AppPrefs>(),
               gh<_i927.StreakProvider>(),
             ));
+    gh.lazySingleton<_i543.AiPracticeJobQueue>(() => _i543.AiPracticeJobQueue(
+          gh<_i318.IAiPracticeRepository>(),
+          gh<_i1041.AiPracticeGenerator>(),
+          gh<_i372.AiPracticeSourceContextBuilder>(),
+          gh<_i691.AiEngineConfigHolder>(),
+          gh<_i233.LanguageProvider>(),
+        ));
     return this;
   }
 }

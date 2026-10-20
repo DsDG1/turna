@@ -16,9 +16,10 @@ import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
-import 'package:turna/views/lesson/tutor_launch_sheet.dart';
+import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -225,19 +226,10 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
-                      onPressed: () {
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: TurnaTheme.cardBg(context),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(TurnaTheme.radiusXLarge),
-                            ),
-                          ),
-                          builder: (_) => const TutorLaunchSheet(),
-                        );
-                      },
+                      onPressed: () => showAiPracticeGenerateSheet(
+                        context,
+                        source: AiPracticeSource.difficult,
+                      ),
                       icon: const Icon(Icons.school_outlined),
                       label: Text(AppStrings.aiDiagnosisSecondaryCta),
                     ),

@@ -95,17 +95,5 @@ void main() {
       isAiTaskResumable(task, tutorChatHasSession: true),
       isTrue,
     );
-    expect(
-      isAiTaskResumable(
-        AiRecentTask(
-          kind: AiTaskKind.wish,
-          summary: 'wish',
-          timestamp: DateTime.utc(2026, 9, 22),
-          route: AiRecentTaskRoute.wishChat,
-        ),
-        tutorChatHasSession: true,
-      ),
-      isFalse,
-    );
   });
 }

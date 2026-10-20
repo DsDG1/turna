@@ -4,24 +4,22 @@ import 'dart:convert';
 // Project imports:
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_genre.dart';
+import 'package:turna/application/ai/ai_json_text.dart';
 import 'package:turna/application/ai/ai_resource_consistency.dart';
 
-/// Pure helpers used by the feature providers to build prompts, normalize and
-/// validate the AI's JSON reply, and apply genre tags.
+/// Pure helpers for AI JSON replies.
 ///
 /// Phase 4.4 + 2.4: every network method on the original `AiCourseService`
 /// has been migrated to live directly on the providers / engine. What
 /// remains here is stateless parsing + normalization + the genre hook:
 ///   - [parseCompletion]        — wraps `jsonDecode`, runs code-fence stripping,
 ///     resource normalization, autoFix and self-consistency, then returns the
-///     normalized [AiGeneratedCourse]. Called by `AiCourseProvider.generate`,
-///     `AiWishProvider.generate`, `AiLessonHelperProvider`, and
-///     `SrsTutorProvider.tutorPlan`.
+///     normalized [AiGeneratedCourse]. Used by importers and tests; the practice
+///     pipeline decodes per phase (outline/lesson) instead of a whole chat body.
 ///   - [extractAssistantText]   — extracts the assistant's reply text from an
 ///     OpenAI-compatible chat completion body, guarding against malformed
-///     shapes (missing `choices`, null `message`, non-string `content`,
-///     multimodal array). Called by the in-lesson hint flow and indirectly
-///     by wish/lesson-helper state machines.
+///     shapes. Kept for callers that hold a full completion body rather than
+///     `AiEngineResult.content`.
 ///   - [applyGenreToSpec]       — if genre batch is on, update the spec
 ///     template based on the detected genre tag.
 class AiCourseService {
@@ -111,14 +109,8 @@ class AiCourseService {
     return spec;
   }
 
-  String _stripCodeFences(String s) {
-    if (s.startsWith('```')) {
-      final firstNewline = s.indexOf('\n');
-      if (firstNewline >= 0) s = s.substring(firstNewline + 1);
-      if (s.endsWith('```')) {
-        s = s.substring(0, s.length - 3);
-      }
-    }
-    return s.trim();
-  }
+  /// Delegates to [AiJsonText]. This used to be one of four private copies of
+  /// the fence-stripping logic, each handling ```` ```json ```` slightly
+  /// differently.
+  String _stripCodeFences(String s) => AiJsonText.stripCodeFences(s);
 }
