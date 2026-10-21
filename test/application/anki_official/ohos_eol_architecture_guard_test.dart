@@ -259,7 +259,8 @@ flutter:
       expect(
         pathOverrides,
         _approvedVendoredOverrides,
-        reason: 'vendored override set drifted from ADR 0047 §7',
+        reason: 'vendored override set drifted from ADR 0047 §7.1 / '
+            'ADR 0055 §1',
       );
 
       for (final forbidden in _neverOverride) {
@@ -352,11 +353,32 @@ flutter:
         // A floor, not an exact count: upstream may legitimately add or drop
         // wildcard arms, but a re-vendor that lost the port must fail here
         // rather than at the two-minute compile.
-        expect(
-          wildcardArms,
-          greaterThanOrEqualTo(_minWildcardArms[entry.key]!),
-          reason: 'wildcard arms in ${entry.key} dropped below the port floor',
-        );
+        final floor = _minWildcardArms[entry.key];
+        if (floor != null) {
+          expect(
+            wildcardArms,
+            greaterThanOrEqualTo(floor),
+            reason:
+                'wildcard arms in ${entry.key} dropped below the port floor',
+          );
+        }
+      }
+
+      // The secure-storage copy is SDK-neutral by a string comparison rather
+      // than by the wildcard trick, so it has no arm floor — its patch site is
+      // pinned instead.
+      for (final entry in _secureStoragePatchSite.entries) {
+        final source = File(entry.value);
+        expect(source.existsSync(), isTrue,
+            reason: 'missing vendored ${entry.key} at ${entry.value}');
+        final hits = source
+            .readAsLinesSync()
+            .where((line) => line.contains("operatingSystem == 'ohos'"))
+            .length;
+        expect(hits, 1,
+            reason: '${entry.key} lost its ohos branch: every Platform.isX is '
+                'false on HarmonyOS, so 9.2.4 falls through to UnsupportedError '
+                'and the AI API key never reaches the Keystore');
       }
     });
 
@@ -827,10 +849,27 @@ const _neverOverride = <String>[
   'audioplayers',
 ];
 
-/// Vendored copies carrying the OHOS TargetPlatform port (ADR 0047 §7).
+/// Every vendored copy allowed to appear as a `path:` override.
+///
+/// Two flavours, told apart by [_minWildcardArms]: the TargetPlatform port
+/// (ADR 0047 §7.1) rides a wildcard arm, the secure-storage patch (ADR 0055 §1)
+/// simply names `Platform.operatingSystem == 'ohos'`. Both are SDK-neutral —
+/// an override has no platform conditioning, so a copy that only compiled on
+/// the fork would break every test.
 const _approvedVendoredOverrides = <String, String>{
   'material_ui': 'third_party/flutter/material_ui',
   'cupertino_ui': 'third_party/flutter/cupertino_ui',
+  'flutter_secure_storage': 'third_party/flutter/flutter_secure_storage',
+};
+
+/// The single site the secure-storage patch adds. Upstream 9.2.4 throws
+/// `UnsupportedError` here on HarmonyOS because every `Platform.isX` is false,
+/// which silently kept the AI API key in memory. A re-vendor that drops the
+/// arm compiles, passes every other test, and only fails on a real device after
+/// a restart — so pin it here.
+const _secureStoragePatchSite = <String, String>{
+  'flutter_secure_storage':
+      'third_party/flutter/flutter_secure_storage/lib/flutter_secure_storage.dart',
 };
 
 /// Floors for the wildcard arms the port introduces. Deliberately a floor: the

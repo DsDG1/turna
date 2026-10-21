@@ -73,8 +73,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('日常交流'));
-    await tester.pumpAndSettle();
+    // The tree now auto-expands the unit holding the next unfinished lesson
+    // (`_ensureNextUpExpanded`, added 2026-09-22): `lesson-normal` and
+    // `lesson-listening` are complete, so this unit is the next-up one and is
+    // already open. Tapping the header here would COLLAPSE it and the golden
+    // would silently capture the wrong state — assert the expanded state
+    // instead of toggling.
+    expect(
+      find.text('阅读：咖啡馆里的对话'),
+      findsOneWidget,
+      reason: 'the next-up unit should already be expanded',
+    );
   }
 
   testWidgets('course tree expanded light golden', (tester) async {

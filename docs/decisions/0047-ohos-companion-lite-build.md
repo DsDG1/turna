@@ -157,7 +157,10 @@ Flutter 3.44 把 Material / Cupertino 从框架内**拆成 hosted 包**。fork �
 |---|---|---|
 | `shared_preferences` / `path_provider` / `url_launcher` | **0** | ✅ 可 override，OHOS 支持纯在 ArkTS 侧 |
 | `package_info_plus` / `share_plus` | **0** | ✅ 同上 |
+| `flutter_secure_storage` | 1 处 `Platform.operatingSystem == 'ohos'`（**字符串比较**，不引入 `Platform.isOhos` 或任何 fork 独有标识符） | ✅ 可 override，vendored 副本见 ADR 0055 §1 |
 | `flutter_local_notifications` | 9 处 `defaultTargetPlatform == TargetPlatform.ohos`，**且** `InitializationSettings` 新增上游没有的 `ohos` 字段（类型 `OhosInitializationSettings?`） | ❌ 移除 |
+
+`flutter_secure_storage` 通过筛选的理由与 §7.1 的两处移植**不同**：那两处要承载 `TargetPlatform.ohos` 枚举值（只能用末尾通配 arm 中和），这一处只做字符串比较，官方 SDK 下该分支不可达但**照样编译**。因此它没有通配 arm 下限，门禁改为钉住补丁站点本身（`ohos_eol_architecture_guard_test.dart` 的 `_secureStoragePatchSite`）——重 vendor 时丢掉这一行会编译通过、全部测试通过，只在真机重启后表现为 API key 消失。
 
 `flutter_local_notifications` 被移除的原因**不是**枚举比较（那可用末尾通配 arm 中和，见 §7.1），而是**公开 API 分叉**：一个类型引用在官方 SDK 下是硬编译错误，通配技巧无从下手。采用它还须连带改本仓库 `lib/service/local_reminder_service.dart` 的 OHOS 分支。**代价：本地提醒退出伴生范围**（§1 已记）。
 
@@ -186,7 +189,7 @@ if (!path.isAbsolute(p) && !p.startsWith('.')) p = './' + p
 
 1. **每次升级 `material_ui` / `cupertino_ui` 都要重跑迁移**。这两个包是 Flutter 里变动最频繁的，升级后站点数几乎必然变化，门禁会红——这是**预期行为**，不是回归
 2. **伴生版钉在 canary 上**。`3.44.9+ohos-0.0.1-canary1` 是唯一满足框架 ≥3.44 的 OHOS 构建，而 canary 基线会动，等于把上面那条成本再乘一遍
-3. 上面两处共 **88 个 Dart 站点 + 1 个 ArkTS 文件**是我们自维护的 Flutter 侧改动面。加上 7 个 fork override 与 RDB 插件，这才是伴生版的完整「上游债」清单
+3. 上面两处共 **88 个 Dart 站点 + 1 个 ArkTS 文件**是我们自维护的 Flutter 侧改动面。加上 5 个 git override、3 个 vendored override（本节两处 + ADR 0055 的 `flutter_secure_storage`）与 RDB 插件，这才是伴生版的完整「上游债」清单
 
 ## 前置条件与撤销条件
 
