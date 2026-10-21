@@ -84,6 +84,7 @@
 | | | [0053](./decisions/0053-turnapack-external-courses.md) | 外部课程经 `.turnapack` 进入 |
 | | | [0054](./decisions/0054-ai-practice-library.md) | AI 练习库与后台生成 |
 | | | [0055](./decisions/0055-ai-credential-persistence-ohos.md) | AI 凭据在鸿蒙上真正落盘 |
+| | | [0056](./decisions/0056-ohos-remove-ai-compliance.md) | 鸿蒙伴生版移除 AI 生成（合规） |
 
 ## 其它位置
 

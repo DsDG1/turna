@@ -30,6 +30,7 @@ import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/widgets/adaptive_card_grid.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 
 /// 练习页主页（2026-08 焕新版）。
@@ -406,24 +407,26 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                       ),
                     ),
                   // 智能练习：按错题/弱词生成定制练习（AI 伴学的入排位置）。
-                  // 两平台一致、两种课程都保留——Anki 课同样能按错题生成。
-                  Builder(
-                    builder: (tileContext) => ReviewTile(
-                      title: AppStrings.playSmartPracticeTitle,
-                      icon: Icons.auto_awesome_rounded,
-                      accentColor: TurnaTheme.brandTeal,
-                      badge: engineReady
-                          ? (practiceStatus.active
-                              ? '…'
-                              : practiceStatus.ready > 0
-                                  ? '${practiceStatus.ready}'
-                                  : null)
-                          : AppStrings.playAiEngineNotConfigured,
-                      badgeColor: TurnaTheme.warning,
-                      onTap: () => context.router.push(const AiHubRoute()),
-                      onLongPress: () => _showAiPopup(tileContext),
+                  // 两种课程都保留——Anki 课同样能按错题生成；但鸿蒙伴生版
+                  // 不随包 AI 模块（华为审核合规，ADR 0056），整个磁贴不渲染。
+                  if (!isDegraded(OhosDegradation.aiGeneration))
+                    Builder(
+                      builder: (tileContext) => ReviewTile(
+                        title: AppStrings.playSmartPracticeTitle,
+                        icon: Icons.auto_awesome_rounded,
+                        accentColor: TurnaTheme.brandTeal,
+                        badge: engineReady
+                            ? (practiceStatus.active
+                                ? '…'
+                                : practiceStatus.ready > 0
+                                    ? '${practiceStatus.ready}'
+                                    : null)
+                            : AppStrings.playAiEngineNotConfigured,
+                        badgeColor: TurnaTheme.warning,
+                        onTap: () => context.router.push(const AiHubRoute()),
+                        onLongPress: () => _showAiPopup(tileContext),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

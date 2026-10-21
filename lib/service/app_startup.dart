@@ -17,6 +17,7 @@ import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
@@ -117,13 +118,17 @@ Future<void> _hydrateAfterSeed() async {
   // AI practice library: rewrite jobs whose process died as interrupted, apply
   // the retention policy, and hydrate the in-memory list. Deferred off the
   // startup critical path — the hub also retries `ensureLoaded()` on open.
-  unawaited(() async {
-    try {
-      await getIt<AiPracticeJobQueue>().restoreOnStartup();
-    } catch (e) {
-      logger.d('[AiPractice] startup restore skipped: $e');
-    }
-  }());
+  // Builds without the AI module (ADR 0056) skip the restore entirely: the
+  // engine refuses to dispatch, so a resumed job would only surface as failed.
+  if (!isDegraded(OhosDegradation.aiGeneration)) {
+    unawaited(() async {
+      try {
+        await getIt<AiPracticeJobQueue>().restoreOnStartup();
+      } catch (e) {
+        logger.d('[AiPractice] startup restore skipped: $e');
+      }
+    }());
+  }
 
   unawaited(() async {
     try {

@@ -28,6 +28,13 @@ from src.widgets.job_tray import JobTray
 logger = logging.getLogger(__name__)
 
 
+def _open_course_plan(host) -> None:
+    """Open the P0-2 course-plan window (lazy: controller imports widgets)."""
+    from src.application.course_plan_controller import open_course_plan
+
+    open_course_plan(host)
+
+
 def build_undo_actions(host) -> None:
     host.undo_action = host.undo_stack.createUndoAction(host, "撤销")
     host.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
@@ -104,10 +111,19 @@ def build_toolbar(host) -> None:
     )
     host.generate_audio_action.triggered.connect(host._on_generate_audio)
 
-    # The rest of the app menu: publish / audio / palette / settings.
+    host.course_plan_action = QAction("整门课程规划…", host)
+    host.course_plan_action.setToolTip(
+        "先生成课程大纲与全局词表，再逐节展开（大纲不写课程文件）"
+    )
+    host.course_plan_action.triggered.connect(
+        functools.partial(_open_course_plan, host)
+    )
+
+    # The rest of the app menu: publish / audio / course plan / palette / settings.
     host.repo_menu.addSeparator()
     host.repo_menu.addAction(host.publish_action)
     host.repo_menu.addAction(host.generate_audio_action)
+    host.repo_menu.addAction(host.course_plan_action)
     host.repo_menu.addSeparator()
     host.palette_action = QAction("命令面板", host)
     host.palette_action.setShortcut(QKeySequence("Ctrl+K"))

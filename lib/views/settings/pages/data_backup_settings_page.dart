@@ -24,6 +24,7 @@ import 'package:turna/service/export_service.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -67,14 +68,18 @@ class DataBackupSettingsPage extends StatelessWidget {
                   onTap: (context) => _importData(context),
                 ),
                 settingsTileDivider(context),
-                SettingsActionTile(
-                  icon: Icons.cloud_upload_outlined,
-                  title: AppStrings.settingsRemoteBackupTitle,
-                  subtitle: AppStrings.settingsRemoteBackupSubtitle,
-                  onTap: (context) =>
-                      context.router.push(const RemoteBackupRoute()),
-                ),
-                settingsTileDivider(context),
+                // 远程备份（WebDAV）不在鸿蒙伴生范围（ADR 0047 排除项）：
+                // 入口 tile 一并隐藏，页面内的「平台不支持」卡片只是兜底。
+                if (!isDegraded(OhosDegradation.remoteBackup)) ...[
+                  SettingsActionTile(
+                    icon: Icons.cloud_upload_outlined,
+                    title: AppStrings.settingsRemoteBackupTitle,
+                    subtitle: AppStrings.settingsRemoteBackupSubtitle,
+                    onTap: (context) =>
+                        context.router.push(const RemoteBackupRoute()),
+                  ),
+                  settingsTileDivider(context),
+                ],
                 // Independent migration-package entry (ADR 0043): a
                 // turna-migration-v1 zip from another platform (OHOS EOL
                 // export) — deliberately separate from the JSON backup

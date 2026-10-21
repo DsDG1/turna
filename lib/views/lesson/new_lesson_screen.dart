@@ -33,6 +33,7 @@ import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 
 @RoutePage()
@@ -482,6 +483,8 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   bool _aiEligible(LessonViewModel vm) {
+    // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056）：提示按钮不出现。
+    if (isDegraded(OhosDegradation.aiGeneration)) return false;
     final i = vm.currentInteraction;
     if (i == null) return false;
     return interactionAiHintEligible(i);

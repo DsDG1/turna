@@ -134,6 +134,10 @@ class CourseOverviewWindow(QWidget):
 
     lesson_selected = Signal(str)
     validation_requested = Signal(list)  # list[dict[str, Any]]
+    # P0-1: inline health panel intents. The panel is read-only; the host
+    # controller performs locate / dispatch through the normal funnel.
+    health_locate_requested = Signal(str, str)  # (kind, node_id)
+    health_action_requested = Signal(dict)  # repair step (action_id + scope)
 
     def __init__(
         self,
@@ -161,10 +165,13 @@ class CourseOverviewWindow(QWidget):
         # stale number.
         self._validation_stale = False
         self._validation_worker = None
+        # P0-1 health panel (lazily created on first toggle).
+        self._health_panel = None
 
         root = QVBoxLayout(self)
         root.setContentsMargins(14, 12, 14, 12)
         root.setSpacing(10)
+        self._root_layout = root
 
         # --- Toolbar: stats + actions -----------------------------------
         self._stats_label = QLabel()
@@ -192,6 +199,13 @@ class CourseOverviewWindow(QWidget):
         self._filter_timer.setInterval(250)
         self._filter_timer.timeout.connect(self._render)
         action_row.addWidget(self._search, 1)
+        self.health_btn = QPushButton("课程体检")
+        self.health_btn.setCheckable(True)
+        self.health_btn.setToolTip(
+            "扫描空课、词汇螺旋、阅读/听力缺口、低质节与资源冲突，生成只读工作单"
+        )
+        self.health_btn.toggled.connect(self._on_health_toggled)
+        action_row.addWidget(self.health_btn)
         self._export_btn = QPushButton("导出 Markdown")
         self._export_btn.setToolTip("把当前可见结构导出为 Markdown（复制到剪贴板）")
         self._export_btn.clicked.connect(self._on_export)
@@ -258,6 +272,31 @@ class CourseOverviewWindow(QWidget):
                 self._stats, validation_errors=errors, validation_warnings=warnings
             )
         self._render()
+        if self._health_panel is not None and self._health_panel.isVisible():
+            self._health_panel.refresh()
+
+    def _on_health_toggled(self, checked: bool) -> None:
+        panel = self._ensure_health_panel()
+        if checked:
+            panel.refresh()
+            panel.show()
+        else:
+            panel.hide()
+
+    def _ensure_health_panel(self):
+        """Create the inline health panel once and wire its intents upward."""
+        if self._health_panel is None:
+            from src.widgets.course_health_panel import CourseHealthPanel
+
+            panel = CourseHealthPanel(self.adapter, self)
+            panel.locate_requested.connect(self.health_locate_requested.emit)
+            panel.execute_requested.connect(self.health_action_requested.emit)
+            # Insert directly under the action row; keep it out of the way of
+            # the existing stats + filter + scroll layout.
+            self._root_layout.insertWidget(2, panel)
+            panel.hide()
+            self._health_panel = panel
+        return self._health_panel
 
     def _render(self) -> None:
         if self._stats is None:

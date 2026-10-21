@@ -116,7 +116,7 @@ void main() {
     expect(find.text('复习'), findsOneWidget);
     expect(find.text('语法复习'), findsOneWidget);
     expect(find.text('智能练习'), findsOneWidget);
-    expect(find.text('Anki 复习'), findsNothing);
+    expect(find.text('记忆卡复习'), findsNothing);
 
     // 智能练习：默认空配置 -> 卡上挂「未配置」徽标（警示色）。
     final smartTitle = find.text('智能练习');
@@ -165,7 +165,7 @@ void main() {
     // （词典查的是内置词表，非语言课程下无意义，一并隐藏）。
     expect(find.text(AppStrings.playTodayHeroTitle), findsOneWidget);
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
-    expect(find.text('Anki 复习'), findsOneWidget);
+    expect(find.text('记忆卡复习'), findsOneWidget);
     expect(find.text('错题复习'), findsNothing);
     expect(find.text('语法复习'), findsNothing);
     // 智能练习与课程类型无关：Anki 课同样按错题生成练习。
@@ -185,19 +185,19 @@ void main() {
         .pumpWidget(MaterialApp(home: hubTree(courseProvider: courseProvider)));
     await tester.pumpAndSettle();
     expect(find.text('错题复习'), findsOneWidget);
-    expect(find.text('Anki 复习'), findsNothing);
+    expect(find.text('记忆卡复习'), findsNothing);
 
     // 语言 → Anki：IndexedStack 保留的 Play Hub 必须随 scope 通知重建。
     courseProvider.scopeWire = 'anki:deck1';
     await tester.pumpAndSettle();
-    expect(find.text('Anki 复习'), findsOneWidget);
+    expect(find.text('记忆卡复习'), findsOneWidget);
     expect(find.text('错题复习'), findsNothing);
 
     // Anki → 语言：语言课队列恢复。
     courseProvider.scopeWire = '';
     await tester.pumpAndSettle();
     expect(find.text('错题复习'), findsOneWidget);
-    expect(find.text('Anki 复习'), findsNothing);
+    expect(find.text('记忆卡复习'), findsNothing);
   });
 
   testWidgets('Anki review tile opens the shared session host', (tester) async {
@@ -217,8 +217,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Anki 复习'));
-    await tester.tap(find.text('Anki 复习'));
+    await tester.ensureVisible(find.text('记忆卡复习'));
+    await tester.tap(find.text('记忆卡复习'));
     await tester.pump();
     expect(opened, FormalReviewLauncher.sessionRouteName);
   });
@@ -335,8 +335,8 @@ void main() {
 
       // 模拟一次复习会话结束（调度器还欠 2 张）：pop 返回后必须重取快照。
       dueAfterSync = {11, 22};
-      await tester.ensureVisible(find.text('Anki 复习'));
-      await tester.tap(find.text('Anki 复习'));
+      await tester.ensureVisible(find.text('记忆卡复习'));
+      await tester.tap(find.text('记忆卡复习'));
       await tester.pumpAndSettle();
 
       expect(refreshRuns, 2,
@@ -459,8 +459,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Anki 复习'));
-      await tester.longPress(find.text('Anki 复习'));
+      await tester.ensureVisible(find.text('记忆卡复习'));
+      await tester.longPress(find.text('记忆卡复习'));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.playPopupAnkiTotal), findsOneWidget);

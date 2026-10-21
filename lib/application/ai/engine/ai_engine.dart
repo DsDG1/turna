@@ -11,6 +11,7 @@ import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_result.dart';
 import 'package:turna/application/ai/engine/ai_http_client.dart';
 import 'package:turna/application/ai/engine/ai_usage_meter.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/performance_trace.dart';
 
 /// Single choke point for every LLM call in the app.
@@ -115,8 +116,17 @@ class AiEngine {
       probeConnection(
     AiEngineConfig config, {
     Duration timeout = const Duration(seconds: 10),
-  }) =>
-          _http.probeConnection(config, timeout: timeout);
+  }) async {
+    if (isDegraded(OhosDegradation.aiGeneration)) {
+      return (
+        ok: false,
+        error: 'AI generation is not shipped on this build.',
+        model: '',
+        latencyMs: 0,
+      );
+    }
+    return _http.probeConnection(config, timeout: timeout);
+  }
 
   AiCacheStats cacheStats() => _cache.stats();
 
@@ -231,6 +241,15 @@ class AiEngine {
     required AiCancelToken? cancelToken,
     required Duration timeout,
   }) async {
+    // Compliance gate (ADR 0056): builds that don't ship the AI module must
+    // not dispatch any LLM call, however a caller reached the engine. Every
+    // UI entry point is hidden too; this is the backstop for leaks.
+    if (isDegraded(OhosDegradation.aiGeneration)) {
+      throw Exception(
+        'AI generation is not shipped on this build.',
+      );
+    }
+
     if (!config.isComplete) {
       throw Exception(
           'AI config incomplete: please fill in Base URL / API Key / Model.');
@@ -315,8 +334,7 @@ class AiEngine {
         if (chunk.finishReason != null) finishReason = chunk.finishReason;
       }
       final content = fragments.join();
-      final body =
-          _synthesizeStreamedBody(content, usage, model, finishReason);
+      final body = _synthesizeStreamedBody(content, usage, model, finishReason);
       if (config.cacheEnabled && _cache.enabled) {
         _cache.put(key, body);
       }

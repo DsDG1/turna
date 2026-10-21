@@ -37,6 +37,14 @@ bool get isHarmonyOsTarget => defaultTargetPlatform.name == 'ohos';
 /// - **remoteBackup** — no WebDAV client on the platform. The service is
 ///   registered unconditionally, so without an explicit check the settings page
 ///   offers a complete, working-looking WebDAV form that fails on submit.
+/// - **aiGeneration** — compliance, not capability. Huawei AppGallery review
+///   treats the BYOK practice/hint/tutor features as a synthetic-content
+///   service and requires a filed security assessment report plus real-name
+///   verification before use; those qualifications are out of reach for an
+///   individual developer (ADR 0056). So the companion build ships without the
+///   AI module at all: every UI entry point is hidden and `AiEngine`, the
+///   single LLM choke point, refuses to dispatch. Android/iOS keep the full
+///   BYOK feature set.
 ///
 /// Audio and text-to-speech are deliberately **not** listed here any more. Both
 /// used to be, on the grounds that `audioplayers` and `flutter_tts` ship no OHOS
@@ -58,6 +66,12 @@ bool get isHarmonyOsTarget => defaultTargetPlatform.name == 'ohos';
 /// of a hunt through the views.
 enum OhosDegradation {
   remoteBackup,
+
+  /// All LLM-backed features (practice generation, hints, tutor, card
+  /// explanations, dictionary enrichment). Removed from the OHOS build for
+  /// app-store compliance, not for a platform gap — see the class doc and
+  /// ADR 0056.
+  aiGeneration,
 }
 
 /// Degradations that apply to the running build. Empty everywhere but OHOS.

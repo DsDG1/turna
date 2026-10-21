@@ -47,10 +47,10 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 | 入口 | 功能 | 快捷键 / 备注 |
 |---|---|---|
-| **应用菜单（≡）** | 打开/新建课程目录、最近仓库、发布、生成听力音频、命令面板、设置 | 顶部菜单按钮 |
+| **应用菜单（≡）** | 打开/新建课程目录、最近仓库、发布、生成听力音频、**整门课程规划**、命令面板、设置 | 顶部菜单按钮 |
 | **编辑视图（📁）** | 侧栏课程树 + 详情面板（编辑/预览/JSON 三 tab） | `Ctrl+1` |
 | **工坊（✨）** | 一站式 AI 协同创作（教材提取、AI 设计、审校到幂等导入） | `Ctrl+2`，非模态，可并行操作 |
-| **总览（🗺）** | 全局鸟瞰：Sections/Units/Lessons/空课时/校验错警 + 词汇·表达·语法覆盖率 + 课型分布；每 Section 题型构成行；按名称/ID 搜索；课型徽标互斥过滤；空课时灰边标记；导出 Markdown；点校验数跳转校验面板 | `Ctrl+3`；角标红显校验错误数 |
+| **总览（🗺）** | 全局鸟瞰：Sections/Units/Lessons/空课时/校验错警 + 词汇·表达·语法覆盖率 + 课型分布；每 Section 题型构成行；按名称/ID 搜索；课型徽标互斥过滤；空课时灰边标记；导出 Markdown；点校验数跳转校验面板；**「课程体检」内嵌工作单**（空课/螺旋/阅读/听力/低质/资源冲突，只读扫描 → 逐条定位或执行） | `Ctrl+3`；角标红显校验错误数 |
 | **资源（📚）** | 词汇/表达/语法点编辑表格；页内第二 tab 为 Git 资源库 | `Ctrl+4`；支持 CSV 一键导出/导入 |
 | **Copilot（🤖）** | 右侧 AI 建议面板（ExperienceDock），待应用动作落在状态栏上方确认条 | `Ctrl+J` toggle |
 | **教师模式（🎓）** | 教师审查视角，课时结构化呈现与实时交互试做 | Activity Bar 底部 |
@@ -118,7 +118,19 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 ### 5. 课程总览与教师模式 (Overview & Teacher Mode)
 
 - **全局总览图**：多行统计（Sections/Units/Lessons/空课时/校验错警 + 词汇·表达·语法覆盖率 N/M, P% + 课型分布）；每 Section 卡片头部展示题型构成（如「选择题 12 · 填空题 8 · 听音选词 6」）；空课时芯片灰边 + `（空）` 标记；顶部搜索框按名称/ID 过滤，课型徽标可点切互斥过滤；一键导出 Markdown（贴入 ADR/内容清单）；校验数可点跳转已有校验面板。统计计算抽到纯函数模块 `backend/overview_stats.py`（无 Qt，可单测）。
+- **课程体检（P0-1）**：总览头部 **「课程体检」** 展开只读工作单：空课、词汇螺旋缺口、阅读空段、听力缺音频/文本、低质节、语法未覆盖、前置依赖异常与资源重复/冲突。左表按级别/类型/位置排列，右侧「修复工作单」按「结构 → 听力 → 质量 → 资源」排序；双击定位到课程树，选中一步执行仍走该动作自己的预览/确认/Undo。扫描零写盘、零 LLM；纯逻辑在 `backend/course_health.py`，UI 经 `application/course_health_service.py` 取数。
 - **教师试做模式**：点工具栏 **「教师模式」** 后模拟学员在移动端的操作流程，在桌面端测试各种互动题型（单选点击、听音选词、句子重排等），验证答题逻辑与渲染效果。
+
+### 5.1 整门课程规划（P0-2 / P0-3）
+
+应用菜单 **「整门课程规划…」** 打开独立规划窗口（需先打开课程目录）：
+
+- **规划参数**：语言对、主题、CEFR 范围、章节数、每章课时数、全课程新词预算、can-do、额外约束、逐节生成模式（快速 / 精修）与 token 预算（0 = 不限）。
+- **生成大纲**：模型只返回**术语与结构**，section / 词 id 全部由本地确定性分配（`sec-01`、`w-<slug>-001`），同一份大纲重复生成 id 稳定。本地校验章节数、等级单调、课程内新词唯一、复习词必须来自前面章节；失败会把错误回灌重试一次。
+- **审阅**：两个 tab —— 「课程大纲」（章节名/等级/单元/课时/课型/新词数/can-do/复现词/**状态**）与「全局词表」（词/翻译/词性/ID）；低预算或空 brief 等软问题显示在「大纲警告」，不阻断保存。
+- **逐节生成**：选中大纲某节 → **生成本节**。该节新词 + 复习词作为 grounded pool，前面已规划词作为 `course_resources` 注入；草稿存 `drafts/<section_id>.json`，只生成不导入。可勾选「完成后自动继续下一节」，token 预算用尽即停。
+- **导入本节**：草稿经 `SectionImportService` 以 `APPEND_AS_NEW` 导入（id 冲突自动改写，不覆盖已有节），保留校验、合并预览与 Undo；导入后仍需 **Ctrl+S 保存课程**。
+- **持久化**：`tool/var/course_plans/<plan_id>/plan.json` + `drafts/`（已 git-ignore，原子写），顶部可载入/删除；**不写课程 JSON**。
 
 ### 6. 设置与偏好管理 (Settings)
 
@@ -237,11 +249,11 @@ tool/gui/
 │   ├── main.py                 # 程序主入口（--gallery 打开组件画廊）
 │   ├── theme.py                # 主题应用（调色板 + 密度 + UI 缩放）
 │   ├── theme_tokens.py         # 设计 token 单一真源（色/间距/圆角/字阶/层级/密度，Qt-free）
-│   ├── application/            # 59 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
+│   ├── application/            # 62 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
 │   │   ├── commands/               # 6 个 .py — Undoable edit commands for the course editor (B2).
 │   │   └── experience_handlers/    # 12 个 .py — Experience skill handlers (M7).
-│   ├── backend/                # 115 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
-│   │   ├── ai/                     # 10 个 .py — AI backend package (OpenAI-compatible course generation).
+│   ├── backend/                # 118 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
+│   │   ├── ai/                     # 11 个 .py — AI backend package (OpenAI-compatible course generation).
 │   │   └── experience/             # 54 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
 │   ├── dialogs/                # 59 个 .py — 对话框与独立子窗口
 │   │   ├── ai/                     # 20 个 .py — AI course-generation dialog package.
@@ -254,7 +266,7 @@ tool/gui/
 │   ├── infrastructure/         # 7 个 .py — 横切设施：操作日志 / 遥测 / 滚轮防误触 / 屏幕适配
 │   ├── teacher/                # 11 个 .py — 教师模式：线性流程 / 题目卡 / 词表 / 模板编辑
 │   ├── theme_styles/           # 8 个 .py — 模块化 QSS（builder 组装）
-│   ├── widgets/                # 40 个 .py — 可复用 UI 组件
+│   ├── widgets/                # 42 个 .py — 可复用 UI 组件
 │   │   └── ui/                     # 10 个 .py — Turna UI kit (GUI 焕新 W1).
 ├── tests/                  # unittest 自动化测试套件（分档见 run_gui_tests.py）
 ├── docs/                   # 契约与设计文档（ai_refactor_contract.md 为门禁契约）

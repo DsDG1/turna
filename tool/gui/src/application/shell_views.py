@@ -328,6 +328,17 @@ def ensure_overview_embedded(host: Any) -> Any:
         functools.partial(_on_overview_lesson_click, host)
     )
     overview.validation_requested.connect(host._on_overview_validation)
+    from src.application.overview_controller import (
+        on_overview_health_action,
+        on_overview_health_locate,
+    )
+
+    overview.health_locate_requested.connect(
+        functools.partial(on_overview_health_locate, host)
+    )
+    overview.health_action_requested.connect(
+        functools.partial(on_overview_health_action, host)
+    )
     overview.destroyed.connect(host._on_overview_destroyed)
     host.overview_holder_layout.addWidget(overview, 1)
     host._overview_widget = overview

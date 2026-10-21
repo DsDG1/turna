@@ -7,6 +7,15 @@
 
 ---
 
+### 2026-10-21 app 内文案去 Anki 化：统一写「记忆卡」
+
+- **性质**：文案批次（无行为改动）；**测试数 +6**（新增 `test/architecture/app_wording_terminology_guard_test.dart` 6 条）。
+- **改动**：①app 内面向用户的文案不再出现 anki / Anki，统一写「记忆卡」——`lib/l10n/app_strings.dart` 74 处字符串（**只改字面量**，getter 名与标识符不动）、`assets/changelog.md` 14 处（应用内更新日志）、`lib/application/settings/release_manifest.dart` 17 处（更新日志后援）、`lib/application/system_health_monitor.dart` 与 `lib/views/settings/system_health_page.dart`（诊断模块名「记忆卡渲染」**两处必须同步**：页面按模块名匹配建议分支，只改一边会让建议弹窗静默失效）、`lib/application/ai/ai_card_context_resolver.dart`（来源显示名）、`lib/application/settings/commands/reset_learning_settings_command.dart`、`lib/domain/audio/anki_media_platform_stub.dart`（平台不支持时的报错文案）、`assets/anki_reviewer/`（复习器页 `<title>` 与 iframe 无障碍标签）。②`assets/anki_reviewer/manifest.json` 的 sha256 / bytes 随资产同步更新，`assetVersion` p2e-2 → p2e-3。③`AGENTS.md` §7.2 新增术语口径（app 内写「记忆卡」；三类例外：第三方 AGPL 许可文本 / 内部契约（协议键、原生库名、本地源、表名、id 前缀、level 标记）/ 文档层），§8 强制手段表登记新门禁。④新增 `test/architecture/app_wording_terminology_guard_test.dart`（6 条）：字符串表严格扫描 + 全 `lib/` 中文文案扫描 + 应用内更新日志与复习器资产扫描，另加两条**反向锚点**（AGPL 文本必须仍点名 Anki、协议键必须仍在字符串表），防止「去品牌」被做成「去许可」。⑤两处测试断言跟随文案更新（`play_hub_screen_test` 11 处、`storage_diagnostics_page_test` 1 处）。文档层（`docs/`、ADR、根 `CHANGELOG.md`）按约定不改。
+- **验证**：`flutter test --tags golden` **12 passed**（`play_hub` golden 不渲染该文案，无需重生）；`flutter test --exclude-tags golden` **2291 passed / 0 failed**（较上一批 2285 +6，即新增门禁本身）；新门禁 `app_wording_terminology_guard_test` **6 passed**；`flutter analyze --no-pub` **No issues found**。
+- **未验**：未出包、未在真机/模拟器上肉眼过一遍新措辞（「记忆卡组」这类连写是否符合预期观感，未经用户确认）。
+
+---
+
 ### 2026-10-21 AI 课程助手移出课时 + 统一 section JSON + 后台生成 + 我的练习库
 
 - **性质**：功能改造批次；**测试数 +16**（删除 `ai_lesson_helper_undo_test` 2 条、`ai_lesson_undo_store_test` 2 条、`srs_tutor_provider_test` 7 条、`ai_prompt_catalog_test` 2 条已退役 prompt、`ai_tutor_chat_session_test` 1 条弃用断言；新增 `ai_practice_pipeline_test` 12 条、`ai_practice_quality_test` 11 条、`ai_practice_repository_test` 6 条、`schema_33_ai_course_library_test` 1 条）。

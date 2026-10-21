@@ -171,7 +171,7 @@
     frame.id = "card-frame";
     frame.setAttribute("sandbox", "allow-scripts");
     frame.setAttribute("src", "https://anki.local/assets/card-frame.html");
-    frame.setAttribute("title", "Official Anki card");
+    frame.setAttribute("title", "官方记忆卡");
     host.innerHTML = "";
     host.appendChild(frame);
     publishDebug();

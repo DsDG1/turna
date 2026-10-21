@@ -22,6 +22,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -217,14 +218,16 @@ class DictionaryHitTile extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              tooltip: AppStrings.aiDictEnrich,
-              onPressed: () => _openAiEnrich(context, hit),
-              icon: const Icon(
-                Icons.auto_awesome_rounded,
-                color: TurnaTheme.amethystLeague,
+            // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056）。
+            if (!isDegraded(OhosDegradation.aiGeneration))
+              IconButton(
+                tooltip: AppStrings.aiDictEnrich,
+                onPressed: () => _openAiEnrich(context, hit),
+                icon: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: TurnaTheme.amethystLeague,
+                ),
               ),
-            ),
             IconButton(
               tooltip: AppStrings.dictionaryPlayPronunciation,
               onPressed: onSpeak,

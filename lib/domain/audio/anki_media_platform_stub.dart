@@ -15,12 +15,12 @@ void ankiCreateDirectory(String path) {}
 
 void ankiCopyFile(String sourcePath, String targetPath) =>
     throw UnsupportedError(
-      'Anki media files require an IO-capable platform.',
+      '记忆卡媒体文件需要支持文件读写的平台。',
     );
 
 void ankiRenameDirectory(String sourcePath, String targetPath) =>
     throw UnsupportedError(
-      'Anki media files require an IO-capable platform.',
+      '记忆卡媒体文件需要支持文件读写的平台。',
     );
 
 void ankiDeleteDirectory(String path) {}

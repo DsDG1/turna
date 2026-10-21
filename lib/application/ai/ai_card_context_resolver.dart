@@ -93,14 +93,14 @@ LearningSourceRef _sourceRef(ReviewItem item) {
     return LearningSourceRef(
       kind: LearningSourceKind.ankiLegacy,
       sourceId: source.importId,
-      displayName: 'Anki',
+      displayName: '记忆卡',
     );
   }
   if (source is OfficialAnkiSource) {
     return LearningSourceRef(
       kind: LearningSourceKind.ankiOfficial,
       sourceId: source.sourceId,
-      displayName: 'Anki (Official)',
+      displayName: '官方记忆卡',
     );
   }
   // Grammar reviews ride the course SRS queue today; keep a distinct label.

@@ -189,7 +189,7 @@ class SystemHealthPage extends StatelessWidget {
     final modules = event.groups.values.map((item) => item.module).toSet();
     final advice = <String>[
       if (modules.contains('数据库')) AppStrings.systemHealthAdviceDb,
-      if (modules.contains('Anki 渲染') || modules.contains('WebView'))
+      if (modules.contains('记忆卡渲染') || modules.contains('WebView'))
         AppStrings.systemHealthAdviceAnki,
       if (modules.contains('TTS / 音频')) AppStrings.systemHealthAdviceTts,
       if (modules.contains('AI 网络')) AppStrings.systemHealthAdviceAi,

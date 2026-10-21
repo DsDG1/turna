@@ -1,5 +1,5 @@
 {
-  "assetVersion": "p2e-2",
+  "assetVersion": "p2e-3",
   "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
   "mathjaxVersion": "3.2.2",
   "mathjaxFile": "mathjax/tex-svg-full.js",
@@ -7,8 +7,8 @@
   "files": [
     {
       "path": "card-frame.html",
-      "sha256": "936f3a7b7347f74d31fade54182e6bab49b4cee882061a1b54bb693c907524a4",
-      "bytes": 921
+      "sha256": "fc57e1332b1f6a05e244ac42a77b99b420bf6b44a223f034a8cd8d54aded8db3",
+      "bytes": 924
     },
     {
       "path": "card-frame.js",
@@ -32,13 +32,13 @@
     },
     {
       "path": "reviewer.html",
-      "sha256": "aad7b8d8c80cffe6128a3f0066c0413d879c500fbeab3e98257e4618eae63720",
-      "bytes": 865
+      "sha256": "eeb6fa1b4aadec94ae0b0ef6eb4264660f26cc73751680e59bc510135afb0110",
+      "bytes": 867
     },
     {
       "path": "reviewer.js",
-      "sha256": "8555c4bba0c93f55dec6b58b0fe1c26112114dbb494eba6b6045bdbc03dd0c97",
-      "bytes": 15837
+      "sha256": "fe3b0b2cc4e74272bae5c5caf05bbcc0e62d74f844653415a25879188cc5aa74",
+      "bytes": 15834
     }
   ]
 }

@@ -132,7 +132,7 @@ void main() {
     expect(find.text('6.8 KB'), findsOneWidget);
     expect(find.text('学习数据'), findsOneWidget);
     expect(find.text('媒体文件'), findsOneWidget);
-    expect(find.text('Anki 收藏'), findsOneWidget);
+    expect(find.text('记忆卡收藏'), findsOneWidget);
     expect(find.text('缓存与日志'), findsOneWidget);
     // The orphan media directory surfaces as a plain leftover-file warning.
     expect(find.textContaining('发现 1 个残留文件夹'), findsOneWidget);

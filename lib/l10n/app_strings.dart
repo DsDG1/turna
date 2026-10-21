@@ -67,7 +67,7 @@ class AppStrings {
   static String get settingsCategoryAccount => '个性化与目标';
   static String get settingsCategoryAccountSubtitle => '头像装扮、宝石与每日目标';
   static String get settingsCategoryLearning => '学习';
-  static String get settingsCategoryLearningSubtitle => '语言、语速、提醒与 Anki';
+  static String get settingsCategoryLearningSubtitle => '语言、语速、提醒与记忆卡';
 
   static String get settingsCategoryAppearanceSound => '外观与声音';
   static String get settingsCategoryAppearanceSoundSubtitle => '主题、音效与触感反馈';
@@ -94,7 +94,7 @@ class AppStrings {
   }) =>
       '$displayName · 每日 $dailyXp XP / $studyMinutes 分钟';
   static String get settingsLearningPrefsTitle => '学习偏好';
-  static String get settingsAnkiSectionTitle => 'Anki 复习';
+  static String get settingsAnkiSectionTitle => '记忆卡复习';
   static String get settingsAudioSectionTitle => '声音与触感';
   static String get settingsA11ySectionTitle => '阅读与感官';
   static String get settingsAppearanceSectionTitle => '外观';
@@ -130,14 +130,14 @@ class AppStrings {
   static String get settingsMigrationPackZipOnly => '仅支持导入 .zip 格式的迁移包。';
   static String get settingsMigrationPackDialogTitle => '导入 Turna 迁移包';
   static String get settingsMigrationPackDialogMessage =>
-      '将迁移包中的学习进度恢复到本机。旧版 Anki 牌组数据'
+      '将迁移包中的学习进度恢复到本机。旧版记忆卡组数据'
       '不再迁移（v1 链路已退役），学习记录与复习历史会照常恢复。';
   static String get settingsMigrationPackConfirm => '开始导入';
   static String settingsMigrationPackDone(
           int srsStates, int reviewEvents, String ignoredNote) =>
       '迁移完成：学习记录 $srsStates 条、复习历史 $reviewEvents 条$ignoredNote';
   static String settingsMigrationPackIgnoredLegacy(int count) =>
-      '\n已忽略旧版 Anki 牌组：$count 个（不再迁移）';
+      '\n已忽略旧版记忆卡组：$count 个（不再迁移）';
   static String settingsMigrationPackRejected(String reason) =>
       '迁移包被拒绝：$reason';
   static String settingsMigrationPackFailed(Object error) => '迁移导入失败：$error';
@@ -212,7 +212,7 @@ class AppStrings {
       '隐藏提示横幅；不影响故障事实，新异常会重新提示';
   static String get systemHealthAdviceTitle => '查看诊断建议';
   static String get systemHealthAdviceSubtitle =>
-      '按数据库、课程、Anki、WebView、TTS 和 AI 网络归类';
+      '按数据库、课程、记忆卡、WebView、TTS 和 AI 网络归类';
   static String get systemHealthExportReport => '导出脱敏诊断报告';
   static String get systemHealthExportReportSubtitle => '先预览；自动排除密钥、正文、对话和个人路径';
   static String get systemHealthCopySummary => '复制诊断摘要';
@@ -230,7 +230,7 @@ class AppStrings {
       '日志会被删除，但当前告警仍会保留；这不代表故障已解决。';
   static String get systemHealthAdviceDb => '数据库：先运行自检检查数据库完整性；不要清除学习记录。';
   static String get systemHealthAdviceAnki =>
-      'Anki / WebView：启用安全模式或将相关牌组改为纯文本兼容。';
+      '记忆卡 / WebView：启用安全模式或将相关牌组改为纯文本兼容。';
   static String get systemHealthAdviceTts => 'TTS / 音频：检查系统语音引擎和媒体文件是否可用。';
   static String get systemHealthAdviceAi => 'AI 网络：检查服务地址与网络，不要在报告中粘贴 API 密钥。';
   static String get systemHealthAdviceCourse => '课程加载：返回课程管理页检查导入状态；诊断不会修改排程。';
@@ -369,8 +369,8 @@ class AppStrings {
   static String get aiGuideWeakTip => '「弱」是 FSRS 算出来的——能回忆但不稳的词比完全没学过的词更值得练。';
   static String get settingsAdvancedLegacyTitle => '旧版与兼容性';
   static String get settingsAdvancedLegacySubtitle =>
-      'Anki 渲染与 WebView JavaScript（可能影响内容显示）';
-  static String get settingsLegacySectionDisplayTitle => 'Anki 显示兼容';
+      '记忆卡渲染与 WebView JavaScript（可能影响内容显示）';
+  static String get settingsLegacySectionDisplayTitle => '记忆卡显示兼容';
   static String get settingsLegacySectionRecoveryTitle => '内容恢复';
   static String get settingsLegacyForceDisableJsTitle =>
       '强制禁用 WebView JavaScript';
@@ -421,10 +421,10 @@ class AppStrings {
   static String get remoteBackupTestOk => '连接成功，目录已就绪';
   static String remoteBackupTestFailed(Object error) => '连接失败：$error';
   static String get remoteBackupHint =>
-      '备份会上传到你自己的 WebDAV 服务器（Nextcloud、Alist 等，后续支持坚果云）。包含进度、课程、Anki 牌组与媒体；不含服务器密码与 AI API key。';
+      '备份会上传到你自己的 WebDAV 服务器（Nextcloud、Alist 等，后续支持坚果云）。包含进度、课程、记忆卡组与媒体；不含服务器密码与 AI API key。';
   static String get remoteBackupBackupSection => '备份';
   static String get remoteBackupIncludeMediaTitle => '包含媒体文件';
-  static String get remoteBackupIncludeMediaSubtitle => 'Anki 卡组的图片/音频，按内容增量上传';
+  static String get remoteBackupIncludeMediaSubtitle => '记忆卡组的图片/音频，按内容增量上传';
   static String get remoteBackupBackupNow => '立即备份';
   static String get remoteBackupNoBackupYet => '尚未备份过';
   static String remoteBackupLastBackup(Object time, Object size) =>
@@ -436,7 +436,7 @@ class AppStrings {
       '服务器最新备份：$time（来自 $device）';
   static String get remoteBackupPhaseCollectingPrefs => '正在收集进度数据…';
   static String get remoteBackupPhaseSnapshottingCourseDb => '正在快照课程数据库…';
-  static String get remoteBackupPhaseSnapshottingOfficialDbs => '正在快照 Anki 数据…';
+  static String get remoteBackupPhaseSnapshottingOfficialDbs => '正在快照记忆卡数据…';
   static String remoteBackupPhaseHashingMedia(Object done, Object total) =>
       '正在扫描媒体（$done/$total）…';
   static String get remoteBackupPhasePackingArchive => '正在打包备份…';
@@ -451,7 +451,7 @@ class AppStrings {
   static String get remoteBackupRestoreSubtitle => '下载最近备份，重启应用后覆盖本机数据';
   static String get remoteBackupRestoreDialogTitle => '从远程恢复？';
   static String get remoteBackupRestoreDialogMessage =>
-      '将下载最近一次远程备份，并在重启应用后覆盖本机的进度、课程与 Anki 数据。此操作不可撤销。';
+      '将下载最近一次远程备份，并在重启应用后覆盖本机的进度、课程与记忆卡数据。此操作不可撤销。';
   static String get remoteBackupRestoreConfirm => '下载并覆盖';
   static String get remoteBackupRestoringCore => '正在下载核心包…';
   static String remoteBackupRestoringMedia(Object done, Object total) =>
@@ -490,10 +490,10 @@ class AppStrings {
   static String get beginnerGuideStatsTitle => '学习统计';
   static String get settingsResetLearningDefaultsTitle => '重置为默认';
   static String get settingsResetLearningDefaultsSubtitle =>
-      '恢复语速、提醒与 Anki 限额等学习偏好';
+      '恢复语速、提醒与记忆卡限额等学习偏好';
   static String get settingsResetLearningDefaultsDialogTitle => '重置学习设置为默认？';
   static String get settingsResetLearningDefaultsDialogMessage =>
-      '将恢复语速、每日提醒和 Anki 每日限额等默认值。不会更改学习语言或课程进度。';
+      '将恢复语速、每日提醒和记忆卡每日限额等默认值。不会更改学习语言或课程进度。';
   static String get settingsResetLearningDefaultsConfirm => '重置';
   static String get settingsResetLearningDefaultsDone => '学习设置已恢复为默认';
   static String get settingsClearMistakeDialogTitle => '清除错题记录？';
@@ -829,7 +829,7 @@ class AppStrings {
   static String get privacyDetailsStorageTitle => '数据存储';
   static String get privacyDetailsStorageIntro => '你的学习数据存放在哪里';
   static String get privacyDetailsStorageBody =>
-      '课程进度、SRS 复习数据、错题本、收藏、成就、设置项、皮肤与主题等数据，全部保存在本机 SQLite 数据库与 SharedPreferences 中，受系统沙箱保护。卸载应用将一并删除这些数据——我们没有副本可恢复。建议定期使用「设置 → 数据 → 导出数据」进行本地备份，或配置「设置 → 数据 → 远程备份」将完整备份（含 Anki 牌组与媒体）上传到你自己的 WebDAV 服务器；远程备份的账号密码仅保存在本机，备份包不含该密码与 AI API key。';
+      '课程进度、SRS 复习数据、错题本、收藏、成就、设置项、皮肤与主题等数据，全部保存在本机 SQLite 数据库与 SharedPreferences 中，受系统沙箱保护。卸载应用将一并删除这些数据——我们没有副本可恢复。建议定期使用「设置 → 数据 → 导出数据」进行本地备份，或配置「设置 → 数据 → 远程备份」将完整备份（含记忆卡组与媒体）上传到你自己的 WebDAV 服务器；远程备份的账号密码仅保存在本机，备份包不含该密码与 AI API key。';
   // 网络访问
   static String get privacyDetailsNetworkTitle => '网络访问';
   static String get privacyDetailsNetworkIntro =>
@@ -841,7 +841,7 @@ class AppStrings {
   static String get privacyDetailsAiTitle => 'AI 功能';
   static String get privacyDetailsAiIntro => '联网行为由你在 AI API 配置中选择的平台决定';
   static String get privacyDetailsAiBody =>
-      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、Anki 卡片讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「练习 → 智能练习 → 顶部引擎卡（AI API 配置）」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥经系统安全存储加密保存在本机（Android Keystore / iOS 钥匙串 / 鸿蒙加密偏好），不写入普通偏好、不进日志、不上传任何第三方，重启应用后仍然有效。';
+      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、记忆卡讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「练习 → 智能练习 → 顶部引擎卡（AI API 配置）」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥经系统安全存储加密保存在本机（Android Keystore / iOS 钥匙串 / 鸿蒙加密偏好），不写入普通偏好、不进日志、不上传任何第三方，重启应用后仍然有效。';
   // 可选网络行为：外部链接
   static String get privacyDetailsExternalLinksTitle => '可选网络行为：外部链接';
   static String get privacyDetailsExternalLinksIntro => '打开外部链接时 Turna 的行为';
@@ -902,7 +902,7 @@ class AppStrings {
   static String get homeDesignWithAiSubtitle => '描述一门课程，让 AI 构建';
   static String get homeImportFromTextbook => '从教材导入';
   static String get homeImportFromTextbookSubtitle => '将 Markdown/文本文件转换为章节';
-  static String get homeFromAnki => '从 Anki';
+  static String get homeFromAnki => '从记忆卡';
   static String get homeFromAnkiSubtitle => '导入 .apkg 牌组作为课程';
   static String get homeStreakBrokenTitle => '连续学习中断了';
   static String get homeStreakBroken => '你的连续天数已归零。今天学一点，重新开始吧。';
@@ -916,7 +916,7 @@ class AppStrings {
   static String get courseManagementMyCourses => '我的课程';
   static String courseManagementCardCount(int count) => '$count 张卡片';
   static String get courseManagementRemoveCourse => '移除课程';
-  static String get courseManagementImportTitle => '从 Anki 导入课程';
+  static String get courseManagementImportTitle => '从记忆卡导入课程';
   static String get courseManagementImportPackTitle => '导入课程包';
   static String get courseManagementImportPackSubtitle =>
       '从 .turnapack 文件添加独立课程';
@@ -1011,8 +1011,8 @@ class AppStrings {
   static String playWeakWordsSubtitleWithCount(int weakCount) =>
       '$weakCount 个单词在过去 30 天内错过两次';
   static String get playWeakWordsSubtitleEmpty => '暂无薄弱单词';
-  static String get playAnkiReviewTitle => 'Anki 复习';
-  static String get playAnkiReviewSubtitle => '复习导入的 Anki 牌组';
+  static String get playAnkiReviewTitle => '记忆卡复习';
+  static String get playAnkiReviewSubtitle => '复习导入的记忆卡组';
   static String get playDictionaryTitle => '词典';
   static String get playDictionarySubtitle => '搜索单词、短语和语法';
 
@@ -1045,7 +1045,7 @@ class AppStrings {
   static String get playQueueChipMistake => '错题';
   static String get playQueueChipWords => '单词';
   static String get playQueueChipGrammar => '语法';
-  static String get playQueueChipAnki => 'Anki';
+  static String get playQueueChipAnki => '记忆卡';
 
   // 浮窗通用
   static String get playPopupEnter => '进入';
@@ -1177,7 +1177,7 @@ class AppStrings {
   static String streakVoucherUse(int count) => '使用保护券（持有 $count）';
 
   // ── Retired legacy Anki card renderer ──
-  static String get ankiRetiredCardTitle => '旧版导入的 Anki 卡片';
+  static String get ankiRetiredCardTitle => '旧版导入的记忆卡';
   static String get ankiRetiredCardBody =>
       '该卡片来自已停用的旧版导入源，已不再逐卡渲染。\n请通过「设置 → 旧版与兼容性」迁移到官方引擎。';
   static String get ankiRetiredCardContinue => '继续';
@@ -1370,7 +1370,7 @@ class AppStrings {
   static String get lessonCompleteSubtitle3 => '每节课都让你更接近精通。';
   static String get lessonPerfectLesson => '完美！全部答对。';
   static String get lessonAnkiRedoFlushFailed =>
-      '提前复习未能全部写入 Anki。请到 Anki 复习里再过一遍这些卡片。';
+      '提前复习未能全部写入记忆卡。请到记忆卡复习里再过一遍这些卡片。';
   static String get lessonCorrect => '正确';
   static String get lessonWrong => '错误';
   static String get lessonTime => '用时';
@@ -1909,7 +1909,7 @@ class AppStrings {
       '凭据安全迁移尚未完成，当前仍使用旧存储。重启应用会自动重试；如持续出现请在重新输入密钥前备份它。';
 
   // ── Anki ──
-  static String get ankiImportTitle => '导入 Anki 牌组';
+  static String get ankiImportTitle => '导入记忆卡组';
   static String get ankiPendingImportsTitle => '未完成的导入';
   static String get ankiImportLeaveTitle => '离开导入？';
   static String get ankiImportLeaveWait => '继续等待';
@@ -1920,10 +1920,10 @@ class AppStrings {
   static String get ankiImportLeavePreviewMessage =>
       '预览尚未确认。稍后继续会保留待完成导入；放弃将回滚本次导入。';
   static String ankiPendingImportPhase(String phase) => '阶段：$phase';
-  static String get ankiImportDialogTitle => '导入 Anki 牌组';
-  static String get ankiImportSelectTitle => '导入 Anki 牌组';
+  static String get ankiImportDialogTitle => '导入记忆卡组';
+  static String get ankiImportSelectTitle => '导入记忆卡组';
   static String get ankiImportSelectSubtitle =>
-      '从 Anki 桌面端导出牌组文件（.apkg），然后从这里导入。';
+      '先在牌组应用导出牌组文件（.apkg），再从这里导入。';
   static String get ankiChooseFile => '选择文件';
   // Wizard step labels for the new step indicator at the top of the page.
   static String get ankiStepSelect => '选择文件';
@@ -1931,7 +1931,7 @@ class AppStrings {
   static String get ankiStepPreview => '预览';
   static String get ankiStepImport => '导入中';
   static String get ankiStepDone => '完成';
-  static String get ankiParsing => '正在解析 Anki 集合…';
+  static String get ankiParsing => '正在解析记忆卡集合…';
   static String get ankiProgressUnpack => '正在解包';
   static String get ankiProgressReading => '正在读取牌组';
   static String get ankiProgressReadingNotes => '正在读取笔记';
@@ -1956,7 +1956,7 @@ class AppStrings {
   static String ankiDoneDuplicateNotes(int count) => '已存在并跳过 $count 条笔记';
   static String ankiDoneParts(int count) => '课程按牌组顺序分成 $count 个部分，从第一部分开始';
   static String ankiDoneReviewRule() =>
-      '第一遍课只解锁卡片。第一次 Again 或 Good 记在 Anki 复习里，当天新卡名额会抬到至少本课张数。';
+      '第一遍课只解锁卡片。第一次 Again 或 Good 记在记忆卡复习里，当天新卡名额会抬到至少本课张数。';
   static String get ankiDoneMediaIncluded => '媒体已包含';
   static String get ankiDoneMediaSkipped => '媒体未导入';
   static String get ankiPreviewStudyMode => '学习方式';
@@ -1964,8 +1964,8 @@ class AppStrings {
   static String get ankiPreviewPickFront => '选正面';
   static String ankiImportUnavailable([String? reason]) =>
       reason == null || reason.isEmpty
-          ? '当前平台或构建无法导入 Anki 牌组'
-          : '当前无法导入 Anki 牌组（$reason）';
+          ? '当前平台或构建无法导入记忆卡组'
+          : '当前无法导入记忆卡组（$reason）';
 
   static String get ankiCollectionSummary => '集合概要';
   static String get ankiDecksLabel => '牌组';
@@ -2078,10 +2078,10 @@ class AppStrings {
       '自动转换出选择、填空、听音等互动题型，告别单一翻面，提升做题趣味与记忆效果。';
   static String get studyPresetClassicFlipTitle => '经典闪卡翻面';
   static String get studyPresetClassicFlipDesc =>
-      '纯粹的正反翻面主动回忆，适合词汇快速刷记与传统 Anki 熟练背诵。';
+      '纯粹的正反翻面主动回忆，适合词汇快速刷记与熟练的记忆卡背诵。';
   static String get studyPresetFidelityTitle => '原卡官方保真';
   static String get studyPresetFidelityDesc =>
-      '100% 还原 Anki 桌面端 HTML/CSS/JS 样式与动态效果，适合复杂定制排版。';
+      '100% 还原牌组源文件的 HTML/CSS/JS 样式与动态效果，适合复杂定制排版。';
   static String get studyPresetRecommended => '推荐';
   static String get ankiOrganizationTitle => '组织结构';
   static String get ankiOrganizationNone => '未发现单元/课时标签';
@@ -2094,7 +2094,7 @@ class AppStrings {
   static String get ankiPreviewSectionMappingHint => '按内容识别出的练习方式';
   static String get ankiPreviewStartImport => '开始导入';
   static String get ankiPreviewCancel => '取消';
-  static String get ankiImportLearningProgress => '导入 Anki 学习进度';
+  static String get ankiImportLearningProgress => '导入记忆卡学习进度';
   static String get ankiImportLearningProgressOnDesc =>
       '保留原卡片的到期时间、间隔、次数、暂停状态和复习历史。';
   static String get ankiImportLearningProgressOffDesc =>
@@ -2121,13 +2121,13 @@ class AppStrings {
   static String ankiLessonsCreated(int lessonCount) => '已创建 $lessonCount 节课';
   static String ankiVocabAdded(int wordEntryCount) =>
       '已添加 $wordEntryCount 个词汇条目';
-  static String get ankiPickFileError => '请选择 Anki 牌组文件（.apkg）。';
+  static String get ankiPickFileError => '请选择牌组文件（.apkg）。';
   static String get ankiColpkgUnsupported =>
-      '暂不支持 .colpkg 集合备份。请从 Anki 桌面端导出牌组（.apkg）后再导入。';
+      '暂不支持 .colpkg 集合备份。请先导出牌组（.apkg）再导入。';
   static String ankiPickFileFailed(Object error) => '选择文件失败：$error';
   static String ankiParseFailed(Object error) => '解析失败：$error';
   static String get ankiPreparingImport => '正在准备导入…';
-  static String get ankiImportingOfficialFirst => '正在导入到官方 Anki 集合…';
+  static String get ankiImportingOfficialFirst => '正在导入到官方记忆卡集合…';
   static String get ankiOfficialPreviewBody => '牌组已读入。下面是按内容识别出的练习方式，一般可以直接导入。';
   static String get ankiOfficialMappingHint =>
       '点开可看一张样卡；叫 Basic、Vocabulary 的是牌组内部名称，可以忽略。';
@@ -2152,7 +2152,7 @@ class AppStrings {
   static String get storageOptimizeUnavailable => '当前无法优化数据库（收藏库尚未就绪）';
   static String get storageOptimizeFailed => '优化失败，未宣称释放空间';
   static String get storageRepairCenterLink => '打开修复中心';
-  static String get storageOfficialCollectionTitle => 'Anki 收藏';
+  static String get storageOfficialCollectionTitle => '记忆卡收藏';
   static String get storageMediaFilesTitle => '媒体文件';
   static String get storageDeleteSelected => '删除所选';
   static String get storageOfficialCollectionEmpty =>
@@ -2167,15 +2167,15 @@ class AppStrings {
   static String get storageForcePurgeOfficial => '强制清空残留';
   static String get storageForcePurgeOfficialHint =>
       '没有可删除的牌组，但收藏库仍占用空间。多半是卸牌组后留下的空库、检查点或临时目录。';
-  static String get storageForcePurgeOfficialConfirmTitle => '强制清空 Anki 残留？';
+  static String get storageForcePurgeOfficialConfirmTitle => '强制清空记忆卡残留？';
   static String get storageForcePurgeOfficialConfirmBody =>
       '将删除无对应牌组的收藏库文件、媒体缓存、检查点和临时导入目录。已导入的牌组必须先从列表删除。此操作无法撤销。';
   static String get storageForcePurgeOfficialDone => '残留文件已清空';
   static String get storageForcePurgeOfficialBlocked => '仍有已导入牌组或未完成的导入，无法强制清空';
   static String get storageForcePurgeOfficialFailed => '强制清空失败';
-  static String get ankiRepairCenterTitle => 'Anki 修复中心';
+  static String get ankiRepairCenterTitle => '记忆卡修复中心';
   static String get ankiRepairCenterEmptyCatalog =>
-      '官方收藏库尚未就绪。导入过 Anki 牌组后可在此查看待完成导入、待清理和隔离项。';
+      '官方收藏库尚未就绪。导入过记忆卡组后可在此查看待完成导入、待清理和隔离项。';
   static String get ankiRepairCenterEmpty => '没有需要处理的项目';
   static String get ankiRepairPendingCleanup => '待清理';
   static String get ankiRepairQuarantined => '已隔离';
@@ -2253,7 +2253,7 @@ class AppStrings {
     if (code == null || code.isEmpty) return '未发生错误';
     switch (code) {
       case 'importer_not_ready':
-        return 'Anki 引擎初始化未完成，请重试';
+        return '记忆卡引擎初始化未完成，请重试';
       case 'maintenance_failed':
         return '后台维护任务执行中断，建议重试';
       case 'collectionAlreadyOpen':
@@ -2278,7 +2278,7 @@ class AppStrings {
   static String get databaseDoctorRepairing => '正在修复…';
   static String get databaseDoctorCourseDbTitle => '核心课程与学习数据';
   static String get databaseDoctorCourseDbOk => '完整性良好 (Integrity OK)';
-  static String get databaseDoctorAnkiDbTitle => 'Anki 牌组与集合';
+  static String get databaseDoctorAnkiDbTitle => '记忆卡组与集合';
   static String get databaseDoctorAnkiDbNotConfigured => '未配置外部牌组（状态正常）';
   static String get databaseDoctorAnkiDbOk => '集合状态正常';
   static String get databaseDoctorStorageTitle => '磁盘与残留文件';
@@ -2290,7 +2290,7 @@ class AppStrings {
   static String get databaseDoctorCheckIntegrity => '完整性检查 (Integrity Check)';
   static String get databaseDoctorRebuildIndexes => '重建与优化索引 (Reindex)';
   static String get databaseDoctorCheckCollection =>
-      '检验 Anki 集合 (Collection Check)';
+      '检验记忆卡集合 (Collection Check)';
   static String get databaseDoctorCleanOrphanConfirmTitle => '清理残留文件？';
   static String get databaseDoctorCleanOrphanConfirmBody =>
       '将彻底删除未登记的残留媒体与临时文件，不会影响您现有的课程和学习进度。';
@@ -2305,7 +2305,7 @@ class AppStrings {
     }
     buffer.write('索引已重建并优化');
     if (ankiJobs > 0) {
-      buffer.write('（已完成 $ankiJobs 项 Anki 维护）');
+      buffer.write('（已完成 $ankiJobs 项记忆卡维护）');
     }
     return buffer.toString();
   }
@@ -2326,15 +2326,15 @@ class AppStrings {
   static String get ankiCopyingMedia => '正在复制媒体文件…';
   static String get ankiSavingMetadata => '正在保存导入元数据…';
   static String ankiImportFailed(Object error) => '导入失败：$error';
-  static String get ankiReviewTitle => 'Anki 复习';
-  static String get ankiNoCardsDue => '暂无待复习的 Anki 卡片。';
+  static String get ankiReviewTitle => '记忆卡复习';
+  static String get ankiNoCardsDue => '暂无待复习的记忆卡。';
   static String get ankiFormalReviewEmptyHint =>
-      '先完成课程里的一课，该课的卡片才会进入 Anki 复习。有导入历史的卡片可直接复习。';
+      '先完成课程里的一课，该课的卡片才会进入记忆卡复习。有导入历史的卡片可直接复习。';
   static String get ankiReviewPreparing => '正在准备本批卡片…';
   static String get ankiReviewLoadFailed => '加载复习卡片失败';
   static String ankiReviewLoadFailedDetail(Object error) => '加载失败：$error';
   static String get ankiReviewRetry => '重试';
-  static String get ankiReviewScreenTitle => 'Anki 复习';
+  static String get ankiReviewScreenTitle => '记忆卡复习';
   static String get ankiImportNewDeck => '导入新牌组';
   static String ankiCardsDueReview(int totalDue) => '$totalDue 张卡片待复习';
   static String ankiFormalDueBreakdown({
@@ -2359,7 +2359,7 @@ class AppStrings {
   static String get ankiCardRedo => '重做';
   static String get ankiCardBury => '搁置';
   static String get ankiCardSuspend => '暂停';
-  static String get ankiNoDecksTitle => '未导入 Anki 牌组';
+  static String get ankiNoDecksTitle => '未导入记忆卡组';
   static String get ankiNoDecksSubtitle => '导入 .apkg 文件以开始复习';
   static String get ankiImportDeck => '导入牌组';
   static String ankiQuotaRemaining(int newLeft, int reviewLeft) =>
@@ -2392,7 +2392,7 @@ class AppStrings {
   static String get ankiListenAudio => '播放音频';
   static String get ankiAudioMissing => '音频缺失';
   static String get ankiFileReadFailed => '无法读取该文件';
-  static String get ankiCorruptDeck => '文件已损坏或不是有效的 Anki 牌组';
+  static String get ankiCorruptDeck => '文件已损坏或不是有效的记忆卡组';
   static String get anki21bTreeDeferred => '已导入官方牌组；练习课稍后再生成';
   static String get ankiImportFailedHuman => '导入失败，请重试';
   static String get ankiRecognitionBandReview => '建议确认';
@@ -2416,7 +2416,7 @@ class AppStrings {
   static String get ankiFieldNameOcclusion => '遮挡图';
   static String get ankiFieldNameImage => '图片';
   static String get ankiFieldNameAudio => '音频';
-  static String get ankiAdvancedFidelityTitle => 'Anki 保真 / 解密（仅旧版导入源）';
+  static String get ankiAdvancedFidelityTitle => '记忆卡保真 / 解密（仅旧版导入源）';
   static String get ankiAdvancedFidelitySubtitle => '仅旧版导入源生效';
 
   // ── Anki card browser ──
@@ -2553,14 +2553,14 @@ class AppStrings {
   static String get ankiRepairCatalogNotEnabled => '未启用';
   static String get ankiRepairIntegrityTitle => '完整性检查结果';
   static String ankiRepairCourseDbResult(String result) => '课程数据库: $result';
-  static String ankiRepairAnkiDbResult(String result) => 'Anki 目录库: $result';
+  static String ankiRepairAnkiDbResult(String result) => '记忆卡目录库: $result';
   static String get ankiRepairIndexesRebuilt => '索引已重建并优化';
-  static String get ankiRepairIntegrityPassed => 'Anki 集合完整性检验通过';
-  static String get ankiRepairIntegrityInterrupted => 'Anki 引擎未就绪或检验中断';
+  static String get ankiRepairIntegrityPassed => '记忆卡集合完整性检验通过';
+  static String get ankiRepairIntegrityInterrupted => '记忆卡引擎未就绪或检验中断';
   static String get ankiRepairCategoryMainDb => '主数据库文件';
-  static String get ankiRepairCategoryLegacyAnki => '旧版 Anki 记录';
+  static String get ankiRepairCategoryLegacyAnki => '旧版记忆卡记录';
   static String get ankiRepairCategoryLegacyMedia => '未登记媒体文件夹';
-  static String get ankiRepairCategoryOfficialAnki => 'Anki 集合残留文件';
+  static String get ankiRepairCategoryOfficialAnki => '记忆卡集合残留文件';
   static String get ankiRepairCategoryRegenerable => '可再生临时缓存';
   static String get ankiRepairCategoryLogs => '运行日志';
 
@@ -2611,7 +2611,7 @@ class AppStrings {
   static String get profileAchievementsTitle => '成就';
   static String get profileLearningStatsTitle => '学习统计';
   static String get profileTodayTitle => '今日概览';
-  static String get profileStatsEntrySubtitle => '近 7 天经验、总量与 Anki';
+  static String get profileStatsEntrySubtitle => '近 7 天经验、总量与记忆卡';
   // ── Achievements v2 (成就系统焕新) ──
   static String profileAchievementsBadgeCount(int unlocked, int total) =>
       '已获得 $unlocked/$total 枚徽章';
@@ -2714,17 +2714,17 @@ class AppStrings {
   static String get reviewNoDataYet => '暂无数据';
   static String get reviewSourcesTitle => '课程与牌组';
   static String reviewSourceDue(int count) => '$count 待复习';
-  static String get reviewEmptyHint => '还没有卡片。导入课程或 Anki 牌组后开始学习。';
+  static String get reviewEmptyHint => '还没有卡片。导入课程或记忆卡组后开始学习。';
   static String get reviewRefreshFailedKeptOld => '刷新失败，正在显示上一次的数据。';
   static String get reviewProgressSourceAll => '全部';
   static String get reviewProgressSourceCourse => '课程';
   static String get reviewProgressSourceGrammar => '语法';
   static String reviewProgressSourceAnki(String id) {
     final short = id.length > 8 ? id.substring(0, 8) : id;
-    return 'Anki · $short';
+    return '记忆卡 · $short';
   }
 
-  static String reviewProgressSourceAnkiNamed(String name) => 'Anki · $name';
+  static String reviewProgressSourceAnkiNamed(String name) => '记忆卡 · $name';
   static String get reviewProgressFilterType => '类型';
   static String get reviewProgressFilterMaturity => '阶段';
   static String get reviewProgressFilterDue => '到期';
@@ -2747,7 +2747,7 @@ class AppStrings {
   static String get reviewProgressKpiCards => '卡片';
   static String get reviewProgressKpiReviews => '复习次数';
   static String get reviewProgressSourcesTitle => '分源进度';
-  static String get reviewProgressEmpty => '暂无复习卡片。去学一课或导入 Anki 吧。';
+  static String get reviewProgressEmpty => '暂无复习卡片。去学一课或导入记忆卡吧。';
   static String get reviewProgressEmptyFiltered => '当前筛选下没有卡片。';
   static String get reviewProgressSeeDetail => '详情';
   static String reviewProgressCardsDue(int total, int due) =>
@@ -2869,25 +2869,25 @@ class AppStrings {
   static String get aiTemplateMixed => '混合';
 
   // ── Settings Anki ──
-  static String get settingsAnkiNewCardsTitle => 'Anki：每日新卡数';
-  static String get settingsAnkiNewCardsSubtitle => '每日最大新 Anki 卡片数量';
-  static String get settingsAnkiReviewCardsTitle => 'Anki：每日复习卡数';
-  static String get settingsAnkiReviewCardsSubtitle => '每日最大 Anki 复习卡片数量';
-  static String get settingsAnkiDailyChallengeTitle => '每日挑战中的 Anki 卡片';
-  static String get settingsAnkiDailyChallengeSubtitle => '在每日挑战中包括导入的 Anki 卡片';
+  static String get settingsAnkiNewCardsTitle => '记忆卡：每日新卡数';
+  static String get settingsAnkiNewCardsSubtitle => '每日最大新记忆卡数量';
+  static String get settingsAnkiReviewCardsTitle => '记忆卡：每日复习卡数';
+  static String get settingsAnkiReviewCardsSubtitle => '每日最大记忆卡复习卡片数量';
+  static String get settingsAnkiDailyChallengeTitle => '每日挑战中的记忆卡';
+  static String get settingsAnkiDailyChallengeSubtitle => '在每日挑战中包括导入的记忆卡';
 
   // ── Anki sample ──
   static String get ankiSampleDeckName => '示例 · 土耳其语问候';
   static String get ankiSampleBadge => '示例';
 
   // ── Profile Anki ──
-  static String get profileAnkiDecks => 'Anki 牌组';
-  static String get profileAnkiLessons => 'Anki 课程';
-  static String get profileAnkiReviews => 'Anki 复习';
+  static String get profileAnkiDecks => '记忆卡组';
+  static String get profileAnkiLessons => '记忆卡课程';
+  static String get profileAnkiReviews => '记忆卡复习';
   static String get profileQuickActionsTitle => '今日待办';
   static String get profileQuickSrs => '词汇复习';
   static String get profileQuickMistakes => '错题';
-  static String get profileQuickAnki => 'Anki 复习';
+  static String get profileQuickAnki => '记忆卡复习';
   static String profileQuickDue(int count) => count > 0 ? '$count' : '—';
   static String get profileKeyMetricsTitle => '概览';
   static String get profileLessonsShort => '完成课程';
@@ -2964,7 +2964,7 @@ class AppStrings {
       case 'official_anki.in_process_forbidden':
         return '生产路径禁止使用进程内回退。';
       case 'official_anki.flag_fail_closed':
-        return '官方 Anki 功能未打开。';
+        return '官方记忆卡功能未打开。';
       case 'official_anki.review_fail_closed':
         return '官方复习暂时不可用，请稍后再试。';
       case 'official_anki.scheduler_flag_fail_closed':
@@ -3016,7 +3016,7 @@ class AppStrings {
       case 'official_anki.library_missing':
       case 'official_anki.symbol_missing':
       case 'official_anki.library_open_failed':
-        return '官方 Anki 核心库缺失或不可用。';
+        return '官方记忆卡核心库缺失或不可用。';
       case 'official_anki.io_error':
         return '读写官方数据时出错。';
       case 'official_anki.import_cancelled':

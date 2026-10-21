@@ -35,10 +35,17 @@ void main() {
     // and the shared catalog (`catalog=ok sqlite=3.49.2`) working on hardware,
     // so the entry was greying out working functionality. The missing piece
     // is the faithful renderer, which fails loudly inside the reviewer.
+    //
+    // `aiGeneration` joined for a different reason than every other entry:
+    // not a platform gap but Huawei AppGallery compliance — the review requires
+    // a filed security assessment report plus real-name verification for
+    // synthetic-content services, which an individual developer cannot obtain
+    // (ADR 0056). The companion build ships without the AI module at all.
     expect(
       OhosDegradation.values.toSet(),
       {
         OhosDegradation.remoteBackup,
+        OhosDegradation.aiGeneration,
       },
     );
   });

@@ -8,6 +8,37 @@
 
 ## 当前基线
 
+- **2026-10-21（P0-2 / P0-3 整门课程大纲 + 逐节生成导入）**：
+  **206 模块 / 2925 例**（发现器 `countTestCases`；上一条目 205 / 2896，+1 模块 +29 例 =
+  `test_course_plan` 29 例）。
+  - 新增 `backend/ai/course_plan.py`（规划 prompt / 本地归一化 / 结构校验 / 逐节 spec 映射）、
+    `backend/course_plan_store.py`（`tool/var/course_plans` 原子写 + `drafts/`）、
+    `application/course_plan_service.py`、`application/course_plan_controller.py`、
+    `widgets/course_plan_window.py`。
+  - 应用菜单「整门课程规划…」：表单 → LLM 大纲 → 双 tab 审阅（大纲 / 全局词表）→ 保存。
+    section 与词 id 全部本地确定性分配；新词唯一、复习词只允许来自前面章节；
+    校验失败回灌错误重试一次。大纲不写课程 JSON。
+  - 逐节生成：`plan_section_to_spec` 注入 grounded pool + 前序 `course_resources`，
+    走 `facade.generate_course`；草稿存 `drafts/<section_id>.json`；支持 token 预算、
+    自动连续下一节、草稿 JSON 预览。
+  - 导入：`SectionImportService.import_section(strategy=append_as_new)`，id 冲突自动改写；
+    保留校验 / 合并预览 / Undo；导入后仍需保存课程。
+  - 门禁：`app_dialogs` 13、`ui_backend` 166、`broad_except` 873 均未变
+    （窗口放 `widgets/` 而非 `dialogs/`，UI 经 application service 取数）。
+
+- **2026-10-21（P0-1 课程体检）**：
+  **205 模块 / 2896 例**（发现器 `countTestCases`；上一条目 204 / 2885，+1 模块 +11 例 =
+  `test_course_health` 11 例）。
+  - 新增 `backend/course_health.py`（Finding / RepairStep / audit / plan，Qt-free）、
+    `application/course_health_service.py`（UI 与 backend 的接缝）、
+    `widgets/course_health_panel.py`（总览内嵌只读面板）。
+  - 总览头部新增「课程体检」：扫描空课、词汇螺旋、阅读/听力缺口、低质节、语法覆盖、
+    前置依赖与资源冲突，输出按「结构 → 听力 → 质量 → 资源」排序的修复工作单。
+    执行仍走既有 `dispatch_experience_action`，每条动作保留自己的预览/确认/Undo。
+  - 门禁：`app_dialogs` 13 未变（做成面板而非新对话框，避免棘轮 +1）；
+    `ui_backend` 166 未变（面板只 import application 服务）；`broad_except` 873 未变
+    （新增捕获均为 `_DATA_ERRORS` / `_UI_ERRORS` 窄类型，不计宽泛捕获）。
+
 - **2026-10-20（tool/gui 全量改进：门禁修复 + 运行时阻塞 + 功能空洞接线）**：
   按当轮审查结论逐项施工（该评审文档已随仓库文档精简删除，见 Git 历史）。
   **204 模块 / 2885 例**（发现器 `countTestCases`；上一条目 201 / 2875，+3 模块 +10 例 =

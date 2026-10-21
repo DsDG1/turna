@@ -146,6 +146,27 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 - **`lib/` 里不得出现 `Ohos*` 标识符**（`OhosView` / `OhosViewController` / `initOhosView` 等）。它们只存在于 OHOS fork SDK，官方 SDK 下是 `undefined_class`，而 `dependency_overrides` 无平台条件——这与 ADR 0047 §7.1 记录的 `case TargetPlatform.ohos:` 是同一个失败类。详见 ADR 0050 §2.2（`undefined_class` 的实际症状）与 §2.3（`Ohos*` 与 `AndroidViewController` 同库、三条路线被否决的论证）。
 - `sqlite3` 包没有鸿蒙平台枚举值（只有 android / linux / iOS / macOS / windows / fuchsia）。可用入口只有 `overrideForAll()`，故 `ensureOfficialAnkiSqlite` 的分派方式是**重写**而非加一行 override。
 
+### 7.2 术语口径：app 内写「记忆卡」，不写 Anki
+
+**面向用户的文案一律写「记忆卡」，不出现 anki / Anki。** 覆盖 `lib/` 里的界面文案、
+`assets/changelog.md`（应用内更新日志）、`assets/anki_reviewer/` 的页面标题与无障碍标签。
+
+三处例外是**故意保留专名**，不是漏改：
+
+| 例外 | 为什么 |
+|---|---|
+| 第三方许可与署名（`lib/application/anki_official/official_anki_license_notices.dart` 的 AGPL 文本） | 许可义务要求点名 Anki；写成「记忆卡」是失实陈述 |
+| 内部契约：协议键（`official_anki.*`）、原生库名（`libturna_anki.so`）、本地源（`anki.local`）、表名 / 列名 / id 前缀（`anki-`）、课程 level 标记（`Anki` / `OfficialAnki`） | 这些是数据与接口契约，不是文案；改名会破坏已有数据与跨端协议 |
+| 文档层（`docs/`、ADR、`CHANGELOG.md`） | 文档记录事实与决策，Anki 是事实的一部分 |
+
+**重命名代码标识符不属于本条。** 统一内部命名是独立议题：涉及数据库表名、id 前缀与
+原生协议，需要单独的迁移方案，不在文案改动里顺手做。
+
+**「Anki 桌面端」这类外部产品指称也不留在文案里**——改写成「牌组应用」「牌组源文件」
+这类中性说法。第三方许可文本是唯一的例外。
+
+强制手段：门禁测试 `test/architecture/app_wording_terminology_guard_test.dart`。
+
 ---
 
 ## 8. 门禁（默认不跑，按需执行）
@@ -173,6 +194,7 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 | 强制手段 | 覆盖 |
 |---|---|
 | 门禁测试 `test/architecture/layering_guard_test.dart` | §2 全部分层禁则（逐文件，且豁免白名单双向校验） |
+| 门禁测试 `test/architecture/app_wording_terminology_guard_test.dart` | §7.2 术语口径：app 内文案不出现 anki（字符串表严格扫描 + 全 `lib/` 中文文案扫描 + 应用内资产扫描） |
 | 门禁测试 `test/architecture/docs_hygiene_test.dart` | 文档卫生：ADR 编号唯一、ADR 编号提及真实存在、文档索引无孤儿、活文档不含撤销标记、`AGENTS.md` 无日期戳、无断链、正文里的 `.md` 文件名按路径真实存在、无未闭合代码段 |
 | analyzer lint `analysis_options.yaml` | `print` 禁用、async 与 stream 资源泄漏、未处理 Future |
 | codegen `make gen` | freezed / json_serializable / auto_route / injectable / drift 生成物与手写源同步 |

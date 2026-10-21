@@ -82,7 +82,7 @@
 | 层 | 事实 | 真源 |
 |---|---|---|
 | **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0050](./decisions/0050-ohos-official-anki.md)（原 ADR 0041（已删）的 EOL 口径已被 ADR 0047 修订、0050 再修订） |
-| **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道 | [ADR 0047](./decisions/0047-ohos-companion-lite-build.md) |
+| **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道；**不含 AI 生成**（华为审核合规移除，[ADR 0056](./decisions/0056-ohos-remove-ai-compliance.md)） | [ADR 0047](./decisions/0047-ohos-companion-lite-build.md) |
 | **Official Anki** | 已授权；接线步 0–5b 已施工 | [ADR 0050](./decisions/0050-ohos-official-anki.md) |
 
 ### 已成立

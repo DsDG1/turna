@@ -16,6 +16,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart'
     show SettingsToggleTile;
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -70,13 +71,17 @@ class _AdvancedHubBody extends StatelessWidget {
         ),
         SettingsCard(
           children: [
-            SettingsNavigationTile(
-              icon: Icons.hub_rounded,
-              title: AppStrings.settingsAdvancedAiConnectionTitle,
-              subtitle: AppStrings.settingsAdvancedAiConnectionSubtitle,
-              onTap: (ctx) => ctx.router.push(const AiApiConfigRoute()),
-            ),
-            settingsTileDivider(context),
+            // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056）：
+            // 「AI 连接」入口与其分隔线一并省略。
+            if (!isDegraded(OhosDegradation.aiGeneration)) ...[
+              SettingsNavigationTile(
+                icon: Icons.hub_rounded,
+                title: AppStrings.settingsAdvancedAiConnectionTitle,
+                subtitle: AppStrings.settingsAdvancedAiConnectionSubtitle,
+                onTap: (ctx) => ctx.router.push(const AiApiConfigRoute()),
+              ),
+              settingsTileDivider(context),
+            ],
             SettingsNavigationTile(
               icon: Icons.sd_storage_outlined,
               title: AppStrings.settingsAdvancedStorageTitle,
@@ -133,13 +138,17 @@ class _LegacyCompatibilityBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 20),
-        SettingsSectionTitle(
-          icon: Icons.science_rounded,
-          title: AppStrings.settingsExperimentalSection,
-        ),
-        const SizedBox(height: 8),
-        const _AiEngineTunablesCard(),
-        const SizedBox(height: 20),
+        // 「实验性能力」一节只有 AI 引擎调参卡；鸿蒙伴生版不随包 AI 模块
+        // （ADR 0056），整节省略，不留空标题。
+        if (!isDegraded(OhosDegradation.aiGeneration)) ...[
+          SettingsSectionTitle(
+            icon: Icons.science_rounded,
+            title: AppStrings.settingsExperimentalSection,
+          ),
+          const SizedBox(height: 8),
+          const _AiEngineTunablesCard(),
+          const SizedBox(height: 20),
+        ],
         SettingsSectionTitle(
           icon: Icons.restart_alt_rounded,
           title: AppStrings.settingsLegacyResetDefaultsTitle,

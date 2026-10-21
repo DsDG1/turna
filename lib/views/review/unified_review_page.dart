@@ -27,6 +27,7 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -325,7 +326,10 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
           currentIndex: _controller.currentIndex + 1,
           totalCount: _controller.totalCount,
           onBack: _confirmExit,
-          onAiExplain: _openAiTutor,
+          // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056）：
+          // 传 null 即不渲染讲解按钮。
+          onAiExplain:
+              isDegraded(OhosDegradation.aiGeneration) ? null : _openAiTutor,
           onUndo: () async {
             final ok = await _controller.undoLast();
             if (!ok || !context.mounted) return;

@@ -321,7 +321,7 @@ class SystemHealthMonitor extends ChangeNotifier {
       return 'WebView';
     }
     if (text.contains('anki')) {
-      return 'Anki 渲染';
+      return '记忆卡渲染';
     }
     if (text.contains('tts') || text.contains('audio')) {
       return 'TTS / 音频';

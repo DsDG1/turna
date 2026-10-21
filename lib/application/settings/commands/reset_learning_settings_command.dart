@@ -71,7 +71,7 @@ class ResetLearningSettingsCommand {
     try {
       await anki.resetLearningDefaults();
     } on Object catch (error) {
-      failures.add('Anki 限额：${_brief(error)}');
+      failures.add('记忆卡限额：${_brief(error)}');
     }
 
     if (failures.isEmpty) return const SettingsOperationSuccess();
