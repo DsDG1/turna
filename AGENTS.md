@@ -278,3 +278,12 @@ rm -rf ohos/entry/src/main/resources/rawfile/flutter_assets \
 | 子 agent | `.claude/agents/` |
 
 子 agent 的正文口径**以其自身文件为准**，本文件不转述其内容状态；若某 agent 正文与 `docs/project-guide.md` 冲突，以 project-guide 为准并修 agent 文件，不要在本文件挂警告。
+
+## Cursor Cloud specific instructions
+
+- 本环境的 Flutter 是官方 **3.44.5**（`/opt/flutter`，`flutter` / `dart` 在 PATH 上），用于 `flutter analyze` 与 `flutter test`。鸿蒙伴生版的 fork SDK、DevEco、`flutter build hap` 不在这台机器上。
+- `pubspec.lock` 的 hosted URL 是 `https://pub.flutter-io.cn`。PATH 上的 `flutter` / `dart` 是包装脚本，会导出 `PUB_HOSTED_URL`。直接跑 `/opt/flutter/bin/flutter pub get` 且不设该变量会把 lock 改写到 `pub.dev` 并抬升约束内版本。依赖安装用 `flutter pub get --enforce-lockfile`。
+- 本地绿线仍是 `flutter test --exclude-tags golden`。golden 用本机字体渲染，在这台机器上会失配。
+- 课程编辑器测试需要 `QT_QPA_PLATFORM=offscreen`。依赖来自 `python3 -m pip install "./tool/gui[dev,ocr]"` 与 `pyyaml`。`tool/gui` 里会跑 git 提交往返的测试，本机 git 身份是 `turna-ci` / `ci@turna.invalid`。
+- 镜像里没有 Android SDK / NDK，不能在此构建 APK。Linux 桌面可以 `flutter build linux --debug`。运行前要有 `xdg-user-dirs` 和 `~/.config/user-dirs.dirs`，否则 `getApplicationDocumentsDirectory` 会抛 `MissingPlatformDirectoryException`，首帧之前就退出。
+- `tool/gui` 里 `TextbookProject.source_changed` 用 mtime+size 做校验和缓存。这台机器上同一时刻的两次同长度写入不会改 mtime，`tests/test_textbook_project.py` 的两个用例会因此失败；其余 GUI ci 档通过。
