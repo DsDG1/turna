@@ -75,6 +75,11 @@ flutter_*.log
 # The distilled facts live in docs/status.md and test/BASELINE.md.
 build_ohos_*.log
 ohos_launch_*.log
+# Device-launch screenshots and local OHOS packaging logs.
+/ohos_launch_*.jpeg
+/ohos_launch_*.jpg
+/ohos_launch_*.png
+/ohos/build_*.log
 
 # JVM / Gradle crash dumps accidentally left in android/
 android/hs_err_pid*.log

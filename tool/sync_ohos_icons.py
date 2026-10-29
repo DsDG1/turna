@@ -48,9 +48,9 @@ TARGETS = (
 # HarmonyOS app icon spec.
 ICON_SIZE = 216
 
-# Same tolerance as tool/convert_mascot_to_png.py: it is the value that walks
-# the source render's anti-aliased corner edge. Too tight and the fill stops
-# one pixel short of the arc, leaving a white halo.
+# This tolerance is the value that walks the source render's anti-aliased
+# corner edge. Too tight and the fill stops one pixel short of the arc,
+# leaving a white halo.
 MARGIN_TOLERANCE = 20
 
 # Width of the white-to-teal ramp the browser/PIL resizer left along the arc.

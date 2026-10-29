@@ -85,53 +85,9 @@ class $AssetsImagesGen {
   /// Directory path: assets/images/turna
   $AssetsImagesTurnaGen get turna => const $AssetsImagesTurnaGen();
 
-  /// File path: assets/images/turna_app_logo.jpg
-  AssetGenImage get turnaAppLogo =>
-      const AssetGenImage('assets/images/turna_app_logo.jpg');
-
-  /// File path: assets/images/turna_celebrate.jpg
-  AssetGenImage get turnaCelebrate =>
-      const AssetGenImage('assets/images/turna_celebrate.jpg');
-
-  /// File path: assets/images/turna_encourage.jpg
-  AssetGenImage get turnaEncourage =>
-      const AssetGenImage('assets/images/turna_encourage.jpg');
-
-  /// File path: assets/images/turna_listening.jpg
-  AssetGenImage get turnaListening =>
-      const AssetGenImage('assets/images/turna_listening.jpg');
-
-  /// File path: assets/images/turna_mascot_flat.jpg
-  AssetGenImage get turnaMascotFlat =>
-      const AssetGenImage('assets/images/turna_mascot_flat.jpg');
-
-  /// File path: assets/images/turna_reading.jpg
-  AssetGenImage get turnaReading =>
-      const AssetGenImage('assets/images/turna_reading.jpg');
-
-  /// File path: assets/images/turna_thinking.jpg
-  AssetGenImage get turnaThinking =>
-      const AssetGenImage('assets/images/turna_thinking.jpg');
-
-  /// File path: assets/images/turna_waving.jpg
-  AssetGenImage get turnaWaving =>
-      const AssetGenImage('assets/images/turna_waving.jpg');
-
   /// List of all assets
-  List<AssetGenImage> get values => [
-        appLogo,
-        appLogoStore1024,
-        appLogoStore216,
-        offFire,
-        turnaAppLogo,
-        turnaCelebrate,
-        turnaEncourage,
-        turnaListening,
-        turnaMascotFlat,
-        turnaReading,
-        turnaThinking,
-        turnaWaving
-      ];
+  List<AssetGenImage> get values =>
+      [appLogo, appLogoStore1024, appLogoStore216, offFire];
 }
 
 class $AssetsSoundsGen {
@@ -206,10 +162,6 @@ class $AssetsCoursesTurkishGen {
 class $AssetsImagesTurnaGen {
   const $AssetsImagesTurnaGen();
 
-  /// File path: assets/images/turna/turna_celebrate.png
-  AssetGenImage get turnaCelebrate =>
-      const AssetGenImage('assets/images/turna/turna_celebrate.png');
-
   /// File path: assets/images/turna/turna_reading.png
   AssetGenImage get turnaReading =>
       const AssetGenImage('assets/images/turna/turna_reading.png');
@@ -219,7 +171,7 @@ class $AssetsImagesTurnaGen {
       const AssetGenImage('assets/images/turna/turna_waving.png');
 
   /// List of all assets
-  List<AssetGenImage> get values => [turnaCelebrate, turnaReading, turnaWaving];
+  List<AssetGenImage> get values => [turnaReading, turnaWaving];
 }
 
 class $AssetsCoursesTurkishSectionsGen {
