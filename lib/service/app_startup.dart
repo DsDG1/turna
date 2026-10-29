@@ -163,13 +163,29 @@ Future<void> _hydrateAfterSeed() async {
   }());
 
   if (!kIsWeb) {
-    await getIt<TtsAvailabilityChecker>().configureSystemEngine();
-    try {
-      final settings = getIt<SettingsProvider>();
-      await getIt<LocalReminderService>().applyFromSettings(
-        enabled: settings.dailyReminderEnabled,
-        time: settings.dailyReminderTime,
-      );
-    } catch (_) {/* best-effort */}
+    // Both of these cross a platform channel (TTS engine selection, local
+    // notification rescheduling) and neither can change what the first frame
+    // shows. They used to be awaited here, so `ready` — and therefore the
+    // splash gate — waited on two channel round-trips that the user can never
+    // observe. configureSystemEngine is documented as safe under concurrent
+    // callers and swallows its own failures; applyFromSettings is best-effort
+    // by contract. Deferring them keeps startup failure semantics unchanged
+    // (neither can fail startup now, and neither could meaningfully before).
+    unawaited(() async {
+      try {
+        await getIt<TtsAvailabilityChecker>().configureSystemEngine();
+      } catch (e) {
+        logger.d('[TTS] system engine configure skipped on startup: $e');
+      }
+      try {
+        final settings = getIt<SettingsProvider>();
+        await getIt<LocalReminderService>().applyFromSettings(
+          enabled: settings.dailyReminderEnabled,
+          time: settings.dailyReminderTime,
+        );
+      } catch (e) {
+        logger.d('[Reminder] applyFromSettings skipped on startup: $e');
+      }
+    }());
   }
 }

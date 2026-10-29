@@ -7,6 +7,15 @@
 
 ---
 
+### 2026-10-30 课程结构：课时内小课（subLesson）分段播放
+
+- **性质**：功能批次；**测试数 +6**（`lesson_viewmodel_flow_test` 19 → 25 条，新增 `LessonViewModel sub-lesson segments` 组）。
+- **改动**：①`Lesson` 新增 `segments` 派生视图（`lib/domain/course/lesson_segment.dart`）：intro / practice / review / legacy 模板且带 `subLessons` 的课时，每节小课一段；其余形状（listening 的 phase 拍平、mastery / reading 的 stages）整课一段。`flattenedStages` 改为按段拼接。②`LessonViewModel` 分段播放：非末段走完暂停（`awaitingSegmentContinue`），段内统计用基线差值（`segmentCorrect` / `segmentIncorrect` / `segmentQuestionResults`），课时计数器保持全程累计、结算仍一次；`continueToNextSegment` 进入下一段；undo 不跨段。③小课完成持久化：`LessonProgressProvider` 新增 `completedSubLessonIds`（`lessonId::subLessonId`），段边界即时记录、课时结算时补记末段；未完成课时重进时从第一节未完成小课续播，已完成课时从头重放。④UI：小课结算对话框（`showSubLessonCompletionDialog`，继续 / 休息两个出口）+ AppBar 副标题「小课 k/n」。⑤AI 生成契约：每节小课 12–15 题、一节课 n ≥ 2 节小课写进 prompt。⑥**顺带修复存量 bug**：review 模板此前 `flattenedStages` 只返回 `content.stages`，只有 `subLessons` 的 review 课时（如 `s1-l6`）播放为空；现在 subLessons 优先，与 validator / AI 管线的契约一致。
+- **验证**：`flutter analyze` **No issues found**；`lesson_viewmodel_flow_test` 25 passed / 0 failed；`lesson_progress_provider_test` + `mastery_dialog_stats_test` + `lesson_flow_test` + `dictionary_and_weak_words_test` 共 11 passed / 0 failed。codegen 用 fork SDK dart 重跑过（`injection.config.dart` 已含 `progressProvider` 注入）。
+- **未验**：全量 `flutter test --exclude-tags golden` 未跑（本轮只跑了受影响文件）；真机未验；内置课程资产的小课题量仍是 3–4 题 / 节（intro 课时总量 ≈15 题切 5 段），符合新体量（12–15 题 / 小课）的内容要靠后续 AI 导入或资产重写。
+
+---
+
 ### 2026-10-22 记忆卡适配：真实端点打通（凭据不入库）
 
 - **性质**：验证批次 + 两个真实缺陷修复；**测试数 +1**（`ai_card_adaptation_service_test` 9 → 10 条）。

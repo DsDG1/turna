@@ -69,11 +69,32 @@ class CoursePackMedia {
     return raw;
   }
 
+  /// Production persist-root memo. `getApplicationSupportDirectory()` is a
+  /// platform-channel hop, and the uncached [resolveFile] path used to pay for
+  /// it on every miss — strictly more expensive than the `existsSync` below.
+  /// Only the production path is memoized: an [override] or the
+  /// [debugPersistRoot] test seam must keep resolving fresh, so tests can swap
+  /// roots at will.
+  static Future<Directory>? _persistRootInFlight;
+
   static Future<Directory> persistRoot({Directory? override}) async {
     if (override != null) return override;
     if (debugPersistRoot != null) return debugPersistRoot!;
-    final support = await getApplicationSupportDirectory();
-    return Directory(p.join(support.path, 'imported_courses'));
+    final cached = _persistRootInFlight;
+    if (cached != null) return cached;
+    final future = () async {
+      final support = await getApplicationSupportDirectory();
+      return Directory(p.join(support.path, 'imported_courses'));
+    }();
+    _persistRootInFlight = future;
+    try {
+      return await future;
+    } catch (_) {
+      // A failed platform-channel lookup must not be memoized, or every later
+      // resolve would replay the same error instead of retrying.
+      _persistRootInFlight = null;
+      rethrow;
+    }
   }
 
   static Future<Directory> mediaDirectory(
@@ -113,7 +134,8 @@ class CoursePackMedia {
     final full = p.normalize(p.join(dir.path, relative));
     if (!_isWithin(dir.path, full)) return null;
     final file = File(full);
-    return file.existsSync() ? file.path : null;
+    // Async stat: this runs on the UI isolate for every first-time tile build.
+    return await file.exists() ? file.path : null;
   }
 
   static Future<void> deleteExtractedMedia(

@@ -373,6 +373,182 @@ class _LessonCompletionSummary extends StatelessWidget {
   }
 }
 
+/// Result dialog for one finished sub-lesson ("小课") inside a lesson that
+/// still has more to play.
+///
+/// Deliberately lighter than [showLessonCompletionDialog]: no XP/gems (those
+/// settle once per lesson, at the end), no achievement banner, no answer
+/// breakdown — the checkpoint answers one question ("how did this chunk
+/// go?") and offers two exits: keep walking, or leave and resume later from
+/// exactly this boundary.
+///
+/// Returns `true` when the player chose to continue.
+Future<bool> showSubLessonCompletionDialog({
+  required BuildContext context,
+  required bool Function() isMounted,
+  required String segmentName,
+  required int segmentNumber,
+  required int segmentCount,
+  required int correctCount,
+  required int incorrectCount,
+  required int totalCount,
+}) async {
+  if (!isMounted()) return false;
+
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => _SubLessonSummary(
+      segmentName: segmentName,
+      segmentNumber: segmentNumber,
+      segmentCount: segmentCount,
+      correctCount: correctCount,
+      incorrectCount: incorrectCount,
+      totalCount: totalCount,
+    ),
+  );
+  return result ?? false;
+}
+
+class _SubLessonSummary extends StatelessWidget {
+  final String segmentName;
+  final int segmentNumber;
+  final int segmentCount;
+  final int correctCount;
+  final int incorrectCount;
+  final int totalCount;
+
+  const _SubLessonSummary({
+    required this.segmentName,
+    required this.segmentNumber,
+    required this.segmentCount,
+    required this.correctCount,
+    required this.incorrectCount,
+    required this.totalCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.task_alt_rounded,
+              color: TurnaTheme.success,
+              size: 56,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              AppStrings.subLessonCompleteTitle,
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$segmentName · '
+              '${AppStrings.lessonSubLessonIndex(segmentNumber, segmentCount)}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              AppStrings.lessonResultsCount(correctCount, totalCount),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: TurnaTheme.textHint,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            AdaptiveCardGrid(
+              columns: 2,
+              spacing: 10,
+              minChildAspectRatio: 2.0,
+              children: [
+                _StatChip(
+                  icon: Icons.check_circle_rounded,
+                  iconColor: TurnaTheme.success,
+                  label: AppStrings.lessonCorrect,
+                  value: correctCount,
+                ),
+                _StatChip(
+                  icon: Icons.cancel_rounded,
+                  iconColor: TurnaTheme.error,
+                  label: AppStrings.lessonWrong,
+                  value: incorrectCount,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Ink(
+                    decoration: TurnaTheme.primaryCtaDecoration(
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
+                      elevated: false,
+                    ),
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(true),
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            AppStrings.subLessonContinueNext,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: TurnaTheme.textOnPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                AppStrings.subLessonTakeABreak,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: TurnaTheme.textHint,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              AppStrings.subLessonCompleteSubtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: TurnaTheme.textHint,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AccuracyRing extends StatelessWidget {
   final double accuracy;
   final int percent;

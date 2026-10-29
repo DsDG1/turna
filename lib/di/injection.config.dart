@@ -395,6 +395,7 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i551.MistakeProvider>(),
           gh<_i1008.GrammarReviewProvider>(),
           gh<_i495.LessonCompletionCoordinator>(),
+          progressProvider: gh<_i409.LessonProgressProvider>(),
         ));
     gh.lazySingleton<_i740.ProgressProvider>(
         () => _i740.ProgressProvider(gh<_i565.GameProvider>()));

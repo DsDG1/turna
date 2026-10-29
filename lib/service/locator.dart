@@ -147,6 +147,12 @@ class LocalStateKeys {
   // authoritative record. New code must read from these.
   static const String completedLessonIds = 'progress.completedLessonIds';
   static const String perfectLessonIds = 'progress.perfectLessonIds';
+
+  // Sub-lesson ("小课") completion inside a lesson, stored as
+  // `lessonId::subLessonId` pairs. Lets a segmented lesson resume at its
+  // first unfinished sub-lesson after an exit; the lesson-level set above
+  // still decides when the lesson itself counts as done.
+  static const String completedSubLessonIds = 'progress.completedSubLessonIds';
   static const String streakWasBroken = 'game.streakWasBroken';
   static const String streakProtectedDays = 'streak.protectedDays';
   static const String streakAutoUseVoucher = 'streak.autoUseVoucher';

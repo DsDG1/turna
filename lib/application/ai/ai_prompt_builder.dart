@@ -18,6 +18,13 @@ Available lesson templates and their content primary key:
 - mastery: Quiz. content primary key is stages; a single stage is enough.
 - mixed: Mixed. Different units/lessons may use different templates.
 
+Sub-lesson volume contract (important — the app plays each subLesson as one
+self-contained mini-lesson with its own result screen):
+- Each subLesson must hold 12–15 items in total across its stages — the
+  volume of a classic lesson. A subLesson with 3–4 items is too thin.
+- A lesson holds n subLessons (n ≥ 2, typically 2–5); choose n by how much
+  material the unit topic needs, not by a fixed count.
+
 Interaction types (runtimeType) reference:
 - showWord: { wordId, context? } — display a new word. wordId must be defined in the top-level words array.
 - multipleChoice: { prompt, options(4), correctIndex } — single-choice question.

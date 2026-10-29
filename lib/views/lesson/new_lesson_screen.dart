@@ -101,6 +101,10 @@ class _NewLessonPageState extends State<NewLessonPage>
   void _onVmChanged() {
     if (!mounted) return;
     final vm = _vm;
+    if (vm.awaitingSegmentContinue) {
+      _showSubLessonDialog();
+      return;
+    }
     if (vm.isComplete) {
       _showCompletionDialog();
       return;
@@ -309,6 +313,39 @@ class _NewLessonPageState extends State<NewLessonPage>
     });
   }
 
+  /// Sub-lesson ("小课") checkpoint: one segment finished, more remain.
+  ///
+  /// The dialog is the only way forward ([LessonViewModel.advance] is gated
+  /// while awaiting), and both buttons are safe exits — continuing walks into
+  /// the next segment, leaving pops the page with the finished sub-lesson
+  /// already persisted, so a re-entry resumes right here.
+  Future<void> _showSubLessonDialog() async {
+    if (!mounted || _dialogShown) return;
+    _dialogShown = true;
+
+    final navigator = Navigator.of(context);
+    final goOn = await showSubLessonCompletionDialog(
+      context: context,
+      isMounted: () => mounted,
+      segmentName: _vm.currentSegmentName ?? '',
+      segmentNumber: _vm.segmentNumber,
+      segmentCount: _vm.segmentCount,
+      correctCount: _vm.segmentCorrect,
+      incorrectCount: _vm.segmentIncorrect,
+      totalCount: _vm.segmentItemCount,
+    );
+
+    _dialogShown = false;
+    if (!mounted) return;
+    if (goOn) {
+      _vm.continueToNextSegment();
+    } else {
+      // Unconditional pop, same as the completion path: maybePop re-enters
+      // this page's PopScope callback forever.
+      navigator.pop();
+    }
+  }
+
   Future<void> _showCompletionDialog() async {
     if (!mounted || _dialogShown || _completionDialogShown) return;
     _dialogShown = true;
@@ -410,6 +447,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
           bool aiEligible,
           int question,
           int total,
+          String? segment,
         })>(
       selector: (context, vm) => (
         name: vm.lesson?.name ?? AppStrings.lessonLessonFallback,
@@ -419,6 +457,12 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         aiEligible: _aiEligible(vm),
         question: vm.currentQuestionNumber,
         total: vm.totalInteractionCount,
+        segment: vm.isSegmented
+            ? AppStrings.lessonSubLessonIndex(
+                vm.segmentNumber,
+                vm.segmentCount,
+              )
+            : null,
       ),
       builder: (context, s, _) => AppBar(
         backgroundColor: TurnaTheme.surfaceColor(context),
@@ -445,8 +489,9 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
               const SizedBox(height: 2),
               Text(
                 s.total > 0
-                    ? '${s.stage!}  ${AppStrings.lessonQuestionIndex(s.question, s.total)}'
-                    : s.stage!,
+                    ? '${_subtitlePrefix(s.segment, s.stage!)}'
+                      '  ${AppStrings.lessonQuestionIndex(s.question, s.total)}'
+                    : _subtitlePrefix(s.segment, s.stage!),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -489,6 +534,11 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (i == null) return false;
     return interactionAiHintEligible(i);
   }
+
+  /// Subtitle line: "小课 k/n · 阶段名" on segmented lessons, the bare stage
+  /// name otherwise.
+  static String _subtitlePrefix(String? segment, String stage) =>
+      segment == null ? stage : '$segment · $stage';
 }
 
 /// Lesson body. Rebuilds only when the current interaction / submission state

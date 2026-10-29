@@ -3,9 +3,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'interaction.dart';
 import 'lesson_content.dart';
+import 'lesson_segment.dart';
 import 'listening_phase.dart';
 import 'stage.dart';
-import 'sub_lesson.dart';
 
 part 'lesson.freezed.dart';
 part 'lesson.g.dart';
@@ -74,42 +74,62 @@ abstract class Lesson with _$Lesson {
   /// True if this is a mastery-check lesson.
   bool get isMastery => template == LessonTemplate.mastery;
 
-  /// A single flat list of [Stage]s that the lesson renderer can walk.
+  /// True when the lesson is authored as several self-contained sub-lessons
+  /// ("小课") rather than one flat flow. This is the flag the lesson walker
+  /// keys on: segmented lessons pause at each sub-lesson boundary.
+  bool get hasSubLessons => content.subLessons.isNotEmpty;
+
+  /// The lesson's playable segments, in order.
   ///
   /// The shape is derived from [template]:
-  /// - legacy / normal / review / mastery: [content.stages]
-  /// - intro / practice: flattened [content.subLessons]
-  /// - listening: flattened [content.listeningPhases]
-  /// - reading: [content.stages] (questions); [content.readingPassage] is
-  ///   rendered separately by the lesson screen.
-  List<Stage> get flattenedStages {
-    switch (template) {
-      case LessonTemplate.legacy:
-      case LessonTemplate.review:
-      case LessonTemplate.mastery:
-        return content.stages;
-      case LessonTemplate.intro:
-      case LessonTemplate.practice:
-        return _flattenSubLessons(content.subLessons);
-      case LessonTemplate.listening:
-        return _flattenListeningPhases(content.listeningPhases);
-      case LessonTemplate.reading:
-        return content.stages;
-    }
-  }
-
-  static List<Stage> _flattenSubLessons(List<SubLesson> subLessons) {
-    final result = <Stage>[];
-    for (final sub in subLessons) {
-      for (final stage in sub.stages) {
-        result.add(stage.copyWith(
-          id: 'sub-${sub.id}-${stage.id}',
-          name: '${sub.name} > ${stage.name}',
-        ));
+  /// - intro / practice / review / legacy **with sub-lessons**: one segment
+  ///   per sub-lesson, each with the sub-lesson's stages.
+  /// - listening: one segment holding the phase-flattened stages.
+  /// - everything else: one segment holding [content.stages].
+  ///
+  /// Review previously played only [content.stages], which left a review
+  /// lesson authored with sub-lessons alone (the shape the authoring contract
+  /// and the AI pipeline both produce) with nothing to play; sub-lessons now
+  /// take precedence for every template that allows them.
+  List<LessonSegment> get segments {
+    final subs = content.subLessons;
+    if (subs.isNotEmpty && template != LessonTemplate.listening) {
+      if (template == LessonTemplate.intro ||
+          template == LessonTemplate.practice ||
+          template == LessonTemplate.review ||
+          template == LessonTemplate.legacy) {
+        return [
+          for (final sub in subs)
+            LessonSegment(
+              subLessonId: sub.id,
+              name: sub.name,
+              stages: [
+                for (final stage in sub.stages)
+                  stage.copyWith(
+                    id: 'sub-${sub.id}-${stage.id}',
+                    name: '${sub.name} > ${stage.name}',
+                  ),
+              ],
+            ),
+        ];
       }
     }
-    return result;
+    if (template == LessonTemplate.listening) {
+      return [
+        LessonSegment(
+          name: name,
+          stages: _flattenListeningPhases(content.listeningPhases),
+        ),
+      ];
+    }
+    return [LessonSegment(name: name, stages: content.stages)];
   }
+
+  /// A single flat list of [Stage]s that the lesson renderer can walk: all
+  /// segments' stages concatenated.
+  List<Stage> get flattenedStages => [
+        for (final segment in segments) ...segment.stages,
+      ];
 
   static List<Stage> _flattenListeningPhases(List<ListeningPhase> phases) {
     final result = <Stage>[];

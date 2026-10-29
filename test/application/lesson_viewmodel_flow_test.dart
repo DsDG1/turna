@@ -27,6 +27,7 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/anki_official/projection/anki_lesson_card_key_resolver.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/application/mistake_provider.dart'; // MistakeProvider for StudyStatsProvider
@@ -45,6 +46,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/sub_lesson.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
 import '../support/fake_audio_backend.dart';
@@ -144,6 +146,7 @@ class _ViewModelHarness {
   final GrammarReviewProvider grammarProvider;
   final MistakeProvider mistakeProvider;
   final SrsProvider srsProvider;
+  final LessonProgressProvider lessonProgress;
 
   _ViewModelHarness({
     required this.vm,
@@ -154,6 +157,7 @@ class _ViewModelHarness {
     required this.grammarProvider,
     required this.mistakeProvider,
     required this.srsProvider,
+    required this.lessonProgress,
   });
 }
 
@@ -169,6 +173,46 @@ Lesson _buildLegacyLesson({required List<Interaction> items}) {
           name: 'Stage 1',
           items: items,
         ),
+      ],
+    ),
+  );
+}
+
+/// An intro lesson authored as [subCount] sub-lessons of [itemsPerSub]
+/// questions each — the "一节课 = n 节小课" shape.
+Lesson _buildSubLessonLesson({
+  String id = 'l-flow-subs',
+  LessonTemplate template = LessonTemplate.intro,
+  int subCount = 2,
+  int itemsPerSub = 2,
+}) {
+  return Lesson(
+    id: id,
+    name: 'Segmented Lesson',
+    template: template,
+    content: LessonContent(
+      subLessons: [
+        for (var s = 1; s <= subCount; s++)
+          SubLesson(
+            id: '$id-sl$s',
+            name: 'Sub $s',
+            sortOrder: s - 1,
+            stages: [
+              Stage(
+                id: '$id-sl$s-st1',
+                name: 'Stage $s',
+                items: [
+                  for (var i = 1; i <= itemsPerSub; i++)
+                    Interaction.multipleChoice(
+                      id: '$id-sl$s-mcq$i',
+                      prompt: 'Sub $s Q$i',
+                      options: const ['A', 'B'],
+                      correctIndex: 0,
+                    ),
+                ],
+              ),
+            ],
+          ),
       ],
     ),
   );
@@ -238,6 +282,10 @@ _ViewModelHarness _buildHarness({
     mistakeProvider,
     grammarProvider,
     completionCoordinator,
+    // Mirrors production DI: the walker gets the same lesson-progress
+    // singleton the game facade writes into, so sub-lesson resume sees what
+    // completion recorded.
+    progressProvider: achievements.lessonProgress,
   );
 
   return _ViewModelHarness(
@@ -249,6 +297,7 @@ _ViewModelHarness _buildHarness({
     grammarProvider: grammarProvider,
     mistakeProvider: mistakeProvider,
     srsProvider: srsProvider,
+    lessonProgress: achievements.lessonProgress,
   );
 }
 
@@ -1264,6 +1313,189 @@ void main() {
       expect(vm.isAnswerCorrect, isTrue);
       expect(vm.questionResults, hasLength(1));
 
+      vm.advance();
+      await pumpEventQueue();
+      expect(vm.isComplete, isTrue);
+    });
+  });
+
+  group('LessonViewModel sub-lesson segments', () {
+    test('two sub-lessons: boundary pauses, continue walks, settles once',
+        () async {
+      final lesson = _buildSubLessonLesson(
+        id: 'l-subs-boundary', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+      expect(vm.isSegmented, isTrue);
+      expect(vm.segmentCount, 2);
+      expect(vm.segmentNumber, 1);
+      expect(vm.currentSegmentName, 'Sub 1');
+      expect(vm.awaitingSegmentContinue, isFalse);
+
+      // Sub 1, Q1 correct; Q2 wrong — segment stats must reflect only this.
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      _answerMultipleChoice(vm, correct: false, userAnswer: 'B');
+      vm.advance();
+
+      expect(vm.awaitingSegmentContinue, isTrue, reason: 'boundary pauses');
+      expect(vm.isComplete, isFalse, reason: 'one sub-lesson remains');
+      expect(vm.segmentCorrect, 1);
+      expect(vm.segmentIncorrect, 1);
+      expect(vm.segmentItemCount, 2);
+      expect(vm.segmentQuestionResults.map((r) => r.prompt),
+          ['Sub 1 Q1', 'Sub 1 Q2']);
+      // Lesson-cumulative counters did not reset at the boundary.
+      expect(vm.progress, closeTo(0.5, 1e-9));
+      expect(vm.currentQuestionNumber, 3,
+          reason: 'stage index already peeks into sub 2');
+
+      // advance is gated while the result dialog is up.
+      vm.advance();
+      expect(vm.awaitingSegmentContinue, isTrue);
+
+      vm.continueToNextSegment();
+      expect(vm.awaitingSegmentContinue, isFalse);
+      expect(vm.segmentNumber, 2);
+      expect(vm.currentSegmentName, 'Sub 2');
+      expect(vm.segmentCorrect, 0, reason: 'baselines re-captured');
+      expect(vm.currentQuestionNumber, 3, reason: 'walks into sub 2 Q1');
+
+      // XP is cumulative in the shared mock prefs across this file's tests,
+      // so the settlement claim is asserted as a delta, not an absolute.
+      final scoreBefore =
+          await harness.gameProvider.getUserScoreStream().first;
+
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      await pumpEventQueue();
+      await pumpEventQueue();
+
+      expect(vm.isComplete, isTrue);
+      // Settlement fired once for the whole lesson: one lessonComplete XP
+      // event (10 XP), no perfect bonus (sub 1 had a mistake).
+      final score = harness.gameProvider.getUserScoreStream().first;
+      expect(await score, scoreBefore + 10);
+      expect(harness.studyStatsProvider.activities, hasLength(1));
+      expect(harness.studyStatsProvider.activities.first.type,
+          StudyActivityType.lessonComplete);
+
+      // Both sub-lessons are recorded for resume.
+      expect(harness.lessonProgress
+          .isSubLessonCompleted(lesson.id, '${lesson.id}-sl1'), isTrue);
+      expect(harness.lessonProgress
+          .isSubLessonCompleted(lesson.id, '${lesson.id}-sl2'), isTrue);
+    });
+
+    test('resume skips sub-lessons already recorded as completed', () async {
+      final lesson = _buildSubLessonLesson(
+        id: 'l-subs-resume', subCount: 3, itemsPerSub: 1);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final progress = harness.lessonProgress;
+      await progress.recordSubLessonCompletion(
+        lessonId: lesson.id,
+        subLessonId: '${lesson.id}-sl1',
+      );
+
+      await harness.vm.loadLesson(lesson.id);
+      expect(harness.vm.segmentNumber, 2, reason: 'starts at sub 2');
+      expect(harness.vm.currentQuestionNumber, 2);
+    });
+
+    test('a completed lesson replays from the first sub-lesson', () async {
+      final lesson = _buildSubLessonLesson(
+        id: 'l-subs-replay', subCount: 2, itemsPerSub: 1);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final progress = harness.lessonProgress;
+      await progress.recordSubLessonCompletion(
+        lessonId: lesson.id,
+        subLessonId: '${lesson.id}-sl1',
+      );
+      await progress.recordLessonCompletion(
+        lessonId: lesson.id,
+        wasPerfect: false,
+      );
+
+      await harness.vm.loadLesson(lesson.id);
+      expect(harness.vm.segmentNumber, 1, reason: 'deliberate replay');
+    });
+
+    test('undo does not cross a sub-lesson boundary', () async {
+      final lesson = _buildSubLessonLesson(
+        id: 'l-subs-undo', subCount: 2, itemsPerSub: 1);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      expect(vm.awaitingSegmentContinue, isTrue);
+      vm.continueToNextSegment();
+
+      // The only submission lives in sub 1; rewinding it would resurrect a
+      // reported result across the boundary.
+      expect(await vm.undoLastInteraction(), isFalse);
+    });
+
+    test('review lesson authored with only subLessons is playable', () async {
+      final lesson = _buildSubLessonLesson(
+        id: 'l-flow-review-subs',
+        template: LessonTemplate.review,
+        subCount: 1,
+        itemsPerSub: 2,
+      );
+      // Single sub-lesson: segmented playback does not engage, but the
+      // stages must come from the sub-lessons — the old flattenedStages
+      // returned content.stages (empty) for review and played nothing.
+      expect(lesson.flattenedStages, hasLength(1));
+      expect(lesson.flattenedStages.first.items, hasLength(2));
+
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+      await vm.loadLesson(lesson.id);
+      expect(vm.totalInteractionCount, 2);
+
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      await pumpEventQueue();
+      expect(vm.isComplete, isTrue);
+    });
+
+    test('flat legacy lesson never pauses mid-way', () async {
+      final lesson = _buildLegacyLesson(items: const [
+        Interaction.multipleChoice(
+          id: 'flat-1',
+          prompt: 'Q1',
+          options: ['A', 'B'],
+          correctIndex: 0,
+        ),
+        Interaction.multipleChoice(
+          id: 'flat-2',
+          prompt: 'Q2',
+          options: ['A', 'B'],
+          correctIndex: 0,
+        ),
+      ]);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+      expect(vm.isSegmented, isFalse);
+      expect(vm.currentSegmentName, isNull);
+
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      expect(vm.awaitingSegmentContinue, isFalse,
+          reason: 'no boundary inside a single-segment lesson');
+      expect(vm.currentQuestionNumber, 2);
+
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
       vm.advance();
       await pumpEventQueue();
       expect(vm.isComplete, isTrue);

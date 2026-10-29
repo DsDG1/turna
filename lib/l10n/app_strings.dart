@@ -1475,6 +1475,14 @@ class AppStrings {
       '$current/$total';
   static String get lessonCouldNotLoadLesson => '无法加载课程';
 
+  // ── 小课（课时内的分段）──
+  static String lessonSubLessonIndex(int current, int total) =>
+      '小课 $current/$total';
+  static String get subLessonCompleteTitle => '本节小课完成！';
+  static String get subLessonCompleteSubtitle => '休息一下，或直接继续。';
+  static String get subLessonContinueNext => '继续下一节小课';
+  static String get subLessonTakeABreak => '休息一下';
+
   // ── AI ──
   static String get aiNotConfiguredTitle => 'AI 未配置';
   static String get aiNotConfiguredMessageLesson =>

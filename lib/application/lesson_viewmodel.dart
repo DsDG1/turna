@@ -23,6 +23,7 @@ import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
+import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/lesson_srs_undo_log.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -31,6 +32,7 @@ import 'package:turna/courses/course_loader.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_segment.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/stage.dart';
@@ -105,6 +107,7 @@ class LessonViewModel extends ChangeNotifier {
   final MistakeProvider _mistakeProvider;
   final GrammarReviewProvider _grammarReviewProvider;
   final LessonCompletionCoordinator _completionCoordinator;
+  final LessonProgressProvider? _progressProvider;
 
   LessonViewModel(
     this._courseProvider,
@@ -112,8 +115,10 @@ class LessonViewModel extends ChangeNotifier {
     this._srsProvider,
     this._mistakeProvider,
     this._grammarReviewProvider,
-    this._completionCoordinator,
-  ) : _srsUndoStack = LessonSrsUndoLog(
+    this._completionCoordinator, {
+    LessonProgressProvider? progressProvider,
+  }) : _progressProvider = progressProvider,
+       _srsUndoStack = LessonSrsUndoLog(
           srs: _srsProvider,
           grammar: _grammarReviewProvider,
         );
@@ -128,6 +133,25 @@ class LessonViewModel extends ChangeNotifier {
   DateTime? _lessonStartTime;
   int _correctAnswers = 0;
   int _incorrectAnswers = 0;
+
+  // --- Sub-lesson ("小课") segmentation state ---
+  //
+  // A lesson authored with sub-lessons plays as n segments; every other
+  // lesson is one segment. The counters above stay lesson-cumulative (the
+  // lesson completion settles on them); each segment snapshots its starting
+  // values as a baseline so its own result dialog can show "this sub-lesson"
+  // numbers by subtraction, with no second set of counters to keep in step.
+  List<LessonSegment> _segments = const [];
+  int _currentSegmentIndex = 0;
+
+  /// Set when the current segment just finished but the lesson has more.
+  /// The page answers by showing the sub-lesson result dialog, then calling
+  /// [continueToNextSegment]. The last segment never sets this — it goes
+  /// straight to the lesson completion path instead.
+  bool _awaitingSegmentContinue = false;
+  int _segmentCorrectBase = 0;
+  int _segmentIncorrectBase = 0;
+  int _segmentResultsBase = 0;
 
   /// Total interaction count across all stages, cached at lesson load. A
   /// lesson pass never changes its stage/item structure, so recomputing the
@@ -177,6 +201,51 @@ class LessonViewModel extends ChangeNotifier {
   Lesson? get lesson => _lesson;
   LessonType get lessonType => _lesson?.type ?? LessonType.normal;
   bool get isComplete => _isComplete;
+
+  // --- Sub-lesson playback API ---
+
+  /// True when this lesson plays as several segments (its sub-lessons). A
+  /// single-segment lesson never pauses mid-way, so the page can skip the
+  /// sub-lesson affordances entirely — which is what keeps flat lessons
+  /// pixel-identical to before segmentation existed.
+  bool get isSegmented => _segments.length > 1;
+
+  /// 1-based position inside [segmentCount], for the "小课 k/n" readout.
+  int get segmentNumber => _currentSegmentIndex + 1;
+  int get segmentCount => _segments.length;
+
+  /// Name of the segment currently playing, or null when nothing loaded.
+  /// Null on single-segment lessons too: the lesson name already says it.
+  String? get currentSegmentName => isSegmented
+      ? _segments.isEmpty
+            ? null
+            : _segments[_currentSegmentIndex].name
+      : null;
+
+  /// True right after a non-final segment finished, waiting for the player
+  /// to continue. While set, [advance] is a no-op so the result dialog cannot
+  /// be tapped through.
+  bool get awaitingSegmentContinue => _awaitingSegmentContinue;
+
+  /// Interactions in the current segment. This is the denominator the
+  /// sub-lesson result dialog reports against.
+  int get segmentItemCount {
+    if (_segments.isEmpty) return 0;
+    return _segments[_currentSegmentIndex].stages.fold<int>(
+      0,
+      (sum, stage) => sum + stage.items.length,
+    );
+  }
+
+  /// Correct answers within the current segment only.
+  int get segmentCorrect => _correctAnswers - _segmentCorrectBase;
+
+  /// Wrong answers within the current segment only.
+  int get segmentIncorrect => _incorrectAnswers - _segmentIncorrectBase;
+
+  /// This segment's submissions, in order, for its result dialog.
+  List<QuestionResult> get segmentQuestionResults =>
+      List.unmodifiable(_questionResults.sublist(_segmentResultsBase));
 
   /// Set after a redo flush that did not write every not-yet-rated card.
   /// The completion dialog shows [AppStrings.lessonAnkiRedoFlushFailed].
@@ -336,8 +405,11 @@ class LessonViewModel extends ChangeNotifier {
     }
     if (lesson == null) {
       _lesson = null;
+      _segments = const [];
       _cachedStages = const [];
       _cachedTotalItemCount = 0;
+      _currentSegmentIndex = 0;
+      _awaitingSegmentContinue = false;
       _questionResults.clear();
       notifyListeners();
       return false;
@@ -387,9 +459,14 @@ class LessonViewModel extends ChangeNotifier {
   /// Shared by [loadLesson] and [loadLessonInstance] so the two entry points
   /// can never drift apart.
   void _resetToLesson(Lesson lesson) {
-    _cachedStages = lesson.flattenedStages;
-    _currentStageIndex = 0;
+    _segments = lesson.segments;
+    _cachedStages = [
+      for (final segment in _segments) ...segment.stages,
+    ];
+    _currentSegmentIndex = _resumeSegmentIndex(lesson);
+    _currentStageIndex = _segmentStartStage(_currentSegmentIndex);
     _currentInteractionIndex = 0;
+    _awaitingSegmentContinue = false;
     _totalMistakes = 0;
     _isComplete = false;
     _completionStarted = false;
@@ -403,6 +480,7 @@ class LessonViewModel extends ChangeNotifier {
     _srsUndoStack.clear();
     _masteryAttempts = 0;
     _masteryPassed = !lesson.isMastery; // default true for non-mastery lessons
+    _captureSegmentBaselines();
     _cachedTotalItemCount = _cachedStages.fold<int>(
       0,
       (sum, stage) => sum + stage.items.length,
@@ -412,6 +490,53 @@ class LessonViewModel extends ChangeNotifier {
     _registerSrsWords();
     // Register grammar points this lesson teaches.
     _registerGrammarPoints();
+  }
+
+  /// Index of the segment a fresh load of [lesson] should start from.
+  ///
+  /// Sub-lessons already recorded as completed are skipped, so re-entering a
+  /// half-walked segmented lesson resumes at its first unfinished sub-lesson
+  /// instead of replaying from the top. A lesson that is already complete
+  /// replays from the very beginning — a finished lesson is a deliberate
+  /// re-run, not an interrupted one — and so does any lesson the progress
+  /// provider cannot answer for (tests, synthetic instances).
+  int _resumeSegmentIndex(Lesson lesson) {
+    final progress = _progressProvider;
+    if (_segments.length <= 1 || progress == null) return 0;
+    if (progress.isLessonCompleted(lesson.id)) return 0;
+    for (var i = 0; i < _segments.length; i++) {
+      final subId = _segments[i].subLessonId;
+      if (subId == null ||
+          !progress.isSubLessonCompleted(lesson.id, subId)) {
+        return i;
+      }
+    }
+    // Every sub-lesson is recorded but the lesson itself never settled
+    // (e.g. the completion write was interrupted): replay the last segment
+    // so the lesson can still finish through the normal path.
+    return _segments.length - 1;
+  }
+
+  /// First stage index of segment [index] inside the flattened stage list.
+  int _segmentStartStage(int index) {
+    var start = 0;
+    for (var i = 0; i < index && i < _segments.length; i++) {
+      start += _segments[i].stages.length;
+    }
+    return start;
+  }
+
+  /// Stage index one past the current segment's last stage — the boundary
+  /// [advance] stops at. Equals [_cachedStages.length] for the final segment,
+  /// which is what routes the last segment into the completion path.
+  int get _segmentEndStage =>
+      _segmentStartStage(_currentSegmentIndex) +
+      (_segments.isEmpty ? 0 : _segments[_currentSegmentIndex].stages.length);
+
+  void _captureSegmentBaselines() {
+    _segmentCorrectBase = _correctAnswers;
+    _segmentIncorrectBase = _incorrectAnswers;
+    _segmentResultsBase = _questionResults.length;
   }
 
   /// Submit the current interaction with a correctness verdict.
@@ -733,7 +858,7 @@ class LessonViewModel extends ChangeNotifier {
   /// Advance to the next interaction (or stage). Called after the user
   /// acknowledges the current result (tap "Continue" / "Got It").
   void advance() {
-    if (_lesson == null || _isComplete) return;
+    if (_lesson == null || _isComplete || _awaitingSegmentContinue) return;
     final interaction = currentInteraction;
     if (interaction != null &&
         _isAnkiOwned(interaction, null) &&
@@ -768,8 +893,62 @@ class LessonViewModel extends ChangeNotifier {
         unawaited(_onLessonCompleted());
         return;
       }
+
+      // End of a sub-lesson segment with more to come: pause here rather
+      // than flowing into the next sub-lesson's first question. The stage
+      // index already points into the next segment, so continuing is just a
+      // segment-index bump — but until then [currentInteraction] peeking
+      // ahead is harmless: the result dialog is modal and [advance] is
+      // gated on [_awaitingSegmentContinue].
+      if (_currentStageIndex >= _segmentEndStage) {
+        _onSegmentCompleted();
+        return;
+      }
     }
 
+    notifyListeners();
+  }
+
+  /// Records the current segment as finished and parks the walker at the
+  /// boundary for the page to show the sub-lesson result dialog.
+  void _onSegmentCompleted() {
+    final segment = _segments[_currentSegmentIndex];
+    _awaitingSegmentContinue = true;
+    final lesson = _lesson;
+    final progress = _progressProvider;
+    final subId = segment.subLessonId;
+    if (lesson != null && progress != null && subId != null) {
+      // Best-effort: the persisted record only decides where a re-entry
+      // resumes, so a failed write costs a replayed sub-lesson, not a lost
+      // one — and the pause itself must not fail because of it.
+      unawaited(
+        progress
+            .recordSubLessonCompletion(
+              lessonId: lesson.id,
+              subLessonId: subId,
+            )
+            .catchError((Object e, StackTrace st) {
+              logger.w(
+                'sub-lesson completion record failed '
+                '(${lesson.id}::$subId): $e',
+                error: e,
+                stackTrace: st,
+              );
+            }),
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Continues past a finished segment into the next one. Called by the page
+  /// after the sub-lesson result dialog is acknowledged. A no-op anywhere
+  /// else, so a stray double-tap cannot skip a sub-lesson.
+  void continueToNextSegment() {
+    if (!_awaitingSegmentContinue) return;
+    if (_currentSegmentIndex >= _segments.length - 1) return;
+    _awaitingSegmentContinue = false;
+    _currentSegmentIndex++;
+    _captureSegmentBaselines();
     notifyListeners();
   }
 
@@ -784,7 +963,17 @@ class LessonViewModel extends ChangeNotifier {
   /// entry in place and re-tap once the gate releases — see
   /// [SrsQueueProvider.undoReview]).
   Future<bool> undoLastInteraction() async {
-    if (_submittedInteractions.isEmpty) return false;
+    if (_submittedInteractions.isEmpty || _awaitingSegmentContinue) {
+      return false;
+    }
+    // Undo may not cross a sub-lesson boundary: rewinding into a finished
+    // segment would resurrect its already-reported result while the segment
+    // index stays put, desyncing the baselines. Within the current segment
+    // the indices the undo restores are exactly the ones that were current.
+    if (_submittedInteractions.last.stageIndex <
+        _segmentStartStage(_currentSegmentIndex)) {
+      return false;
+    }
     final last = _submittedInteractions.removeLast();
     _currentStageIndex = last.stageIndex;
     _currentInteractionIndex = last.interactionIndex;
@@ -810,6 +999,7 @@ class LessonViewModel extends ChangeNotifier {
   void retryMastery() {
     if (_lesson == null || !_lesson!.isMastery) return;
     _masteryAttempts++;
+    _currentSegmentIndex = 0;
     _currentStageIndex = 0;
     _currentInteractionIndex = 0;
     _totalMistakes = 0;
@@ -824,11 +1014,14 @@ class LessonViewModel extends ChangeNotifier {
     _questionResults.clear();
     _submittedInteractions.clear();
     _srsUndoStack.clear();
+    _awaitingSegmentContinue = false;
+    _captureSegmentBaselines();
     notifyListeners();
   }
 
   /// Reset to beginning of lesson (for retry).
   void reset() {
+    _currentSegmentIndex = 0;
     _currentStageIndex = 0;
     _currentInteractionIndex = 0;
     _totalMistakes = 0;
@@ -842,6 +1035,8 @@ class LessonViewModel extends ChangeNotifier {
     _questionResults.clear();
     _submittedInteractions.clear();
     _srsUndoStack.clear();
+    _awaitingSegmentContinue = false;
+    _captureSegmentBaselines();
     notifyListeners();
   }
 
@@ -1008,6 +1203,31 @@ class LessonViewModel extends ChangeNotifier {
     _completionStarted = true;
     final lesson = _lesson;
     if (lesson == null) return;
+
+    // The final segment never passes through _onSegmentCompleted — lesson
+    // completion replaces its boundary — so sweep every segment's record
+    // here, before the settlement side-effects. The adds are idempotent:
+    // sub-lessons that already recorded at their boundary no-op, and a
+    // boundary write that failed gets its second chance.
+    final progress = _progressProvider;
+    if (progress != null) {
+      for (final segment in _segments) {
+        final subId = segment.subLessonId;
+        if (subId == null) continue;
+        unawaited(
+          progress
+              .recordSubLessonCompletion(lessonId: lesson.id, subLessonId: subId)
+              .catchError((Object e, StackTrace st) {
+            logger.w(
+              'sub-lesson completion record failed (${lesson.id}::$subId): $e',
+              error: e,
+              stackTrace: st,
+            );
+          }),
+        );
+      }
+    }
+
     try {
       _officialRedoFlushFailed = await _ankiCompletion.onLessonComplete(
         lessonId: lesson.id,

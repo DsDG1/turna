@@ -22,6 +22,10 @@ class LessonProgressProvider extends ChangeNotifier {
       LocalStateKeys.perfectLessonIds,
       const <String>[],
     ).toSet();
+    _completedSubLessonIds = _readStringList(
+      LocalStateKeys.completedSubLessonIds,
+      const <String>[],
+    ).toSet();
   }
 
   final AppPrefs appPrefs;
@@ -31,6 +35,10 @@ class LessonProgressProvider extends ChangeNotifier {
 
   late Set<String> _completedLessonIds;
   late Set<String> _perfectLessonIds;
+  late Set<String> _completedSubLessonIds;
+
+  static String _subKey(String lessonId, String subLessonId) =>
+      '$lessonId::$subLessonId';
 
   Set<String> get completedLessonIds => Set.unmodifiable(_completedLessonIds);
   Set<String> get perfectLessonIds => Set.unmodifiable(_perfectLessonIds);
@@ -39,6 +47,27 @@ class LessonProgressProvider extends ChangeNotifier {
       _completedLessonIds.contains(lessonId);
 
   bool isLessonPerfect(String lessonId) => _perfectLessonIds.contains(lessonId);
+
+  /// Whether [subLessonId] inside [lessonId] has been finished, regardless of
+  /// whether the parent lesson is complete. The unit segmented lessons resume
+  /// from: "walked sub-lesson 1, exited" must not replay sub-lesson 1.
+  bool isSubLessonCompleted(String lessonId, String subLessonId) =>
+      _completedSubLessonIds.contains(_subKey(lessonId, subLessonId));
+
+  /// Records one sub-lesson as finished. Idempotent, and deliberately does
+  /// not touch lesson-level completion: a lesson counts as complete only
+  /// through [recordLessonCompletion], which the lesson walker fires when the
+  /// last segment finishes.
+  Future<void> recordSubLessonCompletion({
+    required String lessonId,
+    required String subLessonId,
+  }) async {
+    if (!_completedSubLessonIds.add(_subKey(lessonId, subLessonId))) return;
+    await appPrefs.preferences.setStringList(
+      LocalStateKeys.completedSubLessonIds,
+      _completedSubLessonIds.toList(growable: false),
+    );
+  }
 
   Stream<Set<String>> get completedLessonsStream async* {
     yield Set.unmodifiable(_completedLessonIds);
@@ -81,6 +110,7 @@ class LessonProgressProvider extends ChangeNotifier {
   Future<void> resetLessonProgress() async {
     _completedLessonIds.clear();
     _perfectLessonIds.clear();
+    _completedSubLessonIds.clear();
 
     await Future.wait([
       appPrefs.preferences.setStringList(
@@ -89,6 +119,10 @@ class LessonProgressProvider extends ChangeNotifier {
       ),
       appPrefs.preferences.setStringList(
         LocalStateKeys.perfectLessonIds,
+        const <String>[],
+      ),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.completedSubLessonIds,
         const <String>[],
       ),
       appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, 0),
@@ -111,6 +145,10 @@ class LessonProgressProvider extends ChangeNotifier {
       LocalStateKeys.perfectLessonIds,
       const <String>[],
     ).toSet();
+    _completedSubLessonIds = _readStringList(
+      LocalStateKeys.completedSubLessonIds,
+      const <String>[],
+    ).toSet();
     notifyListeners();
     _completedLessonsController.add(Set.unmodifiable(_completedLessonIds));
   }
@@ -122,6 +160,9 @@ class LessonProgressProvider extends ChangeNotifier {
     if (lessonIds.isEmpty) return;
     _completedLessonIds.removeAll(lessonIds);
     _perfectLessonIds.removeAll(lessonIds);
+    _completedSubLessonIds.removeWhere(
+      (key) => lessonIds.contains(key.split('::').first),
+    );
 
     await Future.wait([
       appPrefs.preferences.setStringList(
@@ -131,6 +172,10 @@ class LessonProgressProvider extends ChangeNotifier {
       appPrefs.preferences.setStringList(
         LocalStateKeys.perfectLessonIds,
         _perfectLessonIds.toList(growable: false),
+      ),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.completedSubLessonIds,
+        _completedSubLessonIds.toList(growable: false),
       ),
       appPrefs.preferences.setInt(
         LocalStateKeys.lessonsCompleted,

@@ -63,7 +63,6 @@ Future<void> main() async {
   // 必须在 configureDependencies 之后,这样 logger 已是单例;
   // 放在 runApp 之前,确保第一帧之前的早期日志也能进入。
   await LogCapture.instance.install();
-  await getIt<SystemHealthMonitor>().install(LogCapture.instance.entries);
 
   // When companion explain prefs change (language/depth), drop engine cache so
   // stale replies in the wrong language are not replayed.
@@ -95,6 +94,12 @@ Future<void> main() async {
   runApp(const TurnaApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
+    // SystemHealthMonitor's only consumer is the settings diagnostics page, so
+    // it does not need to be live before the first frame. Installing it here
+    // moves `PackageInfo.fromPlatform()` (a platform channel round-trip) and a
+    // prefs read off the startup critical path. It replays the whole log buffer
+    // on install, so entries written during the gap are still processed.
+    unawaited(getIt<SystemHealthMonitor>().install(LogCapture.instance.entries));
     unawaited(continueTurnaStartup());
   });
 }
