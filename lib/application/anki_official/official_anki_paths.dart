@@ -17,9 +17,15 @@ class OfficialAnkiPaths {
     }
   }
 
+  /// The single profile id this build uses. Every fallback that needs a
+  /// profile id before a locator exists must read this constant, never
+  /// re-type the literal — two different defaults would make v2 sources
+  /// silently invisible (all sources judged inactive).
+  static const String defaultProfileId = 'profile-default-01';
+
   factory OfficialAnkiPaths.defaultProfile(Directory support) {
     return OfficialAnkiPaths(
-      profileId: 'profile-default-01',
+      profileId: defaultProfileId,
       profileRoot: Directory('${support.path}/official_anki/default'),
     );
   }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
 
 /// Flutter-native card renderer for standard course cards and legacy flip cards.
 class FlutterCourseCardBody extends StatelessWidget {
@@ -17,6 +18,35 @@ class FlutterCourseCardBody extends StatelessWidget {
     required this.onReveal,
     required this.onSpeak,
   });
+
+  /// The question face keeps its media visible; the answer face's media is
+  /// built only after the reveal, so a back-face clip or image cannot be read
+  /// by the screen reader or played early.
+  Widget _frontMedia() {
+    if (content.frontAudioAssets.isEmpty && content.frontImageAssets.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: AnkiMediaStrip(
+        audioAssets: content.frontAudioAssets,
+        imageAssets: content.frontImageAssets,
+      ),
+    );
+  }
+
+  Widget _backMedia() {
+    if (content.backAudioAssets.isEmpty && content.backImageAssets.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: AnkiMediaStrip(
+        audioAssets: content.backAudioAssets,
+        imageAssets: content.backImageAssets,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +92,7 @@ class FlutterCourseCardBody extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ],
+            _frontMedia(),
             const SizedBox(height: 16),
             IconButton(
               tooltip: AppStrings.reviewSrsPlayPronunciation,
@@ -102,6 +133,7 @@ class FlutterCourseCardBody extends StatelessWidget {
                       ),
                 ),
               ],
+              _backMedia(),
             ] else ...[
               const SizedBox(height: 12),
               Text(

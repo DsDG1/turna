@@ -2,15 +2,18 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:turna/application/anki_import/adaptation/card_document_builder.dart';
+import 'package:turna/application/anki_import/adaptation/card_media_extractor.dart';
 import 'package:turna/application/anki_import/recognition/facts/options_structure.dart';
 import 'package:turna/application/anki_import/recognition/facts/text_metrics.dart';
 import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
-import 'package:turna/application/anki_import/recognition/policy/presentation_policy.dart';
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
+import 'package:turna/domain/anki/adaptation/card_adaptation_plan.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/course/interaction.dart';
 
 enum OfficialAnkiProjectionKind {
@@ -23,6 +26,13 @@ enum OfficialAnkiProjectionKind {
   fillBlank,
   translate,
   canonicalLink,
+
+  /// 看图回忆: prompt-side image, recall-then-reveal. Opt-in only (ADR 0057 §4).
+  imageRecall,
+
+  /// 听写: prompt-side audio, typed answer. Opt-in only; never shows the
+  /// answer text before submit.
+  dictation,
 }
 
 class OfficialAnkiProjectedVocabulary {
@@ -126,6 +136,9 @@ class OfficialAnkiRoleValues {
     this.clozeSentence,
     this.clozeAnswer,
     this.siblingDistractors = const <String>[],
+    this.mediaOccurrences = const <MediaOccurrence>[],
+    this.variant = CardContentVariant.none,
+    this.document,
   });
 
   final String target;
@@ -157,9 +170,86 @@ class OfficialAnkiRoleValues {
   /// Same-bucket answers used only to pad listenPick distractors — never
   /// enough to mint a formal MCQ (that requires an explicit option pool).
   final List<String> siblingDistractors;
+
+  /// Every media occurrence on this card, in document order, each with the
+  /// face it was proven to belong to (ADR 0057 §5).
+  final List<MediaOccurrence> mediaOccurrences;
+
+  /// All-facts-empty instance for fallback paths that only need a valid
+  /// receiver (the original-card link payload reads none of the values).
+  static const OfficialAnkiRoleValues empty = OfficialAnkiRoleValues(
+    target: '',
+    native: '',
+    pronunciation: '',
+    example: '',
+    audio: null,
+    image: null,
+    options: <String>[],
+    truncatedRequired: false,
+    archetype: CardArchetype.basicPair,
+    archetypeConfidence: 0,
+    archetypeViolated: false,
+    hasExplicitOptions: false,
+  );
+
+  /// Set when this card was upgraded inside a broader archetype (plan §3.2):
+  /// a cloze/choice/listening card living in a `basicPair` notetype.
+  final CardContentVariant variant;
+
+  /// The plan's own layout for this card, when one is active. Null means the
+  /// card is presented from the recognizer's role bindings.
+  final CardDocument? document;
+
+  /// Media proven to sit on the question face.
+  List<String> get frontAudio => _mediaOn(
+        MediaOccurrenceSide.front,
+        CanonicalMediaKind.audio,
+      );
+  List<String> get frontImages => _mediaOn(
+        MediaOccurrenceSide.front,
+        CanonicalMediaKind.image,
+      );
+
+  /// Media proven to sit on the answer face.
+  List<String> get backAudio => _mediaOn(
+        MediaOccurrenceSide.back,
+        CanonicalMediaKind.audio,
+      );
+  List<String> get backImages => _mediaOn(
+        MediaOccurrenceSide.back,
+        CanonicalMediaKind.image,
+      );
+
+  /// Media whose face could not be proven. Never render these before the
+  /// reveal; the resolver sends such cards to the original rendering.
+  List<String> get unknownSideAudio => [
+        for (final occurrence in mediaOccurrences)
+          if (!occurrence.sideKnown &&
+              occurrence.kind == CanonicalMediaKind.audio)
+            occurrence.filename,
+      ];
+
+  List<String> get unknownSideImages => [
+        for (final occurrence in mediaOccurrences)
+          if (!occurrence.sideKnown &&
+              occurrence.kind == CanonicalMediaKind.image)
+            occurrence.filename,
+      ];
+
+  bool get hasUnprovenMediaSide =>
+      mediaOccurrences.any((occurrence) => !occurrence.sideKnown);
+
+  List<String> _mediaOn(MediaOccurrenceSide side, CanonicalMediaKind kind) => [
+        for (final occurrence in mediaOccurrences)
+          if (occurrence.side == side && occurrence.kind == kind)
+            occurrence.filename,
+      ];
+
 }
 
 class OfficialAnkiProjectionPayloads {
+  const OfficialAnkiProjectionPayloads();
+
   static final RegExp _clozeMarkerRegex = RegExp(
     r'\{\{c(\d+)::(.*?)(?:::([^}]*))?\}\}',
     dotAll: true,
@@ -169,6 +259,7 @@ class OfficialAnkiProjectionPayloads {
     OfficialAnkiProjectionRow row,
     OfficialAnkiMappingSuggestion? mapping, {
     List<String> siblingAnswers = const <String>[],
+    CardAdaptationPlan? plan,
   }) {
     String raw(FieldRole role) {
       final candidate = mapping?.role(role);
@@ -190,13 +281,39 @@ class OfficialAnkiProjectionPayloads {
       '${raw(FieldRole.response)}',
     );
     final image = CardText.extractImageFilename(raw(FieldRole.image));
+    // Face ownership comes from the per-template facts persisted with the
+    // mapping decision. Without them only the role-bound fields are scanned —
+    // a field no template renders must not leak its media onto the card.
+    final face = mapping?.faceFor(row.templateOrdinal);
+    // Per-template direction (ADR 0057 §3): a reverse template renders the
+    // answer-role field on its front face, so the two roles swap for this card.
+    // Reading the notetype-level direction instead would show the answer as
+    // the question on every reverse card.
+    final reversed = face?.isReversed ?? false;
+    final promptRole = reversed ? FieldRole.response : FieldRole.prompt;
+    final answerRole = reversed ? FieldRole.prompt : FieldRole.response;
+    final roleBoundIndices = <int>{
+      for (final candidate
+          in mapping?.candidates ?? const <OfficialAnkiFieldCandidate>[])
+        if (candidate.role != FieldRole.ignored) candidate.fieldIndex,
+    };
+    final mediaOccurrences = CardMediaExtractor.extract(
+      fields: row.fields,
+      frontFieldOrds: {
+        for (final ordinal in face?.frontFieldOrds ?? const <int>[]) ordinal,
+      },
+      backFieldOrds: {
+        for (final ordinal in face?.backFieldOrds ?? const <int>[]) ordinal,
+      },
+      fallbackFieldIndices: roleBoundIndices,
+    );
     final requiredTruncated = row.truncated &&
         (mapping?.role(FieldRole.prompt) != null ||
             mapping?.role(FieldRole.response) != null ||
             mapping?.role(FieldRole.audio) != null);
 
-    final targetText = text(FieldRole.prompt);
-    final nativeText = text(FieldRole.response);
+    final targetText = text(promptRole);
+    final nativeText = text(answerRole);
 
     // ── L3: card-level validation & extraction (§3.7) ─────────────────
     var archetypeViolated = false;
@@ -215,7 +332,7 @@ class OfficialAnkiProjectionPayloads {
     switch (archetype) {
       case CardArchetype.cloze:
         final cloze = _extractCloze(
-          raw(FieldRole.prompt).isNotEmpty ? raw(FieldRole.prompt) : nativeText,
+          raw(promptRole).isNotEmpty ? raw(promptRole) : nativeText,
           row.templateOrdinal,
         );
         if (cloze == null) {
@@ -232,8 +349,8 @@ class OfficialAnkiProjectionPayloads {
         // need their line structure to expose options + answer markers.
         final extracted = _resolveChoice(
           raw(FieldRole.options),
-          raw(FieldRole.prompt),
-          raw(FieldRole.response),
+          raw(promptRole),
+          raw(answerRole),
           fieldNames: candidateNames,
           fieldValues: row.fields,
         );
@@ -260,7 +377,7 @@ class OfficialAnkiProjectionPayloads {
         // 3/4 parity): a minority cloze or options card inside a basic
         // notetype still gets the right exercise — or the iron-law
         // fidelity downgrade when the options never align.
-        final promptRawValue = raw(FieldRole.prompt);
+        final promptRawValue = raw(promptRole);
         if (_clozeMarkerRegex.hasMatch(CardText.stripHtml(promptRawValue))) {
           final cloze = _extractCloze(promptRawValue, row.templateOrdinal);
           if (cloze != null) {
@@ -282,7 +399,7 @@ class OfficialAnkiProjectionPayloads {
           final extracted = _resolveChoice(
             '',
             promptRawValue,
-            raw(FieldRole.response),
+            raw(answerRole),
           );
           if (extracted == null) {
             archetypeViolated = true;
@@ -329,23 +446,18 @@ class OfficialAnkiProjectionPayloads {
                 answer.toLowerCase() != targetText.toLowerCase(),
           )
           .toList(),
+      mediaOccurrences: mediaOccurrences,
+      variant: effectiveArchetype == archetype
+          ? CardContentVariant.none
+          : switch (effectiveArchetype) {
+              CardArchetype.cloze => CardContentVariant.cloze,
+              CardArchetype.choice => CardContentVariant.choice,
+              CardArchetype.audioFirst => CardContentVariant.audioFirst,
+              _ => CardContentVariant.none,
+            },
+      document:
+          plan == null ? null : buildCardDocument(plan: plan, row: row),
     );
-  }
-
-  /// Exactly one active kind per card. Extra drills are not formal
-  /// placements.
-  List<OfficialAnkiProjectionKind> kindsFor({
-    required OfficialAnkiRoleValues values,
-    required OfficialAnkiMappingSuggestion? mapping,
-    required bool typeAnswerEnabled,
-  }) {
-    return [
-      const OfficialAnkiPresentationPolicy().selectOfficialKind(
-        values: values,
-        mapping: mapping,
-        typeAnswerEnabled: typeAnswerEnabled,
-      ),
-    ];
   }
 
   Map<String, Object?> interactionJson({
@@ -359,6 +471,7 @@ class OfficialAnkiProjectionPayloads {
       projectionKind: kind.name,
       ordinal: 0,
     );
+    final document = values.document;
     final interaction = switch (kind) {
       OfficialAnkiProjectionKind.showWord => Interaction.showWord(
           id: id,
@@ -373,12 +486,26 @@ class OfficialAnkiProjectionPayloads {
         ),
       OfficialAnkiProjectionKind.flip => Interaction.ankiCard(
           id: id,
-          front: values.target,
-          back: values.native,
-          audioAssets:
-              values.audio == null ? const <String>[] : [values.audio!],
-          imageAssets:
-              values.image == null ? const <String>[] : [values.image!],
+          front: document != null && document.front.text.isNotEmpty
+              ? document.front.text
+              : values.target,
+          back: document != null && document.back.text.isNotEmpty
+              ? document.back.text
+              : values.native,
+          // A plan that lays out this card owns its faces, including media.
+          frontAudioAssets:
+              document == null ? values.frontAudio : document.front.audio,
+          frontImageAssets:
+              document == null ? values.frontImages : document.front.images,
+          backAudioAssets:
+              document == null ? values.backAudio : document.back.audio,
+          backImageAssets:
+              document == null ? values.backImages : document.back.images,
+          // Unproven-side media stays on the legacy all-media lists, which the
+          // renderer only shows on the answer face (and the resolver normally
+          // diverts such cards to the original rendering first).
+          audioAssets: document == null ? values.unknownSideAudio : const [],
+          imageAssets: document == null ? values.unknownSideImages : const [],
           hint: values.pronunciation.isEmpty ? null : values.pronunciation,
           sourceNoteId: 'official:$sourceId:${item.cardId}',
         ),
@@ -421,6 +548,19 @@ class OfficialAnkiProjectionPayloads {
           id: id,
           source: values.target,
           expected: values.native,
+        ),
+      OfficialAnkiProjectionKind.imageRecall => Interaction.imageRecall(
+          id: id,
+          imageAssets: values.frontImages,
+          answerText: values.target,
+          // No hint: pronunciation and example would give the reading away.
+          sourceNoteId: 'official:$sourceId:${item.cardId}',
+        ),
+      OfficialAnkiProjectionKind.dictation => Interaction.dictation(
+          id: id,
+          audioAssets: values.frontAudio,
+          expected: values.target,
+          sourceNoteId: 'official:$sourceId:${item.cardId}',
         ),
       OfficialAnkiProjectionKind.canonicalLink => Interaction.showWord(
           id: id,
@@ -647,19 +787,7 @@ class OfficialAnkiProjectionPayloads {
 
   bool _cardCarriesScriptOrComplexHtml(List<String> fields) {
     for (final field in fields) {
-      final lower = field.toLowerCase();
-      if (lower.contains('<script') || lower.contains('javascript:')) {
-        return true;
-      }
-      if (RegExp(r'on[a-z]+\s*=', caseSensitive: false).hasMatch(field)) {
-        return true;
-      }
-      if (RegExp(
-        r'<(table|svg|video|iframe|canvas|object|embed|form|input|button)\b',
-        caseSensitive: false,
-      ).hasMatch(field)) {
-        return true;
-      }
+      if (cardCarriesUnsupportedStructure(field)) return true;
     }
     return false;
   }
@@ -695,3 +823,6 @@ class OfficialAnkiProjectionPayloads {
     );
   }
 }
+
+
+

@@ -27,6 +27,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
+import 'package:turna/views/anki_official/components/adaptation_restore_sheet.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -161,6 +162,13 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                               entries.where((e) => e.isBuiltin).length < 2)
                       ? null
                       : () => _confirmDelete(context, entries[i]),
+                  // 只有官方来源才有适配方案可恢复（ADR 0057 §6）。
+                  onAdaptation: _busy || entries[i].officialSourceId == null
+                      ? null
+                      : () => showAdaptationRestoreSheet(
+                            context,
+                            sourceId: entries[i].officialSourceId!,
+                          ),
                 ),
             ],
           ),
@@ -577,6 +585,7 @@ class _CourseCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onSettings;
   final VoidCallback? onDelete;
+  final VoidCallback? onAdaptation;
 
   const _CourseCard({
     super.key,
@@ -588,6 +597,7 @@ class _CourseCard extends StatelessWidget {
     required this.onTap,
     required this.onSettings,
     required this.onDelete,
+    this.onAdaptation,
   });
 
   @override
@@ -595,7 +605,8 @@ class _CourseCard extends StatelessWidget {
     final accent = isActive
         ? TurnaTheme.brandTeal
         : TurnaTheme.textSecondaryColor(context);
-    final hasMenuActions = ttsFeatureEnabled || onDelete != null;
+    final hasMenuActions =
+        ttsFeatureEnabled || onDelete != null || onAdaptation != null;
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
 
     return Padding(
@@ -645,6 +656,7 @@ class _CourseCard extends StatelessWidget {
                     ttsFeatureEnabled: ttsFeatureEnabled,
                     onSettings: onSettings,
                     onDelete: onDelete,
+                    onAdaptation: onAdaptation,
                   ),
                 ReorderableDragStartListener(
                   index: index,
@@ -781,16 +793,18 @@ class _CourseCardInfo extends StatelessWidget {
   }
 }
 
-/// Overflow menu: TTS settings (opt-in) + remove.
+/// Overflow menu: TTS settings (opt-in) + display mode + remove.
 class _CourseCardMenu extends StatelessWidget {
   final bool ttsFeatureEnabled;
   final VoidCallback onSettings;
   final VoidCallback? onDelete;
+  final VoidCallback? onAdaptation;
 
   const _CourseCardMenu({
     required this.ttsFeatureEnabled,
     required this.onSettings,
     required this.onDelete,
+    this.onAdaptation,
   });
 
   @override
@@ -807,6 +821,8 @@ class _CourseCardMenu extends StatelessWidget {
       onSelected: (value) {
         if (value == 'tts') {
           onSettings();
+        } else if (value == 'adaptation') {
+          onAdaptation?.call();
         } else if (value == 'delete') {
           onDelete?.call();
         }
@@ -824,6 +840,21 @@ class _CourseCardMenu extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(AppStrings.courseTtsSettingsTitle),
+              ],
+            ),
+          ),
+        if (onAdaptation != null)
+          PopupMenuItem(
+            value: 'adaptation',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 20,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+                const SizedBox(width: 10),
+                Text(AppStrings.ankiAdaptationRestoreTitle),
               ],
             ),
           ),
@@ -1191,3 +1222,4 @@ class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
     );
   }
 }
+

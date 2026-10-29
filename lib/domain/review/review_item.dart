@@ -43,6 +43,16 @@ class StandardCourseCardContent extends ReviewContentBodyData {
   final String? lessonName;
   final Interaction? interaction;
 
+  /// Media on the question face. Only populated when the producer can prove
+  /// the media belongs to the prompt; unknown ownership goes to the answer
+  /// side so a reveal-order rule cannot be bypassed.
+  final List<String> frontAudioAssets;
+  final List<String> frontImageAssets;
+
+  /// Media that must not be reachable before the answer is revealed.
+  final List<String> backAudioAssets;
+  final List<String> backImageAssets;
+
   const StandardCourseCardContent({
     required this.frontText,
     this.frontPronunciation,
@@ -52,6 +62,10 @@ class StandardCourseCardContent extends ReviewContentBodyData {
     this.explanation,
     this.lessonName,
     this.interaction,
+    this.frontAudioAssets = const [],
+    this.frontImageAssets = const [],
+    this.backAudioAssets = const [],
+    this.backImageAssets = const [],
   });
 }
 

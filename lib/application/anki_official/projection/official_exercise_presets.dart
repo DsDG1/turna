@@ -6,7 +6,15 @@ import 'package:turna/application/anki_official/projection/official_anki_mapping
 /// presentation policy combines it with the recognized archetype, so a
 /// preset never forces an unsupported kind onto a card — it constrains
 /// what may be picked, with flip/canonicalLink as fallbacks.
-enum OfficialExercisePreset { auto, choice, fillBlank, listen, flip }
+enum OfficialExercisePreset {
+  auto,
+  choice,
+  fillBlank,
+  listen,
+  flip,
+  lookAtImage,
+  dictation,
+}
 
 /// The kind whitelist a preset maps to. Order matches the policy's fallback
 /// chain; every preset keeps 'canonicalLink' so unrecognizable cards stay
@@ -30,6 +38,11 @@ const Map<OfficialExercisePreset, List<String>> _presetKinds = {
   OfficialExercisePreset.fillBlank: ['fillBlank', 'flip', 'canonicalLink'],
   OfficialExercisePreset.listen: ['listenPick', 'flip', 'canonicalLink'],
   OfficialExercisePreset.flip: ['flip', 'canonicalLink'],
+  // Opt-in presentations (ADR 0057 §4). Both keep flip as the fallback: a card
+  // without a prompt-side image / audio is still a usable flip card rather
+  // than an empty exercise.
+  OfficialExercisePreset.lookAtImage: ['imageRecall', 'flip', 'canonicalLink'],
+  OfficialExercisePreset.dictation: ['dictation', 'flip', 'canonicalLink'],
 };
 
 List<String> presetKinds(OfficialExercisePreset preset) =>

@@ -314,8 +314,18 @@ class LessonViewModel extends ChangeNotifier {
     }
     // v2 official-Anki 课时：正文派生自卡（lesson content is derived from
     // the scheduler's cards）。miss（非 v2 课时 / feature flag 关 / 派生不可
-    // 用）返回 null，落回下面的 v1 课程资产管线。
-    lesson ??= await OfficialAnkiV2LessonContent.lessonFor(lessonId);
+    // 用）返回 null，落回下面的 v1 课程资产管线；带 failure 说明这确实是
+    // v2 课时但坏了（映射损坏 / 全组 needsMapping / 全卡派生失败）——回落
+    // 行为不变，但日志里可区分（B1）。
+    final v2Outcome = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
+    lesson ??= v2Outcome.lesson;
+    final v2Failure = v2Outcome.failure;
+    if (lesson == null && v2Failure != null) {
+      logger.w(
+        'v2 lesson $lessonId derive failed (${v2Failure.name}); '
+        'falling back to the v1 pipeline',
+      );
+    }
     if (lesson == null) {
       try {
         lesson = await CourseLoader.loadLessonById(lessonId);

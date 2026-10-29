@@ -62,14 +62,24 @@ class CanonicalFieldValue {
   final int index;
 }
 
+/// Which face(s) of a card a media occurrence is visible on.
+///
+/// [unknown] is not "probably front": it means the structural facts needed to
+/// prove ownership were unavailable, so the occurrence must be treated as
+/// answer-side (never rendered before the reveal) or the card must fall back to
+/// the original rendering (ADR 0057 §5).
+enum MediaOccurrenceSide { front, back, unknown }
+
 class CanonicalMediaRef {
   const CanonicalMediaRef({
     required this.filename,
     this.kind = CanonicalMediaKind.other,
+    this.side = MediaOccurrenceSide.unknown,
   });
 
   final String filename;
   final CanonicalMediaKind kind;
+  final MediaOccurrenceSide side;
 }
 
 enum CanonicalMediaKind { audio, image, other }

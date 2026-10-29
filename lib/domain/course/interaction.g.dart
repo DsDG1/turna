@@ -291,6 +291,22 @@ AnkiCard _$AnkiCardFromJson(Map<String, dynamic> json) => AnkiCard(
               ?.map((e) => e as String)
               .toList() ??
           const <String>[],
+      frontAudioAssets: (json['frontAudioAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      frontImageAssets: (json['frontImageAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      backAudioAssets: (json['backAudioAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      backImageAssets: (json['backImageAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       hint: json['hint'] as String?,
       sourceNoteId: json['sourceNoteId'] as String?,
       $type: json['runtimeType'] as String?,
@@ -302,6 +318,10 @@ Map<String, dynamic> _$AnkiCardToJson(AnkiCard instance) => <String, dynamic>{
       'back': instance.back,
       'audioAssets': instance.audioAssets,
       'imageAssets': instance.imageAssets,
+      'frontAudioAssets': instance.frontAudioAssets,
+      'frontImageAssets': instance.frontImageAssets,
+      'backAudioAssets': instance.backAudioAssets,
+      'backImageAssets': instance.backImageAssets,
       'hint': instance.hint,
       'sourceNoteId': instance.sourceNoteId,
       'runtimeType': instance.$type,
@@ -336,5 +356,46 @@ Map<String, dynamic> _$AnkiHtmlCardToJson(AnkiHtmlCard instance) =>
       'sourceNoteId': instance.sourceNoteId,
       'sourceCardId': instance.sourceCardId,
       'wordId': instance.wordId,
+      'runtimeType': instance.$type,
+    };
+
+ImageRecall _$ImageRecallFromJson(Map<String, dynamic> json) => ImageRecall(
+      id: json['id'] as String? ?? '',
+      imageAssets: (json['imageAssets'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      answerText: json['answerText'] as String,
+      hint: json['hint'] as String?,
+      sourceNoteId: json['sourceNoteId'] as String?,
+      $type: json['runtimeType'] as String?,
+    );
+
+Map<String, dynamic> _$ImageRecallToJson(ImageRecall instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'imageAssets': instance.imageAssets,
+      'answerText': instance.answerText,
+      'hint': instance.hint,
+      'sourceNoteId': instance.sourceNoteId,
+      'runtimeType': instance.$type,
+    };
+
+Dictation _$DictationFromJson(Map<String, dynamic> json) => Dictation(
+      id: json['id'] as String? ?? '',
+      audioAssets: (json['audioAssets'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      expected: json['expected'] as String,
+      hint: json['hint'] as String?,
+      sourceNoteId: json['sourceNoteId'] as String?,
+      $type: json['runtimeType'] as String?,
+    );
+
+Map<String, dynamic> _$DictationToJson(Dictation instance) => <String, dynamic>{
+      'id': instance.id,
+      'audioAssets': instance.audioAssets,
+      'expected': instance.expected,
+      'hint': instance.hint,
+      'sourceNoteId': instance.sourceNoteId,
       'runtimeType': instance.$type,
     };

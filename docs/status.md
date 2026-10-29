@@ -61,6 +61,9 @@
 - **release 真机矩阵**：干净安装 / 升级安装 / 迁移包 / 备份恢复 / 强杀恢复。
 - **外部事实**：存量用户跑批与 owner 切换、Legacy 零新写观察期。
 - **一个正式 release 观察**：按负责人豁免处理（非证据齐备）。
+- **记忆卡适配（ADR 0057）端到端未验**：本机 `flutter build apk --debug` 出包成功，但没有连接任何 Android / 鸿蒙设备，未走「导入 → 预览智能适配 → 提交 → 课时 / 正式复习」真机链路。**AI 链路已在真实端点打通**（`tool/live/ai_adaptation_live_smoke_test.dart`，一次真实调用产出 `accepted` 方案且本地复核通过），但未走 app 内「设置里配 key → 预览页点生成」的真实路径；分层抽样仍未实现（缺 Rust 工具链）。鸿蒙 HAP 构建在 hvigor 配置解析阶段失败（本机全局 hvigor 与仓库 `modelVersion 5.1.0` + `flutter-hvigor-plugin` 不匹配），属环境问题。
+  - 代码侧「单一解析器」收敛已完成（host 侧验证，见 `OfficialCardPresentationResolver.resolveCard`）：课时派生、导入预览（模式推断 + 逐卡计数）、正式复习（`formalReview` 约束 + 渲染内容指纹）都走同一解析器；方案→映射的折叠、不支持结构回原卡、Cloze 挖空作用域（模板序号 0 + `clozeTarget`）都在解析器与暂存键两侧对齐；预览生成方案时做样本级「全 unsupported 拒绝」。课时派生带失败原因返回（映射损坏 / 全组 needsMapping / 全卡派生失败可区分于普通 miss）。
+  - 仍开放的实现缺口：视图行仍存「预计 kind」提示（ADR 0057 §1 的第四条判定路径已收敛到策略表并补齐日志，但结构性移除该列需连带 4 个测试文件重写，未做）；适配命名空间清理的返回值检查与维护任务挂点等引擎生命周期（开放决策①）落地后一起收。
 
 ---
 

@@ -85,6 +85,7 @@
 | | | [0054](./decisions/0054-ai-practice-library.md) | AI 练习库与后台生成 |
 | | | [0055](./decisions/0055-ai-credential-persistence-ohos.md) | AI 凭据在鸿蒙上真正落盘 |
 | | | [0056](./decisions/0056-ohos-remove-ai-compliance.md) | 鸿蒙伴生版移除 AI 生成（合规） |
+| | | [0057](./decisions/0057-card-adaptation-plan.md) | 记忆卡适配方案与统一展示解析 |
 
 ## 其它位置
 

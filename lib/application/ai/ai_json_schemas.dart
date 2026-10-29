@@ -128,4 +128,35 @@ abstract final class AiJsonSchemas {
     },
     required: ['words'],
   );
+
+  /// Card adaptation plan (ADR 0057 §7, `AiCardAdaptationService`).
+  ///
+  /// Only the envelope is pinned. `bindings`, block contents and exercises are
+  /// validated by `AdaptationPlanValidator` after parsing, because a JSON
+  /// Schema cannot express "the answer field must not appear on the front" and
+  /// a provider-side rejection would tell the user nothing actionable.
+  static final Map<String, dynamic> cardAdaptation = _object(
+    name: 'card_adaptation_plan',
+    properties: {
+      'schemaVersion': {'type': 'integer'},
+      'planId': {'type': 'string'},
+      'revision': {'type': 'integer'},
+      'bindings': {'type': 'object'},
+      'front': {
+        'type': 'array',
+        'items': {'type': 'object'},
+      },
+      'back': {
+        'type': 'array',
+        'items': {'type': 'object'},
+      },
+      'optionalExercises': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'defaultExercise': {'type': 'string'},
+      'fallback': {'type': 'string'},
+    },
+    required: ['planId', 'revision', 'bindings', 'front', 'back'],
+  );
 }

@@ -3,6 +3,77 @@ import 'package:turna/application/anki_import/recognition/recognize/recognizer.d
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 
+/// Which note fields each template renders on which face.
+///
+/// Persisted with the mapping decision so the presentation resolver can prove
+/// a media occurrence's face without a second engine round-trip (ADR 0057 §5).
+/// Rows written before this existed decode with an empty list, which the
+/// resolver treats as "faces unproven".
+class OfficialAnkiTemplateFaceFacts {
+  const OfficialAnkiTemplateFaceFacts({
+    required this.ordinal,
+    required this.frontFieldOrds,
+    required this.backFieldOrds,
+    this.direction = 'promptToResponse',
+  });
+
+  final int ordinal;
+  final List<int> frontFieldOrds;
+  final List<int> backFieldOrds;
+
+  /// Reading direction of this template, not of the notetype: a reverse
+  /// template shows the answer-role field on its front face (ADR 0057 §3).
+  /// `promptToResponse` or `responseToPrompt`.
+  final String direction;
+
+  bool get isReversed => direction == 'responseToPrompt';
+
+  bool get isEmpty => frontFieldOrds.isEmpty && backFieldOrds.isEmpty;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'ord': ordinal,
+        'front': frontFieldOrds,
+        'back': backFieldOrds,
+        'dir': direction,
+      };
+
+  static List<int> _ords(Object? raw) => <int>[
+        if (raw is List)
+          for (final value in raw)
+            if (value is num) value.toInt(),
+      ];
+
+  factory OfficialAnkiTemplateFaceFacts.fromJson(Map<String, Object?> json) {
+    return OfficialAnkiTemplateFaceFacts(
+      ordinal: (json['ord'] as num?)?.toInt() ?? 0,
+      frontFieldOrds: _ords(json['front']),
+      backFieldOrds: _ords(json['back']),
+      direction: json['dir'] as String? ?? 'promptToResponse',
+    );
+  }
+}
+
+/// Per-template reading direction.
+///
+/// A template that renders the answer-role field on its front face is a reverse
+/// card even when the notetype as a whole reads prompt→response. Deciding this
+/// per notetype is the "正反向模板混淆" defect: the reverse card would be shown
+/// with the answer on the question face.
+String officialAnkiTemplateDirection({
+  required List<int> frontFieldOrds,
+  int? promptFieldOrd,
+  int? responseFieldOrd,
+}) {
+  final front = frontFieldOrds.toSet();
+  final promptOnFront = promptFieldOrd != null && front.contains(promptFieldOrd);
+  final responseOnFront =
+      responseFieldOrd != null && front.contains(responseFieldOrd);
+  // Both on the front ({{FrontSide}} / single-field notetypes) is not a
+  // reversal. Neither on the front falls back to the notetype direction.
+  if (responseOnFront && !promptOnFront) return 'responseToPrompt';
+  return 'promptToResponse';
+}
+
 /// One persisted field→role assignment. Role names use the recognition
 /// vocabulary; rows written by older builds parse through the legacy
 /// name map in `field_roles.dart`.
@@ -70,6 +141,7 @@ class OfficialAnkiMappingSuggestion {
     this.recognizerVersion = 0,
     this.lexiconVersion = 0,
     this.templateFactsHash = '',
+    this.templateFaces = const <OfficialAnkiTemplateFaceFacts>[],
   });
 
   final List<OfficialAnkiFieldCandidate> candidates;
@@ -91,6 +163,19 @@ class OfficialAnkiMappingSuggestion {
   final int recognizerVersion;
   final int lexiconVersion;
   final String templateFactsHash;
+
+  /// Per-template face ownership. Empty on decisions written before it was
+  /// persisted (or when the backend has no template facts) — media then has no
+  /// provable side.
+  final List<OfficialAnkiTemplateFaceFacts> templateFaces;
+
+  /// Face facts for [ordinal], or null when this decision cannot prove them.
+  OfficialAnkiTemplateFaceFacts? faceFor(int ordinal) {
+    for (final face in templateFaces) {
+      if (face.ordinal == ordinal) return face.isEmpty ? null : face;
+    }
+    return null;
+  }
 
   CardArchetype get cardArchetype => CardArchetype.values.firstWhere(
         (value) => value.name == archetype,
@@ -119,6 +204,7 @@ class OfficialAnkiMappingSuggestion {
     int? recognizerVersion,
     int? lexiconVersion,
     String? templateFactsHash,
+    List<OfficialAnkiTemplateFaceFacts>? templateFaces,
   }) {
     return OfficialAnkiMappingSuggestion(
       candidates: candidates ?? this.candidates,
@@ -137,6 +223,7 @@ class OfficialAnkiMappingSuggestion {
       recognizerVersion: recognizerVersion ?? this.recognizerVersion,
       lexiconVersion: lexiconVersion ?? this.lexiconVersion,
       templateFactsHash: templateFactsHash ?? this.templateFactsHash,
+      templateFaces: templateFaces ?? this.templateFaces,
     );
   }
 
@@ -155,6 +242,9 @@ class OfficialAnkiMappingSuggestion {
         'recognizerVersion': recognizerVersion,
         'lexiconVersion': lexiconVersion,
         'templateFactsHash': templateFactsHash,
+        'templateFaces': [
+          for (final face in templateFaces) face.toJson(),
+        ],
         'candidates': candidates
             .map(
               (c) => <String, Object?>{
@@ -199,6 +289,13 @@ class OfficialAnkiMappingSuggestion {
       recognizerVersion: (json['recognizerVersion'] as num?)?.toInt() ?? 0,
       lexiconVersion: (json['lexiconVersion'] as num?)?.toInt() ?? 0,
       templateFactsHash: json['templateFactsHash'] as String? ?? '',
+      templateFaces: [
+        for (final face in (json['templateFaces'] as List? ?? const []))
+          if (face is Map)
+            OfficialAnkiTemplateFaceFacts.fromJson(
+              Map<String, Object?>.from(face),
+            ),
+      ],
       candidates: raw is List
           ? raw.whereType<Map>().map((item) {
               final map = Map<String, Object?>.from(item);
@@ -277,5 +374,19 @@ OfficialAnkiMappingSuggestion officialAnkiSuggestMapping(
     recognizerVersion: result.recognizerVersion,
     lexiconVersion: result.lexiconVersion,
     templateFactsHash: result.templateFactsHash,
+    templateFaces: [
+      for (final template in schema.templateFacts?.templates ??
+          const <OfficialAnkiTemplateFact>[])
+        OfficialAnkiTemplateFaceFacts(
+          ordinal: template.ord,
+          frontFieldOrds: template.frontFields,
+          backFieldOrds: template.backFields,
+          direction: officialAnkiTemplateDirection(
+            frontFieldOrds: template.frontFields,
+            promptFieldOrd: result.binding(FieldRole.prompt)?.fieldIndex,
+            responseFieldOrd: result.binding(FieldRole.response)?.fieldIndex,
+          ),
+        ),
+    ],
   );
 }

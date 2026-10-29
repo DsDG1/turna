@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/dictation_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/image_recall_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/multi_select_renderer.dart';
@@ -136,6 +139,8 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         FillBlankRenderer(),
         ListenAndPickRenderer(),
         TypeTheWordRenderer(),
+        ImageRecallRenderer(),
+        DictationRenderer(),
       };
 
   @override
@@ -151,6 +156,24 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
           frontPronunciation: presentation.pronunciation,
           backText: presentation.backText,
           backNote: presentation.hint,
+          frontAudioAssets: presentation.frontAudioMedia,
+          frontImageAssets: presentation.frontImageMedia,
+          backAudioAssets: [
+            ...presentation.backAudioMedia,
+            ...presentation.media
+                .where((ref) =>
+                    ref.side == MediaOccurrenceSide.unknown &&
+                    ref.kind == CanonicalMediaKind.audio)
+                .map((ref) => ref.filename),
+          ],
+          backImageAssets: [
+            ...presentation.backImageMedia,
+            ...presentation.media
+                .where((ref) =>
+                    ref.side == MediaOccurrenceSide.unknown &&
+                    ref.kind == CanonicalMediaKind.image)
+                .map((ref) => ref.filename),
+          ],
         ),
         isRevealed: widget.isRevealed,
         onReveal: widget.onReveal,

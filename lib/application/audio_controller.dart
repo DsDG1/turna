@@ -454,6 +454,16 @@ class AudioController {
     }
   }
 
+  /// Resolve a bare official-collection media filename to an on-disk path,
+  /// without playing it. Used by image strips, which need the file rather than
+  /// playback. Same boundary checks as [playOfficialMediaFile].
+  Future<String?> resolveOfficialMediaPath(String rawName) async {
+    return officialAnkiMediaCandidateFile(
+      rawName,
+      OfficialAnkiCompositionRoot.locatorPaths,
+    )?.path;
+  }
+
   /// Play an imported course-pack media file (`turnapack://` reference).
   Future<bool> playCoursePackMedia(String ref) async {
     if (!CoursePackMedia.isPackAsset(ref)) return false;

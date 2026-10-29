@@ -4,6 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_import/adaptation/card_presentation_resolver.dart';
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
@@ -11,15 +13,41 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart'
     hide Section, Unit, Lesson, LessonContent;
+import 'package:turna/domain/anki/adaptation/presentation_decision.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/stage.dart';
+
+/// Why a v2 lesson existed but its content could not be derived. The caller
+/// can tell "not a v2 lesson" (null failure) apart from "v2, but broken"
+/// (non-null failure), so the user-visible error stops being a generic
+/// "cannot load course" (ADR 0057 §6 fail-closed + B1).
+enum OfficialAnkiV2LessonDeriveFailure {
+  /// The config-area mapping decision JSON is corrupt — the whole source
+  /// degrades to needsMapping. Reconfirming the mapping in the import flow
+  /// fixes it.
+  mappingDecisionCorrupt,
+
+  /// No card in this lesson had a mapping decision (v1 needsMapping
+  /// semantics) — the user skipped every notetype this lesson depends on.
+  mappingDecisionMissing,
+
+  /// Cards existed and were mapped, but every derivation failed (render or
+  /// payload errors). Not a single interaction survived.
+  derivationFailed,
+}
+
+/// v2 课时派生结果：`lesson == null && failure == null` 是正常 miss（非 v2
+/// 课时 / 引擎缺席）；`failure != null` 说明这确实是 v2 课时但派生失败。
+typedef OfficialAnkiV2LessonOutcome =
+    ({Lesson? lesson, OfficialAnkiV2LessonDeriveFailure? failure});
 
 /// B6 第 5 读挂点（真机首夜 F6，ADR 0043）：v2 课时正文派生自卡（D3）。
 ///
@@ -30,32 +58,38 @@ import 'package:turna/domain/course/stage.dart';
 /// 决策 + 引擎投影读面（op 25/26 卡字段）→ 复用 v1 的 payload 编码器
 /// 现场合成 `LessonContent`。零新存储：卡变了重进课时即得新正文。
 ///
-/// interaction id 由视图行的 wordId 铸造（`officialAnkiItemId`），与
-/// `OfficialAnkiLessonCardIndex` v2 分支的 wordId 前缀匹配天然对上——
-/// 播放器答题能解析回正确的卡（复习链联动）。
-///
-/// miss / 任何一步不可用都返回 null：调用方回落 v1 装载管线，用户可见
-/// 行为与接线前一致（fail-closed，不把半截正文交给播放器）。
+/// 卡面判定全权在 `OfficialCardPresentationResolver.resolveCard`（ADR
+/// 0057 §1）：本类只取数据（视图行 / 映射决策 / 生效方案）与编码 payload，
+/// 不再自持方案→映射的拼装规则。单卡派生失败退原卡引用，不拖垮整课；
+/// 整课无一张可渲染时带 [OfficialAnkiV2LessonDeriveFailure] 返回，调用方
+/// 可以区分「重新确认映射」与「无法加载」。
 class OfficialAnkiV2LessonContent {
   OfficialAnkiV2LessonContent._();
 
-  /// v2 课时 → 带正文的完整 [Lesson]；非 v2 课时或派生不可用 → null。
-  static Future<Lesson?> lessonFor(String lessonId) async {
+  /// v2 课时 → 带正文的完整 [Lesson]；非 v2 课时或派生不可用 → lesson 为
+  /// null（failure 说明是不是 v2 课时本身坏了）。
+  static Future<OfficialAnkiV2LessonOutcome> lessonFor(String lessonId) async {
     final course = _courseOrNull();
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (course == null || catalog == null) return null;
+    if (course == null || catalog == null) {
+      return (lesson: null, failure: null);
+    }
 
     final rows = await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId);
-    if (rows.isEmpty) return null; // 非 v2 课时（v1 数据或未知 id）
+    if (rows.isEmpty) {
+      return (lesson: null, failure: null); // 非 v2 课时（v1 数据或未知 id）
+    }
     final active = _activeV2SourceIds(catalog);
     final viewRows = [
       for (final row in rows)
         if (active.contains(row.sourceId)) row,
     ];
-    if (viewRows.isEmpty) return null; // retiring 源即刻不可见
+    if (viewRows.isEmpty) {
+      return (lesson: null, failure: null); // retiring 源即刻不可见
+    }
 
     final engine = await _engineOrNull();
-    if (engine == null) return null;
+    if (engine == null) return (lesson: null, failure: null);
     try {
       return await _derive(
         engine: engine,
@@ -65,11 +99,14 @@ class OfficialAnkiV2LessonContent {
       );
     } catch (error) {
       officialAnkiV2Log('lesson content derive failed: $error', warning: true);
-      return null;
+      return (
+        lesson: null,
+        failure: OfficialAnkiV2LessonDeriveFailure.derivationFailed,
+      );
     }
   }
 
-  static Future<Lesson?> _derive({
+  static Future<OfficialAnkiV2LessonOutcome> _derive({
     required OfficialAnkiEngine engine,
     required OfficialAnkiDatabase catalog,
     required String lessonId,
@@ -78,7 +115,10 @@ class OfficialAnkiV2LessonContent {
     final sourceId = rows.first.sourceId;
     final decision =
         await OfficialAnkiV2DecisionStore(engine).readImportMapping(sourceId);
-    final suggestions = _decodeSuggestions(decision?.suggestionsJson);
+    final decoded = _decodeSuggestions(decision?.suggestionsJson);
+    final suggestions = decoded.suggestions;
+    // 适配方案读一次（manifest + 单卡覆盖），逐卡只按需读修订体（ADR 0057 §6）。
+    final adaptation = await OfficialAnkiAdaptationStore(engine).snapshot(sourceId);
 
     final cardIds = [for (final row in rows) row.cardId];
     final snapshot = await engine.beginProjectionRead(
@@ -88,20 +128,63 @@ class OfficialAnkiV2LessonContent {
     final projectionRows =
         await _projectionRowsByCard(engine, cardIds, snapshot.snapshotToken);
 
-    final payloads = OfficialAnkiProjectionPayloads();
+    const resolver = OfficialCardPresentationResolver();
+    const payloads = OfficialAnkiProjectionPayloads();
     final interactions = <Interaction>[];
+    var overflowFallbacks = 0;
+    var unavailable = 0;
+    var planFallbacks = 0;
+    var deriveFailures = 0;
+    var mappedCards = 0;
+    var missingCards = 0;
+    final variantCounts = <CardContentVariant, int>{};
+    final reasonCounts = <PresentationReason, int>{};
     for (final row in rows) {
       final projectionRow = projectionRows[row.cardId];
-      if (projectionRow == null) continue; // 引擎侧已删（缺卡无害）
+      if (projectionRow == null) {
+        missingCards++; // 引擎侧已删（缺卡无害）
+        continue;
+      }
       final mapping = suggestions[projectionRow.notetypeId];
       if (mapping == null) continue; // 无映射决策 = v1 needsMapping 同语义
-      final values = payloads.values(projectionRow, mapping);
-      var kind = _kindFor(row.presentationKind);
-      if (values.archetypeViolated) {
-        kind = values.archetype == CardArchetype.choice
-            ? OfficialAnkiProjectionKind.flip
-            : OfficialAnkiProjectionKind.canonicalLink;
+      mappedCards++;
+      // ADR 0057 §3：Cloze 的 card ordinal 是挖空编号，不是模板索引。查方案
+      // 用「模板序号 0 + 挖空目标」：带挖空目标的方案命中精确挖空，模板级
+      // 方案按 nt:0 命中全部挖空。非 Cloze 牌型的 ordinal 就是模板索引。
+      final isCloze = mapping.cardArchetype == CardArchetype.cloze;
+      final applied = await adaptation.lookup(
+        notetypeId: projectionRow.notetypeId,
+        templateOrdinal: isCloze ? 0 : projectionRow.templateOrdinal,
+        cardId: row.cardId,
+        clozeTarget: isCloze ? projectionRow.templateOrdinal : null,
+      );
+      var resolved = _resolveCard(
+        resolver: resolver,
+        payloads: payloads,
+        projectionRow: projectionRow,
+        mapping: mapping,
+        applied: applied,
+        row: row,
+      );
+      if (resolved == null) {
+        // 单卡派生失败不拖垮整课：退到轻量的原卡引用（B1），失败本身已记日志。
+        deriveFailures++;
+        resolved = const OfficialCardPlanResolution(
+          kind: OfficialAnkiProjectionKind.canonicalLink,
+          decision: OriginalCardDecision(reasons: []),
+          values: OfficialAnkiRoleValues.empty,
+        );
       }
+      final values = resolved.values;
+      var kind = resolved.kind;
+      if (values.variant != CardContentVariant.none) {
+        variantCounts[values.variant] = (variantCounts[values.variant] ?? 0) + 1;
+      }
+      if (applied is! AdaptationNoPlan && resolved.decision.isOriginalCard) {
+        planFallbacks++;
+        kind = OfficialAnkiProjectionKind.canonicalLink;
+      }
+      _countReasons(reasonCounts, resolved.decision.reasons);
       final item = OfficialAnkiProjectedItem(
         kind: kind,
         cardId: row.cardId,
@@ -125,44 +208,158 @@ class OfficialAnkiV2LessonContent {
         interactions
             .add(Interaction.fromJson(Map<String, dynamic>.from(payload)));
       } on OfficialAnkiPayloadOverflow {
-        continue; // 单卡超限跳过该卡，不拖垮整课时
+        // 超限不静默跳卡：退到轻量的原卡引用（ADR 0057 §1）。原卡引用本身
+        // 也放不下才是真的不可用——记下来，不假装这张卡存在。
+        try {
+          final fallback = payloads.interactionJson(
+            kind: OfficialAnkiProjectionKind.canonicalLink,
+            item: item,
+            values: values,
+            sourceId: sourceId,
+          );
+          interactions
+              .add(Interaction.fromJson(Map<String, dynamic>.from(fallback)));
+          overflowFallbacks++;
+        } on OfficialAnkiPayloadOverflow {
+          unavailable++;
+          officialAnkiV2Log(
+            'lesson card ${row.cardId} unavailable: payload overflow',
+            warning: true,
+          );
+        }
       }
     }
-    if (interactions.isEmpty) return null;
+    if (interactions.isEmpty) {
+      // 整课没有一张可渲染的卡。带原因返回，让调用方能区分「重新确认映射」
+      // 与「无法加载」，而不是笼统回落 v1 管线（B1）。
+      final failure = decoded.corrupt
+          ? OfficialAnkiV2LessonDeriveFailure.mappingDecisionCorrupt
+          : (mappedCards == 0 && missingCards > 0
+              ? OfficialAnkiV2LessonDeriveFailure.derivationFailed
+              : (mappedCards == 0
+                  ? OfficialAnkiV2LessonDeriveFailure.mappingDecisionMissing
+                  : OfficialAnkiV2LessonDeriveFailure.derivationFailed));
+      officialAnkiV2Log(
+        'lesson $lessonId produced no interactions (${failure.name})',
+        warning: true,
+      );
+      return (lesson: null, failure: failure);
+    }
+    if (deriveFailures > 0) {
+      officialAnkiV2Log(
+        'lesson $lessonId: $deriveFailures card(s) fell back to the original '
+        'card after a derive error',
+        warning: true,
+      );
+    }
+    if (planFallbacks > 0) {
+      // 方案明确回原卡 / manifest 指向的修订缺失：这是设计内的结果，不是
+      // 故障，但必须能从日志里区分于「本来就没有方案」。
+      officialAnkiV2Log(
+        'lesson $lessonId: $planFallbacks card(s) pinned to the original card '
+        'by an adaptation decision',
+      );
+    }
+    if (reasonCounts.isNotEmpty) {
+      // 可解释性（ADR 0057 §9）：整课按原因聚合一次，出问题时不用逐卡翻。
+      officialAnkiV2Log(
+        'lesson $lessonId reasons: '
+        '${reasonCounts.entries.map((e) => '${e.key.name}=${e.value}').join(', ')}',
+      );
+    }
+    if (variantCounts.isNotEmpty) {
+      // 受约束变体显式记账（plan §3.2）：basic 组里的挖空/选择/听力卡不再
+      // 只是一次静默的 archetype 覆写，日志里能看出这一课到底发生了什么。
+      officialAnkiV2Log(
+        'lesson $lessonId variants: '
+        '${variantCounts.entries.map((e) => '${e.key.name}=${e.value}').join(', ')}',
+      );
+    }
+    if (overflowFallbacks > 0 || unavailable > 0) {
+      officialAnkiV2Log(
+        'lesson $lessonId: $overflowFallbacks card(s) fell back to the '
+        'original card, $unavailable card(s) unavailable',
+        warning: unavailable > 0,
+      );
+    }
 
     final lessonKey = rows.first.lessonKey;
-    return Lesson(
-      id: lessonId,
-      name: lessonKey,
-      content: LessonContent(
-        stages: [
-          Stage(
-            id: 'official-stage-0',
-            name: lessonKey,
-            items: interactions,
-          ),
-        ],
+    return (
+      lesson: Lesson(
+        id: lessonId,
+        name: lessonKey,
+        content: LessonContent(
+          stages: [
+            Stage(
+              id: 'official-stage-0',
+              name: lessonKey,
+              items: interactions,
+            ),
+          ],
+        ),
       ),
+      failure: null,
     );
   }
 
-  /// kind 用视图行存储值（单一事实源）；损坏/未知名降 flip。
-  static OfficialAnkiProjectionKind _kindFor(String name) {
-    for (final kind in OfficialAnkiProjectionKind.values) {
-      if (kind.name == name) return kind;
+  /// 单卡走解析器；失败（数据损坏 / 未预期的异常）记日志并返回 null，
+  /// 调用方退原卡引用（B1）。解析器内部不再抛出后，这里兜的是编码前
+  /// 任何一步的意外。
+  static OfficialCardPlanResolution? _resolveCard({
+    required OfficialCardPresentationResolver resolver,
+    required OfficialAnkiProjectionPayloads payloads,
+    required OfficialAnkiProjectionRow projectionRow,
+    required OfficialAnkiMappingSuggestion mapping,
+    required AdaptationLookup applied,
+    required OfficialAnkiV2ViewRow row,
+  }) {
+    try {
+      return resolver.resolveCard(
+        row: projectionRow,
+        mapping: mapping,
+        applied: applied,
+        storedKindName: row.presentationKind,
+        payloads: payloads,
+      );
+    } catch (error, stackTrace) {
+      officialAnkiV2Log(
+        'lesson card ${row.cardId} resolve failed: $error\n$stackTrace',
+        warning: true,
+      );
+      return null;
     }
-    return OfficialAnkiProjectionKind.flip;
+  }
+
+  /// 按原因聚合（ADR 0057 §9）。日志只记枚举名与次数，不记字段内容。
+  static void _countReasons(
+    Map<PresentationReason, int> counts,
+    List<PresentationReason> reasons,
+  ) {
+    for (final reason in reasons) {
+      counts[reason] = (counts[reason] ?? 0) + 1;
+    }
   }
 
   /// `<notetypeId, suggestion>` 解码（导入侧 `_encodeSuggestions` 的逆）。
-  /// 决策损坏按 missing（配置区读语义先例），识别器可重建议。
-  static Map<int, OfficialAnkiMappingSuggestion> _decodeSuggestions(
-    String? json,
-  ) {
-    if (json == null || json.isEmpty) return const {};
+  ///
+  /// 决策损坏按 missing 处理（配置区读语义先例），识别器可重建议——但
+  /// `corrupt` 必须置位并留痕：这份 JSON 是整组映射的唯一来源，静默吞掉
+  /// 会让「为什么全部退回 needsMapping」无从查起（AGENTS.md §4）。
+  static ({Map<int, OfficialAnkiMappingSuggestion> suggestions, bool corrupt})
+      _decodeSuggestions(String? json) {
+    if (json == null || json.isEmpty) {
+      return (suggestions: const {}, corrupt: false);
+    }
     try {
       final decoded = jsonDecode(json);
-      if (decoded is! Map) return const {};
+      if (decoded is! Map) {
+        officialAnkiV2Log(
+          'import mapping decision JSON is not an object; '
+          'treating every notetype as needsMapping',
+          warning: true,
+        );
+        return (suggestions: const {}, corrupt: true);
+      }
       final out = <int, OfficialAnkiMappingSuggestion>{};
       for (final entry in decoded.entries) {
         final id = int.tryParse(entry.key.toString());
@@ -171,9 +368,14 @@ class OfficialAnkiV2LessonContent {
           Map<String, Object?>.from(entry.value as Map),
         );
       }
-      return out;
-    } catch (_) {
-      return const {};
+      return (suggestions: out, corrupt: false);
+    } catch (error) {
+      officialAnkiV2Log(
+        'import mapping decision JSON corrupt: $error; '
+        'treating every notetype as needsMapping',
+        warning: true,
+      );
+      return (suggestions: const {}, corrupt: true);
     }
   }
 
@@ -208,13 +410,14 @@ class OfficialAnkiV2LessonContent {
     try {
       return CourseLoader.databaseOrNull();
     } catch (_) {
+      // best-effort 探测：课程库尚未初始化属于正常冷启动路径。
       return null;
     }
   }
 
   static Set<String> _activeV2SourceIds(OfficialAnkiDatabase catalog) {
     final profileId = OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
-        'profile-default-01';
+        OfficialAnkiPaths.defaultProfileId;
     return {
       for (final source in OfficialAnkiSourceDao(catalog)
           .listV2Sources(profileId, states: {'active'}))

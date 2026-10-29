@@ -22,6 +22,8 @@ void main() {
     int cardId, {
     String questionHtml = '',
     String answerHtml = '',
+    List<OfficialAnkiAvTag> questionAvTags = const <OfficialAnkiAvTag>[],
+    List<OfficialAnkiAvTag> answerAvTags = const <OfficialAnkiAvTag>[],
   }) {
     return OfficialAnkiRenderedCard(
       cardId: cardId,
@@ -32,8 +34,13 @@ void main() {
       css: '.card { color: red; }',
       templateOrdinal: 2,
       bodyClass: 'card card1',
+      questionAvTags: questionAvTags,
+      answerAvTags: answerAvTags,
     );
   }
+
+  OfficialAnkiAvTag sound(String filename) =>
+      OfficialAnkiAvTag.sound(filename);
 
   test('HTML markup becomes FidelityCardPresentation, never a stripped flip',
       () async {
@@ -98,4 +105,95 @@ void main() {
       ),
     );
   });
+
+  group('P7 formal review keeps the original card, with its own media', () {
+    test('AV tags restore per-side media on a plain-text flip card', () async {
+      engine.renders[1] = rendered(
+        1,
+        questionHtml: 'question',
+        answerHtml: 'answer',
+        questionAvTags: [sound('prompt.mp3')],
+        answerAvTags: [sound('reply.ogg'), sound('../../evil.mp3')],
+      );
+      final renderer = OfficialFormalReviewRenderer(engine: engine);
+
+      final face = await renderer.render(sourceId: 'src-a', cardId: 1);
+
+      final flip = face.presentation as FlipCardPresentation;
+      expect(flip.frontAudioMedia, ['prompt.mp3']);
+      expect(
+        flip.backAudioMedia,
+        ['reply.ogg', 'evil.mp3'],
+        reason: '路径段被剥成 basename；面归属由官方 AV 标签给出',
+      );
+      expect(flip.frontImageMedia, isEmpty);
+    });
+
+    test('TTS and video tags never become audio occurrences', () async {
+      engine.renders[1] = rendered(
+        1,
+        questionHtml: 'question',
+        answerHtml: 'answer',
+        questionAvTags: const [
+          OfficialAnkiAvTag.tts(fieldText: 'kedi'),
+          OfficialAnkiAvTag.sound('clip.mp4'),
+        ],
+        answerAvTags: const [
+          OfficialAnkiAvTag.sound(''),
+        ],
+      );
+      final renderer = OfficialFormalReviewRenderer(engine: engine);
+
+      final face = await renderer.render(sourceId: 'src-a', cardId: 1);
+
+      final flip = face.presentation as FlipCardPresentation;
+      expect(
+        flip.media,
+        isEmpty,
+        reason: 'TTS 不是文件，视频不在本阶段支持集，缺文件名也不是媒体',
+      );
+    });
+
+    test('an active adaptation plan does not change formal review', () async {
+      // 方案在 live 配置区里明明存在。
+      engine.configStore['turna.adapt.manifest.src-a'] = {
+        'schema': 1,
+        'entries': {
+          '1:2': {'planId': 'plan-1', 'revision': 1},
+        },
+      };
+      engine.renders[1] =
+          rendered(1, questionHtml: 'plain', answerHtml: 'plain answer');
+      final renderer = OfficialFormalReviewRenderer(engine: engine);
+
+      final face = await renderer.render(sourceId: 'src-a', cardId: 1);
+
+      expect(
+        face.presentation,
+        isA<FlipCardPresentation>(),
+        reason: '首期正式复习恒原卡（ADR 0057 §8）',
+      );
+      expect(
+        engine.getConfigCalls,
+        0,
+        reason: '正式复习不得读适配配置区来决定展示',
+      );
+    });
+
+    test('formal review never yields a structured exercise', () async {
+      engine.renders[1] = rendered(
+        1,
+        questionHtml: 'plain',
+        answerHtml: 'plain answer',
+        questionAvTags: [sound('prompt.mp3')],
+      );
+      final renderer = OfficialFormalReviewRenderer(engine: engine);
+
+      final face = await renderer.render(sourceId: 'src-a', cardId: 1);
+
+      expect(face.presentation, isNot(isA<StructuredCardPresentation>()));
+      expect(face.presentation.kind, CardPresentationKind.flip);
+    });
+  });
 }
+

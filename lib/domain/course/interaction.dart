@@ -166,12 +166,23 @@ sealed class Interaction with _$Interaction {
   /// semantics — they are generic card faces from an imported Anki deck, so
   /// they are deliberately kept out of the dictionary index. [sourceNoteId]
   /// traces back to the originating Anki note.
+  ///
+  /// Media is per face (ADR 0057 §5): [frontAudioAssets] / [frontImageAssets]
+  /// are proven to belong to the question face, [backAudioAssets] /
+  /// [backImageAssets] to the answer face. The legacy [audioAssets] /
+  /// [imageAssets] lists carry media whose face could not be proven and are
+  /// rendered on the answer face only — guesswork must never put an answer
+  /// clip in front of the learner.
   const factory Interaction.ankiCard({
     @Default('') String id,
     required String front,
     required String back,
     @Default(<String>[]) List<String> audioAssets,
     @Default(<String>[]) List<String> imageAssets,
+    @Default(<String>[]) List<String> frontAudioAssets,
+    @Default(<String>[]) List<String> frontImageAssets,
+    @Default(<String>[]) List<String> backAudioAssets,
+    @Default(<String>[]) List<String> backImageAssets,
     String? hint,
     String? sourceNoteId,
   }) = AnkiCard;
@@ -201,6 +212,35 @@ sealed class Interaction with _$Interaction {
     String? sourceCardId,
     String? wordId,
   }) = AnkiHtmlCard;
+
+  /// 看图回忆 (ADR 0057 §4): the question face is a card image proven to
+  /// belong to the prompt, and the learner recalls the reading before
+  /// revealing [answerText]. The answer text and any alt text stay out of the
+  /// semantic tree until the reveal.
+  ///
+  /// Only images the importer proved to be prompt-side media may be used: a
+  /// card whose image sits on the answer face must not be turned into an
+  /// image prompt (that would show the answer as the question).
+  const factory Interaction.imageRecall({
+    @Default('') String id,
+    required List<String> imageAssets,
+    required String answerText,
+    String? hint,
+    String? sourceNoteId,
+  }) = ImageRecall;
+
+  /// 听写: the prompt is card audio only and the learner types [expected].
+  ///
+  /// Distinct from [Interaction.typeTheWord] on purpose — that one shows a
+  /// text prompt, which for a dictation card would hand over the answer. No
+  /// answer text, subtitle or alt text may be rendered before submit.
+  const factory Interaction.dictation({
+    @Default('') String id,
+    required List<String> audioAssets,
+    required String expected,
+    String? hint,
+    String? sourceNoteId,
+  }) = Dictation;
 
   factory Interaction.fromJson(Map<String, dynamic> json) {
     try {
@@ -245,6 +285,8 @@ String? interactionGrammarPointId(Interaction interaction) {
     ReadingShortAnswer(:final grammarPointId) => grammarPointId,
     AnkiCard() => null,
     AnkiHtmlCard() => null,
+    ImageRecall() => null,
+    Dictation() => null,
   };
 }
 
@@ -270,6 +312,10 @@ bool interactionAiHintEligible(Interaction interaction) {
     ReadingShortAnswer() => true,
     AnkiCard() => true,
     AnkiHtmlCard() => false,
+    // Audio-only and image-only prompts have no text to explain before the
+    // reveal; offering a hint here would leak the answer's context.
+    ImageRecall() => false,
+    Dictation() => false,
   };
 }
 
@@ -292,6 +338,8 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     ReadingShortAnswer(:final expectedAnswer) => expectedAnswer,
     AnkiCard(:final back) => back,
     AnkiHtmlCard(:final backHtml) => backHtml,
+    ImageRecall(:final answerText) => answerText,
+    Dictation(:final expected) => expected,
   };
 }
 
@@ -314,6 +362,9 @@ String interactionPromptLabel(Interaction interaction) {
     ReadingShortAnswer(:final prompt) => prompt,
     AnkiCard(:final front) => front,
     AnkiHtmlCard(:final frontHtml) => frontHtml,
+    // Neither has a text prompt on the question face by design.
+    ImageRecall() => '',
+    Dictation() => '',
   };
 }
 
@@ -335,6 +386,8 @@ String interactionTypeLabel(Interaction interaction) {
     ReadingShortAnswer() => 'Reading Short Answer',
     AnkiCard() => 'Flip Card',
     AnkiHtmlCard() => 'HTML Card',
+    ImageRecall() => 'Image Recall',
+    Dictation() => 'Dictation',
   };
 }
 
@@ -359,5 +412,7 @@ String? interactionOptionsLabel(Interaction interaction) {
     ReadingShortAnswer() => null,
     AnkiCard() => null,
     AnkiHtmlCard() => null,
+    ImageRecall() => null,
+    Dictation() => null,
   };
 }

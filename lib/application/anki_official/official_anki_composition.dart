@@ -196,7 +196,7 @@ class OfficialAnkiCompositionRoot {
     }
     final root = Directory('${supportDir.path}/official_anki/default');
     final paths = OfficialAnkiPaths(
-      profileId: 'profile-default-01',
+      profileId: OfficialAnkiPaths.defaultProfileId,
       profileRoot: root,
     );
     await paths.ensureLayout();
@@ -259,7 +259,7 @@ class OfficialAnkiCompositionRoot {
     }
     final support = supportDir ?? await getApplicationSupportDirectory();
     final paths = OfficialAnkiPaths(
-      profileId: 'profile-default-01',
+      profileId: OfficialAnkiPaths.defaultProfileId,
       profileRoot: Directory('${support.path}/official_anki/default'),
     );
     await paths.ensureLayout();

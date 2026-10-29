@@ -16,6 +16,7 @@ library;
 
 // Project imports:
 import 'package:turna/core/endpoint_url_policy.dart';
+import 'package:turna/domain/anki/adaptation/presentation_decision.dart';
 
 class AppStrings {
   const AppStrings._();
@@ -942,6 +943,77 @@ class AppStrings {
   static String get ankiPreviewKindSingle => '单选';
   static String get ankiPreviewKindCloze => '填空';
   static String get ankiPreviewKindFlip => '翻卡';
+  static String get ankiAdaptationTitle => '智能适配';
+  static String get ankiAdaptationHint => '按结构组生成展示方案，原卡始终保留';
+  static String get ankiAdaptationGenerate => '生成方案';
+  static String get ankiAdaptationApply => '应用方案';
+  static String get ankiAdaptationNotNow => '先不用';
+  static String get ankiAdaptationRestore => '恢复原卡';
+  static String get ankiAdaptationStaged => '已暂存，导入后生效';
+  static String get ankiAdaptationNotConfigured => '未配置 AI，可继续按本地识别导入';
+  static String get ankiAdaptationUnavailable => 'AI 暂不可用，已保留本地识别结果';
+  static String get ankiAdaptationTruncated => '模型输出被截断，请减少样本后重试';
+  static String get ankiAdaptationRejected => '方案未通过本地校验';
+  static String get ankiAdaptationTransport => '请求失败，可稍后重试';
+  static String ankiAdaptationPlanLabel(String planId, int revision) =>
+      '方案 $planId · 修订 $revision';
+  static String get ankiAdaptationRestoreTitle => '显示方式';
+  static String get ankiAdaptationRestoreHint =>
+      '这些组目前按适配方案展示，恢复后回到原卡；排期不受影响';
+  static String get ankiAdaptationRestoreEmpty => '当前没有生效的适配方案';
+  static String get ankiAdaptationRestoreOne => '恢复原卡';
+  static String get ankiAdaptationRestoreAll => '全部恢复原卡';
+  static String get ankiAdaptationRestored => '已恢复原卡显示';
+  static String get ankiAdaptationRestoreUnavailable => '引擎未就绪，暂时无法切换显示方式';
+  static String ankiAdaptationScopeLabel(int notetypeId, int templateOrdinal) =>
+      '笔记类型 $notetypeId · 模板 $templateOrdinal';
+
+  // 校验拒绝原因（本地校验 + 样本级验证共用，文案集中在字符串表，
+  // 改口径时只改这里）。
+  static String get ankiAdaptationIssueSchemaVersion => '方案版本不支持';
+  static String get ankiAdaptationIssueScopeSource => '方案指向别的来源';
+  static String get ankiAdaptationIssueScopeNotetype => '方案指向别的笔记类型';
+  static String get ankiAdaptationIssueScopeTemplate => '方案指向的模板已不存在';
+  static String get ankiAdaptationIssueUnknownBlockKind => '未知的布局块';
+  static String get ankiAdaptationIssueUnknownSelection => '未知的媒体选取方式';
+  static String get ankiAdaptationIssueFieldOutOfRange => '字段序号越界';
+  static String get ankiAdaptationIssueUnknownExercise => '未知的练习类型';
+  static String get ankiAdaptationIssueUnknownDefaultExercise => '未知的默认练习';
+  static String get ankiAdaptationIssueUnknownBindingRole => '未知的字段角色';
+  static String get ankiAdaptationIssueUnknownFallback => '未知的回退方式';
+  static String get ankiAdaptationIssueEmptyFront => '正面没有任何内容';
+  static String get ankiAdaptationIssueAnswerOnFront => '答案会出现在题面';
+  static String get ankiAdaptationIssueBackOnlyFieldOnFront => '只该在背面的字段跑到了正面';
+  static String get ankiAdaptationIssueAllSamplesUnsupported => '样本都无法按方案渲染';
+
+  // 预览的逐卡解析计数（ADR 0057 §11.2：预览要能看到整组多少张保持练
+  // 习、多少张回原卡，而不是只看最好看的一张样本）。
+  static String ankiPreviewBatchCounts(int structured, int originalCard) =>
+      '可做练习 $structured 张 · 保持原卡 $originalCard 张';
+  static String ankiPreviewNeedsMappingCount(int count) => '需先确认映射 $count 张';
+
+  /// 展示判定原因的中文解释（ADR 0057 §9）。
+  ///
+  /// 解析器只产出稳定的枚举，措辞留在这里；界面负责把「为什么这张卡回原卡」
+  /// 说清楚，而不是让用户看到一句笼统的失败。
+  static String presentationReasonLabel(PresentationReason reason) {
+    return switch (reason) {
+      PresentationReason.truncatedRequired => '必填字段被截断，无法证明内容完整',
+      PresentationReason.archetypeViolated => '这张卡与笔记类型的结构不符',
+      PresentationReason.lowConfidence => '识别置信度偏低且未人工确认',
+      PresentationReason.missingOptions => '找不到可对齐的选项',
+      PresentationReason.missingMedia => '缺少这道题需要的媒体',
+      PresentationReason.unknownMediaSide => '媒体的正反面归属无法确认',
+      PresentationReason.emptyFields => '正反面都没有内容',
+      PresentationReason.unknownStoredKind => '旧的展示记录无法识别，已重新判断',
+      PresentationReason.storedKindDrift => '展示方式与缓存记录不一致，已按当前内容重判',
+      PresentationReason.payloadOverflow => '内容超长，改成轻量原卡入口',
+      PresentationReason.formalReviewOriginalFirst => '正式复习先用原卡',
+      PresentationReason.planMissing => '适配方案缺失，回退原卡',
+      PresentationReason.unsupportedStructure => '含有无法安全转换的结构',
+      PresentationReason.missingMappingDecision => '字段映射尚未确认，暂用原卡',
+    };
+  }
   static String get ankiPreviewBlockingHint => '请先指定待确认牌组的正面字段';
   static String get ankiPreviewDefaultRootName => '导入课程';
   static String ankiPreviewParsedDecks(int count) =>
@@ -1362,6 +1434,9 @@ class AppStrings {
   static String get lessonCorrectTranslation => '正确译文';
   static String get lessonTypeWhatYouHearCaption => '听写';
   static String get lessonTypeHere => '在此输入…';
+  static String get lessonDictationPrompt => '听到什么就写什么';
+  static String get lessonImageRecallCaption => '看图回忆';
+  static String get lessonImageRecallPrompt => '回忆这张图对应的内容';
   static String get lessonCompleteTitle1 => '课程完成！';
   static String get lessonCompleteSubtitle1 => '出色的专注。你完成了本课。';
   static String get lessonCompleteTitle2 => '真快！';
@@ -2320,6 +2395,8 @@ class AppStrings {
   static String get ankiOfficialExerciseFillBlank => '填空题';
   static String get ankiOfficialExerciseListen => '听力题';
   static String get ankiOfficialExerciseFlip => '翻卡片';
+  static String get ankiOfficialExerciseLookAtImage => '看图回忆';
+  static String get ankiOfficialExerciseDictation => '听写卡';
   static String get ankiOfficialExerciseClozeNote => '样卡带挖空，会做成填空题';
   static String get ankiAssemblingCourse => '正在构建课程树…';
   static String get ankiMigratingSrs => '正在迁移 SRS 状态…';

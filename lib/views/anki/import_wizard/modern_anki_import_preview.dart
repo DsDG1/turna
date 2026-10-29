@@ -3,13 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/anki_import_controller.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
-import 'package:turna/application/anki_import/recognition/facts/options_structure.dart';
+import 'package:turna/application/anki_import/adaptation/notetype_presentation_preview.dart';
 import 'package:turna/application/anki_import/recognition/official_recognition_triage.dart';
+import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_preview_header.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
+import 'package:turna/views/anki/import_wizard/components/notetype_mode_row.dart';
+import 'package:turna/views/anki/import_wizard/components/smart_adaptation_host.dart';
 import 'package:turna/views/anki/import_wizard/deck_directory_tree_view.dart';
 import 'package:turna/views/anki/import_wizard/mcq_preview_sheet.dart';
 import 'package:turna/views/anki/import_wizard/quick_front_picker_sheet.dart';
@@ -28,6 +32,30 @@ OfficialAnkiProjectionSchema? officialSchemaForPreviewNode({
     if (schema.notetypeId == notetypeId) return schema;
   }
   return null;
+}
+
+/// 唯一的模式推断（ADR 0057 §1：预览不再有自己的规则表）。有样本时按
+/// 解析器的逐卡结论聚合——「整组保持练习、整组翻卡、还是回原卡」由同一
+/// 个解析器说了算；没有样本（尚未加载）才退回 enabledKinds 启发式。两条
+/// 路径共用这一个函数，同一种输入不会再得出两个结论（A1）。
+StudyPresetMode studyModeFromPreview(
+  NotetypePresentationPreview preview,
+  Set<String> enabledKinds,
+) {
+  if (preview.hasSamples) {
+    if (preview.summary.structured == 0) return StudyPresetMode.fidelity;
+    if (preview.flipOnly) return StudyPresetMode.classicFlip;
+    return StudyPresetMode.interactive;
+  }
+  if (enabledKinds.length == 1 && enabledKinds.contains('canonicalLink')) {
+    return StudyPresetMode.fidelity;
+  }
+  if (enabledKinds.contains('flip') &&
+      !enabledKinds.contains('multipleChoice') &&
+      !enabledKinds.contains('fillBlank')) {
+    return StudyPresetMode.classicFlip;
+  }
+  return StudyPresetMode.interactive;
 }
 
 /// Modern Anki import preview: clean, course-oriented view focusing on
@@ -83,18 +111,35 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
   }
 
   void _detectInitialMode() {
-    final firstSuggestion = widget.preview.suggestions.values.firstOrNull;
-    if (firstSuggestion == null) return;
-    final kinds = firstSuggestion.enabledKinds.toSet();
-    if (kinds.contains('canonicalLink') && kinds.length == 1) {
+    if (widget.preview.schemas.isEmpty) return;
+    final modes = [
+      for (final schema in widget.preview.schemas) _modeFor(schema),
+    ];
+    if (modes.every((mode) => mode == StudyPresetMode.fidelity)) {
       _selectedMode = StudyPresetMode.fidelity;
-    } else if (kinds.contains('flip') &&
-        !kinds.contains('multipleChoice') &&
-        !kinds.contains('fillBlank')) {
+    } else if (modes.every((mode) =>
+        mode == StudyPresetMode.classicFlip ||
+        mode == StudyPresetMode.fidelity)) {
       _selectedMode = StudyPresetMode.classicFlip;
     } else {
       _selectedMode = StudyPresetMode.interactive;
     }
+  }
+
+  OfficialAnkiMappingSuggestion _effectiveSuggestion(
+    OfficialAnkiProjectionSchema schema,
+  ) {
+    return widget.preview.suggestions[schema.notetypeId] ??
+        officialAnkiSuggestMapping(schema);
+  }
+
+  NotetypePresentationPreview _previewFor(
+    OfficialAnkiProjectionSchema schema,
+  ) {
+    return resolveNotetypePresentationPreview(
+      schema: schema,
+      suggestion: _effectiveSuggestion(schema),
+    );
   }
 
   Map<int, String> _buildDeckArchetypeLabels() {
@@ -111,45 +156,53 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
   }
 
   String _archetypeLabelForSchema(OfficialAnkiProjectionSchema schema) {
-    final suggestion = widget.preview.suggestions[schema.notetypeId] ??
-        officialAnkiSuggestMapping(schema);
-    final isChoice = suggestion.cardArchetype.name == 'choice';
-    final sample = schema.samples.firstOrNull;
-    final isMulti = isChoice &&
-        sample != null &&
-        EmbeddedOptionsParser.parseCorrectIndices(
-              sample.fields.length > 1 ? sample.fields[1] : '',
-              EmbeddedOptionsParser.extractMultiFieldOptions(
-                    schema.fieldNames,
-                    sample.fields,
-                  ) ??
-                  EmbeddedOptionsParser.extractEmbeddedOptions(
-                    sample.fields.firstOrNull ?? '',
-                  )?.options ??
-                  const [],
-            ).length >=
-            2;
-
-    return isChoice
-        ? (isMulti
-            ? AppStrings.ankiPreviewKindMulti
-            : AppStrings.ankiPreviewKindSingle)
-        : (suggestion.cardArchetype.name == 'cloze'
-            ? AppStrings.ankiPreviewKindCloze
-            : AppStrings.ankiPreviewKindFlip);
+    // 标签以解析器的逐卡主导结论为准（A1：不在组件里重新解析一遍选项
+    // 结构）；解析器没有给出选择类结论时（映射没有 options 角色 / 尚无
+    // 样本），退回 notetype 级原型——单选/多选的细分只在解析器真看得到
+    // 选项时才下结论。
+    final suggestion = _effectiveSuggestion(schema);
+    final dominant = _previewFor(schema).dominantKind;
+    if (dominant == OfficialAnkiProjectionKind.multipleChoice) {
+      return AppStrings.ankiPreviewKindSingle;
+    }
+    if (dominant == OfficialAnkiProjectionKind.multiSelect) {
+      return AppStrings.ankiPreviewKindMulti;
+    }
+    if (dominant == OfficialAnkiProjectionKind.fillBlank) {
+      return AppStrings.ankiPreviewKindCloze;
+    }
+    return switch (suggestion.cardArchetype) {
+      CardArchetype.choice => AppStrings.ankiPreviewKindSingle,
+      CardArchetype.cloze => AppStrings.ankiPreviewKindCloze,
+      _ => AppStrings.ankiPreviewKindFlip,
+    };
   }
 
   StudyPresetMode _modeFor(OfficialAnkiProjectionSchema schema) {
-    final suggestion = widget.preview.suggestions[schema.notetypeId];
-    final kinds = suggestion?.enabledKinds.toSet() ?? const <String>{};
-    if (kinds.length == 1 && kinds.contains('canonicalLink')) {
-      return StudyPresetMode.fidelity;
-    }
-    if (kinds.contains('flip') && !kinds.contains('multipleChoice')) {
-      return StudyPresetMode.classicFlip;
-    }
-    return StudyPresetMode.interactive;
+    final suggestion = _effectiveSuggestion(schema);
+    return studyModeFromPreview(
+      _previewFor(schema),
+      suggestion.enabledKinds.toSet(),
+    );
   }
+
+  /// 逐卡解析计数（ADR 0057 §11.2）：预览要能看到整组多少张保持练习、
+  /// 多少张回原卡。全部保持练习时不显示，避免每行都是噪音。
+  String? _countsLabelFor(OfficialAnkiProjectionSchema schema) {
+    final summary = _previewFor(schema).summary;
+    if (summary.total == 0) return null;
+    final parts = <String>[
+      if (summary.originalCard > 0)
+        AppStrings.ankiPreviewBatchCounts(
+          summary.structured,
+          summary.originalCard,
+        ),
+      if (summary.needsCorrection > 0)
+        AppStrings.ankiPreviewNeedsMappingCount(summary.needsCorrection),
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
 
   List<String> _kindsFor(StudyPresetMode mode) {
     return switch (mode) {
@@ -270,14 +323,22 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                         onSelectMode: _onSelectStudyMode,
                       ),
                       const SizedBox(height: 16),
+                      SmartAdaptationHost(
+                        sourceId: preview.sourceId,
+                        schemas: preview.schemas,
+                        controller: widget.controller,
+                        suggestions: preview.suggestions,
+                      ),
+                      const SizedBox(height: 16),
                       if (hasBlocking) ...[
                         _buildBlockingWarning(blockingSchemas),
                         const SizedBox(height: 16),
                       ],
                       for (final schema in preview.schemas)
-                        _NotetypeModeRow(
+                        NotetypeModeRow(
                           schema: schema,
                           mode: _modeFor(schema),
+                          countsLabel: _countsLabelFor(schema),
                           onChanged: (mode) =>
                               widget.controller.setNotetypeStudyMode(
                             schema,
@@ -389,58 +450,6 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                   ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotetypeModeRow extends StatelessWidget {
-  const _NotetypeModeRow({
-    required this.schema,
-    required this.mode,
-    required this.onChanged,
-  });
-
-  final OfficialAnkiProjectionSchema schema;
-  final StudyPresetMode mode;
-  final ValueChanged<StudyPresetMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              schema.name.isEmpty
-                  ? AppStrings.ankiPreviewStudyMode
-                  : schema.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          DropdownButton<StudyPresetMode>(
-            value: mode,
-            items: [
-              DropdownMenuItem(
-                value: StudyPresetMode.interactive,
-                child: Text(AppStrings.studyPresetInteractiveTitle),
-              ),
-              DropdownMenuItem(
-                value: StudyPresetMode.classicFlip,
-                child: Text(AppStrings.studyPresetClassicFlipTitle),
-              ),
-              DropdownMenuItem(
-                value: StudyPresetMode.fidelity,
-                child: Text(AppStrings.studyPresetFidelityTitle),
-              ),
-            ],
-            onChanged: (mode) {
-              if (mode != null) onChanged(mode);
-            },
           ),
         ],
       ),

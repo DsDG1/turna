@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/anki_import/recognition/policy/presentation_policy.dart';
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
@@ -516,14 +517,25 @@ class OfficialAnkiV2ViewRebuilder {
     );
   }
 
-  /// notetype → 主呈现 kind（依据识别原型与 enabledKinds 决策）。
+  /// notetype → 预计呈现 kind（依据识别原型与 enabledKinds 决策）。
+  ///
+  /// **这只是提示**（ADR 0057 §1）：视图行不持有卡级事实，实际卡面由
+  /// `OfficialCardPresentationResolver` 在课时加载时逐卡重判；这里算出的
+  /// kind 与卡级结论不一致时，记录 `storedKindDrift` 而不是让过期值生效。
   static Map<int, String> _kindsByNotetype(
     OfficialAnkiV2MappingDecision? mapping,
   ) {
     if (mapping == null) return const {};
     try {
       final decoded = jsonDecode(mapping.suggestionsJson);
-      if (decoded is! Map) return const {};
+      if (decoded is! Map) {
+        officialAnkiV2Log(
+          'mapping suggestions JSON is not an object; expected kinds default '
+          'to flip',
+          warning: true,
+        );
+        return const {};
+      }
       final out = <int, String>{};
       for (final entry in decoded.entries) {
         final id = int.tryParse('${entry.key}');
@@ -534,17 +546,36 @@ class OfficialAnkiV2ViewRebuilder {
         final enabled = rawKinds is List
             ? rawKinds.map((e) => '$e').toSet()
             : const <String>{};
+        if (archetypeStr == null ||
+            !CardArchetype.values.any((a) => a.name == archetypeStr)) {
+          // 未知原型不能静默当 basicPair——那会制造大量虚假的
+          // storedKindDrift，让漂移计数失去诊断价值。
+          officialAnkiV2Log(
+            'unknown archetype "$archetypeStr" for notetype $id; expected '
+            'kind defaults to flip',
+            warning: true,
+          );
+        }
         out[id] = _resolvePrimaryKind(
           archetypeStr: archetypeStr,
           enabledKinds: enabled,
         );
       }
       return out;
-    } catch (_) {
+    } catch (error) {
+      // 建议 JSON 损坏会让全组预计 kind 落到 flip 兜底：留一条警告，漂移
+      // 计数异常时有据可查（AGENTS.md §4：操作型失败不得静默）。
+      officialAnkiV2Log(
+        'mapping suggestions JSON undecodable: $error; expected kinds '
+        'default to flip',
+        warning: true,
+      );
       return const {};
     }
   }
 
+  /// 表在 [OfficialAnkiPresentationPolicy.expectedKindForArchetype] 里只有
+  /// 一份——视图与卡级决策不会各长一张表（ADR 0057 §1）。
   static String _resolvePrimaryKind({
     required String? archetypeStr,
     required Set<String> enabledKinds,
@@ -553,25 +584,10 @@ class OfficialAnkiV2ViewRebuilder {
       (a) => a.name == archetypeStr,
       orElse: () => CardArchetype.basicPair,
     );
-    return switch (archetype) {
-      CardArchetype.choice => enabledKinds.contains('multipleChoice')
-          ? 'multipleChoice'
-          : (enabledKinds.contains('multiSelect')
-              ? 'multiSelect'
-              : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink')),
-      CardArchetype.cloze =>
-        enabledKinds.contains('fillBlank') ? 'fillBlank' : 'canonicalLink',
-      CardArchetype.audioFirst => enabledKinds.contains('listenPick')
-          ? 'listenPick'
-          : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink'),
-      CardArchetype.typeIn => enabledKinds.contains('typeAnswer')
-          ? 'typeAnswer'
-          : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink'),
-      CardArchetype.richHtml => 'canonicalLink',
-      CardArchetype.basicPair => enabledKinds.contains('flip')
-          ? 'flip'
-          : (enabledKinds.contains('showWord') ? 'showWord' : 'canonicalLink'),
-    };
+    return OfficialAnkiPresentationPolicy.expectedKindForArchetype(
+      archetype,
+      enabledKinds,
+    ).name;
   }
 }
 

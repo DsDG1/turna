@@ -130,7 +130,7 @@ void main() {
               id: 'anki-review-w2',
               front: 'Front side',
               back: 'Back side',
-              audioAssets: ['anki://import-1/clip.mp3'],
+              frontAudioAssets: ['anki://import-1/prompt.mp3'],
             ),
             const InteractionState(),
             (_, {userAnswerText, reviewQuality}) {},
@@ -140,6 +140,34 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byType(AnkiMediaStrip), findsOneWidget);
+  });
+
+  testWidgets('media with an unproven face waits for the reveal',
+      (tester) async {
+    // ADR 0057 §5: legacy all-media lists carry no face proof, so they must not
+    // be built before the answer is revealed — otherwise an answer clip is
+    // playable (and screen-readable) on the question face.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AnkiCardRenderer().build(
+            const Interaction.ankiCard(
+              id: 'anki-review-w3',
+              front: 'Front side',
+              back: 'Back side',
+              audioAssets: ['anki://import-1/answer.mp3'],
+            ),
+            const InteractionState(),
+            (_, {userAnswerText, reviewQuality}) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AnkiMediaStrip), findsNothing);
+
+    await revealAnswer(tester);
     expect(find.byType(AnkiMediaStrip), findsOneWidget);
   });
 

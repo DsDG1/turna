@@ -66,15 +66,15 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     final resolve = widget.resolveMediaPath ?? _mediaResolver.resolveMediaPath;
     final images = <String>[];
     for (final asset in widget.imageAssets) {
-      if (!_isExternalMedia(asset)) continue;
-      final path = await _resolveSafely(resolve, asset);
+      if (!_isResolvable(asset)) continue;
+      final path = await _resolveAsset(asset, resolve);
       if (path != null) images.add(path);
     }
     final audios = <({String ref, bool available})>[];
     for (final asset in widget.audioAssets) {
-      if (!_isExternalMedia(asset)) continue;
+      if (!_isResolvable(asset)) continue;
       audios.add(
-        (ref: asset, available: await _resolveSafely(resolve, asset) != null),
+        (ref: asset, available: await _resolveAsset(asset, resolve) != null),
       );
     }
     if (!mounted || generation != _resolveGeneration) return;
@@ -82,6 +82,22 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
       _imagePaths = images;
       _audios = audios;
     });
+  }
+
+  Future<String?> _resolveAsset(
+    String asset,
+    Future<String?> Function(String) resolve,
+  ) async {
+    if (AnkiAudioResolver.isAnkiAsset(asset) || CoursePackMedia.isPackAsset(asset)) {
+      return _resolveSafely(resolve, asset);
+    }
+    // Bare official-collection filename (`hello.mp3`): the official Anki
+    // importer projects media names, not scheme refs, so it resolves against
+    // the collection's media folder instead.
+    return _resolveSafely((ref) async {
+      final audio = getIt<AudioController>();
+      return audio.resolveOfficialMediaPath(ref);
+    }, asset);
   }
 
   Future<String?> _resolveSafely(
@@ -116,12 +132,26 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     if (CoursePackMedia.isPackAsset(ref)) {
       return audio.playCoursePackMedia(ref);
     }
-    return audio.playAnkiMedia(ref);
+    if (AnkiAudioResolver.isAnkiAsset(ref)) {
+      return audio.playAnkiMedia(ref);
+    }
+    return audio.playOfficialMediaFile(ref);
   }
 
-  static bool _isExternalMedia(String asset) =>
+  /// Scheme refs (`anki://`, `turnapack://`) and bare official-collection
+  /// filenames (`hello.mp3`) are both resolvable; anything else is not media.
+  static bool _isResolvable(String asset) =>
       AnkiAudioResolver.isAnkiAsset(asset) ||
-      CoursePackMedia.isPackAsset(asset);
+      CoursePackMedia.isPackAsset(asset) ||
+      _isBareMediaName(asset);
+
+  static bool _isBareMediaName(String asset) {
+    if (asset.isEmpty || asset.contains('://') || asset.contains('/')) {
+      return false;
+    }
+    final dot = asset.lastIndexOf('.');
+    return dot > 0 && dot < asset.length - 1;
+  }
 
   @override
   Widget build(BuildContext context) {

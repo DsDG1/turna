@@ -14,9 +14,11 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/v2/adaptation_promotion_flow.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
 import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/anki/adaptation/card_adaptation_plan.dart';
 import 'package:turna/l10n/app_strings.dart';
 
 class OfficialFirstCommitResult {
@@ -76,6 +78,8 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
   OfficialAnkiImportPreviewModel preview, {
   required CourseDatabase course,
   OfficialCommitProgress? onProgress,
+  Map<String, CardAdaptationPlan> pendingAdaptations =
+      const <String, CardAdaptationPlan>{},
 }) async {
   for (final schema in preview.schemas) {
     if (preview.skippedNotetypes.contains(schema.notetypeId)) continue;
@@ -95,6 +99,7 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
       paths,
       course,
       onProgress: onProgress,
+      pendingAdaptations: pendingAdaptations,
     );
   }
   throw const OfficialAnkiException(
@@ -103,12 +108,15 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
   );
 }
 
+
 Future<OfficialFirstCommitResult> _commitOfficialV2(
   OfficialAnkiImportPreviewModel preview,
   OfficialAnkiDatabase catalog,
   OfficialAnkiPaths paths,
   CourseDatabase course, {
   OfficialCommitProgress? onProgress,
+  Map<String, CardAdaptationPlan> pendingAdaptations =
+      const <String, CardAdaptationPlan>{},
 }) async {
   final result = await OfficialAnkiV2ImportService(
     catalog: catalog,
@@ -127,6 +135,12 @@ Future<OfficialFirstCommitResult> _commitOfficialV2(
     },
     includeMedia: preview.includeMedia,
     onProgress: onProgress,
+  );
+  // 适配方案在 live 落地之后写：manifest 只引用 live 上真实存在的修订。
+  await promoteAdaptationDrafts(
+    live: OfficialAnkiCompositionRoot.engine,
+    sourceId: preview.sourceId,
+    plans: pendingAdaptations,
   );
   return OfficialFirstCommitResult(
     summary: AnkiImportSummary(
@@ -257,3 +271,4 @@ Future<void> cancelActiveOfficialStaging() async {
     paths: paths,
   ).cancelActive();
 }
+

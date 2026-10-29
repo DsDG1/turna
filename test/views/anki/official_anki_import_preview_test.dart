@@ -6,6 +6,7 @@ import 'package:turna/application/anki_import/recognition/lexicon/field_roles.da
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
+import 'package:turna/application/anki_import/anki_import_adaptation_drafts.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
@@ -83,10 +84,11 @@ void main() {
     expect(find.text('42'), findsWidgets);
     expect(find.text('学习模式设定'), findsOneWidget);
 
-    // 2. 验证学习模式三大卡片
+    // 2. 验证学习模式三大卡片（题型行现在按解析器结论显示「经典闪卡翻面」，
+    // 与选择器的模式卡片同名，所以至少各出现一次）
     expect(find.text('智能互动练习'), findsWidgets);
-    expect(find.text('经典闪卡翻面'), findsOneWidget);
-    expect(find.text('原卡官方保真'), findsOneWidget);
+    expect(find.text('经典闪卡翻面'), findsWidgets);
+    expect(find.text('原卡官方保真'), findsWidgets);
 
     // 3. 验证多级目录树层级节点（题型行把目录顶到首屏之外）
     await tester.scrollUntilVisible(find.text('完整章节目录'), 400);
@@ -668,6 +670,10 @@ AnkiImportExecutionPlan _plan() => const AnkiImportExecutionPlan(
 
 class _StubController implements AnkiImportController {
   @override
+  final AnkiImportAdaptationDrafts adaptationDrafts =
+      AnkiImportAdaptationDrafts();
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }
 
@@ -679,6 +685,10 @@ class _RecordingController implements AnkiImportController {
   final skipped = <int>[];
   final toggledDecks = <(int, bool)>[];
   bool committed = false;
+
+  @override
+  final AnkiImportAdaptationDrafts adaptationDrafts =
+      AnkiImportAdaptationDrafts();
 
   @override
   void confirmOfficialMapping(
@@ -725,3 +735,4 @@ class _RecordingController implements AnkiImportController {
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }
+

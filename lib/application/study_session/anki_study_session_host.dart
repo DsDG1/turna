@@ -66,6 +66,44 @@ class AnkiStudySessionHost {
         frontText: interaction.front,
         backText: interaction.back,
         hint: interaction.hint,
+        media: [
+          for (final audio in interaction.frontAudioAssets)
+            CanonicalMediaRef(
+              filename: audio,
+              kind: CanonicalMediaKind.audio,
+              side: MediaOccurrenceSide.front,
+            ),
+          for (final image in interaction.frontImageAssets)
+            CanonicalMediaRef(
+              filename: image,
+              kind: CanonicalMediaKind.image,
+              side: MediaOccurrenceSide.front,
+            ),
+          for (final audio in interaction.backAudioAssets)
+            CanonicalMediaRef(
+              filename: audio,
+              kind: CanonicalMediaKind.audio,
+              side: MediaOccurrenceSide.back,
+            ),
+          for (final image in interaction.backImageAssets)
+            CanonicalMediaRef(
+              filename: image,
+              kind: CanonicalMediaKind.image,
+              side: MediaOccurrenceSide.back,
+            ),
+          // Legacy all-media lists: face unproven, so they stay on the answer
+          // side (CanonicalMediaRef defaults to unknown).
+          for (final audio in interaction.audioAssets)
+            CanonicalMediaRef(
+              filename: audio,
+              kind: CanonicalMediaKind.audio,
+            ),
+          for (final image in interaction.imageAssets)
+            CanonicalMediaRef(
+              filename: image,
+              kind: CanonicalMediaKind.image,
+            ),
+        ],
         sourceFingerprint: 'review',
       );
     } else if (interaction is AnkiHtmlCard) {

@@ -41,6 +41,10 @@ Interaction _$InteractionFromJson(Map<String, dynamic> json) {
       return AnkiCard.fromJson(json);
     case 'ankiHtmlCard':
       return AnkiHtmlCard.fromJson(json);
+    case 'imageRecall':
+      return ImageRecall.fromJson(json);
+    case 'dictation':
+      return Dictation.fromJson(json);
 
     default:
       throw CheckedFromJsonException(json, 'runtimeType', 'Interaction',
@@ -142,6 +146,8 @@ extension InteractionPatterns on Interaction {
     TResult Function(ReadingShortAnswer value)? readingShortAnswer,
     TResult Function(AnkiCard value)? ankiCard,
     TResult Function(AnkiHtmlCard value)? ankiHtmlCard,
+    TResult Function(ImageRecall value)? imageRecall,
+    TResult Function(Dictation value)? dictation,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -174,6 +180,10 @@ extension InteractionPatterns on Interaction {
         return ankiCard(_that);
       case AnkiHtmlCard() when ankiHtmlCard != null:
         return ankiHtmlCard(_that);
+      case ImageRecall() when imageRecall != null:
+        return imageRecall(_that);
+      case Dictation() when dictation != null:
+        return dictation(_that);
       case _:
         return orElse();
     }
@@ -208,6 +218,8 @@ extension InteractionPatterns on Interaction {
     required TResult Function(ReadingShortAnswer value) readingShortAnswer,
     required TResult Function(AnkiCard value) ankiCard,
     required TResult Function(AnkiHtmlCard value) ankiHtmlCard,
+    required TResult Function(ImageRecall value) imageRecall,
+    required TResult Function(Dictation value) dictation,
   }) {
     final _that = this;
     switch (_that) {
@@ -239,6 +251,10 @@ extension InteractionPatterns on Interaction {
         return ankiCard(_that);
       case AnkiHtmlCard():
         return ankiHtmlCard(_that);
+      case ImageRecall():
+        return imageRecall(_that);
+      case Dictation():
+        return dictation(_that);
     }
   }
 
@@ -270,6 +286,8 @@ extension InteractionPatterns on Interaction {
     TResult? Function(ReadingShortAnswer value)? readingShortAnswer,
     TResult? Function(AnkiCard value)? ankiCard,
     TResult? Function(AnkiHtmlCard value)? ankiHtmlCard,
+    TResult? Function(ImageRecall value)? imageRecall,
+    TResult? Function(Dictation value)? dictation,
   }) {
     final _that = this;
     switch (_that) {
@@ -301,6 +319,10 @@ extension InteractionPatterns on Interaction {
         return ankiCard(_that);
       case AnkiHtmlCard() when ankiHtmlCard != null:
         return ankiHtmlCard(_that);
+      case ImageRecall() when imageRecall != null:
+        return imageRecall(_that);
+      case Dictation() when dictation != null:
+        return dictation(_that);
       case _:
         return null;
     }
@@ -391,6 +413,10 @@ extension InteractionPatterns on Interaction {
             String back,
             List<String> audioAssets,
             List<String> imageAssets,
+            List<String> frontAudioAssets,
+            List<String> frontImageAssets,
+            List<String> backAudioAssets,
+            List<String> backImageAssets,
             String? hint,
             String? sourceNoteId)?
         ankiCard,
@@ -406,6 +432,12 @@ extension InteractionPatterns on Interaction {
             String? sourceCardId,
             String? wordId)?
         ankiHtmlCard,
+    TResult Function(String id, List<String> imageAssets, String answerText,
+            String? hint, String? sourceNoteId)?
+        imageRecall,
+    TResult Function(String id, List<String> audioAssets, String expected,
+            String? hint, String? sourceNoteId)?
+        dictation,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -470,8 +502,18 @@ extension InteractionPatterns on Interaction {
         return readingShortAnswer(
             _that.id, _that.prompt, _that.expectedAnswer, _that.grammarPointId);
       case AnkiCard() when ankiCard != null:
-        return ankiCard(_that.id, _that.front, _that.back, _that.audioAssets,
-            _that.imageAssets, _that.hint, _that.sourceNoteId);
+        return ankiCard(
+            _that.id,
+            _that.front,
+            _that.back,
+            _that.audioAssets,
+            _that.imageAssets,
+            _that.frontAudioAssets,
+            _that.frontImageAssets,
+            _that.backAudioAssets,
+            _that.backImageAssets,
+            _that.hint,
+            _that.sourceNoteId);
       case AnkiHtmlCard() when ankiHtmlCard != null:
         return ankiHtmlCard(
             _that.id,
@@ -484,6 +526,12 @@ extension InteractionPatterns on Interaction {
             _that.sourceNoteId,
             _that.sourceCardId,
             _that.wordId);
+      case ImageRecall() when imageRecall != null:
+        return imageRecall(_that.id, _that.imageAssets, _that.answerText,
+            _that.hint, _that.sourceNoteId);
+      case Dictation() when dictation != null:
+        return dictation(_that.id, _that.audioAssets, _that.expected,
+            _that.hint, _that.sourceNoteId);
       case _:
         return orElse();
     }
@@ -575,6 +623,10 @@ extension InteractionPatterns on Interaction {
             String back,
             List<String> audioAssets,
             List<String> imageAssets,
+            List<String> frontAudioAssets,
+            List<String> frontImageAssets,
+            List<String> backAudioAssets,
+            List<String> backImageAssets,
             String? hint,
             String? sourceNoteId)
         ankiCard,
@@ -590,6 +642,12 @@ extension InteractionPatterns on Interaction {
             String? sourceCardId,
             String? wordId)
         ankiHtmlCard,
+    required TResult Function(String id, List<String> imageAssets,
+            String answerText, String? hint, String? sourceNoteId)
+        imageRecall,
+    required TResult Function(String id, List<String> audioAssets,
+            String expected, String? hint, String? sourceNoteId)
+        dictation,
   }) {
     final _that = this;
     switch (_that) {
@@ -653,8 +711,18 @@ extension InteractionPatterns on Interaction {
         return readingShortAnswer(
             _that.id, _that.prompt, _that.expectedAnswer, _that.grammarPointId);
       case AnkiCard():
-        return ankiCard(_that.id, _that.front, _that.back, _that.audioAssets,
-            _that.imageAssets, _that.hint, _that.sourceNoteId);
+        return ankiCard(
+            _that.id,
+            _that.front,
+            _that.back,
+            _that.audioAssets,
+            _that.imageAssets,
+            _that.frontAudioAssets,
+            _that.frontImageAssets,
+            _that.backAudioAssets,
+            _that.backImageAssets,
+            _that.hint,
+            _that.sourceNoteId);
       case AnkiHtmlCard():
         return ankiHtmlCard(
             _that.id,
@@ -667,6 +735,12 @@ extension InteractionPatterns on Interaction {
             _that.sourceNoteId,
             _that.sourceCardId,
             _that.wordId);
+      case ImageRecall():
+        return imageRecall(_that.id, _that.imageAssets, _that.answerText,
+            _that.hint, _that.sourceNoteId);
+      case Dictation():
+        return dictation(_that.id, _that.audioAssets, _that.expected,
+            _that.hint, _that.sourceNoteId);
     }
   }
 
@@ -755,6 +829,10 @@ extension InteractionPatterns on Interaction {
             String back,
             List<String> audioAssets,
             List<String> imageAssets,
+            List<String> frontAudioAssets,
+            List<String> frontImageAssets,
+            List<String> backAudioAssets,
+            List<String> backImageAssets,
             String? hint,
             String? sourceNoteId)?
         ankiCard,
@@ -770,6 +848,12 @@ extension InteractionPatterns on Interaction {
             String? sourceCardId,
             String? wordId)?
         ankiHtmlCard,
+    TResult? Function(String id, List<String> imageAssets, String answerText,
+            String? hint, String? sourceNoteId)?
+        imageRecall,
+    TResult? Function(String id, List<String> audioAssets, String expected,
+            String? hint, String? sourceNoteId)?
+        dictation,
   }) {
     final _that = this;
     switch (_that) {
@@ -833,8 +917,18 @@ extension InteractionPatterns on Interaction {
         return readingShortAnswer(
             _that.id, _that.prompt, _that.expectedAnswer, _that.grammarPointId);
       case AnkiCard() when ankiCard != null:
-        return ankiCard(_that.id, _that.front, _that.back, _that.audioAssets,
-            _that.imageAssets, _that.hint, _that.sourceNoteId);
+        return ankiCard(
+            _that.id,
+            _that.front,
+            _that.back,
+            _that.audioAssets,
+            _that.imageAssets,
+            _that.frontAudioAssets,
+            _that.frontImageAssets,
+            _that.backAudioAssets,
+            _that.backImageAssets,
+            _that.hint,
+            _that.sourceNoteId);
       case AnkiHtmlCard() when ankiHtmlCard != null:
         return ankiHtmlCard(
             _that.id,
@@ -847,6 +941,12 @@ extension InteractionPatterns on Interaction {
             _that.sourceNoteId,
             _that.sourceCardId,
             _that.wordId);
+      case ImageRecall() when imageRecall != null:
+        return imageRecall(_that.id, _that.imageAssets, _that.answerText,
+            _that.hint, _that.sourceNoteId);
+      case Dictation() when dictation != null:
+        return dictation(_that.id, _that.audioAssets, _that.expected,
+            _that.hint, _that.sourceNoteId);
       case _:
         return null;
     }
@@ -2596,11 +2696,19 @@ class AnkiCard implements Interaction {
       required this.back,
       final List<String> audioAssets = const <String>[],
       final List<String> imageAssets = const <String>[],
+      final List<String> frontAudioAssets = const <String>[],
+      final List<String> frontImageAssets = const <String>[],
+      final List<String> backAudioAssets = const <String>[],
+      final List<String> backImageAssets = const <String>[],
       this.hint,
       this.sourceNoteId,
       final String? $type})
       : _audioAssets = audioAssets,
         _imageAssets = imageAssets,
+        _frontAudioAssets = frontAudioAssets,
+        _frontImageAssets = frontImageAssets,
+        _backAudioAssets = backAudioAssets,
+        _backImageAssets = backImageAssets,
         $type = $type ?? 'ankiCard';
   factory AnkiCard.fromJson(Map<String, dynamic> json) =>
       _$AnkiCardFromJson(json);
@@ -2624,6 +2732,40 @@ class AnkiCard implements Interaction {
     if (_imageAssets is EqualUnmodifiableListView) return _imageAssets;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_imageAssets);
+  }
+
+  final List<String> _frontAudioAssets;
+  @JsonKey()
+  List<String> get frontAudioAssets {
+    if (_frontAudioAssets is EqualUnmodifiableListView)
+      return _frontAudioAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_frontAudioAssets);
+  }
+
+  final List<String> _frontImageAssets;
+  @JsonKey()
+  List<String> get frontImageAssets {
+    if (_frontImageAssets is EqualUnmodifiableListView)
+      return _frontImageAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_frontImageAssets);
+  }
+
+  final List<String> _backAudioAssets;
+  @JsonKey()
+  List<String> get backAudioAssets {
+    if (_backAudioAssets is EqualUnmodifiableListView) return _backAudioAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_backAudioAssets);
+  }
+
+  final List<String> _backImageAssets;
+  @JsonKey()
+  List<String> get backImageAssets {
+    if (_backImageAssets is EqualUnmodifiableListView) return _backImageAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_backImageAssets);
   }
 
   final String? hint;
@@ -2659,6 +2801,14 @@ class AnkiCard implements Interaction {
                 .equals(other._audioAssets, _audioAssets) &&
             const DeepCollectionEquality()
                 .equals(other._imageAssets, _imageAssets) &&
+            const DeepCollectionEquality()
+                .equals(other._frontAudioAssets, _frontAudioAssets) &&
+            const DeepCollectionEquality()
+                .equals(other._frontImageAssets, _frontImageAssets) &&
+            const DeepCollectionEquality()
+                .equals(other._backAudioAssets, _backAudioAssets) &&
+            const DeepCollectionEquality()
+                .equals(other._backImageAssets, _backImageAssets) &&
             (identical(other.hint, hint) || other.hint == hint) &&
             (identical(other.sourceNoteId, sourceNoteId) ||
                 other.sourceNoteId == sourceNoteId));
@@ -2673,12 +2823,16 @@ class AnkiCard implements Interaction {
       back,
       const DeepCollectionEquality().hash(_audioAssets),
       const DeepCollectionEquality().hash(_imageAssets),
+      const DeepCollectionEquality().hash(_frontAudioAssets),
+      const DeepCollectionEquality().hash(_frontImageAssets),
+      const DeepCollectionEquality().hash(_backAudioAssets),
+      const DeepCollectionEquality().hash(_backImageAssets),
       hint,
       sourceNoteId);
 
   @override
   String toString() {
-    return 'Interaction.ankiCard(id: $id, front: $front, back: $back, audioAssets: $audioAssets, imageAssets: $imageAssets, hint: $hint, sourceNoteId: $sourceNoteId)';
+    return 'Interaction.ankiCard(id: $id, front: $front, back: $back, audioAssets: $audioAssets, imageAssets: $imageAssets, frontAudioAssets: $frontAudioAssets, frontImageAssets: $frontImageAssets, backAudioAssets: $backAudioAssets, backImageAssets: $backImageAssets, hint: $hint, sourceNoteId: $sourceNoteId)';
   }
 }
 
@@ -2695,6 +2849,10 @@ abstract mixin class $AnkiCardCopyWith<$Res>
       String back,
       List<String> audioAssets,
       List<String> imageAssets,
+      List<String> frontAudioAssets,
+      List<String> frontImageAssets,
+      List<String> backAudioAssets,
+      List<String> backImageAssets,
       String? hint,
       String? sourceNoteId});
 }
@@ -2716,6 +2874,10 @@ class _$AnkiCardCopyWithImpl<$Res> implements $AnkiCardCopyWith<$Res> {
     Object? back = null,
     Object? audioAssets = null,
     Object? imageAssets = null,
+    Object? frontAudioAssets = null,
+    Object? frontImageAssets = null,
+    Object? backAudioAssets = null,
+    Object? backImageAssets = null,
     Object? hint = freezed,
     Object? sourceNoteId = freezed,
   }) {
@@ -2739,6 +2901,22 @@ class _$AnkiCardCopyWithImpl<$Res> implements $AnkiCardCopyWith<$Res> {
       imageAssets: null == imageAssets
           ? _self._imageAssets
           : imageAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      frontAudioAssets: null == frontAudioAssets
+          ? _self._frontAudioAssets
+          : frontAudioAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      frontImageAssets: null == frontImageAssets
+          ? _self._frontImageAssets
+          : frontImageAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      backAudioAssets: null == backAudioAssets
+          ? _self._backAudioAssets
+          : backAudioAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      backImageAssets: null == backImageAssets
+          ? _self._backImageAssets
+          : backImageAssets // ignore: cast_nullable_to_non_nullable
               as List<String>,
       hint: freezed == hint
           ? _self.hint
@@ -2941,6 +3119,279 @@ class _$AnkiHtmlCardCopyWithImpl<$Res> implements $AnkiHtmlCardCopyWith<$Res> {
       wordId: freezed == wordId
           ? _self.wordId
           : wordId // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class ImageRecall implements Interaction {
+  const ImageRecall(
+      {this.id = '',
+      required final List<String> imageAssets,
+      required this.answerText,
+      this.hint,
+      this.sourceNoteId,
+      final String? $type})
+      : _imageAssets = imageAssets,
+        $type = $type ?? 'imageRecall';
+  factory ImageRecall.fromJson(Map<String, dynamic> json) =>
+      _$ImageRecallFromJson(json);
+
+  @override
+  @JsonKey()
+  final String id;
+  final List<String> _imageAssets;
+  List<String> get imageAssets {
+    if (_imageAssets is EqualUnmodifiableListView) return _imageAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_imageAssets);
+  }
+
+  final String answerText;
+  final String? hint;
+  final String? sourceNoteId;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $ImageRecallCopyWith<ImageRecall> get copyWith =>
+      _$ImageRecallCopyWithImpl<ImageRecall>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$ImageRecallToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is ImageRecall &&
+            (identical(other.id, id) || other.id == id) &&
+            const DeepCollectionEquality()
+                .equals(other._imageAssets, _imageAssets) &&
+            (identical(other.answerText, answerText) ||
+                other.answerText == answerText) &&
+            (identical(other.hint, hint) || other.hint == hint) &&
+            (identical(other.sourceNoteId, sourceNoteId) ||
+                other.sourceNoteId == sourceNoteId));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      const DeepCollectionEquality().hash(_imageAssets),
+      answerText,
+      hint,
+      sourceNoteId);
+
+  @override
+  String toString() {
+    return 'Interaction.imageRecall(id: $id, imageAssets: $imageAssets, answerText: $answerText, hint: $hint, sourceNoteId: $sourceNoteId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $ImageRecallCopyWith<$Res>
+    implements $InteractionCopyWith<$Res> {
+  factory $ImageRecallCopyWith(
+          ImageRecall value, $Res Function(ImageRecall) _then) =
+      _$ImageRecallCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      List<String> imageAssets,
+      String answerText,
+      String? hint,
+      String? sourceNoteId});
+}
+
+/// @nodoc
+class _$ImageRecallCopyWithImpl<$Res> implements $ImageRecallCopyWith<$Res> {
+  _$ImageRecallCopyWithImpl(this._self, this._then);
+
+  final ImageRecall _self;
+  final $Res Function(ImageRecall) _then;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? imageAssets = null,
+    Object? answerText = null,
+    Object? hint = freezed,
+    Object? sourceNoteId = freezed,
+  }) {
+    return _then(ImageRecall(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      imageAssets: null == imageAssets
+          ? _self._imageAssets
+          : imageAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      answerText: null == answerText
+          ? _self.answerText
+          : answerText // ignore: cast_nullable_to_non_nullable
+              as String,
+      hint: freezed == hint
+          ? _self.hint
+          : hint // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sourceNoteId: freezed == sourceNoteId
+          ? _self.sourceNoteId
+          : sourceNoteId // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class Dictation implements Interaction {
+  const Dictation(
+      {this.id = '',
+      required final List<String> audioAssets,
+      required this.expected,
+      this.hint,
+      this.sourceNoteId,
+      final String? $type})
+      : _audioAssets = audioAssets,
+        $type = $type ?? 'dictation';
+  factory Dictation.fromJson(Map<String, dynamic> json) =>
+      _$DictationFromJson(json);
+
+  @override
+  @JsonKey()
+  final String id;
+  final List<String> _audioAssets;
+  List<String> get audioAssets {
+    if (_audioAssets is EqualUnmodifiableListView) return _audioAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_audioAssets);
+  }
+
+  final String expected;
+  final String? hint;
+  final String? sourceNoteId;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $DictationCopyWith<Dictation> get copyWith =>
+      _$DictationCopyWithImpl<Dictation>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$DictationToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is Dictation &&
+            (identical(other.id, id) || other.id == id) &&
+            const DeepCollectionEquality()
+                .equals(other._audioAssets, _audioAssets) &&
+            (identical(other.expected, expected) ||
+                other.expected == expected) &&
+            (identical(other.hint, hint) || other.hint == hint) &&
+            (identical(other.sourceNoteId, sourceNoteId) ||
+                other.sourceNoteId == sourceNoteId));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      const DeepCollectionEquality().hash(_audioAssets),
+      expected,
+      hint,
+      sourceNoteId);
+
+  @override
+  String toString() {
+    return 'Interaction.dictation(id: $id, audioAssets: $audioAssets, expected: $expected, hint: $hint, sourceNoteId: $sourceNoteId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $DictationCopyWith<$Res>
+    implements $InteractionCopyWith<$Res> {
+  factory $DictationCopyWith(Dictation value, $Res Function(Dictation) _then) =
+      _$DictationCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      List<String> audioAssets,
+      String expected,
+      String? hint,
+      String? sourceNoteId});
+}
+
+/// @nodoc
+class _$DictationCopyWithImpl<$Res> implements $DictationCopyWith<$Res> {
+  _$DictationCopyWithImpl(this._self, this._then);
+
+  final Dictation _self;
+  final $Res Function(Dictation) _then;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? audioAssets = null,
+    Object? expected = null,
+    Object? hint = freezed,
+    Object? sourceNoteId = freezed,
+  }) {
+    return _then(Dictation(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      audioAssets: null == audioAssets
+          ? _self._audioAssets
+          : audioAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      expected: null == expected
+          ? _self.expected
+          : expected // ignore: cast_nullable_to_non_nullable
+              as String,
+      hint: freezed == hint
+          ? _self.hint
+          : hint // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sourceNoteId: freezed == sourceNoteId
+          ? _self.sourceNoteId
+          : sourceNoteId // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }

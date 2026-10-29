@@ -1,5 +1,11 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/anki_import/adaptation/card_presentation_resolver.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
@@ -71,11 +77,92 @@ class OfficialRenderedFace {
   final OfficialAnkiRenderedCard rendered;
 }
 
-/// Renders official cards into shared-session presentations with a
-/// fidelity-first policy (ADR 0044): cards whose rendered HTML carries
-/// markup become [FidelityCardPresentation]; only genuinely plain-text
-/// cards stay [FlipCardPresentation]. Stripping rich HTML into a flip card
-/// is not an accepted downgrade.
+/// 正式复习 flip 面的媒体：只用 `renderCard` 给出的 `soundOrVideo` 标签。
+///
+/// 三条边界（ADR 0057 §7.3 / §8.4）：
+/// - TTS 标签是官方 AV 语义，不伪装成一个存在的音频文件；
+/// - 视频不在本阶段支持范围，宁可不列，也不让它落进音频条被当成音频播；
+/// - 面归属用官方给的正/背 AV 标签，不从字段顺序猜。
+List<CanonicalMediaRef> formalReviewFlipMedia(
+  OfficialAnkiRenderedCard rendered,
+) {
+  const audioExtensions = <String>{
+    'mp3',
+    'ogg',
+    'oga',
+    'wav',
+    'm4a',
+    'aac',
+    'flac',
+    'opus',
+    'webm',
+  };
+
+  CanonicalMediaRef? refFor(OfficialAnkiAvTag tag, MediaOccurrenceSide side) {
+    if (tag.kind != OfficialAnkiAvKind.soundOrVideo) return null;
+    final raw = tag.filename?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    final name = raw.split(RegExp(r'[/\\]')).last;
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0 || dot == name.length - 1) return null;
+    final extension = name.substring(dot + 1).toLowerCase();
+    if (!audioExtensions.contains(extension)) return null;
+    return CanonicalMediaRef(
+      filename: name,
+      kind: CanonicalMediaKind.audio,
+      side: side,
+    );
+  }
+
+  return <CanonicalMediaRef>[
+    for (final tag in rendered.questionAvTags)
+      if (refFor(tag, MediaOccurrenceSide.front) case final ref?) ref,
+    for (final tag in rendered.answerAvTags)
+      if (refFor(tag, MediaOccurrenceSide.back) case final ref?) ref,
+  ];
+}
+
+/// Whether an engine-rendered face must stay in the fidelity WebView instead
+/// of the stripped flip face (ADR 0057 §8).
+///
+/// This is the single definition of "plain text cannot carry this face": any
+/// tag, entity, cloze or MathJax marker means stripping would corrupt it. The
+/// formal-review renderer consumes it; the choice itself is made by the
+/// presentation resolver, so this predicate only picks between two ways of
+/// showing the ORIGINAL card, never a different presentation.
+bool officialRenderedFaceNeedsFidelity(String html) {
+  if (html.isEmpty) return false;
+  return html.contains('<') ||
+      html.contains('&') ||
+      html.contains('{{c') ||
+      html.contains('\\(') ||
+      html.contains('\\[');
+}
+
+/// Content fingerprint of a rendered card: changes exactly when the card's
+/// rendered faces change (template ordinal, body class, css, both faces).
+///
+/// The old value was the constant `'official-render-$cardId'`, which never
+/// changed — anything using the fingerprint to detect "the card changed"
+/// (caches, drift detection) was silently broken on the formal-review side.
+String officialRenderedContentFingerprint(OfficialAnkiRenderedCard rendered) {
+  final digest = sha256.convert(
+    utf8.encode(
+      '${rendered.templateOrdinal}|${rendered.bodyClass}|'
+      '${rendered.css}|${rendered.questionHtml}|${rendered.answerHtml}',
+    ),
+  );
+  return 'official-render-${digest.toString()}';
+}
+
+/// Official formal-review presentation resolver (ADR 0044 + ADR 0057 §8).
+///
+/// The presentation decision comes from [OfficialCardPresentationResolver]
+/// with `formalReview: true` — phase one pins every card to the original
+/// rendering there, so this class never re-derives a presentation of its own
+/// (ADR 0057 §1: one resolver). What remains local is the choice between two
+/// ways of showing that original card: the fidelity WebView, or a stripped
+/// flip face for cards whose HTML carries no markup at all.
 class OfficialFormalReviewRenderer {
   const OfficialFormalReviewRenderer({required this.engine, this.profileId});
 
@@ -87,11 +174,33 @@ class OfficialFormalReviewRenderer {
     required int cardId,
   }) async {
     final rendered = await engine.renderCard(cardId: cardId);
+
+    // Phase one never inspects card facts: the policy short-circuits
+    // formalReview to the original card (ADR 0057 §8), so the empty values
+    // are never read. Going through the resolver anyway keeps the decision
+    // typed and in one place — if a later phase allows structured cards in
+    // formal review, this is the only call site that has to react.
+    final resolution = const OfficialCardPresentationResolver().resolve(
+      values: OfficialAnkiRoleValues.empty,
+      mapping: null,
+      formalReview: true,
+    );
+    if (!resolution.decision.isOriginalCard) {
+      // Structured decisions are unreachable in phase one; failing closed to
+      // the original card is safer than rendering half a structured exercise
+      // without the projection machinery this path does not have.
+      officialAnkiV2Log(
+        'formal review got a ${resolution.kind.name} decision for card '
+        '$cardId; phase one renders the original card instead',
+        warning: true,
+      );
+    }
+
     final frontHtml = rendered.questionHtml.trim();
     final backHtml = rendered.answerHtml.trim();
-    final hasMarkup = _containsMarkup(frontHtml) || _containsMarkup(backHtml);
+    final fingerprint = officialRenderedContentFingerprint(rendered);
 
-    final AnkiHtmlCard htmlCard = AnkiHtmlCard(
+    final htmlCard = AnkiHtmlCard(
       id: 'official-$sourceId-$cardId',
       frontHtml: rendered.questionHtml,
       backHtml: rendered.answerHtml,
@@ -100,7 +209,8 @@ class OfficialFormalReviewRenderer {
       wordId: 'official-anki-$sourceId-c$cardId',
     );
 
-    if (hasMarkup) {
+    if (officialRenderedFaceNeedsFidelity(frontHtml) ||
+        officialRenderedFaceNeedsFidelity(backHtml)) {
       // Fidelity-first: the shared host renders the real HTML through the
       // WebView; the stripped text remains available only as an
       // accessibility fallback inside the fidelity surface.
@@ -113,11 +223,13 @@ class OfficialFormalReviewRenderer {
             cardId: cardId,
           ),
           templateRef: CanonicalTemplateRef(
+            // The render contract exposes no notetype id; the ordinal plus the
+            // content fingerprint below still identify the rendering uniquely.
             notetypeId: 0,
             ordinal: rendered.templateOrdinal,
-            fingerprint: 'official-render-$cardId',
+            fingerprint: fingerprint,
           ),
-          sourceFingerprint: 'official-render-$cardId',
+          sourceFingerprint: fingerprint,
         ),
         htmlCard: htmlCard,
         rendered: rendered,
@@ -136,22 +248,14 @@ class OfficialFormalReviewRenderer {
         ),
         frontText: frontText.isEmpty ? '—' : frontText,
         backText: backText.isEmpty ? '—' : backText,
-        sourceFingerprint: 'official-render-$cardId',
+        // ADR 0057 §8：正式复习仍是原卡优先，但原卡自带的音画不该在纯文本面
+        // 上消失。按 renderCard 的 AV 事实恢复，并按官方给出的面归属。
+        media: formalReviewFlipMedia(rendered),
+        sourceFingerprint: fingerprint,
       ),
       htmlCard: htmlCard,
       rendered: rendered,
     );
-  }
-
-  static bool _containsMarkup(String html) {
-    if (html.isEmpty) return false;
-    // Any tag, entity, cloze or MathJax marker means the face must render
-    // as HTML — a stripped flip card would corrupt it.
-    return html.contains('<') ||
-        html.contains('&') ||
-        html.contains('{{c') ||
-        html.contains('\\(') ||
-        html.contains('\\[');
   }
 
   static String _plainText(String display, String raw) {

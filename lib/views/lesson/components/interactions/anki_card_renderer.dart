@@ -44,8 +44,12 @@ class AnkiCardRenderer extends InteractionRenderer {
       front: i.front,
       back: i.back,
       hint: i.hint,
-      imageAssets: i.imageAssets,
-      audioAssets: i.audioAssets,
+      frontImageAssets: i.frontImageAssets,
+      frontAudioAssets: i.frontAudioAssets,
+      backImageAssets: i.backImageAssets,
+      backAudioAssets: i.backAudioAssets,
+      legacyImageAssets: i.imageAssets,
+      legacyAudioAssets: i.audioAssets,
       state: state,
       onSubmit: onSubmit,
     );
@@ -56,8 +60,20 @@ class _AnkiCardBody extends StatefulWidget {
   final String front;
   final String back;
   final String? hint;
-  final List<String> imageAssets;
-  final List<String> audioAssets;
+
+  /// Media proven to belong to the question face.
+  final List<String> frontImageAssets;
+  final List<String> frontAudioAssets;
+
+  /// Media proven to belong to the answer face.
+  final List<String> backImageAssets;
+  final List<String> backAudioAssets;
+
+  /// Media whose face was not proven by the importer. Rendered on the answer
+  /// face only, so an answer clip cannot play or be read before the reveal.
+  final List<String> legacyImageAssets;
+  final List<String> legacyAudioAssets;
+
   final InteractionState state;
   final OnInteractionSubmit onSubmit;
 
@@ -65,8 +81,12 @@ class _AnkiCardBody extends StatefulWidget {
     required this.front,
     required this.back,
     this.hint,
-    required this.imageAssets,
-    required this.audioAssets,
+    required this.frontImageAssets,
+    required this.frontAudioAssets,
+    required this.backImageAssets,
+    required this.backAudioAssets,
+    required this.legacyImageAssets,
+    required this.legacyAudioAssets,
     required this.state,
     required this.onSubmit,
   });
@@ -231,7 +251,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
               child: Align(
                 alignment: Alignment.topCenter,
                 child: _showGradeButtons
-                    ? _buildGradeButtons(context)
+                    ? _buildGradeButtons()
                     : LessonCheckButton(
                         label: AppStrings.lessonShowAnswer,
                         enabled: !_revealed && !_flipController.isAnimating,
@@ -266,7 +286,10 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                 ),
           ),
           const SizedBox(height: 8),
-          _buildMedia(),
+          _buildMedia(
+            audioAssets: widget.frontAudioAssets,
+            imageAssets: widget.frontImageAssets,
+          ),
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReveal,
@@ -302,7 +325,16 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                 ),
           ),
           const SizedBox(height: 8),
-          _buildMedia(),
+          _buildMedia(
+            audioAssets: [
+              ...widget.backAudioAssets,
+              ...widget.legacyAudioAssets,
+            ],
+            imageAssets: [
+              ...widget.backImageAssets,
+              ...widget.legacyImageAssets,
+            ],
+          ),
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReturnFront,
@@ -316,91 +348,33 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
     );
   }
 
-  Widget _buildMedia() {
-    if (widget.audioAssets.isEmpty && widget.imageAssets.isEmpty) {
+  Widget _buildMedia({
+    required List<String> audioAssets,
+    required List<String> imageAssets,
+  }) {
+    if (audioAssets.isEmpty && imageAssets.isEmpty) {
       return const SizedBox.shrink();
     }
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: AnkiMediaStrip(
-        audioAssets: widget.audioAssets,
-        imageAssets: widget.imageAssets,
+        audioAssets: audioAssets,
+        imageAssets: imageAssets,
       ),
     );
   }
 
-  Widget _buildGradeButtons(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _GradeButton(
-                label: AppStrings.reviewBinaryForgotten,
-                color: TurnaTheme.error,
-                onPressed: () => _grade(
-                  correct: false,
-                  label: AppStrings.reviewBinaryForgotten,
-                  rating: AnkiReviewRating.again,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _GradeButton(
-                label: AppStrings.reviewBinaryRemembered,
-                color: TurnaTheme.brandTeal,
-                onPressed: () => _grade(
-                  correct: true,
-                  label: AppStrings.reviewBinaryRemembered,
-                  rating: AnkiReviewRating.good,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _GradeButton extends StatelessWidget {
-  final String label;
-  final Color color;
-  final VoidCallback onPressed;
-
-  const _GradeButton({
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color.withValues(alpha: 0.12),
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        // Height floor instead of a fixed SizedBox height: labels wrap to two
-        // lines under large text scaling and must grow the button instead of
-        // overflowing it.
-        minimumSize: const Size(0, 48),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-        ),
-      ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-        ),
+  Widget _buildGradeButtons() {
+    return BinaryGradeRow(
+      onForgotten: () => _grade(
+        correct: false,
+        label: AppStrings.reviewBinaryForgotten,
+        rating: AnkiReviewRating.again,
+      ),
+      onRemembered: () => _grade(
+        correct: true,
+        label: AppStrings.reviewBinaryRemembered,
+        rating: AnkiReviewRating.good,
       ),
     );
   }

@@ -77,7 +77,88 @@ Type _handlesTypeFor(Interaction interaction) {
     ReadingShortAnswer() => ReadingShortAnswer,
     AnkiCard() => AnkiCard,
     AnkiHtmlCard() => AnkiHtmlCard,
+    ImageRecall() => ImageRecall,
+    Dictation() => Dictation,
   };
+}
+
+/// Binary recall grading row ("forgotten" / "remembered").
+///
+/// Shared by every self-graded presentation (flip card, image recall) so the
+/// two do not drift into two different-looking verdict rows.
+class BinaryGradeRow extends StatelessWidget {
+  const BinaryGradeRow({
+    super.key,
+    required this.onForgotten,
+    required this.onRemembered,
+  });
+
+  final VoidCallback onForgotten;
+  final VoidCallback onRemembered;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _BinaryGradeButton(
+            label: AppStrings.reviewBinaryForgotten,
+            color: TurnaTheme.error,
+            onPressed: onForgotten,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _BinaryGradeButton(
+            label: AppStrings.reviewBinaryRemembered,
+            color: TurnaTheme.brandTeal,
+            onPressed: onRemembered,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BinaryGradeButton extends StatelessWidget {
+  const _BinaryGradeButton({
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.12),
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        // Height floor instead of a fixed SizedBox height: labels wrap to two
+        // lines under large text scaling and must grow the button instead of
+        // overflowing it.
+        minimumSize: const Size(0, 48),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: color.withValues(alpha: 0.4)),
+        ),
+      ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
 }
 
 /// Bottom action button shared by all graders (MCQ, FillBlank, Translate,

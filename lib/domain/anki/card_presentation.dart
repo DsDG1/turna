@@ -9,6 +9,8 @@ enum CardPresentationKind {
   typeAnswer,
   flip,
   fidelity,
+  imageRecall,
+  dictation,
 }
 
 sealed class CardPresentation {
@@ -72,6 +74,42 @@ class FlipCardPresentation extends CardPresentation {
   final int classifierVersion;
   @override
   final int mappingVersion;
+
+  /// Audio references carried by this card, in extraction order.
+  Iterable<String> get audioMediaRefs => media
+      .where((ref) => ref.kind == CanonicalMediaKind.audio)
+      .map((ref) => ref.filename);
+
+  /// Image references carried by this card, in extraction order.
+  Iterable<String> get imageMediaRefs => media
+      .where((ref) => ref.kind == CanonicalMediaKind.image)
+      .map((ref) => ref.filename);
+
+  /// Media proven to belong to the question face.
+  Iterable<String> _refsOn(MediaOccurrenceSide side, CanonicalMediaKind kind) =>
+      media
+          .where((ref) => ref.side == side && ref.kind == kind)
+          .map((ref) => ref.filename);
+
+  List<String> get frontAudioMedia =>
+      _refsOn(MediaOccurrenceSide.front, CanonicalMediaKind.audio).toList();
+
+  List<String> get frontImageMedia =>
+      _refsOn(MediaOccurrenceSide.front, CanonicalMediaKind.image).toList();
+
+  List<String> get backAudioMedia =>
+      _refsOn(MediaOccurrenceSide.back, CanonicalMediaKind.audio).toList();
+
+  List<String> get backImageMedia =>
+      _refsOn(MediaOccurrenceSide.back, CanonicalMediaKind.image).toList();
+
+  /// Media whose face could not be proven. Callers must treat it as
+  /// answer-side; the rendering resolver is expected to fall back to the
+  /// original card instead of guessing (ADR 0057 §5).
+  List<String> get unknownSideMedia => media
+      .where((ref) => ref.side == MediaOccurrenceSide.unknown)
+      .map((ref) => ref.filename)
+      .toList();
 }
 
 class FidelityCardPresentation extends CardPresentation {

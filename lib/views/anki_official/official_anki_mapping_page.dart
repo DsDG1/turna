@@ -92,6 +92,10 @@ String _presetLabel(OfficialExercisePreset preset) {
       return AppStrings.ankiOfficialExerciseListen;
     case OfficialExercisePreset.flip:
       return AppStrings.ankiOfficialExerciseFlip;
+    case OfficialExercisePreset.lookAtImage:
+      return AppStrings.ankiOfficialExerciseLookAtImage;
+    case OfficialExercisePreset.dictation:
+      return AppStrings.ankiOfficialExerciseDictation;
   }
 }
 

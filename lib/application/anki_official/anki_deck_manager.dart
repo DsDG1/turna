@@ -11,6 +11,7 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_post_retire_reclaimer.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
+import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/domain/repositories/i_anki_import_store.dart';
 import 'package:turna/data/course_database.dart';
@@ -163,6 +164,22 @@ class AnkiDeckManager {
       engine: engine,
     );
     await service.beginRetire(sourceId: sourceId);
+    // 适配方案的命名空间随来源一起清理（ADR 0057 §6）：manifest、单卡覆盖、
+    // 已写修订全在配置区，不删就会留下没人引用的小键。引擎缺席时删不了
+    // 配置区，记一条告警即可——retire 本身不能被它挡住。
+    if (engine != null) {
+      try {
+        await OfficialAnkiAdaptationStore(engine)
+            .deleteSourceNamespace(sourceId);
+      } catch (error) {
+        logger.w('[AnkiDeckManager] adaptation namespace cleanup failed: $error');
+      }
+    } else {
+      logger.w(
+        '[AnkiDeckManager] adaptation namespace left behind '
+        '(no engine): $sourceId',
+      );
+    }
     Future<void> enginePass() async {
       try {
         await service.runRetireJob(sourceId: sourceId);

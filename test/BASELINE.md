@@ -7,6 +7,153 @@
 
 ---
 
+### 2026-10-22 记忆卡适配：真实端点打通（凭据不入库）
+
+- **性质**：验证批次 + 两个真实缺陷修复；**测试数 +1**（`ai_card_adaptation_service_test` 9 → 10 条）。
+- **怎么测的**：新增 `tool/live/ai_adaptation_live_smoke_test.dart`（不在 `test/` 下，默认测试集与 CI 都不会跑到）。凭据路径走环境变量 `TURNA_LIVE_CREDENTIALS`，仓库里不出现个人路径、更不出现凭据；结果摘要写到 `build/live_adaptation_smoke.log`（不入库），日志里把 key 替换成 `***`。测试内部先发一次最小探针请求看真实错误，再走 `AiCardAdaptationService` 全链路。
+- **真实端点暴露的两个缺陷**：①**合规回复被误判成 `not_json`**——协议明确让模型不要给 `scope`（由应用附加），而 `CardAdaptationPlan.fromJson` 要求 `scope`，于是模型越守规矩越失败。现在解析时用调用方事实补 `scope`，随后仍由 `_withFactsScope` 覆盖。②**默认输出预算对推理模型不够**——`maxTokens: 1200` 在 MiniMax-M3.1-Flash 上把 thinking（实测约 9k 字符）和正文一起截断，返回空内容 + `finish_reason=length`，被正确地判成终态 `truncated`，但等于适配永远不可用。默认改为 4000。
+- **顺带补齐**：`AiJsonSchemas.cardAdaptation` 与 `outputProtocol` 增加 `defaultExercise`（此前模型无从表达「这组做听写」，只能落到 flip）。
+- **验证**：真实端点一次调用 → `outcome=accepted`，`revalidation_ok=true`，`blocks=front:2,back:2`，`bindings={prompt:0,answer:1,audio:2,image:3}`，`repaired=false`；`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2433 passed / 0 failed**。
+- **未验**：仍未经 app 内路径（设置里配 key → 预览页生成）验证；一台设备都没有，真机链路、鸿蒙 HAP、Rust 抽样三项外部阻塞不变。凭据只在本机会话外的一次测试中使用，**未写入仓库任何文件**。
+
+---
+
+### 2026-10-22 记忆卡适配：撤销已生效方案的 UI 入口
+
+- **性质**：功能批次；**测试数 +6**（新增 `adaptation_restore_sheet_test` 6 条）。
+- **改动**：①新增 `views/anki_official/components/adaptation_restore_sheet.dart`：来源级「显示方式」面板，读 manifest 列出当前生效的 scope（`notetype:template[:cloze]` → 「笔记类型 X · 模板 Y」），支持逐组或全部恢复原卡。恢复只调 `deactivate` / `replaceManifest`，**不碰卡片内容、不碰排期**（plan §12.4）。②课程管理页的溢出菜单新增「显示方式」项，只在官方来源上出现；面板关闭后如有变更提示一次「已恢复原卡显示」。③面板本身不碰引擎：`loadManifest` / `restoreScope` / `restoreAll` 由调用方注入，因此可以在没有引擎的测试里验证「恢复失败不得显示成已恢复」「空清单显示空态」「坏 scope 键原样显示」。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2432 passed / 0 failed**；断言覆盖按标签列出 scope、逐组恢复后该行消失而其它行保留、失败保留该行、全部恢复后转空态、无方案空态、坏 scope 键原样显示。
+- **未验**：面板背后的 `deactivate` 只切 manifest，**真实课时里的展示变化要靠重进课时重新派生**（目前没有主动刷新）；单卡覆盖（`writeCardOverride`）仍无 UI 入口；外部阻塞（设备 / Rust 抽样 / 鸿蒙 hvigor）不变。
+
+---
+
+### 2026-10-22 记忆卡适配：全量自检（接线补口 + 去重 + ADR 对账）
+
+- **性质**：审计与修正批次；**测试数 +1**（`official_anki_architecture_guard_test` +1 条）。
+- **发现并修掉**：①**卸载不清适配命名空间**——`AnkiDeckManager._uninstallV2Source` 只 retire 账本与卡片，`turna.adapt.*` 四个键族会永久残留。现在在 `beginRetire` 之后、引擎删除之前调用 `deleteSourceNamespace`；引擎缺席时记一条告警（配置区删不了），且这条清理**不得挡住 retire**。②两处死代码：`AnkiImportAdaptationDrafts.clearScope` 与 `OfficialAnkiRoleValues.allAudio` 无调用方，删除。③「不支持结构」的判定此前有两份几乎相同的正则（`card_document_builder` 与 `projection_payloads`），合并为 `cardCarriesUnsupportedStructure` 单一实现，payloads 侧改为委托——两份清单正是漂移的源头。④ADR 0057 与实现的对账：键名改成实际的 `r<revision>`；单卡覆盖改成实际的「按来源一张小表」；块类型改成实际实现的四种（text / richText / imageGroup / audioGroup），视频与容器组明确标为后续增量；协议示例的 `bindings` 改成扁平「角色 → 序号」、`exercisePolicy` 改成 `defaultExercise` + `optionalExercises`、去掉没有实现的 `guards` 与 `visualFacts`；并写明 `fallback` 目前只接受 `original`。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2426 passed / 0 failed**；新守卫断言「retire 先于清理、且引擎缺席有告警」；`docs_hygiene_test` 绿。
+- **未验**：卸载接线只有静态守卫 + store 级测试，没有走 `AnkiDeckManager` 的集成测试（构造它需要 repo / importDao / appPrefs 与组合根，成本高于本轮价值）；`deactivate` 与 `clearCardOverride` 仍只有测试调用——**线上还没有「取消已生效方案」「单卡覆盖」的 UI 入口**，属 P6 未完成的用户路径。
+
+---
+
+### 2026-10-22 记忆卡适配：可解释性落地 + 架构叙述入 guide
+
+- **性质**：功能 + 文档批次；**测试数 +1**（`smart_adaptation_panel_test` 6 → 7 条；该文件此前的一条断言扩展了具体原因文案）。
+- **改动**：①`AppStrings.presentationReasonLabel`：把解析器的 14 个 `PresentationReason` 逐条译成中文解释（「必填字段被截断，无法证明内容完整」「媒体的正反面归属无法确认」等），界面不再只能显示一句笼统失败。②补齐枚举里确实缺的两个原因：`planMissing`（manifest 引用的修订缺失）与 `unsupportedStructure`（脚本/表格/内嵌媒体这类渲染不了的结构），并在课时派生里按实际情况计数。③`SmartAdaptationPanel` 被本地拒绝时列出前两条具体原因（新增 `_issueLabel` 覆盖 14 个 `AdaptationIssue`）。④课时派生按原因聚合一次写日志（只记枚举名与次数，不记字段内容），ADR 0057 §9 的「可解释」从契约变成可观测。⑤`docs/project-guide.md` §6.1 新增架构叙述：单一解析器、配置区四键族与激活协议、按面媒体与 `CardDocument` 布局、AI 输入预算与本地校验、新练习 opt-in、正式复习首期原卡。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2425 passed / 0 failed**；`docs_hygiene_test` 绿；新断言：每个 `PresentationReason` 都有非空中文标签且不含专名、被拒方案显示具体原因（`答案会出现在题面`）。
+- **未验**：原因文案只覆盖「方案被拒」与日志聚合两处；课时页面里还没有面向用户的「为什么这张卡是原卡」入口。外部阻塞（设备 / Rust 抽样 / 鸿蒙 hvigor）不变。
+
+---
+
+### 2026-10-22 记忆卡适配：方案布局真正参与渲染（CardDocument）
+
+- **性质**：功能批次；**测试数 +9**（新增 `card_document_builder_test` 6 条、`official_anki_projection_payloads_media_test` +2 条、`official_anki_v2_lesson_content_test` +1 条）。
+- **改动**：①新增 `application/anki_import/adaptation/card_document_builder.dart`：把方案的 `front` / `back` 有序块合成「每面文本 + 该面音频 + 该面图片」——`text`/`richText` 取字段纯文本并按块序换行拼接，`audioGroup`/`imageGroup` 按 `selection`（all / first）取该字段的媒体 occurrence。②块点到不存在的字段、或点到脚本/表格/内嵌媒体这类渲染器表达不了的结构时，`CardDocument.unsupported = true`，调用方整张卡回原卡，**不渲染半份布局**。③`OfficialAnkiRoleValues` 增加 `document`；`values(row, mapping, plan: …)` 在方案生效时构建它。flip 载荷在文档在场时由文档接管文本与四类按面媒体，legacy 全量表清空。④课时派生把方案传进 `values`，`unsupported` 直接走 `canonicalLink`。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2424 passed / 0 failed**；断言覆盖按面块归属（文本/图片/音频各归其面）、`selection=first`、多文本块按序拼接、越界字段 unsupported、脚本块 unsupported、无块时不生成文档、方案接管时不再退 legacy 全量表、课时里 unsupported 布局回原卡。
+- **边界（已写进 ADR 0057 §5）**：这一版**只决定内容落在哪一面**，不做同一面内「文本—媒体」交错排版；flip 渲染器先文本后媒体，真正的交错版面需要独立的卡片文档渲染器，属后续增量。外部阻塞（设备 / Rust 抽样 / 鸿蒙 hvigor）不变。
+
+---
+
+### 2026-10-22 记忆卡适配 P4/P6 补口：方案真的换题型、绑定真的生效
+
+- **性质**：功能批次；**测试数 +2**（`official_anki_v2_lesson_content_test` +2 条）。
+- **改动**：①课时派生里 `values` 的取值时机修正——此前先用原始映射算出 values，再为解析器套上方案（只影响 kind），于是 `plan.bindings` 永远进不到正面/背面文本里。现在先查方案、再用「方案绑定 + 方案练习范围」构造映射重新取值，绑定才算真的生效。②新增 `_withPlanBindings`：把方案的 `prompt` / `answer` / `pronunciation` / `example` / `audio` / `image` / `options` 绑定覆盖到候选角色上（confidence 1 + `plan` 证据），没被方案绑定的角色继续沿用识别结果。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2415 passed / 0 failed**；两条新断言：方案 `defaultExercise: dictation` 时，带正面音频的卡真的产出 `Dictation`（`expected = merhaba`、`audioAssets = ['merhaba.mp3']`），而同组没有正面音频的卡回落 `AnkiCard`；方案把 `prompt` 绑到字段 1 时，翻卡正面变成释义（`你好`）、背面是词条（`hello`）。
+- **未验**：布局块（`front` / `back` 的有序 block）仍只做校验与存储，**没有驱动渲染**——真正的 block 渲染（`CardDocument`）还没做，本轮让绑定生效不等于布局生效。设备、Rust 抽样、鸿蒙 HAP 三条外部阻塞不变。
+
+---
+
+### 2026-10-22 记忆卡适配 P8 收尾：升迁流程抽成可测单元 + 鸿蒙构建受阻
+
+- **性质**：重构 + 验证批次；**测试数 +5**（新增 `adaptation_promotion_flow_test` 5 条）。
+- **改动**：①把提交期升迁从 `anki_import_official_flow.dart` 的私有函数抽成 `application/anki_official/v2/adaptation_promotion_flow.dart` 的 `promoteAdaptationDrafts(live:, sourceId:, plans:)`：live 为空 → 空报告；`plans` 为空 → 零引擎调用；projection schema 读取异常 → 吞掉并记日志（此时导入已经提交成功）；schema 没有模板事实 → 该组按 `missingTemplate` 跳过，绝不猜序号。②flow 改为调用该函数，行为不变，但这条链路现在能脱离整个 commit 流程单独验证。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2413 passed / 0 failed**；5 条新断言覆盖无 live 引擎、无草稿时零调用、schema 抛错可吞、无模板事实跳过、有模板事实时升迁在 live 生效。
+- **未验**：**鸿蒙 HAP 构建失败（环境问题）**。把 DevEco 的 `hvigor` / `ohpm` 加进 PATH 后 `flutter build hap --debug` 已能启动 hvigor（`flutter doctor` 显示两者就位），但停在 `hvigorconfig.ts / hvigorfile.ts` 解析错误、`0 task executed`——本机全局 hvigor 版本与仓库的 `modelVersion 5.1.0` + `flutter-hvigor-plugin` 依赖不匹配。这既不是本轮代码问题，也没有被绕过验证，故如实记为未验。
+
+---
+
+### 2026-10-22 记忆卡适配 P7 + P8 出包：正式复习维持原卡 + APK 构建
+
+- **性质**：功能批次 + 交付批次；**测试数 +4**（`official_formal_review_fidelity_test` 4 → 8 条）。
+- **改动（P7）**：①正式复习的 flip 面按 `renderCard` 的 AV 事实恢复媒体（`formalReviewFlipMedia`）：`soundOrVideo` 标签且文件名带音频扩展名才成为音频 occurrence，面归属直接用官方给的正/背标签，路径段剥成 basename；TTS 标签不伪装成文件，视频不在本阶段支持集，缺文件名的标签也不是媒体。此前纯文本卡在正式复习里会把 `[sound:]` 丢掉——「原卡优先」不等于「原卡音画可以消失」。②fidelity 分支不变（WebView 渲染原 HTML 与媒体）。③**首期正式复习恒原卡**变成可执行断言：即使 live 配置区已有生效方案，正式复习也不读配置区（`getConfigCalls == 0`）并继续返回 Fidelity/Flip，绝不产出结构化练习。
+- **改动（P8）**：`flutter build apk --debug` 出包成功（`build/app/outputs/flutter-apk/app-debug.apk`，194.8 MB），`docs/status.md` §4 追加一条 Held：适配端到端未验（无设备、AI 未打真实端点、分层抽样未实现）。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2408 passed / 0 failed**；新断言覆盖按面音频（含 `../../` 路径剥名）、TTS/视频/缺文件名的排除、方案存在也不改变正式复习、正式复习永不返回 `StructuredCardPresentation`。
+- **未验 / 未完**：正式复习**没有接入统一解析器**——首期的正确行为就是恒原卡，接上解析器需要先明确接受哪些「语义等价布局」，属独立产品决策（plan §14 P7 前置）。APK **未安装到任何设备**（`adb devices` 为空、`hdc list targets` 为空）；鸿蒙 HAP 未构建；AI 请求未打真实端点；分层抽样仍缺 Rust 工具链。
+
+---
+
+### 2026-10-22 记忆卡适配 P6c：导入预览的智能适配入口 + 草稿随提交落库
+
+- **性质**：功能批次；**测试数 +10**（新增 `smart_adaptation_panel_test` 6 条、`official_anki_adaptation_promoter_test` 的 in-session 组 4 条）。
+- **改动**：①新增 `AnkiImportAdaptationDrafts`（scopeKey → plan，`ChangeNotifier`）：方案只在**会话内**暂存，不写 staging collection——`promoteStagingCollection` 是否连带搬配置区属于后端语义，不能假设；没提交就退出则什么都不落地。②`AnkiImportController` 暴露 `adaptationDrafts`，提交时把草稿传给 `commitOfficialPreview`，成功后清空、失败保留（可重试）。③`commitOfficialPreview` 新增 `pendingAdaptations` 参数：collection 提交成功后 best-effort 调 `promotePlans`，live 模板序号由 live 引擎的 projection schemas 现查；任何失败只记日志，导入本身已经成功。④新增 `SmartAdaptationPanel`（纯展示与确认：生成、显示方案修订、应用、恢复原卡，以及未配置 / 不可用 / 被拒 / 截断四类状态）与 `SmartAdaptationHost`（事实构造、AI 调用、二次本地校验、暂存），预览页只留三行摆放。⑤按 ADR 0056，`isDegraded(aiGeneration)` 时整个入口隐藏而不是置灰。⑥剥离后预览页回到 473 行、controller 599 行，两条既有 size ratchet（预览 ≤500、controller ≤600）都满足——**没有放宽任何数值**。
+- **验证**：`flutter analyze lib test` **No issues found**；`flutter test --exclude-tags golden` **2404 passed / 0 failed**；断言覆盖未配置时按钮禁用、accepted 显示修订且能应用、unavailable / rejected / truncated 三类文案、已暂存可恢复、会话内方案升迁成功 / 模板消失跳过 / 空集合零写入 / 键与 body scope 不一致跳过。
+- **未验**：没有用真实 `.apkg` 走完「预览 → 智能适配 → 提交 → 课时」这条端到端路径；AI 请求未打真实端点；预览页与提交链没有 widget 级联调（只有面板单测 + 服务单测 + 升迁单测）。
+
+---
+
+### 2026-10-22 记忆卡适配 P6b：staging → live 重绑定
+
+- **性质**：功能批次；**测试数 +10**（新增 `official_anki_adaptation_promoter_test` 10 条）。
+- **改动**：①`parseAdaptationScopeKey`：`notetype:template[:c<cloze>]` 的逆向解析，坏键返回 null（被跳过的条目绝不猜）。②store 增加 `replaceManifest` / `replaceCardOverrides`——升迁只需要**一次** manifest 写；按单 scope 逐条切换会让一次崩溃暴露半升迁状态。③新增 `OfficialAnkiAdaptationPromoter`：把 manifest 引用的修订逐条搬到 live，用调用方提供的 live 模板序号核每个 scope，最后一次写 live manifest 完成切换；单卡覆盖随组迁移；live 上已有的旧 scope 走**合并**而不是覆盖，一次新导入不会抹掉老方案。跳过原因按 `AdaptationSkipReason`（malformedScope / missingBody / missingTemplate / scopeMismatch）逐条报出，任何跳过都不在 live 留半份状态。
+- **验证**：`flutter analyze lib` **No issues found**；`flutter test --exclude-tags golden` **2394 passed / 0 failed**；断言覆盖有效 scope 升迁并生效、模板序号消失整组跳过、未知 note 类型 fail-closed、方案体缺失跳过、坏 scope 键跳过、方案自述 scope 与键不一致跳过、与既有 live scope 合并、单卡覆盖随迁、幂等重跑、无候选时零写入。
+- **未验**：**UI 入口仍未接**；升迁目前只有服务与测试，还没挂进 commit 流；备份/恢复实测与模板资源 GC 未做；未出包。
+
+---
+
+### 2026-10-22 记忆卡适配 P6：配置区激活协议与执行
+
+- **性质**：功能批次；**测试数 +15**（新增 `official_anki_adaptation_store_test` 12 条、`official_anki_v2_lesson_content_test` +3 条）。
+- **改动**：①新增适配键族 `OfficialAnkiAdaptationConfigKeys`（`turna.adapt.plan.<planId>.r<revision>` / `manifest.<sourceId>` / `cards.<sourceId>` / `index.<sourceId>`），并在文件里钉住载荷模型 `AdaptationManifest`、`AdaptationCardOverride`、`AdaptationCardOverrideTable`、`AdaptationPlanIndex`；单卡覆盖刻意做成「每 source 一个键的小表」——逐卡建键会让按来源清理命名空间需要枚举配置区，而引擎没有可靠的枚举语义。②新增 `OfficialAnkiAdaptationStore`：方案体不可变（同键不同内容抛 `invalidState`，同字节重放幂等）、`activate` 先写体再回读再切 manifest、`deactivate` 只切引用不删体、`lookup` 实现「单卡覆盖 > 精确 cloze scope > 模板 scope > 无方案」四级优先，并把「明确回原卡」「manifest 指向的修订不存在」「根本没有方案」分成三个类型——第三种才是旧数据的正常路径。③`AdaptationSnapshot`：manifest 与覆盖表各读一次，修订体按需读并缓存，20 张卡的课时从 3×N 次配置读降到 2 + 不同方案数。④课时派生接上方案：命中方案时把该组的练习范围收窄为「默认练习 + 可选练习 + flip + canonicalLink」，仍是逐卡重判（方案说「这组做听写」，但没有正面音频的卡照旧回落）；方案明确回原卡或修订缺失时该卡直接走 `canonicalLink`，并在日志里与「无方案」区分开。⑤`CardAdaptationPlan` 补 `defaultExercise`（与布局分开：改练习改任务，改布局不改任务），校验器新增 `unknownDefaultExercise`。
+- **验证**：`flutter analyze lib` **No issues found**；`flutter test --exclude-tags golden` **2384 passed / 0 failed**；新增断言覆盖激活写序、修订不可变、幂等重放、manifest 指向已删体、损坏体按缺失、单卡覆盖双向优先、精确 cloze scope 优先、停用后仍可复用体、无方案是正常路径、损坏 manifest 读成空、卸载清空整个 `turna.adapt.` 命名空间、scope key 区分模板序号与 cloze 目标、课时里单卡覆盖只影响该卡、修订缺失回原卡、坏方案不拖垮整课。
+- **未验**：**UI 还没接**——导入预览里没有「智能适配 / 应用 / 恢复原卡」入口，`AiCardAdaptationService` 仍无生产调用方；staging→live 重绑定、备份/恢复实测、模板资源 GC 也还没做。未出包。
+
+---
+
+### 2026-10-22 记忆卡适配 P5：AI 候选生成 + 本地语义校验
+
+- **性质**：功能批次；**测试数 +28**（新增 `adaptation_plan_validator_test` 12 条、`adaptation_input_builder_test` 5 条、`ai_card_adaptation_service_test` 10 条；`card_presentation_resolver_test` 批量汇总 2 条，其中一条替换了原有 formal-review 用例的结尾断言）。
+- **改动**：①`lib/domain/anki/adaptation/card_adaptation_plan.dart`：声明式方案契约（scope / bindings / front / back / optionalExercises / fallback / fingerprints / provenance）+ 受控词表 `AdaptationVocabulary`（块类型、练习、绑定角色、回退、selection）。解析只保证信封完整，语义一律交给校验器；缺信封抛 `AdaptationPlanFormatException(code)`，不做「尽量猜」。②`AdaptationPlanValidator`：信封 → scope（source / notetype / 模板序号）→ 词表 → 字段引用 → 信息泄漏逐层拒绝；新增两条泄漏规则——答案绑定字段不得出现在 front、仅背面渲染的字段不得出现在 front；空 front、非 `original` 回退、未知练习/块/绑定角色一律拒。③`AdaptationInputBuilder`：只发结构事实（字段名、每模板正/背字段序号、typeIn/script/complexHtml 标记、最多 3 条截断样本、每字段音画直方图、受控词表与输出协议），**不发模板源码 / CSS**；样本 3 条、单字段 120 字、单样本 1200 字封顶；系统提示写明牌组内容是不可信数据。④`AiCardAdaptationService`：一组一次调用、最多一次修复尝试；scope 由应用覆盖（模型自报 source 无效）；截断按终局拒绝处理（重试同一请求不可能成功）；传输异常 → `unavailable`、非 JSON → `not_json`、语义不过 → `invalid_plan`，全部以返回值表达，不向导入流程抛异常；AI 关闭或鸿蒙降级时零调用。生产绑定 `viaEngine` 仍走 `AiEngine.requestJson`（取消、缓存、用量、合规门都在）。⑤`AdaptationBatchSummary`：结构化 / 回原卡 / 需修正 / 不可用四类计数与占比，空组按 0% 而不是 100%。⑥`AiJsonSchemas.cardAdaptation` 只钉信封，语义留给本地校验——JSON Schema 表达不了「答案不得出现在正面」。
+- **验证**：`flutter analyze lib` **No issues found**；`flutter test --exclude-tags golden` **2369 passed / 0 failed**；新增断言覆盖答案上正面被拒、背面专属字段上正面被拒、越界字段、未知块/练习/绑定/回退、跨源/跨笔记类型/跨模板 scope、坏信封、JSON 往返、样本与字段截断、音画直方图、请求确定性、请求不含模板源码、一次修复即通过、二次无效即拒绝、截断终局、传输失败可继续、AI 关闭零调用、模型伪造 source 被覆盖。
+- **未验**：未用真实端点跑过（无 key、本轮不做网络调用）；尚未接进任何 UI（P6 才接线），所以「用户点智能适配」这条端到端路径还不存在；取样仍是引擎侧的 `SortMode::NoOrder`，没有变分层。
+
+---
+
+### 2026-10-22 记忆卡适配 P4：看图回忆与听写两种展示 + 组件注册
+
+- **性质**：功能批次；**测试数 +18**（新增 `dictation_renderer_test` 4 条、`image_recall_renderer_test` 6 条、`card_presentation_resolver_test` +6 条、`official_anki_projection_payloads_media_test` +2 条；`renderer_lookup_test` 只扩样本不加用例）。
+- **改动**：①`Interaction` 联合类型新增 `ImageRecall`（看图回忆）与 `Dictation`（听写），走 freezed + json_serializable（OHOS fork SDK 重新生成）；六个穷举 switch（grammarPointId / AI 提示资格 / 正确答案标签 / 题面标签 / 类型标签 / 选项标签）同步补臂，两种展示都没有文字题面，因此 AI 提示资格为 false——否则提示框会把答案的语境递出去。②新增两个渲染器 `image_recall_renderer.dart` / `dictation_renderer.dart` 并 `@injectable`，同时进 `RendererModule` 的 Set、`lookupRenderer` 的 `_handlesTypeFor`、以及 `StudyCardSurface` 的默认渲染器集。③两个新 `OfficialAnkiProjectionKind`（`imageRecall` / `dictation`）与 `CardPresentationKind` 两值；解析器只在**用户预设显式启用且前提可证**时选它们（正面图已证 / 正面音已证 + 答案够短 + 无未证面媒体），否则回落翻卡或原卡。④新增两个练习预设 `lookAtImage` / `dictation`（各带 flip + canonicalLink 兜底），映射页 chip 与中文标签同步；`auto` 预设不变，旧映射行为不变。⑤抽 `BinaryGradeRow` 到 `interaction_renderer.dart`，翻卡与看图回忆共用同一套二档判定行（原 `_GradeButton` 删除，避免两处漂移）。⑥payload 两种新形态都不带提示字段：听写无 `prompt`、看图回忆的 `hint` 恒空。
+- **验证**：`flutter analyze lib` **No issues found**；`flutter test --exclude-tags golden` **2341 passed / 0 failed**；新增门禁覆盖「答案不在题面」「错答显示正确文本」「土语大小写折叠」「看图回忆翻面前无答案文本」「记住/忘记二档提交」「注册表解析到新渲染器」「未证面媒体禁用新展示」。`test/application/anki/official_anki_architecture_guard_test.dart` 的「单一 kind 决策」守卫改指向新载体（resolver），同时新增「payload 层不得出现 `selectOfficialKind`」的反向断言。
+- **未验**：未跑 golden；未出包；未在真机上看新展示的实际排版与朗读；P4 的「长答案解释折叠」尚未做（属后续增量）。
+
+---
+
+### 2026-10-22 记忆卡适配 P3（Dart 侧）：按模板方向 + 显式卡级变体
+
+- **性质**：功能批次；**测试数 +9**（`official_anki_projection_payloads_media_test` 3 → 12 条）。
+- **改动**：①`templateFaces` 增加 `direction`：导入时逐模板判定「正面渲染的是题干角色还是答案角色」（`officialAnkiTemplateDirection`），随映射决策落盘。此前 `direction` 只从旧 JSON 解码、生产代码从不写入，反向模板卡会把答案当题干展示——这是「正反向模板混淆」的实际后果。②`OfficialAnkiProjectionPayloads.values()` 按 `row.templateOrdinal` 取方向，反向时交换 prompt/response 角色再抽取（题干、答案、cloze 定位、选项对齐同步换）；媒体面归属仍由字段序号决定，不随方向重算，所以反向卡的题面音频会正确落到背面。③新增 `CardContentVariant`（none / cloze / choice / audioFirst）：basicPair 组里的卡级挖空/选择/听力升级不再是一次静默的 `effectiveArchetype` 覆写，而是显式变体；课时派生按变体计数写一条诊断日志，便于确认「这一课到底发生了什么」。
+- **验证**：`flutter analyze lib test/application/anki_official/projection` **No issues found**；`test/application/anki_import` + `test/application/anki_official`（`--exclude-tags golden`）**515 passed / 0 failed**；新增断言 9 条：正向模板不反转、反向模板换面且音频不留在正面、无模板事实时按笔记类型方向、两角色都在正面不算反转、cloze 变体显式化、普通卡无变体。
+- **未验 / 未完**：**P3 的引擎侧没做**——分层代表性抽样（仍是 `SortMode::NoOrder` 后 `take(sample_limit)`）与「条件/顺序的已知-未知」新派生事实需要改 `native/turna_anki_core/bridge/src/projection.rs` 并重编原生库；本机无 `cargo` / `rustup`，这一轮无法构建也无法验证，故未改 Rust，也不宣称抽样已改善。
+
+---
+
+### 2026-10-22 记忆卡适配 P2：按面媒体 + 官方媒体名可用化 + 面未证回原卡
+
+- **性质**：功能批次；**测试数 +14**（新增 `card_media_extractor_test` 8 条、`official_anki_projection_payloads_media_test` 3 条；`card_presentation_resolver_test` +2 条、`anki_card_renderer_test` +1 条）。
+- **改动**：①映射决策（配置区）新增 `templateFaces`——每个模板的正/背字段序号，导入预览从 `schema.templateFacts` 落盘；旧决策缺该键按「面未证」处理，不需要迁移。②新增 `application/anki_import/adaptation/card_media_extractor.dart`：按字段文档序提取 `[sound:]` / `[anki:play:]` / `<img src|srcset>` / `[image:]`，保留 occurrence 顺序与有意重复（同一音频出现两次不合并）；**只在模板实际渲染的字段里取**，面未证时只扫角色绑定字段——隐藏字段的媒体不会被抬上卡面。③`OfficialAnkiRoleValues` 携带 `mediaOccurrences`（含面归属）；flip payload 拆成正/背各两个按面列表，面未证的留在 legacy `audioAssets` / `imageAssets`。④`Interaction.ankiCard` 增四个按面字段（`freezed` + `json_serializable`，用 OHOS fork SDK 重新生成）。⑤`AnkiCardRenderer` 正面只渲染已证正面媒体，背面渲染已证背面 + legacy：**背面答案音画不再在翻面前出现**（此前正反面共用同一份媒体，答案侧媒体提前可见）。⑥解析器新增 `unknownMediaSide` 规则：flip 卡只要有一条媒体面未证，即回原卡而不是猜面。⑦官方媒体名真正可用：`AnkiMediaStrip` 现在接受裸官方媒体名（`hello.mp3`），经新增的 `AudioController.resolveOfficialMediaPath`（复用 `officialAnkiMediaCandidateFile`）解析到 `collection.media`，播放同样落到 `playOfficialMediaFile`。**此前官方卡媒体名没有 `anki://` 前缀，被 strip 的 scheme 过滤整段丢掉**——这是「资源导入了但界面永远看不见媒体」的直接原因。⑧复习侧按面传媒体：`reviewContentFor`、`StudyCardSurface`、`itemFromReviewCard`。
+- **验证**：`flutter analyze lib` **No issues found**；`test/application/anki_import` + `test/application/anki_official`（`--exclude-tags golden`）**506 passed / 0 failed**；`test/views/anki_card_renderer_test` + `anki_media_strip_test` **11 passed**（其中「媒体条仍旧挂载」一条改写为「已证正面媒体照常挂载」并新增「面未证的媒体等翻面」一条）。
+- **未验**：未跑全量 `--exclude-tags golden`；未出包；未用真实 `.apkg` 走完「导入 → 课时 → 复习」看实际渲染。媒体可用化只到 resolver 层，真机解码格式差异未验。
+
+---
+
+### 2026-10-22 记忆卡适配 P0/P1：单一展示决策 + 类型化结果 + 超限不丢卡
+
+- **性质**：架构收敛批次；**测试数 +9**（新增 `test/application/anki_import/adaptation/card_presentation_resolver_test.dart` 9 条）。
+- **改动**：①新增 ADR 0057「记忆卡适配方案与统一展示解析」：钉住四条现状决策路径（预览 policy / 视图 `_resolvePrimaryKind` / 课时 `_derive` / 正式复习 `renderCard`）、单一解析器、适配方案作用域（source + notetype + 模板身份，Cloze 目标作运行参数）、回退优先级、按面有序内容块、配置区键族与「不可变 revision + manifest 单键切换」激活协议、AI 只产声明式配置、正式复习首期维持原卡；`docs/README.md` ADR 索引同步。②新增 `lib/domain/anki/adaptation/presentation_decision.dart`：`sealed CardPresentationDecision`（结构化 / 原卡 / 需修正 / 不可用）+ 11 个 `PresentationReason` 原因码 + `resolverVersion`。③`OfficialAnkiPresentationPolicy.resolve()` 成为唯一卡级判定并返回 `(kind, reasons)`，`selectOfficialKind` 降为它的投影（判定逻辑逐条搬运，输出不变）；新增静态 `expectedKindForArchetype`，v2 视图重建改调它——视图里的 kind 从「主 kind」降为「预计 kind」提示，视图与卡级规则不再各长一张表。④新增 `application/anki_import/adaptation/card_presentation_resolver.dart`：卡级解析器把「过期视图 kind」只记成 `storedKindDrift` / `unknownStoredKind`，未知 kind 不再被当成 flip。⑤v2 课时正文改为逐卡重判展示；payload 超限不再 `continue` 丢卡，改退 `canonicalLink` 原卡引用，原卡引用也放不下才记单卡不可用并按告警计数（之前超限卡静默消失）。⑥删掉 `OfficialAnkiProjectionPayloads.kindsFor`（生产无调用方，且是第四条决策路径）。⑦共享复习内容补上媒体传递：`StandardCourseCardContent` 增正/背面音画四列表，`reviewContentFor`、`StudyCardSurface` 传 `FlipCardPresentation.media`，`itemFromReviewCard` 从 `AnkiCard` 媒体填充，`FlutterCourseCardBody` 用 `AnkiMediaStrip` 渲染且背面媒体只在翻面后构建（此前 `media` 全程被丢弃；面归属未证明的媒体一律落在答案面）。
+- **验证**：`flutter analyze lib` **No issues found**；`presentation_policy_test` **4 passed**（判定输出未变）；`official_anki_v2_lesson_content_test` **7 passed**（其中「未知 kind 降 flip」一条改写为「未知 kind 被忽略、由卡级事实重判」）；新增 `card_presentation_resolver_test` **9 passed**。
+- **未验**：未跑 `flutter test --exclude-tags golden` 全量；未出包；未用真实 `.apkg` 复现多媒体问题（面归属、多媒体 occurrence、媒体引用协议属 P2）。
+
+---
+
 ### 2026-10-21 app 内文案去 Anki 化：统一写「记忆卡」
 
 - **性质**：文案批次（无行为改动）；**测试数 +6**（新增 `test/architecture/app_wording_terminology_guard_test.dart` 6 条）。

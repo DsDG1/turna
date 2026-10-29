@@ -110,6 +110,18 @@ Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → 
 
 浏览与数据访问：有官方内核时读 Collection 和 scheduler，没有时回退到 catalog，但统计不能把 catalog 总数当已验证数字。页面侧统一走 `official_anki_catalog_service.dart` 的 `OfficialAnkiCatalogService`，页面不许 import DAO 文件、不许自己 new `*Dao(`，由 `test/architecture/layering_guard_test.dart` 强制。系统健康告警见 [`advanced-settings-system-health.md`](./advanced-settings-system-health.md) 与 [ADR 0040](./decisions/0040-system-health-state-machine.md)。
 
+### 6.1 记忆卡适配：一套解析器 + 可撤销的声明式方案
+
+导入后的「这张卡怎么展示」只有一个决策点：`OfficialCardPresentationResolver`（[ADR 0057](./decisions/0057-card-adaptation-plan.md)）。它返回四类结果——结构化展示 / 原卡 / 需修正 / 不可用——并带原因码；预览、v2 课时加载、正式复习共用它。视图行只存「预计 kind」作为提示，课时加载时逐卡重判，过期值只记成 `storedKindDrift` 而不会生效。
+
+方案存在 Collection 配置区（`turna.adapt.*` 四个键族）：方案体不可变（同键不同内容直接拒绝）、manifest 单键切换、单卡覆盖是一张按来源的小表、索引用于卸载清理。导入期确认的方案只在会话内暂存，提交成功后由 `promoteAdaptationDrafts` 按 **live 真实模板序号** 搬到 live；方案缺失或序号对不上一律回原卡，任何一步失败都不影响导入本身。
+
+按面媒体与布局：映射决策里随 `templateFaces` 记住每个模板的正/背字段序号，媒体按字段落面；面归属证不出来的媒体不会出现在题面。方案若带布局块，`buildCardDocument` 决定每一面出现哪些文本与媒体；块点到渲染器表达不了的结构（脚本、表格、内嵌媒体）时整张卡回原卡。
+
+AI 适配只产声明式配置：输入是字段名、模板面事实、截断样本与逐字段音画直方图（预算见 `AdaptationInputBudget`），不含模板源码；回复先过 JSON Schema 信封，再过本地语义校验（答案不得出现在题面、字段越界、未知块/练习/回退），最多一次修复；AI 关闭或鸿蒙降级时零调用，导入照常完成。
+
+新练习是 opt-in：看图回忆与听写只在用户选中对应预设、且卡面能证明前提（正面图已证 / 正面音已证且答案够短）时启用。正式复习首期恒原卡，但原卡自带的音画会按 `renderCard` 的 AV 事实恢复。
+
 ## 7. AI 引擎层与 AI 功能
 
 统一 AI 引擎层：`lib/application/ai/engine/` 是全应用唯一的模型调用出入口。`ai_engine.dart` 是 `@lazySingleton` 门面（`chat()` + `requestJson()` + 缓存接线）；`ai_engine_config.dart` 持 `AiEngineConfig`（双模型 + `StrictSchemaMode`）；`ai_engine_config_holder.dart` 是配置的唯一真理源并持久化到本地（API key 只进平台安全存储，缺插件时降级为会话内）；`ai_http_client.dart` 提供 `postJson` / `postStream` / `probeConnection`（json_schema → json_object 回退、`AiCancelToken` 取消）；`ai_cache.dart` 是 SHA-256 LRU + 磁盘镜像（key 不含 API key）。引擎层只暴露 `chat` + `requestJson`，领域方法、prompt 构建、`parseCompletion` 留在 `AiCourseService`，避免循环依赖。

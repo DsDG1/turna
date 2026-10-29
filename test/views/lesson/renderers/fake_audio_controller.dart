@@ -17,6 +17,9 @@ class FakeAudioController implements AudioController {
   Future<bool> playOfficialMediaFile(String rawName) async => false;
 
   @override
+  Future<String?> resolveOfficialMediaPath(String rawName) async => null;
+
+  @override
   Future<void> playRandomErrorSound() async {}
 
   @override

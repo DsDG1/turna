@@ -38,6 +38,25 @@ String cardArchetypeLabel(CardArchetype archetype) {
   };
 }
 
+/// The constrained card-level upgrade a notetype-level archetype can take.
+///
+/// A `basicPair` notetype still contains the occasional cloze, options or
+/// listening card. Those upgrades are real (old rules 3/4/5) but used to be an
+/// implicit mutation of the archetype field; naming them keeps the decision
+/// explainable and stops new special cases from being layered on silently
+/// (plan §3.2).
+enum CardContentVariant { none, cloze, choice, audioFirst }
+
+/// Human-readable label for the recognition surface.
+String cardContentVariantLabel(CardContentVariant variant) {
+  return switch (variant) {
+    CardContentVariant.none => '原型内',
+    CardContentVariant.cloze => '卡级挖空',
+    CardContentVariant.choice => '卡级选择',
+    CardContentVariant.audioFirst => '卡级听音',
+  };
+}
+
 /// Confidence band for the overall recognition conclusion (§3.6).
 enum RecognitionBand { auto, review, fallback }
 

@@ -1,3 +1,4 @@
+import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -16,10 +17,31 @@ ReviewContentBodyData reviewContentFor(
 }) {
   final presentation = item.presentation;
   if (presentation is FlipCardPresentation) {
+    // Sides come from the same facts the lesson renderer uses (ADR 0057 §5).
+    // Proven front media shows on the question face; everything else — proven
+    // answer media and unproven media — is built only after the reveal.
     return StandardCourseCardContent(
       frontText: presentation.frontText,
       backText: presentation.backText,
       backNote: presentation.hint,
+      frontAudioAssets: presentation.frontAudioMedia,
+      frontImageAssets: presentation.frontImageMedia,
+      backAudioAssets: [
+        ...presentation.backAudioMedia,
+        ...presentation.media
+            .where((ref) =>
+                ref.side == MediaOccurrenceSide.unknown &&
+                ref.kind == CanonicalMediaKind.audio)
+            .map((ref) => ref.filename),
+      ],
+      backImageAssets: [
+        ...presentation.backImageMedia,
+        ...presentation.media
+            .where((ref) =>
+                ref.side == MediaOccurrenceSide.unknown &&
+                ref.kind == CanonicalMediaKind.image)
+            .map((ref) => ref.filename),
+      ],
     );
   }
   if (presentation is StructuredCardPresentation) {

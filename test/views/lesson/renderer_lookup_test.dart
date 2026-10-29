@@ -2,7 +2,9 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/views/lesson/components/interactions/dictation_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/image_recall_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_only_renderer.dart';
@@ -32,6 +34,8 @@ void main() {
     ReadingMcqRenderer(),
     ReadingTrueFalseRenderer(),
     ReadingShortAnswerRenderer(),
+    ImageRecallRenderer(),
+    DictationRenderer(),
   };
 
   final samples = <Interaction>[
@@ -88,6 +92,16 @@ void main() {
       id: 'k',
       prompt: 'p',
       expectedAnswer: 'a',
+    ),
+    const Interaction.imageRecall(
+      id: 'l',
+      imageAssets: ['prompt.png'],
+      answerText: 'kedi',
+    ),
+    const Interaction.dictation(
+      id: 'm',
+      audioAssets: ['word.mp3'],
+      expected: 'kedi',
     ),
   ];
 

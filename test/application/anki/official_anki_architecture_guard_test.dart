@@ -78,13 +78,41 @@ void main() {
     });
 
     test('new projection policy never returns multiple active kinds', () {
-      final text = File(
+      final payloads = File(
         'lib/application/anki_official/projection/official_anki_projection_payloads.dart',
       ).readAsStringSync();
       expect(
-          text.contains('list.add(OfficialAnkiProjectionKind.multipleChoice)'),
+          payloads
+              .contains('list.add(OfficialAnkiProjectionKind.multipleChoice)'),
           isFalse);
-      expect(text.contains('OfficialAnkiPresentationPolicy'), isTrue);
+      // ADR 0057 §1: the payload layer no longer picks kinds at all — the one
+      // card-level decision lives in the resolver, which is the policy's only
+      // caller. Both halves are asserted so the rule cannot be satisfied by
+      // simply deleting the reference.
+      expect(
+        payloads.contains('selectOfficialKind'),
+        isFalse,
+        reason: 'projection payloads must not decide a presentation kind',
+      );
+      final resolver = File(
+        'lib/application/anki_import/adaptation/card_presentation_resolver.dart',
+      ).readAsStringSync();
+      expect(resolver.contains('OfficialAnkiPresentationPolicy'), isTrue);
+      expect(resolver.contains('.resolve('), isTrue);
+    });
+
+    test('source uninstall cleans the adaptation namespace', () {
+      // ADR 0057 §6：卸载按来源清空配置区命名空间；顺序必须是「先开始 retire
+      // （课程树立刻不可见），再清配置」，反过来会让用户看到课程还在但展示
+      // 已经被拆掉。引擎缺席时删不了配置区，只允许记一条告警。
+      final text = File(
+        'lib/application/anki_official/anki_deck_manager.dart',
+      ).readAsStringSync();
+      final retireAt = text.indexOf('beginRetire');
+      final cleanupAt = text.indexOf('deleteSourceNamespace');
+      expect(retireAt, greaterThanOrEqualTo(0));
+      expect(cleanupAt, greaterThan(retireAt));
+      expect(text.contains('adaptation namespace left behind'), isTrue);
     });
 
     test(

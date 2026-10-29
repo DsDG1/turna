@@ -19,6 +19,7 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/application/anki_import/anki_import_adaptation_drafts.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
@@ -72,6 +73,10 @@ class AnkiImportController extends ChangeNotifier {
   bool _replacingExisting = false;
   bool includeMedia = true;
   OfficialAnkiSourceDigest? _pendingDigest;
+
+  /// 预览期确认的适配方案草稿（scopeKey → plan），只在会话内传递；
+  /// 见 [AnkiImportAdaptationDrafts] 的说明。
+  final adaptationDrafts = AnkiImportAdaptationDrafts();
 
   bool get isCancelRequested => _cancelRequested;
 
@@ -461,6 +466,7 @@ class AnkiImportController extends ChangeNotifier {
             preview,
             course: _deps.courseDatabase,
             onProgress: _progress.onCommit,
+            pendingAdaptations: adaptationDrafts.plans,
           );
           if (_stale(op)) return;
           if (result.needsMapping) {
@@ -499,6 +505,8 @@ class AnkiImportController extends ChangeNotifier {
 
   void _finishCommit(AnkiImportSummary summary) {
     _committingPlan = null;
+    // 方案已经落到 live，会话内的暂存副本没有存在意义了。
+    adaptationDrafts.clearAll();
     _emit(AnkiImportCompleted(summary: summary));
   }
 
