@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/glass_surface.dart';
 
 // ────────────────────────────────────────────────────────────────────
 // Soft-tinted card surfaces — shared building blocks
 // ────────────────────────────────────────────────────────────────────
-// 设计目标（2026-08 重画后）：着色实体卡，accent @ 0.10 底色 + 中性细描边 +
-// 中性双层投影 + 圆角 24。Hero 例外用 accent 渐变 + 白字。
-// 暗色模式由 [TurnaTheme.softTint] 改为不透明罩染，accent 文字经
+// 设计目标（ADR 0062）：白纸上的彩色玻璃。SoftCard 走 L1 淡彩玻璃
+// （[TurnaTheme.glassFill] + 同色相双层投影），Hero 例外保留 accent 渐变
+// + 白字 —— 它是全页唯一的主 CTA，需要实色的分量。
+// 暗色下淡彩由 glassFill 自动罩染到不透明基面，accent 文字经
 // [TurnaTheme.accentOnCard] 提亮，避免发灰发浑。
 //
 // 抽取自 `play_hub_screen.dart`，供练习 Hub 与 AI 页共用，保证两页风格
@@ -19,12 +21,6 @@ import 'package:turna/core/theme.dart';
 // SoftCard 及各 tile 支持 onLongPress（长按浮窗交互，见 info_popup.dart），
 // FocusTile 退役。2026-10-20：「AI 助手」横幅（原 AiAssistantTile）撤除，
 // 改为复习队列里的「智能练习」一格，该组件随之删除。
-// 2026-08 重画（去玻璃化）：SoftCard 从「着色玻璃」改为「着色实体面」——
-// 去掉白色羽化光晕（featheredButtonGlow）与内侧顶部霜面高光
-// （softCardSheen + ClipRRect/DecoratedBox），描边从 glassBorder 的白色高光
-// 边改为 practiceTileBorder 中性细边，阴影从 accent 单色弱阴影改为
-// practiceTileShadow 中性双层投影。投影不染 accent，避免 warmSand /
-// success 这类暖色卡与阴影同色化。
 
 /// 今日复习主 CTA Hero：teal→sky 渐变卡。左侧「开始今日复习」+ 下一个队列
 /// 副标题，右侧今日待复习总数；下方一行队列 chips（四队列计数速览）。
@@ -453,38 +449,18 @@ class SoftCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
-
-    Widget card = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        borderRadius: radius,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: TurnaTheme.softTint(context, accentColor, alpha: tintAlpha),
-            borderRadius: radius,
-            border: Border.all(
-              color: TurnaTheme.practiceTileBorder(context),
-              width: 1,
-            ),
-            boxShadow: TurnaTheme.practiceTileShadow(context),
-          ),
-          child: child,
-        ),
-      ),
+    // ADR 0062：从「着色实体面」改为「白纸上的彩色玻璃」。
+    // tintAlpha 语义保留（0.10 = 1.0 倍），映射到 glassFill 的 scale。
+    return GlassSurface(
+      accent: accentColor,
+      level: GlassLevel.l1,
+      radius: const BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge)),
+      scale: tintAlpha / 0.10,
+      onTap: onTap,
+      onLongPress: onLongPress,
+      semanticsHint: onLongPress == null ? null : AppStrings.playLongPressHint,
+      child: child,
     );
-
-    if (onLongPress != null) {
-      card = Semantics(
-        button: true,
-        onLongPress: onLongPress,
-        hint: AppStrings.playLongPressHint,
-        child: card,
-      );
-    }
-    return card;
   }
 }
 
@@ -563,8 +539,8 @@ class CompactToolTile extends StatelessWidget {
   }
 }
 
-/// accent icon chip：accent @ 0.22 底 + accent 图标，无描边；深色下走
-/// [TurnaTheme.practiceTileEdge] 补一层极淡白边维持边缘可辨。
+/// accent icon chip：L3 平涂层（ADR 0062）—— 淡彩平涂 + accent 图标，
+/// 无描边无投影；贴在卡面上不悬浮。
 /// `size` / `padding` / `radius` 可调，复用于 ReviewTile / ToolsTile。
 class AccentIconChip extends StatelessWidget {
   final IconData icon;
@@ -584,15 +560,16 @@ class AccentIconChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ADR 0062：图标块走 L3 平涂层 —— 无描边无投影，只发淡彩。
     return Container(
       padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: TurnaTheme.practiceTileEdge(context),
-          width: 0.5,
+        gradient: TurnaTheme.glassFill(
+          context,
+          color,
+          level: GlassLevel.badge,
         ),
+        borderRadius: BorderRadius.circular(radius),
       ),
       child: Icon(icon, color: color, size: size),
     );
@@ -627,7 +604,10 @@ class CountBadge extends StatelessWidget {
         color: color,
         borderRadius: radius,
         border: Border.all(
-          color: TurnaTheme.practiceTileEdge(context),
+          // 实色徽章在浅色卡面上不需要描边；深色下补一层极淡白边维持边缘可辨。
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.10)
+              : Colors.transparent,
           width: 0.5,
         ),
         boxShadow: [

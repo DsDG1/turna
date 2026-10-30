@@ -94,24 +94,18 @@ class _CollapsedPassage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final body = paragraphs.join('\n\n');
 
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      decoration: BoxDecoration(
-        color: TurnaTheme.leagueAmethyst.withValues(
-          alpha: isDark ? 0.14 : 0.05,
-        ),
+      // ADR 0062：阶段说明卡走 amethyst 色相的 L1 玻璃。
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.leagueAmethyst,
+        level: GlassLevel.l1,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.leagueAmethyst.withValues(
-            alpha: isDark ? 0.28 : 0.15,
-          ),
-        ),
-        boxShadow: TurnaTheme.surfaceL1Shadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

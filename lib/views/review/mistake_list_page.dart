@@ -123,10 +123,11 @@ class _MistakesStatsHeader extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -317,16 +318,12 @@ class _MistakeCard extends StatelessWidget {
     final isWord = mistake.wordId != null;
 
     return Container(
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      // ADR 0062：错题列表是长列表 → 中性灰 L1Subtle，避免每张卡都带色相。
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        boxShadow: [
-          BoxShadow(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),

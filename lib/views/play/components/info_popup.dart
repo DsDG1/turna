@@ -323,7 +323,9 @@ class _AnimatedPanel extends StatelessWidget {
           child: Container(
             constraints: BoxConstraints(maxHeight: maxHeight),
             decoration: BoxDecoration(
-              color: TurnaTheme.surfaceColor(context),
+              // 浮窗面用 cardBg 而不是 surface：深色下 surface 与页面同值，
+              // 浮窗会失去"浮在内容之上"的层次。
+              color: TurnaTheme.cardBg(context),
               borderRadius: const BorderRadius.all(
                 Radius.circular(TurnaTheme.radiusXLarge),
               ),

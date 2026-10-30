@@ -78,27 +78,14 @@ class UnitCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: duration,
         curve: TurnaMotion.easeOut,
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
+        // ADR 0062：单元卡是「容器」角色 → sand 色相的 L1 玻璃。
+        // 展开时撤去投影：下缘由课程行壳收尾，投影归末行承担。
+        decoration: TurnaTheme.glassDecoration(
+          context,
+          TurnaTheme.glassContainer,
+          level: GlassLevel.l1,
           borderRadius: borderRadius,
-          border: Border.all(
-            color: TurnaTheme.dividerBg(context).withValues(
-              alpha: expanded ? 0.85 : 0.5,
-            ),
-            width: 1.0,
-          ),
-          // 展开时撤去投影：下缘由课程行壳收尾，投影归末行承担。
-          boxShadow: expanded
-              ? null
-              : [
-                  BoxShadow(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.black.withValues(alpha: 0.20)
-                        : TurnaTheme.brandNavy.withValues(alpha: 0.05),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          boxShadow: expanded ? const <BoxShadow>[] : null,
         ),
         child: Material(
           color: Colors.transparent,

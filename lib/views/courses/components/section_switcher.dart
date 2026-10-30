@@ -110,16 +110,11 @@ class _SectionHeaderCard extends StatelessWidget {
     final radius = _lerp(TurnaTheme.radiusLarge, 18);
     final fontSize = _lerp(18, 15.5);
     final borderRadius = BorderRadius.circular(radius);
-    // 深度随收缩推进：L1 内容卡静置投影 → L2 悬浮条投影（与胶囊导航
-    // 平齐的层级），让「卡片变成悬浮条」的形变同时携带层级语义。
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final shadow = BoxShadow(
-      color: isDark
-          ? Colors.black.withValues(alpha: _lerp(0.22, 0.30))
-          : TurnaTheme.brandNavy.withValues(alpha: _lerp(0.06, 0.10)),
-      blurRadius: _lerp(14, 10),
-      offset: Offset(0, _lerp(5, 3)),
-    );
+    // ADR 0062：章节头是**导航容器**，不是焦点 —— 用最淡的一档（L1Subtle）
+    // 配主色相 teal。若改用 section 自身色，黄色/紫色章节会把整页染成那个
+    // 色系；若用纯中性灰，在白纸上又读作「脏白」。teal 最淡档两头都避开，
+    // 焦点仍由「下一课」行的 L2 承担。
+    const accent = TurnaTheme.glassFocus;
 
     final progress = context.select<ProgressProvider?, double>((p) {
       if (p == null || section.units.isEmpty) return 0.0;
@@ -140,18 +135,14 @@ class _SectionHeaderCard extends StatelessWidget {
       onTap: onTap,
       excludeSemantics: true,
       child: DecoratedBox(
-        decoration: BoxDecoration(
+        decoration: TurnaTheme.glassDecoration(
+          context,
+          accent,
+          level: GlassLevel.l1Subtle,
           borderRadius: borderRadius,
-          border: Border.all(
-            color: TurnaTheme.dividerBg(context).withValues(
-              alpha: _lerp(0.6, 1.0),
-            ),
-            width: 1.0,
-          ),
-          boxShadow: [shadow],
         ),
         child: Material(
-          color: TurnaTheme.cardBg(context),
+          color: Colors.transparent,
           borderRadius: borderRadius,
           child: InkWell(
             onTap: onTap,

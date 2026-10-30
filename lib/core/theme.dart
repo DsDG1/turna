@@ -64,10 +64,8 @@ class TurnaTheme {
   static const Color errorLight = Color(0xFFFF6B6B);
   static const Color errorDark = Color(0xFFC0392B);
   static const Color success = Color(0xFFFFD93D);
-  static const Color successLight = Color(0xFFFFE066);
   static const Color successDark = Color(0xFFE5C235);
   static const Color warning = Color(0xFFFF9F43);
-  static const Color warningLight = Color(0xFFFFBE76);
   static const Color info = brandSky;
 
   // JEWEL TONES - distinct accents for feature surfaces (e.g. AI).
@@ -78,7 +76,6 @@ class TurnaTheme {
   static const Color surface = Colors.white;
   static const Color scaffoldBackground = Colors.white;
   static const Color cardBackground = Colors.white;
-  static const Color elevatedSurface = Color(0xFFFFFFFF);
   static const Color divider = Color(0xFFE5E7E5);
 
   /// Dark scaffold / window chrome (≡ Android `turna_scaffold_dark`).
@@ -94,6 +91,16 @@ class TurnaTheme {
   /// the page without reintroducing a hue.
   static const Color darkAppBar = Color(0xFF0F0F0F);
 
+  /// 深色副文字 / 弱提示：**中性冷灰，不带绿**。
+  ///
+  /// 旧值 `#B9CCC0` / `#84998C` 是「墨绿深色」时代的化石，和本文件头
+  /// 「Dark mode is neutral black」直接冲突 —— 深色底上泛绿的灰字会让
+  /// 每个页面读起来像另一个配色家族。这两个常量是深色文字的唯一真源，
+  /// `_buildDarkTheme` 里的 textTheme / chipTheme / segmentedButtonTheme /
+  /// bottomNavigationBarTheme 全部引用它们，不要再写字面量。
+  static const Color darkTextSecondary = Color(0xFFA7B2B8);
+  static const Color darkTextHint = Color(0xFF79858C);
+
   // TEXT COLORS
   static const Color textPrimary = Color(0xFF1C2730);
   static const Color textSecondary = Color(0xFF52616B);
@@ -103,10 +110,8 @@ class TurnaTheme {
 
   // LEAGUE COLORS (Jewel Tones)
   static const Color leagueBronze = Color(0xFFCD7F32);
-  static const Color leagueSilver = Color(0xFFC0C0C0);
   static const Color leagueGold = Color(0xFFFFD700);
   static const Color leagueAmethyst = Color(0xFF9B59B6);
-  static const Color leaguePearl = Color(0xFFF5F5F5);
   static const Color leagueRuby = Color(0xFFE74C3C);
   static const Color leagueEmerald = Color(0xFF27AE60);
   static const Color leagueDiamond = Color(0xFF3498DB);
@@ -118,21 +123,19 @@ class TurnaTheme {
     colors: [brandNavy, brandTeal, brandSky],
   );
 
-  static const LinearGradient softGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color(0xFFFFFFFF), Color(0xFFF6F8F6)],
-  );
-
+  /// L0 画布底色（ADR 0062）。
+  ///
+  /// 历史上这里是「湿地晨光」的三档渐变（`#FFFFFF → #FAFBFA → #F6F8F6`），
+  /// 属于上一代「彩色背景 + 磨砂白卡」模型：白卡靠背景色透出来。
+  ///
+  /// 本代玻璃是「白纸上的彩色玻璃片」，颜色由玻璃自己发、影子投在白纸上。
+  /// 背景一旦带色，卡面淡彩就失去参照。所以这里退化成纯白，**只保留
+  /// LinearGradient 类型**（调用方按 gradient 消费，换成 SolidColor 会
+  /// 牵动 4 个页面的 decoration 写法）。
   static const LinearGradient courseTreeGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFFFFFFFF),
-      Color(0xFFFAFBFA),
-      Color(0xFFF6F8F6),
-    ],
-    stops: [0.0, 0.5, 1.0],
+    colors: [Color(0xFFFFFFFF), Color(0xFFFFFFFF)],
   );
 
   static LinearGradient courseTreeGradientFor(BuildContext context) =>
@@ -140,12 +143,7 @@ class TurnaTheme {
           ? const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF000000),
-                Color(0xFF121212),
-                Color(0xFF141414),
-              ],
-              stops: [0.0, 0.5, 1.0],
+              colors: [darkScaffold, darkScaffold],
             )
           : courseTreeGradient;
 
@@ -158,21 +156,6 @@ class TurnaTheme {
 
   /// Alias for [buttonGradient]. Prefer either name; both are teal → tealLight.
   static const LinearGradient brandPrimaryGradient = buttonGradient;
-
-  static const LinearGradient successGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [success, successLight],
-  );
-
-  /// Soft reed glow under course nodes — alphas derived from [brandReed].
-  static final RadialGradient nodeGlowGradient = RadialGradient(
-    colors: [
-      brandReed.withValues(alpha: 0.15),
-      brandReed.withValues(alpha: 0.07),
-      brandReed.withValues(alpha: 0.0),
-    ],
-  );
 
   /// Box decoration for primary CTAs (teal → tealLight). Never insert clay.
   static BoxDecoration primaryCtaDecoration({
@@ -292,43 +275,11 @@ class TurnaTheme {
         ),
       ];
 
-  static List<BoxShadow> get glowShadow => [
-        BoxShadow(
-          color: brandReed.withValues(alpha: 0.18),
-          blurRadius: 20,
-          spreadRadius: 2,
-        ),
-      ];
-
   static List<BoxShadow> get buttonShadow => [
         BoxShadow(
           color: brandNavy.withValues(alpha: 0.22),
           blurRadius: 8,
           offset: const Offset(0, 4),
-        ),
-      ];
-
-  /// 「半拟物质感」大卡片: Anki / ShowWord / Reading 主卡专用.
-  /// 双层阴影 (远大 + 近小) 模拟光照下的悬浮磨砂面.
-  static List<BoxShadow> get elevatedCardShadow => [
-        BoxShadow(
-          color: brandNavy.withValues(alpha: 0.08),
-          blurRadius: 24,
-          offset: const Offset(0, 10),
-        ),
-        BoxShadow(
-          color: brandNavy.withValues(alpha: 0.05),
-          blurRadius: 4,
-          offset: const Offset(0, 2),
-        ),
-      ];
-
-  /// 选项条 / 输入框 / 副卡: 浅短阴影.
-  static List<BoxShadow> get raisedCardShadow => [
-        BoxShadow(
-          color: brandNavy.withValues(alpha: 0.06),
-          blurRadius: 14,
-          offset: const Offset(0, 6),
         ),
       ];
 
@@ -343,52 +294,6 @@ class TurnaTheme {
   //
   // 浅色仍是 navy 双层影 (远大近小), 模拟光照下的悬浮磨砂面.
 
-  /// L1 内容卡: 选项卡 / 次级卡 / 阅读卡.
-  static List<BoxShadow> surfaceL1Shadow(BuildContext context) =>
-      _isDark(context)
-          ? [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.09),
-                blurRadius: 18,
-                offset: const Offset(0, 7),
-              ),
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.05),
-                blurRadius: 3,
-                offset: const Offset(0, 1),
-              ),
-            ];
-
-  /// L2 浮起卡: 主词卡 / 提交后主卡 / 选中态.
-  static List<BoxShadow> surfaceL2Shadow(BuildContext context) =>
-      _isDark(context)
-          ? [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.07),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.10),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ];
-
   /// L3 状态外发光: 选中 / 正确 / 错误. accent 由调用方给.
   static List<BoxShadow> stateGlow(Color accent) => [
         BoxShadow(
@@ -397,38 +302,6 @@ class TurnaTheme {
           offset: const Offset(0, 4),
         ),
       ];
-
-  /// L1 卡面底色 — 深色比画布抬高一级 (#161616 on #000).
-  static Color surfaceL1Fill(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF161616) : Colors.white;
-
-  /// L2 卡面底色.
-  static Color surfaceL2Fill(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1C1C1C) : Colors.white;
-
-  /// L1 描边 — 深色用白 10%, 浅色用固定灰阶.
-  static Color surfaceL1Border(BuildContext context) => _isDark(context)
-      ? Colors.white.withValues(alpha: 0.10)
-      : const Color(0xFFE4EBE7);
-
-  /// 卡面顶部内高光 — 浅色是磨砂受光面, 深色是玻璃边.
-  ///
-  /// 返回的是**相对 `base` 的增亮渐变**, 调用方把 `base` 作为第二停靠点,
-  /// 这样 `back` 变体的品牌底色不会被渐变盖掉 (旧的写法同时传 `color` 和
-  /// `gradient`, 而 `BoxDecoration` 只画 gradient, 底色其实一直失效).
-  static LinearGradient cardTopLight(BuildContext context, Color base) =>
-      LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color.alphaBlend(
-            Colors.white.withValues(alpha: _isDark(context) ? 0.06 : 0.42),
-            base,
-          ),
-          base,
-        ],
-        stops: const [0.0, 0.6],
-      );
 
   /// 做题页画布底色.
   ///
@@ -461,96 +334,299 @@ class TurnaTheme {
   // Non-const because `withValues` is computed at runtime.
   static final Color tintLight = brandTeal.withValues(alpha: 0.06);
   static final Color tintSoft = brandTeal.withValues(alpha: 0.08);
-  static final Color tintMedium = brandTeal.withValues(alpha: 0.12);
-  static final Color borderMuted = textHint.withValues(alpha: 0.25);
 
-  // FROSTED GLASS TOKENS
-  // 半拟物彩色玻璃质感所需的主题感知 helper。
-  // 调用方按 context 读取，自动适配浅/深色。
-  // light: 用高 alpha 白底保持亮堂；dark: 改为低 alpha 白底以避免死白。
-
-  /// 玻璃卡片底层白色霜面。
-  static Color glassSurface(BuildContext context) => _isDark(context)
-      ? Colors.white.withValues(alpha: 0.08)
-      : Colors.white.withValues(alpha: 0.55);
-
-  /// 玻璃卡片顶边白色高光。
-  static Color glassHighlight(BuildContext context) => _isDark(context)
-      ? Colors.white.withValues(alpha: 0.18)
-      : Colors.white.withValues(alpha: 0.70);
-
-  /// 玻璃卡片 1px 描边颜色。
+  /// 浮起 chrome（AppBar / chip / snackbar / 胶囊导航）的 1px 白色高光描边。
+  ///
+  /// 这是**一代**玻璃的残留：靠一道白线把浮起面从背景里切出来。内容卡用的
+  /// 是二代 [glassStroke]（同色相深边）。两者语义不同，不要合并 —— 白色
+  /// 高光边压在淡彩卡面上会读作「描边缺失」。
   static Color glassBorder(BuildContext context) => _isDark(context)
       ? Colors.white.withValues(alpha: 0.15)
       : Colors.white.withValues(alpha: 0.50);
 
-  /// 玻璃着色层：accent × 低 alpha，让每张卡读作对应色玻璃。
-  /// 浅深色均使用 0.22 alpha，深色模式下整体暗调由 [glassSurface] 和
-  /// [glassHighlight] 的深色分支承担，避免此处再分叉。
-  static Color glassAccentFill(Color accent) => accent.withValues(alpha: 0.22);
+  // ---------------------------------------------------------------------------
+  // COLORED GLASS MATERIAL（第二代，ADR 0062）
+  // ---------------------------------------------------------------------------
+  // 与上面第一代 glassSurface / glassHighlight / glassBorder 的区别：
+  //
+  //   一代：白霜半透明，透出**有色的背景**（frosted-white over tinted bg）。
+  //   二代：白纸上的一片**彩色玻璃**，背景永远纯白，颜色由玻璃自己发、
+  //        影子也取同色相投回白纸（tinted glass over white paper）。
+  //
+  // 两者物理模型相反，不可混用。一代的 glassBorder（白 50%）保留，
+  // 它服务的是 AppBar / chip / snackbar 这类「浮起 chrome」，不是内容卡。
+  //
+  // 关键实现约束 —— 白高光**预混进单层 LinearGradient 的 stops**，而不是
+  // 叠第二层 fill。理由：
+  //   1. AnimatedContainer 只能插值单个 gradient；两层 fill 无法插值，
+  //      InteractionOptionTile 的 180ms 状态切换会跳变（6 个 renderer 共用）。
+  //   2. 物理等价：白高光叠加 = 该处 accent 更淡（浅色）/ 基面更亮（深色），
+  //      两种都能预先算成具体 stop 色值。
+  //   3. 少一层 DecoratedBox —— 全 app 数百张卡片各少一次合成。
 
-  /// 玻璃阴影：双层（accent + 黑色微影），按深浅微调 alpha。
-  static List<BoxShadow> glassShadow(BuildContext context, Color accent) =>
-      _isDark(context)
-          ? [
-              BoxShadow(
-                color: accent.withValues(alpha: 0.22),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: accent.withValues(alpha: 0.18),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ];
+  /// 白纸上的彩色玻璃：默认与表单页用的中性冷灰。
+  static const Color glassNeutral = Color(0xFF8CA0AB);
 
-  /// 按钮整体羽化光晕：练习卡 SoftCard 外层散出的白色柔光。
-  /// 深色分支用「负 spread + 大模糊」：阴影形状向内收缩后由模糊主导，
-  /// 形成弥散光晕而不是贴着边缘的亮环（贴边亮环会在圆角处堆出亮角）。
-  /// 用法：加到 SoftCard Ink 的 boxShadow 列表里（与现有 softCardShadow 叠加）。
-  static List<BoxShadow> featheredButtonGlow(BuildContext context) =>
-      _isDark(context)
-          ? [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.10),
-                blurRadius: 48,
-                spreadRadius: -14,
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.06),
-                blurRadius: 40,
-                spreadRadius: -10,
-                offset: const Offset(0, 14),
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.45),
-                blurRadius: 14,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.20),
-                blurRadius: 32,
-                offset: const Offset(0, 8),
-              ),
-            ];
+  /// 色相分配：路径与焦点。
+  static const Color glassFocus = brandTeal;
 
-  /// 玻璃徽章实色填充：badge 仍走 accent 实色，仅加 1px 高光描边和小阴影。
-  static Color glassBadgeFill(Color accent) => accent;
+  /// 色相分配：容器。
+  static const Color glassContainer = warmSand;
+
+  /// 色相分配：完成 / 成就。
+  static const Color glassAchievement = anatolianClay;
+
+  /// 色相分配：待办（待复习）。
+  static const Color glassPending = warning;
+
+  /// 色相分配：危险（需加强）。
+  static const Color glassDanger = error;
+
+  /// 高对比 / 降级时是否仍绘制玻璃材质。
+  ///
+  /// 缺省 `true`：主题未注册 extension 时按玻璃走，不会静默退化成扁平卡。
+  static bool glassEnabled(BuildContext context) =>
+      Theme.of(context).extension<GlassMode>()?.enabled ?? true;
+
+  /// 淡彩 + 白高光预混后的单层渐变。
+  ///
+  /// [scale] 缩放淡彩浓度，供 `SoftCard.tintAlpha` 这类既有强度参数映射
+  /// （`tintAlpha / 0.10` 即 1.0 倍，向后兼容）。
+  static LinearGradient glassFill(
+    BuildContext context,
+    Color accent, {
+    GlassLevel level = GlassLevel.l1,
+    double scale = 1.0,
+  }) {
+    final spec = _glassSpec(level);
+    final isDark = _isDark(context);
+    final base = isDark ? spec.darkBase : Colors.white;
+    final tintStart = isDark ? spec.darkTintStart : spec.tintStart;
+    final tintEnd = isDark ? spec.darkTintEnd : spec.tintEnd;
+    final sheen = isDark ? spec.darkSheen : spec.sheen;
+    final mid = tintStart + (tintEnd - tintStart) * spec.sheenStop;
+
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        _glassMix(accent, tintStart * scale, sheen, base),
+        _glassMix(accent, mid * scale, 0, base),
+        _glassMix(accent, tintEnd * scale, 0, base),
+      ],
+      stops: [0.0, spec.sheenStop, 1.0],
+    );
+  }
+
+  /// 同色相双层投影。
+  ///
+  /// 色相先向 [brandNavy] 降彩度 28%：直接把 `success #FFD93D` 或
+  /// `warning #FF9F43` 当阴影色会投出一圈明显的黄橙光晕，白纸上尤其脏。
+  /// 降彩度后仍保留色相辨识，但读作「影子」而不是「发光」。
+  ///
+  /// 铁律：所有层一律「纯垂直 offset + spreadRadius 恒为 0」。任何非零
+  /// spread 都会改变阴影的圆角半径（= 卡片圆角 ± spread），与卡片自身轮廓
+  /// 错位后，会在圆角外侧露出一圈尖角状痕迹。
+  static List<BoxShadow> glassShadow(
+    BuildContext context,
+    Color accent, {
+    GlassLevel level = GlassLevel.l1,
+  }) {
+    final spec = _glassSpec(level);
+    if (spec.stroke == 0) return const <BoxShadow>[];
+
+    if (_isDark(context)) {
+      return [
+        BoxShadow(
+          color: Colors.white.withValues(alpha: spec.darkSheen * 0.8),
+          blurRadius: 14,
+          offset: const Offset(0, -3),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.30),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.18),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
+        ),
+      ];
+    }
+
+    final hue = Color.lerp(accent, brandNavy, 0.28)!;
+    return [
+      BoxShadow(
+        color: hue.withValues(alpha: spec.nearAlpha),
+        blurRadius: spec.nearBlur,
+        offset: Offset(0, spec.nearY),
+      ),
+      BoxShadow(
+        color: hue.withValues(alpha: spec.farAlpha),
+        blurRadius: spec.farBlur,
+        offset: Offset(0, spec.farY),
+      ),
+    ];
+  }
+
+  /// 淡彩最深端的**不透明实色**。
+  ///
+  /// 用于「一张卡被拆成多个 Sliver 子项逐行拼合」的场景（单元卡头 + 课程行）：
+  /// 上半用 [glassFill] 渐变，下半必须用这个实色接住渐变的最低点，否则
+  /// 两段的渐变各自重新开始，接缝处会出现一道明显的横断。
+  static Color glassSolid(
+    BuildContext context,
+    Color accent, {
+    GlassLevel level = GlassLevel.l1,
+    double scale = 1.0,
+  }) {
+    final spec = _glassSpec(level);
+    final isDark = _isDark(context);
+    final base = isDark ? spec.darkBase : Colors.white;
+    final tintEnd = isDark ? spec.darkTintEnd : spec.tintEnd;
+    return _glassMix(accent, tintEnd * scale, 0, base);
+  }
+
+  /// 1px 同色相描边。有色玻璃边缘因折射比中心更沉，所以用 accent 本色而非白。
+  static Color glassStroke(
+    BuildContext context,
+    Color accent, {
+    GlassLevel level = GlassLevel.l1,
+  }) {
+    final spec = _glassSpec(level);
+    if (spec.stroke == 0) return Colors.transparent;
+    final alpha = _isDark(context) ? spec.stroke + 0.02 : spec.stroke;
+    return accent.withValues(alpha: alpha);
+  }
+
+  /// 一个 [BoxDecoration] 全给：渐变 + 描边 + 投影。
+  ///
+  /// [boxShadow] 传 `const <BoxShadow>[]` 表示按下收影（不是"用默认值"）。
+  /// 高对比 / [GlassMode.off] 时退化为纯白/纯黑平面 + 1.5px 描边。
+  static BoxDecoration glassDecoration(
+    BuildContext context,
+    Color accent, {
+    GlassLevel level = GlassLevel.l1,
+    BorderRadius? borderRadius,
+    List<BoxShadow>? boxShadow,
+    double scale = 1.0,
+  }) {
+    final radius = borderRadius ?? BorderRadius.circular(radiusLarge);
+    if (!glassEnabled(context)) {
+      // 高对比 / 专注模式：退回「无玻璃的普通卡」，而不是画成黑白卡。
+      // 黑白卡在 HC dark 下会和纯黑页面同色，边界反而消失；HC light 下
+      // 又会把原来的灰描边换成一圈黑线，属于没被要求的视觉变化。
+      // 用主题自身的 cardBg + dividerBg，尺寸与改造前完全一致（1px），
+      // 这样 420×760 的 golden 不会被撑高半个像素。
+      return BoxDecoration(
+        color: cardBg(context),
+        borderRadius: radius,
+        border: Border.all(color: dividerBg(context), width: 1),
+      );
+    }
+    return BoxDecoration(
+      gradient: glassFill(context, accent, level: level, scale: scale),
+      borderRadius: radius,
+      border: Border.all(
+        color: glassStroke(context, accent, level: level),
+        width: 1,
+      ),
+      boxShadow: boxShadow ?? glassShadow(context, accent, level: level),
+    );
+  }
+
+  /// 把淡彩罩到不透明基面上，再叠白高光。**不接受半透明白做底** —— 深色下
+  /// 会在纯黑画布上糊成灰雾（见文件头「Dark mode is neutral black」）。
+  static Color _glassMix(
+    Color accent,
+    double alpha,
+    double sheen,
+    Color base,
+  ) {
+    final tinted = Color.alphaBlend(
+      accent.withValues(alpha: alpha.clamp(0.0, 1.0)),
+      base,
+    );
+    if (sheen <= 0) return tinted;
+    return Color.alphaBlend(
+      Colors.white.withValues(alpha: sheen.clamp(0.0, 1.0)),
+      tinted,
+    );
+  }
+
+  static _GlassSpec _glassSpec(GlassLevel level) => switch (level) {
+        GlassLevel.l1 => const _GlassSpec(
+            tintStart: 0.09,
+            tintEnd: 0.16,
+            sheen: 0.34,
+            sheenStop: 0.40,
+            stroke: 0.26,
+            nearAlpha: 0.16,
+            nearBlur: 10,
+            nearY: 6,
+            farAlpha: 0.13,
+            farBlur: 34,
+            farY: 16,
+            darkBase: Color(0xFF161616),
+            darkTintStart: 0.10,
+            darkTintEnd: 0.17,
+            darkSheen: 0.06,
+          ),
+        GlassLevel.l1Subtle => const _GlassSpec(
+            // 表单卡用中性灰 accent，灰的彩度天然低 —— 浓度必须比彩色的 L1
+            // 更饱和一档才立得起来。0.05/0.09 实测在白底上等于消失。
+            tintStart: 0.07,
+            tintEnd: 0.13,
+            sheen: 0.34,
+            sheenStop: 0.40,
+            stroke: 0.24,
+            nearAlpha: 0.15,
+            nearBlur: 9,
+            nearY: 5,
+            farAlpha: 0.11,
+            farBlur: 28,
+            farY: 14,
+            darkBase: Color(0xFF141414),
+            darkTintStart: 0.08,
+            darkTintEnd: 0.14,
+            darkSheen: 0.05,
+          ),
+        GlassLevel.l2 => const _GlassSpec(
+            tintStart: 0.11,
+            tintEnd: 0.19,
+            sheen: 0.40,
+            sheenStop: 0.42,
+            stroke: 0.40,
+            nearAlpha: 0.18,
+            nearBlur: 10,
+            nearY: 5,
+            farAlpha: 0.12,
+            farBlur: 22,
+            farY: 12,
+            darkBase: Color(0xFF1C1C1C),
+            darkTintStart: 0.12,
+            darkTintEnd: 0.21,
+            darkSheen: 0.08,
+          ),
+        GlassLevel.badge => const _GlassSpec(
+            tintStart: 0.13,
+            tintEnd: 0.13,
+            sheen: 0,
+            sheenStop: 1.0,
+            stroke: 0,
+            nearAlpha: 0,
+            nearBlur: 0,
+            nearY: 0,
+            farAlpha: 0,
+            farBlur: 0,
+            farY: 0,
+            darkBase: Color(0xFF141414),
+            darkTintStart: 0.20,
+            darkTintEnd: 0.20,
+            darkSheen: 0,
+          ),
+      };
 
   // SOFT TINTED TOKENS
   // 「轻量着色卡」所需的主题感知 helper：底色 + 内侧晕染 + 文字提亮。
@@ -578,139 +654,10 @@ class TurnaTheme {
               Colors.white,
             );
 
-  /// 着色卡内侧顶部白色晕染：模拟光照打在霜面上的高光。
-  /// 用法：SoftCard 在 ClipRRect 内用 DecoratedBox 叠加在 child 之下。
-  static LinearGradient softCardSheen(BuildContext context) => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.white.withValues(alpha: _isDark(context) ? 0.07 : 0.20),
-          Colors.white.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.5],
-      );
-
   /// 着色卡上的 accent 文字/图标色：浅色直接用 accent；深色向白色提亮
   /// 35%，保证 teal/cyan 这类深 accent 在暗底上可读。
   static Color accentOnCard(BuildContext context, Color accent) =>
       _isDark(context) ? Color.lerp(accent, Colors.white, 0.35)! : accent;
-
-  /// tinted 卡片柔和阴影：浅色 accent @ 0.10 向下投影；深色负 spread +
-  /// 大模糊弥散，避免贴边亮环在圆角处堆出亮角。
-  ///
-  /// 已由 [practiceTileShadow] 取代于练习板块方块；保留供其他调用方使用。
-  static List<BoxShadow> softCardShadow(BuildContext context, Color accent) => [
-        BoxShadow(
-          color: accent.withValues(alpha: _isDark(context) ? 0.12 : 0.10),
-          blurRadius: _isDark(context) ? 24 : 12,
-          spreadRadius: _isDark(context) ? -6 : 0,
-          offset: _isDark(context) ? Offset.zero : const Offset(0, 4),
-        ),
-      ];
-
-  // PRACTICE TILE TOKENS (2026-08 重画)
-  // 练习板块方块从「着色玻璃」改为「着色实体面」：去掉白色羽化光晕与顶部
-  // 霜面高光，投影改用中性色双层（远悬浮 + 近贴合）。
-  // softTint 着色底不变——色彩由底色与 icon chip 承载，不由阴影承载。
-  //
-  // 铁律：所有层一律「纯垂直 offset + spreadRadius 0」。
-  // 任何非零 spread 都会改变阴影的圆角半径（= 卡片圆角 ± spread），
-  // 与卡片自身的圆角错位后，收缩/外扩的轮廓会从圆角外侧露出一圈尖角状
-  // 痕迹。旧版 featheredButtonGlow 的「负 spread + 大模糊」正是这个坑，
-  // 这里不再重蹈覆辙。
-
-  /// 方块投影：中性双层（远悬浮 + 近贴合）。
-  ///
-  /// 中性色不染 accent：[warmSand] / [success] 这类暖色 accent 若用来染阴
-  /// 影，会与同色系卡面糊成一片（「沙黄卡面 + 沙黄阴影」）。色彩只由
-  /// [softTint] 与 [accentOnCard] 承载。
-  ///
-  /// 深色分支另加一层顶部微亮：纯黑阴影叠在 [darkScaffold] 上等于隐身，
-  /// 卡片会「浮在虚空里」。用一层明确向上的白色微光模拟顶光打亮卡沿，
-  /// 黑色两层仍保留，负责压住卡片下缘的贴合感。
-  static List<BoxShadow> practiceTileShadow(BuildContext context) =>
-      _isDark(context)
-          ? [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.06),
-                blurRadius: 14,
-                offset: const Offset(0, -3),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.32),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.20),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.07),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ];
-
-  /// 方块描边：替代 [glassBorder] 的白色高光边，改中性细边，只留切割感。
-  static Color practiceTileBorder(BuildContext context) => _isDark(context)
-      ? Colors.white.withValues(alpha: 0.08)
-      : brandNavy.withValues(alpha: 0.08);
-
-  /// 方块内部 chip / badge 的描边色。浅色下卡面本就接近底色，不需要描边
-  /// （返回透明）；深色下给一层极淡白边维持边缘可辨。
-  static Color practiceTileEdge(BuildContext context) => _isDark(context)
-      ? Colors.white.withValues(alpha: 0.10)
-      : Colors.transparent;
-
-  // HOME DEPTH TOKENS（主页「湿地晨光」三层深度舞台）
-  // L0 环境层（AmbientBackdrop）无投影；L1 内容卡用 [homeCardShadow]；
-  // L2 悬浮面（吸顶变形头收缩态）用 [pinnedHeaderShadow]，与胶囊导航
-  // [floatingBarShadow] 同层级。铁律沿用 practiceTileShadow：纯垂直
-  // offset + spreadRadius 0。
-
-  /// L1：学习页内容卡（英雄头卡 / 单元卡）的静置投影，中性双层。
-  static List<BoxShadow> homeCardShadow(BuildContext context) =>
-      _isDark(context)
-          ? [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.26),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.06),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-              BoxShadow(
-                color: brandNavy.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ];
-
-  /// L2：吸顶变形头完全收缩后的悬浮投影——深度上与底部胶囊导航平齐，
-  /// 标记「这是浮在内容之上的一层」。
-  static List<BoxShadow> pinnedHeaderShadow(BuildContext context) => [
-        BoxShadow(
-          color: _isDark(context)
-              ? Colors.black.withValues(alpha: 0.30)
-              : brandNavy.withValues(alpha: 0.10),
-          blurRadius: 10,
-          offset: const Offset(0, 3),
-        ),
-      ];
 
   // THEME-AWARE COLOR HELPERS
   // Use these instead of hard-coded Colors.white / Color(0xFF...) so widgets
@@ -728,9 +675,6 @@ class TurnaTheme {
   static Color cardBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF141414) : Colors.white;
 
-  static Color elevatedCardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1E1E1E) : const Color(0xFFFFFFFF);
-
   static Color dividerBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF2A2A2A) : divider;
 
@@ -738,10 +682,10 @@ class TurnaTheme {
       Theme.of(context).colorScheme.onSurface;
 
   static Color textSecondaryColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFFB9CCC0) : textSecondary;
+      _isDark(context) ? darkTextSecondary : textSecondary;
 
   static Color textHintColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF84998C) : textHint;
+      _isDark(context) ? darkTextHint : textHint;
 
   static Color inputFillColor(BuildContext context) =>
       _isDark(context) ? const Color(0xFF121212) : const Color(0xFFF5F6F5);
@@ -756,19 +700,27 @@ class TurnaTheme {
   /// capsule's backdrop blur: transparent enough for the blur to read, opaque
   /// enough to keep labels legible over worst-case content scrolling
   /// underneath.
-  static Color floatingBarFill(BuildContext context) => _isDark(context)
-      ? const Color(0xFF141414).withValues(alpha: 0.60)
-      : Colors.white.withValues(alpha: 0.65);
+  static Color floatingBarFill(BuildContext context) {
+    // ADR 0062：胶囊导航是 L2 浮起面 → 主色相的淡彩。
+    // 仍然保持半透明（BackdropFilter 在它背后做真模糊），所以这里先把
+    // 白与 teal 混成不透明淡青白，再整体降 alpha，而不是叠两层半透明。
+    final tint = Color.alphaBlend(
+      glassFocus.withValues(alpha: _isDark(context) ? 0.16 : 0.10),
+      _isDark(context) ? const Color(0xFF1C1C1C) : Colors.white,
+    );
+    return tint.withValues(alpha: 0.72);
+  }
 
-  /// Single-layer drop under the floating tab capsule. No accent glow —
-  /// cheaper than [glassShadow] and does not tint the home indicator.
+  /// Single-layer drop under the floating tab capsule. 保持单层 —— 双层彩影
+  /// 会把胶囊下方的 home indicator 染上一圈色，那个区域归系统。
   static List<BoxShadow> floatingBarShadow(BuildContext context) => [
         BoxShadow(
           color: _isDark(context)
-              ? Colors.black.withValues(alpha: 0.24)
-              : brandNavy.withValues(alpha: 0.08),
-          blurRadius: 8,
-          offset: const Offset(0, 3),
+              ? Colors.black.withValues(alpha: 0.28)
+              : Color.lerp(glassFocus, brandNavy, 0.28)!
+                  .withValues(alpha: 0.16),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
         ),
       ];
 
@@ -897,6 +849,7 @@ class TurnaTheme {
   static ThemeData _buildLightTheme() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
+        extensions: const <ThemeExtension<dynamic>>[GlassMode.on],
         primaryColor: primary,
         scaffoldBackgroundColor: scaffoldBackground,
         colorScheme: const ColorScheme.light(
@@ -1096,14 +1049,21 @@ class TurnaTheme {
   static ThemeData _buildDarkTheme() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
+        extensions: const <ThemeExtension<dynamic>>[GlassMode.on],
         primaryColor: primary,
         scaffoldBackgroundColor: darkScaffold,
         colorScheme: const ColorScheme.dark(
           primary: primary,
           primaryContainer: primaryLight,
           secondary: secondary,
-          secondaryContainer: secondaryLight,
-          surface: darkAppBar,
+          // 深色下 secondaryContainer 不能沿用 warmSand —— 配 onSecondary
+          // 的白色是「白字压米黄」≈1.3:1，任何 M3 组件用到都不可读。
+          // 换成一块中性深面，语义（次级容器）保留，可读性问题消失。
+          secondaryContainer: Color(0xFF22302F),
+          // surface 必须与 scaffoldBackgroundColor 同值：surfaceColor()
+          // 直接返回 colorScheme.surface，两处不一致会让 Settings/AI 页
+          // （#0F0F0F）和 Home/Play（#000000）之间出现一道灰阶跳变。
+          surface: darkScaffold,
           error: error,
           onPrimary: textOnPrimary,
           onSecondary: textOnSecondary,
@@ -1214,7 +1174,7 @@ class TurnaTheme {
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.transparent,
           selectedItemColor: brandReed,
-          unselectedItemColor: Color(0xFF84998C),
+          unselectedItemColor: darkTextHint,
           showSelectedLabels: true,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
@@ -1223,14 +1183,14 @@ class TurnaTheme {
         chipTheme: expressiveChipTheme(
           background: const Color(0xFF121212),
           selectedFill: brandTeal.withValues(alpha: 0.28),
-          label: const Color(0xFFB9CCC0),
+          label: darkTextSecondary,
           selectedLabel: brandReed,
           outline: const Color(0xFF2A2A2A),
         ),
         segmentedButtonTheme: expressiveSegmentedTheme(
           selectedFill: brandTeal.withValues(alpha: 0.28),
           selectedForeground: brandReed,
-          foreground: const Color(0xFFB9CCC0),
+          foreground: darkTextSecondary,
           outline: const Color(0xFF2A2A2A),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -1277,16 +1237,16 @@ class TurnaTheme {
           titleLarge:
               TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           titleMedium:
-              TextStyle(color: Color(0xFFB9CCC0), fontWeight: FontWeight.w500),
+              TextStyle(color: darkTextSecondary, fontWeight: FontWeight.w500),
           titleSmall:
-              TextStyle(color: Color(0xFFB9CCC0), fontWeight: FontWeight.w500),
+              TextStyle(color: darkTextSecondary, fontWeight: FontWeight.w500),
           bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Color(0xFFB9CCC0)),
-          bodySmall: TextStyle(color: Color(0xFF84998C)),
+          bodyMedium: TextStyle(color: darkTextSecondary),
+          bodySmall: TextStyle(color: darkTextHint),
           labelLarge:
               TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          labelMedium: TextStyle(color: Color(0xFFB9CCC0)),
-          labelSmall: TextStyle(color: Color(0xFF84998C)),
+          labelMedium: TextStyle(color: darkTextSecondary),
+          labelSmall: TextStyle(color: darkTextHint),
         ),
       );
 
@@ -1298,6 +1258,7 @@ class TurnaTheme {
   static final ThemeData highContrastLightTheme = _buildHighContrastLight();
 
   static ThemeData _buildHighContrastLight() => lightTheme.copyWith(
+        extensions: const <ThemeExtension<dynamic>>[GlassMode.off],
         scaffoldBackgroundColor: Colors.white,
         colorScheme: const ColorScheme.light(
           primary: primaryDark,
@@ -1436,6 +1397,7 @@ class TurnaTheme {
   static final ThemeData highContrastDarkTheme = _buildHighContrastDark();
 
   static ThemeData _buildHighContrastDark() => darkTheme.copyWith(
+        extensions: const <ThemeExtension<dynamic>>[GlassMode.off],
         scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme.dark(
           primary: brandReed,
@@ -1566,4 +1528,83 @@ class TurnaTheme {
           labelSmall: TextStyle(color: Color(0xFFCCCCCC)),
         ),
       );
+}
+
+/// 彩色玻璃材质的四个层级。
+///
+/// - [l1] 内容卡（章节 / 单元 / 课程卡）
+/// - [l1Subtle] 表单卡（设置页等长列表，浓度降一档避免整屏发花）
+/// - [l2] 浮起面（下一课行、吸顶条、胶囊导航）
+/// - [badge] 徽章 / 标签（平涂，无描边无投影）
+enum GlassLevel { l1, l1Subtle, l2, badge }
+
+/// 高对比 / 降级模式下的玻璃开关。
+///
+/// 注册在 [ThemeData.extensions] 上；[TurnaTheme.glassEnabled] 读取它。
+/// 缺省 `true` —— 没注册 extension 的主题按玻璃绘制，不会静默退化成扁平卡。
+@immutable
+class GlassMode extends ThemeExtension<GlassMode> {
+  const GlassMode({required this.enabled});
+
+  final bool enabled;
+
+  static const GlassMode on = GlassMode(enabled: true);
+  static const GlassMode off = GlassMode(enabled: false);
+
+  @override
+  GlassMode copyWith({bool? enabled}) =>
+      GlassMode(enabled: enabled ?? this.enabled);
+
+  /// 开关不可插值：半程越过 0.5 直接切换，避免中途出现「半玻璃」。
+  @override
+  GlassMode lerp(GlassMode? other, double t) {
+    if (other == null) return this;
+    return t < 0.5 ? this : other;
+  }
+}
+
+/// [TurnaTheme.glassFill] / [glassShadow] / [glassStroke] 的共用参数表。
+class _GlassSpec {
+  const _GlassSpec({
+    required this.tintStart,
+    required this.tintEnd,
+    required this.sheen,
+    required this.sheenStop,
+    required this.stroke,
+    required this.nearAlpha,
+    required this.nearBlur,
+    required this.nearY,
+    required this.farAlpha,
+    required this.farBlur,
+    required this.farY,
+    required this.darkBase,
+    required this.darkTintStart,
+    required this.darkTintEnd,
+    required this.darkSheen,
+  });
+
+  /// 浅色：淡彩浓度起止。
+  final double tintStart;
+  final double tintEnd;
+
+  /// 浅色：白高光峰值 alpha 与衰减到位的位置。
+  final double sheen;
+  final double sheenStop;
+
+  /// 描边 alpha。`0` 表示该层无描边 / 无投影（badge）。
+  final double stroke;
+
+  /// 浅色：同色相投影近层（收边）与远层（弥散）。
+  final double nearAlpha;
+  final double nearBlur;
+  final double nearY;
+  final double farAlpha;
+  final double farBlur;
+  final double farY;
+
+  /// 深色：淡彩罩染的不透明基面（对齐 surfaceL1Fill / surfaceL2Fill / cardBg）。
+  final Color darkBase;
+  final double darkTintStart;
+  final double darkTintEnd;
+  final double darkSheen;
 }

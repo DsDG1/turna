@@ -1283,7 +1283,8 @@ class _AnkiSessionToolbar extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 border: Border.all(
-                  color: TurnaTheme.practiceTileBorder(context),
+                  // ADR 0062：来源 chip 走 L3 —— 描边取自身色相而非中性灰。
+                  color: TurnaTheme.brandSky.withValues(alpha: 0.24),
                 ),
               ),
               child: Row(

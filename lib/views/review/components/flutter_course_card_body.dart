@@ -55,19 +55,14 @@ class FlutterCourseCardBody extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
+        // ADR 0062：复习主卡是全页焦点 → teal L2 玻璃。
+        // 翻面后用更高的淡彩浓度表示「已揭示」，不再另造一套底色 + 描边。
+        decoration: TurnaTheme.glassDecoration(
+          context,
+          TurnaTheme.glassFocus,
+          level: GlassLevel.l2,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-          border: Border.all(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          scale: isRevealed ? 1.25 : 1.0,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

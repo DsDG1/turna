@@ -623,10 +623,11 @@ class _OldestCard extends StatelessWidget {
 
 // ─── Shared bits ───────────────────────────────────────────────────────────
 
-BoxDecoration _cardDecoration(BuildContext context) => BoxDecoration(
-      color: TurnaTheme.cardBg(context),
+BoxDecoration _cardDecoration(BuildContext context) => TurnaTheme.glassDecoration(
+      context,
+      TurnaTheme.glassNeutral,
+      level: GlassLevel.l1Subtle,
       borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      border: Border.all(color: TurnaTheme.statCardBorder(context)),
     );
 
 Widget _sectionHeader(

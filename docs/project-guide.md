@@ -146,7 +146,7 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 
 ## 9. 主题与可访问性
 
-`lib/core/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，以及按 `Brightness` 自适应的语义化颜色 helper。调色板是 Turna「湿地鹤」方案 A（[ADR 0033](./decisions/0033-turna-wetland-crane-palette.md)），真源是 `lib/core/theme.dart` 与 `tool/gui/src/theme_tokens.py`：主色锁 `#1F727E`，另有 `brandNavy #19324A` / `primaryLight #2F7F8E` / `primaryDark #145A64` / `brandSky #4A95A8` / `brandReed #5FB8C4` / `secondary #B85C3F` / `secondaryLight #EAD9B8` / `error #E74C3C` / `success #FFD93D` / `warning #FF9F43`。
+`lib/core/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，以及按 `Brightness` 自适应的语义化颜色 helper。调色板是 Turna「湿地鹤」方案 A（[ADR 0033](./decisions/0033-turna-wetland-crane-palette.md)），真源是 `lib/core/theme.dart` 与 `tool/gui/src/theme_tokens.py`：主色锁 `#1F727E`，另有 `brandNavy #19324A` / `primaryLight #2F7F8E` / `primaryDark #145A64` / `brandSky #4A95A8` / `brandReed #78C7B8` / `secondary #B85C3F` / `secondaryLight #EAD9B8` / `error #E74C3C` / `success #FFD93D` / `warning #FF9F43`。
 
 主 CTA 渐变 `brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`）。角色边界：success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip；高对比模式下 secondary 可以偏离 clay。Android 状态栏/导航栏对齐 AppBar 表面（不是铺一条 teal）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。
 

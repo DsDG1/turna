@@ -148,7 +148,7 @@ class _OfficialAnkiRepairCenterPageState
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: TurnaTheme.surfaceColor(context),
+              color: TurnaTheme.cardBg(context),
               borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               border: Border.all(color: TurnaTheme.dividerBg(context)),
             ),
@@ -359,7 +359,7 @@ class _OfficialAnkiRepairCenterPageState
   }) {
     final report = _doctorReport;
     final isHealthy = report != null && report.isAllHealthy;
-    final color = isHealthy ? Colors.green : Colors.orange;
+    final color = isHealthy ? TurnaTheme.leagueEmerald : TurnaTheme.warning;
 
     return Card(
       elevation: 0,
@@ -424,7 +424,7 @@ class _OfficialAnkiRepairCenterPageState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: TurnaTheme.surfaceColor(context),
+                color: TurnaTheme.cardBg(context),
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               ),
               child: Column(
@@ -437,8 +437,8 @@ class _OfficialAnkiRepairCenterPageState
                         ? AppStrings.databaseDoctorCourseDbOk
                         : AppStrings.ankiRepairDbAbnormal,
                     statusColor: report?.courseDb.integrityOk == true
-                        ? Colors.green
-                        : Colors.red,
+                        ? TurnaTheme.leagueEmerald
+                        : TurnaTheme.error,
                     detail: report != null
                         ? AppStrings.ankiRepairCourseDbDetail(
                             report.courseDb.lessonCount,
@@ -459,8 +459,8 @@ class _OfficialAnkiRepairCenterPageState
                         : AppStrings.databaseDoctorAnkiDbNotConfigured,
                     statusColor: report?.ankiDb.isConfigured == true
                         ? (report!.ankiDb.failedJobsCount > 0
-                            ? Colors.orange
-                            : Colors.green)
+                            ? TurnaTheme.warning
+                            : TurnaTheme.leagueEmerald)
                         : TurnaTheme.textSecondaryColor(context),
                     detail: report?.ankiDb.isConfigured == true
                         ? AppStrings.ankiRepairDeckCount(
@@ -475,7 +475,9 @@ class _OfficialAnkiRepairCenterPageState
                     status: orphans.isEmpty
                         ? AppStrings.databaseDoctorStorageNoOrphans
                         : AppStrings.ankiRepairOrphanCount(orphans.length),
-                    statusColor: orphans.isEmpty ? Colors.green : Colors.orange,
+                    statusColor: orphans.isEmpty
+                        ? TurnaTheme.leagueEmerald
+                        : TurnaTheme.warning,
                     detail: orphans.isNotEmpty
                         ? _formatBytes(orphans.fold<int>(
                             0, (sum, a) => sum + a.physicalBytes))

@@ -7,6 +7,29 @@
 
 ---
 
+### 2026-10-31 全 app 材质统一：彩色玻璃（ADR 0062，B0/B0.5/B1 批次）
+
+- **性质**：视觉批次；**测试数 +9**（新增 `views/widgets/glass_tokens_test` 7 条、`golden/practice_card_golden_test` 2 条）+ **golden 基线 +2**（`practice_card_light/dark`），golden 总数 12 → 14。
+- **改动**：`core/theme.dart` 新增 `GlassLevel` 枚举、`GlassMode` ThemeExtension（light/dark 注册 `on`、两套高对比注册 `off`）、`glassFill/glassShadow/glassStroke/glassSolid/glassDecoration/glassEnabled` 与 6 个色相常量；私有 `_GlassSpec` 是全部数值的唯一真源。白高光**预混进单层 LinearGradient 的 stops**（双层 fill 会让 `AnimatedContainer` 无法插值）。阴影色先 `lerp(accent, brandNavy, 0.28)` 降彩度，避免暖色 accent 投出黄橙光晕。新建 `views/widgets/glass_surface.dart`。
+  消费方：`play_tiles.dart`（`SoftCard`→L1、`AccentIconChip`→badge）、`settings_section.dart`（`SettingsCard`→L1Subtle+中性灰）、`interaction_renderer.dart`（`InteractionOptionTile`）、`lesson_practice_card.dart`（`_CardColors` 改 `accent/level/scale`）、课程页三个（`unit_card` sand L1 / `lesson_tile` 行壳用 `glassSolid` 接住渐变 + 下一课行 teal L2 / `section_switcher` teal L1Subtle）。
+  同时删除第一代 `glassShadow`（零调用死代码，与新 API 同名冲突）。
+- **验证**：`flutter analyze` 仅剩既有 `course_database_seeder.dart` 一条 `unawaited_futures` info；全量 `flutter test --exclude-tags golden` **2498 passed / 6 failed**，6 条**全部先于本批存在**：`section_load_reentrancy_test` + `seeder_idempotent_test`（上一批次已记录）；`wetland_palette_contract_test:318`（要求 `interaction_renderer.dart` 含 `primaryCtaDecoration`，`git show HEAD:` 证实该 token 在此前已不存在）、`dictation_renderer_test` ×3（点「核对」按钮，按钮已在 CTA 收归底栏时改走 `checkLabel`）、另 1 条同族。全部与材质无关。
+  `flutter test --tags golden` **14 passed**（本机生成；CI 按 `--exclude-tags golden` 不跑 golden）。
+- **重录的基线**：`course_tree_expanded_light/dark`、`play_hub_light/dark`、`settings_reminder_light/dark`、`practice_card_light/dark`（新增）。新增 golden 必须带 `debugShowCheckedModeBanner: false`，否则 DEBUG 斜角会进基线。
+- **同批第二轮（B2 + L0 层 + 胶囊导航）**：`colorScheme.surface` 深色改与 `scaffoldBackgroundColor` 同值（`darkScaffold #000000`，**hex 不动**，`ohos_card_action_chrome_guard_test` 依赖它）；新增 `darkTextSecondary #A7B2B8` / `darkTextHint #79858C` 并替换全部 11 处绿灰化石；深色 `secondaryContainer` 从 `warmSand` 改 `#22302F`（原组合白字压米黄 ≈1.3:1）；4 处非 Scaffold 的 `surfaceColor` 改用 `cardBg`/`appBarTheme`。`courseTreeGradient` 退化为纯白（深色纯黑），`AmbientBackdrop` 删掉晨雾与滚动视差改为无状态纯画布。`floatingBarFill` 改「淡青白 @72%」、`floatingBarShadow` 单层改同色相。深色 6 张 golden 因底色变化**再次重录**（`course_tree` / `dictionary` / `round2_*` / `practice_card` / `settings_reminder` / `srs_empty`）。
+- **未验**：真机浅/深色实机观感；B3 全局 componentTheme（评估后缩减：`switchTheme` 会被 `settingsAdaptiveSwitch` 显式参数覆盖、`bottomSheetTheme` 会被 21 处显式 `backgroundColor` 覆盖，只有 `listTileTheme` / `sliderTheme` 会真正生效）、B3b 21 处 sheet 收口、B4 其余页面（profile / review）、B5 其余 renderer、B6 Settings 子页、B7 死 token 清理与 ADR 0062 正文。
+
+---
+
+### 2026-10-30 跟读识别（readAloud）：平台识别 + 词面匹配全管线（ADR 0061）
+
+- **性质**：功能批次；**测试数 +34**（新增 `core/read_aloud_scoring_test` 12 条、`service/read_aloud_backend_test` 9 条、`application/read_aloud_gate_test` 4 条、`renderers/interaction_renderers_test` 的 `ReadAloudRenderer` 组 6 条；`domain/interaction_test` +3 条）。GUI 侧更新 3 个既有钉子（`test_schema_constants` / `test_anki_interaction_schema` / `test_lesson_content`：题型数 14 → 15），`run_gui_tests.py ci` **54 passed**。
+- **改动**：新题型 `Interaction.readAloud`（必填 `targetText`，示范音走 TTS 不占 audioAsset）；`ReadAloudBackend` 缝包 `speech_to_text` 7.5（Android/iOS），工厂在 OHOS/Web 返回 Unavailable（`OhosDegradation.readAloud`，`ohos_target_test` 集合钉子同步扩容）；打分纯函数 `core/read_aloud_scoring.dart`（`foldTurkish` 折叠 + 保序 DP 对齐 + 黏着/单编辑容差，阈值 0.6）；主开关 `readAloudExercisesEnabled` 默认关（opt-in，隐私口径：平台识别服务可能云端处理）；渲染器含降级听示范卡与课内一键开；Dart validator + `course_cli.py` + GUI `INTERACTION_SCHEMA` 三处校验同步；nouveau-turkish section1 `st-two-lines` 末尾 +2 道示例题（`course_cli validate`/`lint` 通过）。权限：Android `RECORD_AUDIO` + RecognitionService queries，iOS 两个 usage description。
+- **验证**：`flutter analyze` 仅剩既有 `course_database_seeder.dart` 一条 `unawaited_futures` info；全量 `flutter test --exclude-tags golden` **2495 passed / 2 failed**，两条失败（`section_load_reentrancy_test` 同步重入用例、`seeder_idempotent_test` 空 expressions 用例）经 stash 干净树复跑确认**先于本批存在**；`python -m unittest discover -s test` **107 passed / 1 skipped**；GUI 边界守卫全绿。`dart format` 本批文件全部干净（仓库另有 44 个文件待格式化，非本批引入）。
+- **未验**：真机——iOS SFSpeechRecognizer 的 tr-TR 质量、权限弹窗链路、Android 无 Google 服务设备降级、0.6 阈值真实体感（ADR 0061「待验证」小节）。
+
+---
+
 ### 2026-10-30 课程内容更新：恢复内置内容入口与发布脚本防护
 
 - **性质**：功能批次；**测试数 +54**（`course_ota_service_test` 8 → 13 条；新增 `course_restore_tile_test` 6 条；新增 `publish_course_test.py` 43 条，其中 1 条 symlink 用例在 Windows 跳过）。Python 基线 60 → 103。

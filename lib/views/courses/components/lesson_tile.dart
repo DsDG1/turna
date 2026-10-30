@@ -51,38 +51,35 @@ class LessonRowShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final side = BorderSide(
-      color: TurnaTheme.dividerBg(context).withValues(alpha: 0.85),
-    );
+    const accent = TurnaTheme.glassContainer;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // 与 UnitCard 的 L1 渐变同源：用淡彩最深端的实色接住，否则上下两段
+    // 各自重新起渐变，接缝处会出现一道横断。
+    final body = TurnaTheme.glassSolid(context, accent, level: GlassLevel.l1);
+    final stroke = TurnaTheme.glassStroke(context, accent, level: GlassLevel.l1);
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+        color: body,
         border: Border(
-          left: side,
-          right: side,
-          bottom: isLast ? side : BorderSide.none,
+          left: BorderSide(color: stroke),
+          right: BorderSide(color: stroke),
+          bottom: isLast ? BorderSide(color: stroke) : BorderSide.none,
         ),
         borderRadius: BorderRadius.vertical(
           bottom: Radius.circular(isLast ? TurnaTheme.radiusLarge : 0),
         ),
         boxShadow: isLast
-            ? [
-                BoxShadow(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.black.withValues(alpha: 0.20)
-                      : TurnaTheme.brandNavy.withValues(alpha: 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
+            ? TurnaTheme.glassShadow(context, accent, level: GlassLevel.l1)
             : null,
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(10, isFirst ? 10 : 0, 10, isLast ? 10 : 0),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: TurnaTheme.inputFillColor(context),
+            // 磨砂内衬：一层白霜压低彩度，让课程行从卡面里「沉」下去。
+            color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.45),
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(isFirst ? TurnaTheme.radiusMedium : 0),
               bottom: Radius.circular(isLast ? TurnaTheme.radiusMedium : 0),
@@ -202,19 +199,12 @@ class _LessonRow extends StatelessWidget {
         onTap: onTap,
         excludeSemantics: true,
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: TurnaTheme.cardBg(context),
+          // ADR 0062：「下一课」是全页唯一浮起面 → teal 色相的 L2 玻璃。
+          decoration: TurnaTheme.glassDecoration(
+            context,
+            TurnaTheme.glassFocus,
+            level: GlassLevel.l2,
             borderRadius: radius,
-            border: Border.all(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.4),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: TurnaTheme.brandNavy.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           child: Material(
             color: Colors.transparent,

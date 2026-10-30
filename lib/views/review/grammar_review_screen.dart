@@ -439,16 +439,12 @@ class _PracticePanel extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      // ADR 0062：题干卡 → teal L1 玻璃。
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassFocus,
+        level: GlassLevel.l1,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        boxShadow: [
-          BoxShadow(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -497,16 +493,12 @@ class _GrammarCard extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
+        // ADR 0062：语法点解释卡 → teal L1 玻璃（内容卡层级）。
+        decoration: TurnaTheme.glassDecoration(
+          context,
+          TurnaTheme.glassFocus,
+          level: GlassLevel.l1,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-          boxShadow: [
-            BoxShadow(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
         child: SingleChildScrollView(
           child: Column(

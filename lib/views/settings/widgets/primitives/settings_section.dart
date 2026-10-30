@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/glass_surface.dart';
 
 Widget settingsTileDivider(BuildContext context) => Divider(
       height: 1,
@@ -76,13 +77,13 @@ class SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // ADR 0062：表单卡走 L1Subtle（比内容卡淡一档）+ 中性灰。
+    // 设置页是长列表，每段都带明显色相会让整屏发花，可读性优先。
+    return GlassSurface(
+      accent: TurnaTheme.glassNeutral,
+      level: GlassLevel.l1Subtle,
+      radius: BorderRadius.circular(TurnaTheme.radiusLarge),
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: children,

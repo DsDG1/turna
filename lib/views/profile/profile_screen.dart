@@ -70,10 +70,12 @@ class _DetailPageEntries extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
+        // ADR 0062：个人页入口主卡是「容器」角色 → sand 色相 L1 玻璃。
+        decoration: TurnaTheme.glassDecoration(
+          context,
+          TurnaTheme.glassContainer,
+          level: GlassLevel.l1,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-          border: Border.all(color: TurnaTheme.statCardBorder(context)),
         ),
         child: Column(
           children: [

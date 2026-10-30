@@ -89,6 +89,7 @@
 | | | [0058](./decisions/0058-builtin-course-content-source.md) | 内置课程统一选择内容来源 |
 | | | [0059](./decisions/0059-course-release-feed.md) | 内置课程离线打包与发布清单 |
 | | | [0060](./decisions/0060-textbook-syllabus-adaptation-and-tts-alignment.md) | 教材/纲领适配与 TTS 参数对齐 |
+| | | [0062](./decisions/0062-colored-glass-material.md) | 彩色玻璃材质：白纸上的淡彩玻璃 |
 
 ## 其它位置
 

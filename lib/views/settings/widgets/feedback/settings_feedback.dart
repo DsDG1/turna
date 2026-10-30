@@ -51,7 +51,10 @@ class SettingsScaffold extends StatelessWidget {
     return Scaffold(
       backgroundColor: TurnaTheme.surfaceColor(context),
       appBar: AppBar(
-        backgroundColor: TurnaTheme.surfaceColor(context),
+        // AppBar 比页面高一档中性灰，走主题而不是 surfaceColor ——
+        // 深色下 surface 与 scaffold 同值（#000000），顶栏再取 surface
+        // 就会和页面糊成一片，丢掉边缘分离。
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: allowPop,

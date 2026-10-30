@@ -2,6 +2,12 @@
 
 > 状态：已接受 ｜日期：2026-08-06
 >
+> 落地状态：§1（`brandReed` 改 `#5FB8C4`）、§2（背景冷化到 `#F3F7F9`）、§3（章节换色）
+> **均未进入代码** —— `git log -S"5FB8C4" -- lib/core/theme.dart` 为空。代码现值：
+> `brandReed = #78C7B8`、浅色底 `#FFFFFF`。背景策略已由
+> [ADR 0062](./0062-colored-glass-material.md) 取代；本文件余下部分保留当时的决策论证，
+> 不作为当前实现的描述。
+>
 > 前置：ADR 0033（湿地鹤色板，scheme A 锁死 `brandTeal`）、ADR 0034（AI companion hardening）
 >
 > 真源：`lib/views/theme.dart`、`tool/gui/src/theme_tokens.py`、`android/app/src/main/res/values/colors.xml`、`web/index.html`、`test/views/wetland_palette_contract_test.dart`

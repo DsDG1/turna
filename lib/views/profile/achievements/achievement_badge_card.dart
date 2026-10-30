@@ -44,7 +44,13 @@ class AchievementBadgeCard extends StatelessWidget {
       button: true,
       label: _semanticsLabel(status, nextTier),
       child: Material(
-        color: TurnaTheme.cardBg(context),
+        // ADR 0062：成就徽章卡是网格小卡 —— 用 clay 色相的均匀淡彩实面，
+        // 不铺渐变与彩影（12 张一组的小卡各带大投影会互相糊在一起）。
+        color: TurnaTheme.glassSolid(
+          context,
+          TurnaTheme.glassAchievement,
+          level: GlassLevel.l1,
+        ),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         child: InkWell(
           onTap: onTap,
@@ -53,7 +59,13 @@ class AchievementBadgeCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-              border: Border.all(color: TurnaTheme.statCardBorder(context)),
+              border: Border.all(
+                color: TurnaTheme.glassStroke(
+                  context,
+                  TurnaTheme.glassAchievement,
+                  level: GlassLevel.l1,
+                ),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

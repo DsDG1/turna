@@ -206,10 +206,11 @@ class _TodayHero extends StatelessWidget {
     );
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,10 +325,11 @@ class _DueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         children: [
@@ -364,10 +366,11 @@ class _StreakCard extends StatelessWidget {
     final streak = snapshot.streak;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,10 +531,11 @@ class _TodayQualityCard extends StatelessWidget {
         : AppStrings.reviewAccuracyPct((q.firstAnswerAccuracy! * 100).round());
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Row(
         children: [
@@ -576,10 +580,11 @@ class _SourceList extends StatelessWidget {
     final sources = snapshot.sources;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,10 +680,11 @@ class _DashboardSkeleton extends StatelessWidget {
     Widget block({double height = 80}) => Container(
           height: height,
           margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: TurnaTheme.cardBg(context),
+          decoration: TurnaTheme.glassDecoration(
+            context,
+            TurnaTheme.glassNeutral,
+            level: GlassLevel.l1Subtle,
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            border: Border.all(color: TurnaTheme.statCardBorder(context)),
           ),
         );
     return ListView(

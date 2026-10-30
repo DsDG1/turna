@@ -255,10 +255,12 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 ),
                 const SizedBox(width: 8),
                 for (final entry in const [
-                  (1, Colors.red),
-                  (2, Colors.orange),
-                  (3, Colors.blue),
-                  (4, Colors.green),
+                  // 熟识度 1-4 用品牌语义色，不用 Colors.* 原色 —— 后者在
+                  // 深色 / 高对比模式下不随主题走，会突然变得刺眼或发灰。
+                  (1, TurnaTheme.error),
+                  (2, TurnaTheme.warning),
+                  (3, TurnaTheme.brandSky),
+                  (4, TurnaTheme.leagueEmerald),
                 ]) ...[
                   TurnaFilterChip(
                     avatar: Icon(Icons.flag, color: entry.$2, size: 16),
@@ -470,10 +472,10 @@ class _FlagIcon extends StatelessWidget {
       return const Icon(Icons.style_outlined, color: TurnaTheme.brandTeal);
     }
     final color = switch (flag) {
-      1 => Colors.red,
-      2 => Colors.orange,
-      3 => Colors.blue,
-      4 => Colors.green,
+      1 => TurnaTheme.error,
+      2 => TurnaTheme.warning,
+      3 => TurnaTheme.brandSky,
+      4 => TurnaTheme.leagueEmerald,
       _ => TurnaTheme.brandTeal,
     };
     return Icon(Icons.flag, color: color);

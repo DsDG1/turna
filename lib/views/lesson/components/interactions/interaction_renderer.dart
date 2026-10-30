@@ -457,19 +457,11 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
   }
 
   Widget _buildTile(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = _accent();
-    final base = TurnaTheme.surfaceL1Fill(context);
+    final stateAccent = _accent();
+    // ADR 0062：未判定时走中性灰玻璃（表单级浓度），判定后按结果色相上彩。
+    final accent = stateAccent ?? TurnaTheme.glassNeutral;
+    final level = stateAccent == null ? GlassLevel.l1Subtle : GlassLevel.l1;
 
-    // 选中/对/错: 强调色铺在卡面上, 而不是直接当底色 —— 这样深色下
-    // 依然保留"卡面比画布亮一级"的层次.
-    final fill = accent == null
-        ? base
-        : Color.alphaBlend(
-            accent.withValues(alpha: isDark ? 0.22 : 0.10),
-            base,
-          );
-    final border = accent ?? TurnaTheme.surfaceL1Border(context);
     final radius = BorderRadius.circular(TurnaTheme.radiusOption);
     final labelColor = TurnaTheme.textPrimaryColor(context);
 
@@ -484,19 +476,20 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            gradient: TurnaTheme.cardTopLight(context, fill),
+          // 单层 gradient（白高光已预混进 stop）—— 所以 180ms 状态切换
+          // 能平滑插值。拆成两层 fill 会让这里的过渡直接跳变。
+          decoration: TurnaTheme.glassDecoration(
+            context,
+            accent,
+            level: level,
             borderRadius: radius,
-            border: Border.all(
-              color: border,
-              width: accent == null ? 1 : 1.5,
-            ),
             // 按下时阴影收到零: 视觉上"被按进去", 而不是只有一个缩放.
             boxShadow: _pressed
                 ? const <BoxShadow>[]
                 : [
-                    ...TurnaTheme.surfaceL1Shadow(context),
-                    if (accent != null) ...TurnaTheme.stateGlow(accent),
+                    ...TurnaTheme.glassShadow(context, accent, level: level),
+                    if (stateAccent != null)
+                      ...TurnaTheme.stateGlow(stateAccent),
                   ],
           ),
           child: Material(
@@ -525,13 +518,14 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
                       height: 20,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: accent ?? Colors.transparent,
+                        color: stateAccent ?? Colors.transparent,
                         border: Border.all(
-                          color: accent ?? TurnaTheme.textHintColor(context),
+                          color: stateAccent ??
+                              TurnaTheme.textHintColor(context),
                           width: 1.5,
                         ),
                       ),
-                      child: accent == null
+                      child: stateAccent == null
                           ? null
                           : Icon(
                               widget.isWrong ? Icons.close : Icons.check,
@@ -546,7 +540,7 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
                         style: TextStyle(
                           fontSize: 16,
                           height: 1.4,
-                          fontWeight: accent == null
+                          fontWeight: stateAccent == null
                               ? FontWeight.w500
                               : FontWeight.w600,
                           color: labelColor,

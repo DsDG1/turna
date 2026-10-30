@@ -17,14 +17,14 @@ enum LessonPracticeCardVariant {
   surface,
 }
 
-/// 练习页面的「半拟物质感」主卡容器.
+/// 练习页面的主卡容器（ADR 0062：白纸上的彩色玻璃）.
 ///
 /// 视觉构成 (自下而上):
-/// 1. 双层柔阴影 ([TurnaTheme.surfaceL2Shadow]) — 浅色投品牌深蓝, 深色投
-///    极弱白光. 深色画布是纯黑, navy 阴影在上面等于不存在, 这是深色模式
-///    "卡片发平"的根因.
-/// 2. 底色 + 顶光渐变 ([TurnaTheme.cardTopLight]) — 模拟磨砂面的受光面.
-/// 3. 细描边 (1px) — 不抢戏, 仅保持轮廓清晰.
+/// 1. 同色相双层投影 ([TurnaTheme.glassShadow]) — 玻璃的可读性来自影子
+///    投在白纸上的色相，不是灰色投影。深色画布是纯黑，另叠一层向上白光
+///    模拟顶光，否则卡片会「发平」.
+/// 2. 淡彩渐变 + 白高光预混层 ([TurnaTheme.glassFill]) — 上浅下深的厚度感.
+/// 3. 1px 同色相描边 ([TurnaTheme.glassStroke]) — 有色玻璃边缘因折射更沉.
 ///
 /// 该组件被 [AnkiCardRenderer] / [ShowWordRenderer] / [TranslateSentenceRenderer]
 /// 共用. 替换某个 renderer 的卡片容器时, 只需把外层 `Container` /
@@ -56,17 +56,18 @@ class LessonPracticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colors = _resolveColors(context, isDark, variant);
+    final colors = _resolveColors(variant);
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
 
-    // 只给 gradient. 同时传 `color` 时 BoxDecoration 只画 gradient,
-    // 底色会静默失效 —— back 变体的品牌底就是这么被吞掉的.
-    final fill = BoxDecoration(
-      gradient: TurnaTheme.cardTopLight(context, colors.fill),
+    // 单层 gradient（白高光预混进 stop）。同时传 `color` 时 BoxDecoration
+    // 只画 gradient，底色会静默失效 —— 这里压根不给 color。
+    final fill = TurnaTheme.glassDecoration(
+      context,
+      colors.accent,
+      level: colors.level,
       borderRadius: radius,
-      border: Border.all(color: colors.border, width: 1),
+      boxShadow: const <BoxShadow>[],
+      scale: colors.scale,
     );
 
     final Widget body;
@@ -101,7 +102,11 @@ class LessonPracticeCard extends StatelessWidget {
       // 阴影挂在最外层普通 Container 上: Ink 的装饰会被 Material 裁掉外阴影.
       decoration: BoxDecoration(
         borderRadius: radius,
-        boxShadow: TurnaTheme.surfaceL2Shadow(context),
+        boxShadow: TurnaTheme.glassShadow(
+          context,
+          colors.accent,
+          level: colors.level,
+        ),
       ),
       child: body,
     );
@@ -125,37 +130,40 @@ class LessonPracticeCard extends StatelessWidget {
     );
   }
 
-  _CardColors _resolveColors(
-    BuildContext context,
-    bool isDark,
-    LessonPracticeCardVariant v,
-  ) {
-    final base = TurnaTheme.surfaceL2Fill(context);
+  _CardColors _resolveColors(LessonPracticeCardVariant v) {
+    // ADR 0062：主卡统一走 L2 浮起层（teal），back 变体靠提高淡彩浓度区分
+    // 「已翻面」，不再另造一套底色 + 描边组合。
     switch (v) {
       case LessonPracticeCardVariant.front:
-        return _CardColors(
-          fill: base,
-          border: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.30 : 0.20),
+        return const _CardColors(
+          accent: TurnaTheme.glassFocus,
+          level: GlassLevel.l2,
         );
       case LessonPracticeCardVariant.back:
-        return _CardColors(
-          fill: Color.alphaBlend(
-            TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.22 : 0.10),
-            base,
-          ),
-          border: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.55 : 0.45),
+        return const _CardColors(
+          accent: TurnaTheme.glassFocus,
+          level: GlassLevel.l2,
+          scale: 1.35,
         );
       case LessonPracticeCardVariant.surface:
-        return _CardColors(
-          fill: base,
-          border: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.22 : 0.15),
+        return const _CardColors(
+          accent: TurnaTheme.glassNeutral,
+          level: GlassLevel.l2,
         );
     }
   }
 }
 
 class _CardColors {
-  final Color fill;
-  final Color border;
-  const _CardColors({required this.fill, required this.border});
+  final Color accent;
+  final GlassLevel level;
+
+  /// 淡彩浓度倍率，1.0 为规范值。
+  final double scale;
+
+  const _CardColors({
+    required this.accent,
+    required this.level,
+    this.scale = 1.0,
+  });
 }

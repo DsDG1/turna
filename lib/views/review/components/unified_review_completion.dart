@@ -66,12 +66,12 @@ class UnifiedReviewCompletion extends StatelessWidget {
             const SizedBox(height: 32),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: TurnaTheme.cardBg(context),
+              // ADR 0062：完成页是成就语义 → clay 色相的 L1 玻璃。
+              decoration: TurnaTheme.glassDecoration(
+                context,
+                TurnaTheme.glassAchievement,
+                level: GlassLevel.l1,
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-                border: Border.all(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,

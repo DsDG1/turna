@@ -171,7 +171,7 @@ class _SectionSheetTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isSelected
             ? TurnaTheme.brandTeal.withValues(alpha: 0.08)
-            : TurnaTheme.surfaceColor(context),
+            : TurnaTheme.cardBg(context),
         borderRadius: borderRadius,
         border: Border.all(
           color: isSelected
