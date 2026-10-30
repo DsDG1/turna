@@ -287,6 +287,8 @@ Warning: `dart` on your path resolves to ...\flutter\bin\dart
 
 | 要找什么 | 去哪 |
 |---|---|
+| **课程 Phase Two**：方向、边学边改的反馈、下一步 | [`WHITEBOARD.md`](./WHITEBOARD.md)（同步白板，根目录；反馈先进白板，不即时展开施工） |
+| 课程设计的外部研究 / 大纲参考（Duolingo path 研究、土耳其官方教学大纲） | [`research/README.md`](./research/README.md)（PDF 本地归档，不入库） |
 | 全部文档在哪、哪篇管什么 | [`docs/README.md`](./docs/README.md)（文档索引） |
 | **现在是什么样**（迁移口径 / 平台档位 / Held 项） | [`docs/status.md`](./docs/status.md) |
 | 教学法 / 课程体系设计 | [`docs/project-guide.md`](./docs/project-guide.md) §1–§2 |

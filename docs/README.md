@@ -86,6 +86,9 @@
 | | | [0055](./decisions/0055-ai-credential-persistence-ohos.md) | AI 凭据在鸿蒙上真正落盘 |
 | | | [0056](./decisions/0056-ohos-remove-ai-compliance.md) | 鸿蒙伴生版移除 AI 生成（合规） |
 | | | [0057](./decisions/0057-card-adaptation-plan.md) | 记忆卡适配方案与统一展示解析 |
+| | | [0058](./decisions/0058-builtin-course-content-source.md) | 内置课程统一选择内容来源 |
+| | | [0059](./decisions/0059-course-release-feed.md) | 内置课程离线打包与发布清单 |
+| | | [0060](./decisions/0060-textbook-syllabus-adaptation-and-tts-alignment.md) | 教材/纲领适配与 TTS 参数对齐 |
 
 ## 其它位置
 
@@ -93,5 +96,4 @@
 |---|---|
 | [`../tool/gui/README.md`](../tool/gui/README.md) | 课程编辑器（独立 Python 工程）与其自己的文档索引 |
 | [`../tool/gui/docs/README.md`](../tool/gui/docs/README.md) | 编辑器文档索引，有门禁强制每篇都在册 |
-| [`../SECURITY.md`](../SECURITY.md) | 安全策略 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 版本变更记录 |

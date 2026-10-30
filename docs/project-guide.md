@@ -50,7 +50,7 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 
 - 状态与模型：Provider + ChangeNotifier 同时充当依赖注入容器与状态广播器；GetIt + Injectable（`@injectable` / `@lazySingleton`）；Freezed + `@JsonSerializable`，Interaction 变体由 `runtimeType` 区分；接口在 `domain/repositories/`，实现在 `data/`。
 - 路由（导航合同，CI 强制）：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（播种完成前重定向到 splash）。全屏页面一律走 AutoRoute，全局 `AppRouter.defaultRouteType = RouteType.adaptive(enablePredictiveBackGesture: true)`：Android 用 Material 路由，iOS/macOS 用 Cupertino 路由，Web 无转场。禁止全局强制单一平台路由、自定义转场、调用点直接构造 `MaterialPageRoute` / `CupertinoPageRoute`、覆盖 `ThemeData.pageTransitionsTheme`；唯一例外是 `lib/routing/platform_page_route.dart`。
-- 渲染器插件化：14 种 Interaction 各有一个 `@injectable` 渲染器，由 `di/renderer_module.dart` 收集成 `Set<InteractionRenderer>` 注册到 GetIt。分发走 `lookupRenderer()`，它先把实例映射到 freezed 公开接口类型再匹配——不能直接用 `runtimeType`，因为 freezed 生成的是私有的 `_$FooImpl`。
+- 渲染器插件化：每种 Interaction 各有一个 `@injectable` 渲染器，由 `di/renderer_module.dart` 收集成 `Set<InteractionRenderer>` 注册到 GetIt。分发走 `lookupRenderer()`，它先把实例映射到 freezed 公开接口类型再匹配——不能直接用 `runtimeType`，因为 freezed 生成的是私有的 `_$FooImpl`。
 
 ## 4. 课程引擎
 
@@ -58,13 +58,13 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction
 ```
 
-全是 Freezed 不可变类 + JSON 序列化，`Lesson.flattenedStages` 把嵌套内容展平成渲染器可遍历的 `List<Stage>`。14 种 Interaction 题型均 `@injectable` 注册到 GetIt：`showWord`、`multipleChoice`、`multiSelect`、`fillBlank`（打字比对走 `foldTurkish`）、`translateSentence`、`reorderSentence`、`typeTheWord`、`listenAndPick`、`listenOnly`、`readingMcq`、`readingTrueFalse`、`readingShortAnswer`、`ankiCard`、`ankiHtmlCard`（官方复习路径用 WebView 渲染原 notetype HTML，存量卡降级为占位卡）。
+全是 Freezed 不可变类 + JSON 序列化，`Lesson.flattenedStages` 把嵌套内容展平成渲染器可遍历的 `List<Stage>`。Interaction 题型清单以 `lib/domain/course/interaction.dart` 为准（不在此处数数），均 `@injectable` 注册到 GetIt：`showWord`、`multipleChoice`、`multiSelect`、`fillBlank`（打字比对走 `foldTurkish`）、`translateSentence`、`reorderSentence`、`typeTheWord`、`listenAndPick`、`listenOnly`、`imageRecall`、`dictation`、`readingMcq`、`readingTrueFalse`、`readingShortAnswer`、`ankiCard`、`ankiHtmlCard`（官方复习路径用 WebView 渲染原 notetype HTML，存量卡降级为占位卡）。
 
 6 种教学模板 + 1 种兜底：intro 认识新词；practice 受控语境反复操练填空 / 翻译 / 组句；listening 听力训练（自下而上的语音解码）；reading 阅读理解（短文 + 三道递进题）；review 跨单元回顾；mastery 混合题型限时完成；legacy 兜底模板，兼容旧版课程数据。
 
 > 写课时内容的完整契约见 [`authoring/lesson-type-templates.md`](./authoring/lesson-type-templates.md)、[`authoring/course-layout.md`](./authoring/course-layout.md)、[`authoring/listening-show-format.md`](./authoring/listening-show-format.md)。
 
-按需加载：`index.json` + 每节一个 JSON + drift SQLite 缓存，按内容版本号自动重新播种；`expressions` 表支持表达级间隔重复。
+按需加载：`index.json` + 每节一个 JSON + drift SQLite 缓存，按内容版本号自动重新播种；`expressions` 表支持表达级间隔重复。内置课程由 `CourseContentSource` 在 manifest 对应 assets 和应用文档目录的 `content_updates/<language>/` 中整套选择，按 index、expressions 版本依次比较，同版采用 assets；下载内容先完整校验并缓存 JSON 快照，播种器与等级补全共用此来源。运行中通过 `CourseProvider.refreshBuiltinContent` 应用本地更新，刷新课程树与语言查表，并重新检查保留／重置进度提示；来源与事务边界见 [ADR 0058](./decisions/0058-builtin-course-content-source.md)。
 
 切换语言的三段式失败语义（`lib/application/course_provider.dart` 的 `setScope`）：先加载目标语言的内容，成功后才提交 scope；后续失败都整体回滚到上一个语言并抛 `CourseScopeSwitchException`。加载失败则拒绝切换，scope 和练习过滤条件留在原语言。
 
@@ -195,6 +195,8 @@ JSON 放在 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ```
 
 每节包含 `units → lessons → content`。完整的 authoring 契约见 [`authoring/`](./authoring/)。
+
+内置课程发布用 `python tool/publish_course.py --bump --notes "本次更新说明"`，默认按 manifest 的 `tr` 定位课程，先在快照上运行 validate/lint，再生成 `dist/course-updates/<language>/` 下的 zip 与 feed；包内版本、SHA-256 和大小自动写入清单。已有 feed 时 index 发布号必须加一，`--bump` 会补上尚未执行的升版；`--strict` 可让 lint 警告也阻断发布。默认 URL 为同目录相对路径，可用 `python -m http.server 8000 --directory dist/course-updates/tr` 提供局域网文件服务；正式 Release 附件用 `--base-url` 指定实际下载目录，设备端须相对 feed 地址解析相对 URL。保留已生成的 feed；清理输出或换机器时，通过 `--previous-feed` 指定已部署清单作为版本基线。脚本只准备本地产物，按其指引先上传 zip、最后更新稳定地址的 feed；协议与提交边界见 [ADR 0059](./decisions/0059-course-release-feed.md)。
 
 ## 14. 测试与质量基线
 
