@@ -252,8 +252,9 @@ class SettingsAdvancedAiTest(unittest.TestCase):
             "ai/pipeline_default_mode": "refine",
         })
         settings = Settings.load_from_qsettings(qs)
-        self.assertEqual(settings.ai_model_chat, "deepseek-chat")
-        self.assertEqual(settings.ai_model_json, "deepseek-reasoner")
+        # Legacy ids are migrated to the current model names on load.
+        self.assertEqual(settings.ai_model_chat, "deepseek-v4.1-flash")
+        self.assertEqual(settings.ai_model_json, "deepseek-v4.1-pro")
         self.assertEqual(settings.ai_strict_schema, "on")
         self.assertTrue(settings.ai_cache_enabled)
         self.assertTrue(settings.ai_fill_needs_review)

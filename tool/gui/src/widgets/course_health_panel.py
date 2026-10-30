@@ -105,7 +105,7 @@ class CourseHealthPanel(QFrame):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._update_buttons)
-        self.table.itemDoubleClicked.connect(lambda _item: self._emit_locate())
+        self.table.itemDoubleClicked.connect(self._on_table_item_double_clicked)
         left_layout.addWidget(self.table, 1)
         split.addWidget(left)
 
@@ -117,7 +117,7 @@ class CourseHealthPanel(QFrame):
         self.plan = QListWidget()
         self.plan.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.plan.itemSelectionChanged.connect(self._update_buttons)
-        self.plan.itemDoubleClicked.connect(lambda _item: self._emit_execute())
+        self.plan.itemDoubleClicked.connect(self._on_plan_item_double_clicked)
         right_layout.addWidget(self.plan, 1)
         split.addWidget(right)
         split.setStretchFactor(0, 3)
@@ -252,6 +252,18 @@ class CourseHealthPanel(QFrame):
         )
         self.locate_btn.setEnabled(has_node)
         self.run_btn.setEnabled(self._selected_step() is not None)
+
+    def _on_table_item_double_clicked(self, _item: Any) -> None:
+        """Signal slot: a double-click on a finding locates it in the tree.
+
+        Named method rather than a lambda so ``test_signal_lifecycle`` can prove
+        the connection is a bound slot (and so it can be disconnected by name).
+        """
+        self._emit_locate()
+
+    def _on_plan_item_double_clicked(self, _item: Any) -> None:
+        """Signal slot: a double-click on a repair step executes it."""
+        self._emit_execute()
 
     def _emit_locate(self) -> None:
         finding = self._selected_finding()

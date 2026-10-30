@@ -1182,6 +1182,18 @@ class GenerateAudioTest(unittest.TestCase):
                 return False
 
             @staticmethod
+            def language_boost():
+                return ""
+
+            @staticmethod
+            def text_normalization():
+                return "quality"
+
+            @staticmethod
+            def emotion():
+                return ""
+
+            @staticmethod
             def api_key():
                 return _FAKE_API_KEY
 

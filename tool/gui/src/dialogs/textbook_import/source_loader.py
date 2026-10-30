@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from src.backend.attachment_extractor import extract_attachment
 from src.backend.import_step_result import ImportStepResult
-from src.backend.markdown_chopper import Chapter, split_chapters
+from src.backend.markdown_chopper import Chapter, split_chapters_auto
 
 
 def read_source_text(path: Path) -> str:
@@ -50,5 +50,11 @@ def validate_source_path(path: Path) -> ImportStepResult | None:
 
 
 def split_markdown_into_chapters(md_text: str) -> list[Chapter]:
-    """Split raw markdown text into Chapter objects."""
-    return split_chapters(md_text)
+    """Split raw markdown text into Chapter objects.
+
+    Uses the auto-detecting splitter: ATX headings are the norm, but a syllabus
+    or a Word/PDF export often only has ``1.`` / ``Ünite 2`` / bold lines.
+    Those are promoted to chapter headings instead of yielding one giant
+    chapter (or none at all).
+    """
+    return split_chapters_auto(md_text)

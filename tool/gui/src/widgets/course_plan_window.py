@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -44,6 +45,7 @@ from PySide6.QtWidgets import (
 
 from src.application.ai_request_worker import AiRequestWorker
 from src.application.course_plan_service import PLAN_LEVELS, CoursePlanService
+from src.application.ui_guard import safe_question
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +176,14 @@ class CoursePlanWindow(QWidget):
         self.constraints_edit.setPlaceholderText("可选的额外约束（场景、语法重点、禁用主题等）")
         self.constraints_edit.setMaximumHeight(90)
         form.addRow("额外约束", self.constraints_edit)
+
+        self.syllabus_btn = QPushButton("载入教学纲领…")
+        self.syllabus_btn.setToolTip(
+            "读取教学纲领/课程大纲文件，自动填写主题、等级、单元数、课时与"
+            "can-do 目标；配置了 AI 时再由模型精读一遍。"
+        )
+        self.syllabus_btn.clicked.connect(self._on_load_syllabus)
+        form.addRow(self.syllabus_btn)
 
         self.generate_btn = QPushButton("生成大纲")
         self.generate_btn.setToolTip("调用当前 AI 配置生成课程大纲；失败会回灌校验错误重试一次")
@@ -374,15 +384,8 @@ class CoursePlanWindow(QWidget):
         if not plan_id:
             QMessageBox.information(self, "删除规划", "请先选择一个已保存的规划。")
             return
-        if (
-            QMessageBox.question(
-                self,
-                "删除规划",
-                "删除这个大纲文件？课程内容不受影响。",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            != QMessageBox.StandardButton.Yes
+        if not safe_question(
+            self, "删除规划", "删除这个大纲文件？课程内容不受影响。"
         ):
             return
         if self._service.delete(plan_id):
@@ -391,6 +394,68 @@ class CoursePlanWindow(QWidget):
             self.status.setText("规划已删除。")
         else:
             QMessageBox.warning(self, "删除规划", "删除失败：文件可能已被移动或占用。")
+
+    # --- syllabus ingestion ---------------------------------------------
+
+    def _on_load_syllabus(self) -> None:
+        """Read a teaching syllabus and fill the planning form from it."""
+        if self._busy:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "选择教学纲领 / 课程大纲",
+            "",
+            "教学纲领 (*.md *.markdown *.txt *.pdf *.docx);;所有文件 (*)",
+        )
+        if not path:
+            return
+        config = self._config_fn()
+        if config is not None and not getattr(config, "is_complete", False):
+            # Incomplete endpoint: the heuristic still fills the form, the AI
+            # refinement pass is skipped instead of failing the whole action.
+            config = None
+        self._had_error = False
+        self._task_kind = "syllabus"
+        self.status.setText("解析教学纲领中…")
+        worker = AiRequestWorker(self._service.load_syllabus, path, config)
+        worker.result_ready.connect(self._on_syllabus_ready)
+        worker.error_occurred.connect(self._on_syllabus_error)
+        worker.completed.connect(self._on_worker_completed)
+        self._worker = worker
+        self._set_busy(True)
+        worker.start()
+
+    def _on_syllabus_ready(self, payload: object) -> None:
+        if not isinstance(payload, dict):
+            self._had_error = True
+            self.status.setText("教学纲领解析失败：返回格式异常。")
+            return
+        values = payload.get("values") or {}
+        self.topic_edit.setText(str(values.get("topic") or ""))
+        level_from = str(values.get("level_from") or "")
+        level_to = str(values.get("level_to") or "")
+        if level_from in PLAN_LEVELS:
+            self.level_from_combo.setCurrentText(level_from)
+        if level_to in PLAN_LEVELS:
+            self.level_to_combo.setCurrentText(level_to)
+        self.sections_spin.setValue(int(values.get("section_count") or 6))
+        self.lessons_spin.setValue(int(values.get("lessons_per_section") or 9))
+        self.budget_spin.setValue(int(values.get("word_budget") or 0))
+        self.can_do_edit.setPlainText("
+".join(values.get("can_do") or []))
+        self.constraints_edit.setPlainText(str(values.get("constraints") or ""))
+        summary = str(payload.get("summary") or "教学纲领已解析。")
+        warnings = list(payload.get("warnings") or [])
+        if warnings:
+            summary += "；需确认：" + "；".join(warnings)
+        self.status.setText(summary)
+        self.status.setToolTip(summary)
+
+    def _on_syllabus_error(self, message: str) -> None:
+        self._had_error = True
+        self.status.setText(f"教学纲领解析失败：{message}")
+        if not self._closing:
+            QMessageBox.warning(self, "载入教学纲领", message or "未知错误")
 
     # --- generation -----------------------------------------------------
 
@@ -658,6 +723,7 @@ class CoursePlanWindow(QWidget):
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.generate_btn.setEnabled(not busy)
+        self.syllabus_btn.setEnabled(not busy)
         self.load_btn.setEnabled(not busy)
         self.delete_btn.setEnabled(not busy)
         self.plan_combo.setEnabled(not busy)
@@ -812,16 +878,11 @@ class CoursePlanWindow(QWidget):
         if draft is None:
             QMessageBox.information(self, "导入本节", "这一节还没有草稿。")
             return
-        if (
-            QMessageBox.question(
-                self,
-                "导入本节",
-                f"把 {sid} 作为新 section 导入当前课程？\n"
-                "会走现有校验与合并预览，可 Ctrl+Z 撤销；导入后仍需保存课程。",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            != QMessageBox.StandardButton.Yes
+        if not safe_question(
+            self,
+            "导入本节",
+            f"把 {sid} 作为新 section 导入当前课程？\n"
+            "会走现有校验与合并预览，可 Ctrl+Z 撤销；导入后仍需保存课程。",
         ):
             return
         try:

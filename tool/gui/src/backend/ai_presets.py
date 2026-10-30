@@ -1,9 +1,12 @@
 """AI provider/model presets and local pricing table for cost estimation.
 
-Pure Python, no PySide6 dependency. The module provides ready-made provider
-configurations (DeepSeek, OpenAI, Moonshot, Ollama) plus a fallback "custom"
-preset, so users can switch vendors without manually typing Base URL and default
-model every time.
+Pure Python, no PySide6 dependency. Mirrors the app-side contract in
+``lib/application/ai/engine/ai_provider_preset.dart``: the product keeps
+**DeepSeek** and **MiMo** as named presets plus a free-form ``custom`` one.
+Providers that were retired (OpenAI / Moonshot / Kimi / Qwen / Ollama) survive
+only as migration entries: an old settings row is translated into ``custom``
+with its Base URL preserved, so the connection keeps working instead of
+silently pointing at DeepSeek with a foreign model id.
 
 Pricing rates are local estimates only and are **not** a billing source. They
 are used by ``src/backend/ai_usage.py`` to show an approximate cost next to the
@@ -28,60 +31,33 @@ class ProviderPreset:
     docs_url: str = ""
 
 
-#: Built-in presets keyed by machine name.
+#: Built-in presets keyed by machine name. Kept in lockstep with the Dart
+#: ``kBuiltinPresets`` table - changing one without the other makes the two
+#: editors disagree about the default model.
 BUILTIN_PRESETS: dict[str, ProviderPreset] = {
     "deepseek": ProviderPreset(
         name="deepseek",
         label="DeepSeek",
         base_url="https://api.deepseek.com",
-        default_model="deepseek-v4-pro",
+        default_model="deepseek-v4.1-flash",
         supported_models=[
-            "deepseek-v4-pro",
-            "deepseek-chat",
-            "deepseek-reasoner",
+            "deepseek-v4.1-flash",
+            "deepseek-v4.1-pro",
         ],
         supports_reasoning=True,
         docs_url="https://platform.deepseek.com/",
     ),
-    "openai": ProviderPreset(
-        name="openai",
-        label="OpenAI",
-        base_url="https://api.openai.com/v1",
-        default_model="gpt-4o",
+    "mimo": ProviderPreset(
+        name="mimo",
+        label="MiMo",
+        base_url="https://api.xiaomimimo.com/v1",
+        default_model="mimo-v2.6-pro",
         supported_models=[
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4-turbo",
-            "gpt-3.5-turbo",
+            "mimo-v2.6-pro",
+            "mimo-v2.6",
         ],
-        supports_reasoning=False,
-        docs_url="https://platform.openai.com/",
-    ),
-    "moonshot": ProviderPreset(
-        name="moonshot",
-        label="Moonshot AI",
-        base_url="https://api.moonshot.cn/v1",
-        default_model="moonshot-v1-8k",
-        supported_models=[
-            "moonshot-v1-8k",
-            "moonshot-v1-32k",
-            "moonshot-v1-128k",
-        ],
-        supports_reasoning=False,
-        docs_url="https://platform.moonshot.cn/",
-    ),
-    "ollama": ProviderPreset(
-        name="ollama",
-        label="Ollama (本地)",
-        base_url="http://localhost:11434/v1",
-        default_model="qwen2.5",
-        supported_models=[
-            "qwen2.5",
-            "llama3",
-            "deepseek-coder-v2",
-        ],
-        supports_reasoning=False,
-        docs_url="https://ollama.com/",
+        supports_reasoning=True,
+        docs_url="https://mimo.mi.com/docs/zh-CN/quick-start/summary/model",
     ),
     "custom": ProviderPreset(
         name="custom",
@@ -93,35 +69,76 @@ BUILTIN_PRESETS: dict[str, ProviderPreset] = {
     ),
 }
 
+#: Retired providers: ``provider name -> (base_url, last known default model)``.
+#: Only used to migrate persisted settings into ``custom``; never offered in the
+#: dropdown. Mirrors ``kRetiredPresets`` on the Dart side.
+RETIRED_PRESETS: dict[str, tuple[str, str]] = {
+    "openai": ("https://api.openai.com/v1", ""),
+    "moonshot": ("https://api.moonshot.cn/v1", ""),
+    "kimi": ("https://api.moonshot.cn/v1", "kimi-k3"),
+    "qwen": ("https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen3.8-max"),
+    "ollama": ("http://localhost:11434/v1", ""),
+}
+
+#: Model rename table: old id -> current id. Only exact matches are rewritten,
+#: so a user's proxy alias is never touched. Mirrors ``kRetiredModelAliases``.
+MODEL_ALIASES: dict[str, str] = {
+    "deepseek-v4-flash": "deepseek-v4.1-flash",
+    "deepseek-v4-pro": "deepseek-v4.1-pro",
+    "deepseek-chat": "deepseek-v4.1-flash",
+    "deepseek-reasoner": "deepseek-v4.1-pro",
+    "mimo-v2.5-pro": "mimo-v2.6-pro",
+    "mimo-v2.5": "mimo-v2.6",
+}
+
 #: Pricing table: model -> {in, out, currency}. Rates are per 1M tokens.
 #: ``in`` = prompt/input tokens, ``out`` = completion/output tokens.
 #: Currency is CNY for Chinese-hosted models and USD for others.
 PRICING: dict[str, dict[str, Any]] = {
-    # DeepSeek
+    # DeepSeek (current generation + historical ids kept for the cost display
+    # of runs recorded before the rename).
+    "deepseek-v4.1-flash": {"in": 0.5, "out": 2.0, "currency": "CNY"},
+    "deepseek-v4.1-pro": {"in": 2.0, "out": 8.0, "currency": "CNY"},
     "deepseek-v4-pro": {"in": 2.0, "out": 8.0, "currency": "CNY"},
     "deepseek-chat": {"in": 1.0, "out": 4.0, "currency": "CNY"},
     "deepseek-reasoner": {"in": 4.0, "out": 16.0, "currency": "CNY"},
-    # OpenAI (USD)
-    "gpt-4o": {"in": 2.5, "out": 10.0, "currency": "USD"},
-    "gpt-4o-mini": {"in": 0.15, "out": 0.6, "currency": "USD"},
-    "gpt-4-turbo": {"in": 10.0, "out": 30.0, "currency": "USD"},
-    "gpt-3.5-turbo": {"in": 0.5, "out": 1.5, "currency": "USD"},
-    # Moonshot (CNY)
-    "moonshot-v1-8k": {"in": 1.2, "out": 1.2, "currency": "CNY"},
-    "moonshot-v1-32k": {"in": 2.4, "out": 2.4, "currency": "CNY"},
-    "moonshot-v1-128k": {"in": 6.0, "out": 6.0, "currency": "CNY"},
-    # Ollama local: no remote billing; show tokens only.
+    # MiMo (CNY)
+    "mimo-v2.6-pro": {"in": 1.0, "out": 4.0, "currency": "CNY"},
+    "mimo-v2.6": {"in": 0.5, "out": 2.0, "currency": "CNY"},
 }
 
 #: Prefix fallback for models not explicitly listed but from known families.
 _PREFIX_FALLBACK: dict[str, dict[str, Any]] = {
     "deepseek": {"in": 1.0, "out": 4.0, "currency": "CNY"},
+    "mimo": {"in": 1.0, "out": 4.0, "currency": "CNY"},
     "gpt": {"in": 2.5, "out": 10.0, "currency": "USD"},
-    "moonshot": {"in": 2.4, "out": 2.4, "currency": "CNY"},
-    "qwen": {"in": 1.0, "out": 4.0, "currency": "CNY"},
 }
 
 _CURRENCY_SYMBOL = {"CNY": "¥", "USD": "$"}
+
+
+def normalize_model_id(model: str) -> str:
+    """Return the current id for a renamed model, else ``model`` unchanged."""
+    text = (model or "").strip()
+    return MODEL_ALIASES.get(text, text)
+
+
+def migrate_provider(name: str) -> tuple[str, str, str]:
+    """Translate a persisted provider name into ``(provider, base_url, model)``.
+
+    A live provider is returned as ``(name, "", "")`` so the caller keeps the
+    stored Base URL / model. A retired provider becomes ``custom`` plus the
+    retired entry's Base URL and (possibly empty) default model, preserving the
+    user's connection instead of dropping them on DeepSeek's endpoint.
+    """
+    key = (name or "").strip().lower()
+    if key in BUILTIN_PRESETS:
+        return key, "", ""
+    retired = RETIRED_PRESETS.get(key)
+    if retired is None:
+        return "custom", "", ""
+    base_url, default_model = retired
+    return "custom", base_url, default_model
 
 
 def preset_for_provider(name: str) -> ProviderPreset:
@@ -131,7 +148,7 @@ def preset_for_provider(name: str) -> ProviderPreset:
 
 def provider_names() -> list[str]:
     """Return all built-in provider machine names in a stable order."""
-    return ["deepseek", "openai", "moonshot", "ollama", "custom"]
+    return ["deepseek", "mimo", "custom"]
 
 
 def pricing_for_model(model: str) -> dict[str, Any] | None:

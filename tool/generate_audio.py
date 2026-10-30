@@ -14,8 +14,14 @@ Authentication:
 Examples:
   python tool/generate_audio.py all
   python tool/generate_audio.py all --voice-id male-qn-jingying --speed 0.9
+  python tool/generate_audio.py all --model speech-2.8-turbo --emotion calm
   python tool/generate_audio.py list section:foundations
   python tool/generate_audio.py speak "Habari za asubuhi" assets/sounds/turkish/listening/l-greetings.mp3
+
+``language_boost`` defaults to the course's own language (``index.json``
+``language``: ``tr`` → ``Turkish``); an explicit ``--language-boost`` wins, and
+an unknown code falls back to ``auto``. Without it MiniMax phonemizes Turkish
+text with the voice's native (often Mandarin) phonetics.
 
 The GUI passes ``--course-dir`` and ``--sounds-dir`` explicitly so any language
 course (not just Turkish) can be synthesized into ``assets/sounds/<lang>/listening/``.
@@ -55,6 +61,166 @@ DEFAULT_VOICE_ID = "female-tianmei"
 DEFAULT_MODEL = "speech-2.8-hd"
 DEFAULT_SPEED = 0.9
 
+# --- Model / parameter surface (mirrors platform.minimax.io t2a_v2) ---------
+#
+# ``speech-2.8-*`` is the current generation (interjection tags, quality text
+# normalization); the older series stay accepted so a user with a pinned
+# contract can still regenerate assets without editing code.
+SUPPORTED_MODELS: tuple[str, ...] = (
+    "speech-2.8-hd",
+    "speech-2.8-turbo",
+    "speech-2.6-hd",
+    "speech-2.6-turbo",
+    "speech-02-hd",
+    "speech-02-turbo",
+    "speech-01-hd",
+    "speech-01-turbo",
+)
+#: Models that accept ``text_normalization_mode=quality`` (official note:
+#: ``quality`` silently degrades to ``basic`` on other models / streaming).
+QUALITY_NORMALIZATION_MODELS: tuple[str, ...] = (
+    "speech-2.8-hd",
+    "speech-2.8-turbo",
+    "speech-2.6-hd",
+    "speech-2.6-turbo",
+)
+
+#: ``language_boost`` enum, verbatim from the API reference. Turkish is the
+#: project default course language; callers pass the course's own language.
+LANGUAGE_BOOSTS: tuple[str, ...] = (
+    "Chinese",
+    "Chinese,Yue",
+    "English",
+    "Arabic",
+    "Russian",
+    "Spanish",
+    "French",
+    "Portuguese",
+    "German",
+    "Turkish",
+    "Dutch",
+    "Ukrainian",
+    "Vietnamese",
+    "Indonesian",
+    "Japanese",
+    "Italian",
+    "Korean",
+    "Thai",
+    "Polish",
+    "Romanian",
+    "Greek",
+    "Czech",
+    "Finnish",
+    "Hindi",
+    "Bulgarian",
+    "Danish",
+    "Hebrew",
+    "Malay",
+    "Persian",
+    "Slovak",
+    "Swedish",
+    "Croatian",
+    "Filipino",
+    "Hungarian",
+    "Norwegian",
+    "Slovenian",
+    "Catalan",
+    "Nynorsk",
+    "Tamil",
+    "Afrikaans",
+    "auto",
+)
+
+#: ``voice_setting.emotion`` enum. ``fluent`` / ``whisper`` only exist on the
+#: 2.6 series; 2.8 rejects ``whisper``. Empty string = let the model choose.
+EMOTIONS: tuple[str, ...] = (
+    "happy",
+    "sad",
+    "angry",
+    "fearful",
+    "disgusted",
+    "surprised",
+    "calm",
+    "fluent",
+    "whisper",
+)
+
+#: ``audio_setting.sample_rate`` / ``bitrate`` allowed values.
+SAMPLE_RATES: tuple[int, ...] = (8000, 16000, 22050, 24000, 32000, 44100)
+BITRATES: tuple[int, ...] = (32000, 64000, 128000, 256000)
+
+DEFAULT_LANGUAGE_BOOST = "Turkish"
+#: ``quality`` runs an LLM-assisted normalizer, which matters for Turkish
+#: numbers / dates / abbreviations in reading passages.
+DEFAULT_TEXT_NORMALIZATION = "quality"
+DEFAULT_EMOTION = ""
+DEFAULT_SAMPLE_RATE = 32000
+DEFAULT_BITRATE = 128000
+
+#: Course ``index.json`` language code -> ``language_boost`` value.
+_LANGUAGE_CODE_TO_BOOST: dict[str, str] = {
+    "tr": "Turkish",
+    "en": "English",
+    "zh": "Chinese",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "ru": "Russian",
+    "pt": "Portuguese",
+    "ar": "Arabic",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "sv": "Swedish",
+    "id": "Indonesian",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "hi": "Hindi",
+    "uk": "Ukrainian",
+}
+
+
+def language_boost_for_code(code: str) -> str:
+    """Map a course language code (``tr`` / ``tr-TR``) to ``language_boost``.
+
+    Unknown codes fall back to ``auto`` so the model detects the language
+    itself instead of being forced into Turkish pronunciation.
+    """
+    base = (code or "").strip().lower().replace("_", "-").split("-")[0]
+    return _LANGUAGE_CODE_TO_BOOST.get(base, "auto")
+
+
+def normalize_language_boost(value: str) -> str:
+    """Return the canonically-cased ``language_boost`` value or raise."""
+    text = (value or "").strip()
+    for candidate in LANGUAGE_BOOSTS:
+        if candidate.lower() == text.lower():
+            return candidate
+    raise RuntimeError(
+        f"不支持的 language_boost: {value!r}。可选值：{', '.join(LANGUAGE_BOOSTS)}"
+    )
+
+
+def normalize_model(value: str) -> str:
+    """Return ``value`` after warning when it is not a documented model id.
+
+    Unknown ids are forwarded rather than rejected: proxies and pinned
+    snapshots use their own aliases, and the API is the authority on whether a
+    model exists. The warning keeps plain typos visible in the run log.
+    """
+    text = (value or "").strip()
+    if not text:
+        return DEFAULT_MODEL
+    if text not in SUPPORTED_MODELS:
+        print(
+            f"[warn] 未知的 MiniMax 语音模型 {text!r}，仍按原样提交。"
+            f"文档中列出的模型：{', '.join(SUPPORTED_MODELS)}",
+            file=sys.stderr,
+        )
+    return text
+
 
 # --------------------------------------------------------------------------- #
 # Data structures
@@ -82,6 +248,11 @@ class MiniMaxBackend:
         voice_id: str = DEFAULT_VOICE_ID,
         speed: float = DEFAULT_SPEED,
         model: str = DEFAULT_MODEL,
+        language_boost: str = DEFAULT_LANGUAGE_BOOST,
+        text_normalization: str = DEFAULT_TEXT_NORMALIZATION,
+        emotion: str = DEFAULT_EMOTION,
+        sample_rate: int = DEFAULT_SAMPLE_RATE,
+        bitrate: int = DEFAULT_BITRATE,
     ) -> None:
         self.api_key = os.environ.get("MINIMAX_API_KEY")
         if not self.api_key:
@@ -92,30 +263,71 @@ class MiniMaxBackend:
 
         self.group_id = os.environ.get("MINIMAX_GROUP_ID")
         self.voice_id = voice_id
-        self.speed = speed
-        self.model = model
+        self.speed = min(2.0, max(0.5, float(speed)))
+        self.model = normalize_model(model)
+        self.language_boost = normalize_language_boost(language_boost)
+        if text_normalization not in ("basic", "quality"):
+            raise RuntimeError(
+                f"text_normalization 只能是 basic / quality，当前为: {text_normalization!r}"
+            )
+        self.text_normalization = text_normalization
+        self.emotion = (emotion or "").strip().lower()
+        if self.emotion and self.emotion not in EMOTIONS:
+            raise RuntimeError(
+                f"不支持的情绪 {emotion!r}。可选值：{', '.join(EMOTIONS)}"
+            )
+        if int(sample_rate) not in SAMPLE_RATES:
+            raise RuntimeError(
+                f"不支持的采样率 {sample_rate}。可选值：{SAMPLE_RATES}"
+            )
+        if int(bitrate) not in BITRATES:
+            raise RuntimeError(f"不支持的码率 {bitrate}。可选值：{BITRATES}")
+        self.sample_rate = int(sample_rate)
+        self.bitrate = int(bitrate)
 
     def name(self) -> str:
-        return f"minimax ({self.model}, voice={self.voice_id}, speed={self.speed})"
+        parts = [
+            f"minimax ({self.model}",
+            f"voice={self.voice_id}",
+            f"speed={self.speed}",
+            f"lang={self.language_boost}",
+            f"normalize={self.text_normalization}",
+        ]
+        if self.emotion:
+            parts.append(f"emotion={self.emotion}")
+        return ", ".join(parts) + ")"
 
     def synthesize(self, text: str, output_mp3: Path) -> None:
         """Synthesize [text] to an MP3 file at [output_mp3]."""
+        if len(text) > 10000:
+            raise RuntimeError(
+                f"单条文本 {len(text)} 字符超过 MiniMax 的 10000 字符上限，"
+                "请拆分为多个听力阶段后重试。"
+            )
+        voice_setting: dict[str, Any] = {
+            "voice_id": self.voice_id,
+            "speed": self.speed,
+            "vol": 1.0,
+            "pitch": 0,
+        }
+        if self.emotion:
+            voice_setting["emotion"] = self.emotion
         payload: dict[str, Any] = {
             "model": self.model,
             "text": text,
             "stream": False,
-            "voice_setting": {
-                "voice_id": self.voice_id,
-                "speed": self.speed,
-                "vol": 1.0,
-                "pitch": 0,
-            },
+            "voice_setting": voice_setting,
             "audio_setting": {
-                "sample_rate": 32000,
-                "bitrate": 128000,
+                "sample_rate": self.sample_rate,
+                "bitrate": self.bitrate,
                 "format": "mp3",
                 "channel": 1,
             },
+            # Language-aware phonemization: without it a Mandarin voice reads
+            # Turkish with Mandarin phonetics (ı/ş/ğ/ü all wrong).
+            "language_boost": self.language_boost,
+            # LLM-assisted normalization of numbers / dates / abbreviations.
+            "text_normalization_mode": self.text_normalization,
             # Ask MiniMax to return the audio bytes as a hex string inside JSON.
             # If the API instead returns base64, _decode_audio will fall back.
             "output_format": "hex",
@@ -271,17 +483,44 @@ def collect_entries(course_dir: Path) -> list[AudioEntry]:
 # --------------------------------------------------------------------------- #
 
 
-def _build_backend(args: argparse.Namespace) -> MiniMaxBackend:
+def _course_language(course_dir: Path | None) -> str:
+    """Read ``index.json``'s language code; '' when unavailable."""
+    if course_dir is None:
+        return ""
+    try:
+        with (Path(course_dir) / "index.json").open("r", encoding="utf-8") as f:
+            index = json.load(f)
+        return str(index.get("language") or index.get("lang") or "")
+    except (OSError, ValueError):
+        return ""
+
+
+def _build_backend(args: argparse.Namespace, course_dir: Path | None = None) -> MiniMaxBackend:
+    # ``getattr`` defaults keep programmatic callers (tests, older scripts)
+    # working after the parameter surface grew.
+    boost = getattr(args, "language_boost", None)
+    if not boost:
+        target = course_dir if course_dir is not None else getattr(args, "course_dir", None)
+        code = _course_language(target)
+        boost = language_boost_for_code(code) if code else DEFAULT_LANGUAGE_BOOST
     return MiniMaxBackend(
         voice_id=args.voice_id,
         speed=args.speed,
         model=args.model,
+        language_boost=boost,
+        text_normalization=getattr(
+            args, "text_normalization", DEFAULT_TEXT_NORMALIZATION
+        ),
+        emotion=getattr(args, "emotion", DEFAULT_EMOTION),
+        sample_rate=getattr(args, "sample_rate", DEFAULT_SAMPLE_RATE),
+        bitrate=getattr(args, "bitrate", DEFAULT_BITRATE),
     )
 
 
 def cmd_all(args: argparse.Namespace) -> int:
-    backend = _build_backend(args)
+    backend = _build_backend(args, args.course_dir)
     print(f"Using backend: {backend.name()}")
+    print(f"language_boost: {getattr(backend, 'language_boost', 'unknown')}")
 
     entries = collect_entries(args.course_dir)
     generated = 0
@@ -306,7 +545,7 @@ def cmd_all(args: argparse.Namespace) -> int:
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    backend = _build_backend(args)
+    backend = _build_backend(args, args.course_dir)
 
     # `list` is a manual-override entry point: the caller supplies the asset
     # ids to synthesize. There is no transcript lookup here — if the caller
@@ -360,7 +599,46 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        help=f"MiniMax model (default: {DEFAULT_MODEL})",
+        help=(
+            f"MiniMax model (default: {DEFAULT_MODEL}; documented: "
+            f"{', '.join(SUPPORTED_MODELS)})"
+        ),
+    )
+    parser.add_argument(
+        "--language-boost",
+        default=None,
+        help=(
+            "MiniMax language_boost (default: derived from the course "
+            "index.language, e.g. tr -> Turkish; 'auto' detects)"
+        ),
+    )
+    parser.add_argument(
+        "--text-normalization",
+        choices=["basic", "quality"],
+        default=DEFAULT_TEXT_NORMALIZATION,
+        help=(
+            "Text normalization mode (default: quality; quality only takes "
+            "effect on speech-2.8 / 2.6, non-streaming)"
+        ),
+    )
+    parser.add_argument(
+        "--emotion",
+        default=DEFAULT_EMOTION,
+        help=f"Optional emotion ({', '.join(EMOTIONS)}); empty = model decides",
+    )
+    parser.add_argument(
+        "--sample-rate",
+        type=int,
+        choices=list(SAMPLE_RATES),
+        default=DEFAULT_SAMPLE_RATE,
+        help=f"MP3 sample rate (default: {DEFAULT_SAMPLE_RATE})",
+    )
+    parser.add_argument(
+        "--bitrate",
+        type=int,
+        choices=list(BITRATES),
+        default=DEFAULT_BITRATE,
+        help=f"MP3 bitrate (default: {DEFAULT_BITRATE})",
     )
     parser.add_argument(
         "--speed",

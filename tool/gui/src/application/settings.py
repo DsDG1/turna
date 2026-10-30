@@ -15,6 +15,8 @@ from typing import Any
 from PySide6.QtCore import QSettings
 from datetime import UTC
 
+from src.backend.ai_presets import migrate_provider, normalize_model_id
+
 # QSettings organisation / application names. The legacy
 # ("Varnamala", "CourseEditor") namespace is still read for one-shot
 # migration on first launch (see `migrate_legacy_varnamala_qsettings`).
@@ -44,8 +46,9 @@ class Settings:
     ai_base_url: str = ""
     ai_api_key: str = ""
     ai_model: str = ""
-    # Currently selected provider preset ("deepseek", "openai", "moonshot",
-    # "ollama", or "custom"). Used by SettingsDialog to fill defaults.
+    # Currently selected provider preset ("deepseek", "mimo", or "custom").
+    # Used by SettingsDialog to fill defaults. Retired provider names load as
+    # "custom" with their Base URL preserved (see ai_presets.migrate_provider).
     ai_provider: str = "custom"
     # Max auto-retry rounds when a generated section fails validation (0 = no
     # retry, 1 = one correction round). Clamped to [0, 5].
@@ -119,6 +122,10 @@ class Settings:
     tts_model: str = "speech-2.8-hd"
     tts_speed: float = 0.9  # clamped to 0.5..2.0
     tts_force: bool = False
+    # Empty = derive from the course's own language (tr -> Turkish).
+    tts_language_boost: str = ""
+    tts_text_normalization: str = "quality"
+    tts_emotion: str = ""
     tts_api_key: str = ""  # memory-only
 
     # --- Experience & Ambient AI settings ---
@@ -219,6 +226,9 @@ class Settings:
         qsettings.setValue("tts/model", self.tts_model)
         qsettings.setValue("tts/speed", self.tts_speed)
         qsettings.setValue("tts/force", self.tts_force)
+        qsettings.setValue("tts/language_boost", self.tts_language_boost)
+        qsettings.setValue("tts/text_normalization", self.tts_text_normalization)
+        qsettings.setValue("tts/emotion", self.tts_emotion)
         if qsettings.contains("tts/api_key"):
             qsettings.remove("tts/api_key")
 
@@ -320,6 +330,9 @@ class Settings:
             tts_model=self.tts_model,
             tts_speed=self.tts_speed,
             tts_force=self.tts_force,
+            tts_language_boost=self.tts_language_boost,
+            tts_text_normalization=self.tts_text_normalization,
+            tts_emotion=self.tts_emotion,
             tts_api_key=self.tts_api_key,
             experience_mode=self.experience_mode,
             experience_allow_dangerous_skills=self.experience_allow_dangerous_skills,
@@ -379,9 +392,21 @@ def _load_ai_settings(qsettings: QSettings) -> dict[str, Any]:
     # versions.
     if qsettings.contains("ai/api_key"):
         qsettings.remove("ai/api_key")
-    ai_provider = _str_or_default(qsettings.value("ai/provider", "custom"), "custom")
-    if ai_provider not in {"deepseek", "openai", "moonshot", "ollama", "custom"}:
-        ai_provider = "custom"
+    raw_provider = _str_or_default(qsettings.value("ai/provider", "custom"), "custom")
+    # Retired providers (openai / moonshot / kimi / qwen / ollama) migrate to
+    # ``custom`` with their Base URL preserved; renamed model ids are rewritten
+    # so a v4.0 config keeps working after the v4.1 rename.
+    ai_provider, retired_base_url, retired_model = migrate_provider(raw_provider)
+    ai_base_url = _str_or_empty(qsettings.value("ai/base_url", "")) or retired_base_url
+    ai_model = normalize_model_id(
+        _str_or_empty(qsettings.value("ai/model", ""))
+    ) or retired_model
+    ai_model_chat = normalize_model_id(
+        _str_or_empty(qsettings.value("ai/model_chat", ""))
+    )
+    ai_model_json = normalize_model_id(
+        _str_or_empty(qsettings.value("ai/model_json", ""))
+    )
     ai_retry_max = _int_or_default(qsettings.value("ai/retry_max", 1), 1)
     ai_retry_max = max(0, min(5, ai_retry_max))
     ai_timeout = _float_or_default(qsettings.value("ai/timeout", 120.0), 120.0)
@@ -405,8 +430,8 @@ def _load_ai_settings(qsettings: QSettings) -> dict[str, Any]:
     if ai_pipeline_default_mode not in {"fast", "refine"}:
         ai_pipeline_default_mode = "fast"
     return {
-        "ai_base_url": _str_or_empty(qsettings.value("ai/base_url", "")),
-        "ai_model": _str_or_empty(qsettings.value("ai/model", "")),
+        "ai_base_url": ai_base_url,
+        "ai_model": ai_model,
         "ai_provider": ai_provider,
         "ai_retry_max": ai_retry_max,
         "ai_timeout": ai_timeout,
@@ -414,8 +439,8 @@ def _load_ai_settings(qsettings: QSettings) -> dict[str, Any]:
         "ai_supports_reasoning": _bool_or_default(
             qsettings.value("ai/supports_reasoning", False), False
         ),
-        "ai_model_chat": _str_or_empty(qsettings.value("ai/model_chat", "")),
-        "ai_model_json": _str_or_empty(qsettings.value("ai/model_json", "")),
+        "ai_model_chat": ai_model_chat,
+        "ai_model_json": ai_model_json,
         "ai_strict_schema": ai_strict_schema,
         "ai_cache_enabled": _bool_or_default(
             qsettings.value("ai/cache_enabled", False), False
@@ -474,11 +499,21 @@ def _load_tts_settings(qsettings: QSettings) -> dict[str, Any]:
     tts_model = _str_or_default(qsettings.value("tts/model", ""), "speech-2.8-hd")
     tts_speed = _float_or_default(qsettings.value("tts/speed", 0.9), 0.9)
     tts_speed = max(0.5, min(2.0, tts_speed))
+    tts_text_normalization = _str_or_default(
+        qsettings.value("tts/text_normalization", "quality"), "quality"
+    )
+    if tts_text_normalization not in {"basic", "quality"}:
+        tts_text_normalization = "quality"
     return {
         "tts_voice_id": tts_voice_id or "female-tianmei",
         "tts_model": tts_model or "speech-2.8-hd",
         "tts_speed": tts_speed,
         "tts_force": _bool_or_default(qsettings.value("tts/force", False), False),
+        "tts_language_boost": _str_or_empty(
+            qsettings.value("tts/language_boost", "")
+        ),
+        "tts_text_normalization": tts_text_normalization,
+        "tts_emotion": _str_or_empty(qsettings.value("tts/emotion", "")),
     }
 
 

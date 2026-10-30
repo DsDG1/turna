@@ -38,7 +38,7 @@ class GenerateAudioDialogTest(unittest.TestCase):
         settings = Settings()
         dlg = GenerateAudioDialog(settings, preview={"total": 3, "existing": 1})
         dlg._voice_combo.setCurrentText("male-qn-jingying")
-        dlg._model_edit.setText("speech-2.8-lite")
+        dlg._model_combo.setCurrentText("speech-2.8-lite")
         dlg._speed_spin.setValue(0.75)
         dlg._force_check.setChecked(True)
         dlg._key_edit.setText("sk-new")
@@ -54,7 +54,7 @@ class GenerateAudioDialogTest(unittest.TestCase):
         settings = Settings(tts_voice_id="", tts_model="")
         dlg = GenerateAudioDialog(settings, preview={"total": 0, "existing": 0})
         dlg._voice_combo.setCurrentText("   ")
-        dlg._model_edit.setText("")
+        dlg._model_combo.setCurrentText("")
         self.assertEqual(dlg.voice_id(), "female-tianmei")
         self.assertEqual(dlg.model(), "speech-2.8-hd")
 

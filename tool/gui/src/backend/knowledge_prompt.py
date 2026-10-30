@@ -285,12 +285,17 @@ def build_extraction_messages(
     *,
     max_chars: int = _MAX_CHAPTER_CHARS,
     library: KnowledgePromptLibrary | None = None,
+    extra_rules: str = "",
 ) -> list[dict[str, str]]:
     """Build the [system, user] messages for a per-chapter extraction call.
 
     The user message names the target + source languages and embeds the
     chapter's Markdown (truncated to a conservative cap). The expected JSON
     shape and extraction rules mirror ``knowledge_schema.coerce_knowledge_points``.
+
+    ``extra_rules`` is the selected ``TextbookPreset.prompt_addendum`` — a
+    document-type block (e.g. "this is a syllabus") appended after the base
+    rules so the model's scope matches the source material.
     """
     lib = library or DEFAULT_LIBRARY
     tpl = lib.templates_for(language, source_language)
@@ -303,7 +308,7 @@ def build_extraction_messages(
             f"Chapter title: {chapter.title}",
             "",
             tpl.schema_block,
-            tpl.rules_block,
+            tpl.rules_block + extra_rules,
             "",
             "Chapter Markdown:",
             _truncate_markdown(chapter.markdown, max_chars),
@@ -322,6 +327,7 @@ def build_vocab_only_extraction_messages(
     *,
     max_chars: int = _MAX_CHAPTER_CHARS,
     library: KnowledgePromptLibrary | None = None,
+    extra_rules: str = "",
 ) -> list[dict[str, str]]:
     """Build a reduced extraction prompt that asks for vocabulary only.
 
@@ -339,7 +345,7 @@ def build_vocab_only_extraction_messages(
             f"Chapter title: {chapter.title}",
             "",
             tpl.vocab_schema_block,
-            tpl.vocab_rules_block,
+            tpl.vocab_rules_block + extra_rules,
             "",
             "Chapter Markdown:",
             _truncate_markdown(chapter.markdown, max_chars),
@@ -372,6 +378,7 @@ def build_targeted_reextract_messages(
     *,
     max_chars: int = _MAX_CHAPTER_CHARS,
     library: KnowledgePromptLibrary | None = None,
+    extra_rules: str = "",
 ) -> list[dict[str, str]]:
     """Build messages for a quality-driven targeted re-extraction (P4-4).
 
@@ -432,7 +439,7 @@ def build_targeted_reextract_messages(
             current_json,
             "",
             tpl.schema_block,
-            tpl.rules_block,
+            tpl.rules_block + extra_rules,
             "",
             "Chapter Markdown:",
             _truncate_markdown(chapter.markdown, max_chars),

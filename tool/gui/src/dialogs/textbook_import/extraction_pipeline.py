@@ -41,6 +41,7 @@ def make_extraction_worker(
         max_window_chars=preset.window_chars,
         overlap_chars=preset.overlap_chars,
         max_retries=1,
+        extra_rules=preset.prompt_addendum,
     )
     worker._chapter_idx = idx
     worker._extract_strategy = strategy
@@ -71,6 +72,7 @@ def make_targeted_reextract_worker(
         temperature=preset.temperature,
         max_tokens=preset.max_tokens,
         max_retries=1,
+        extra_rules=preset.prompt_addendum,
     )
     return worker
 

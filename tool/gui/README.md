@@ -138,7 +138,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 - **外观风格**：深色 (Dark) / 浅色 (Light) 无缝切换；UI 字体缩放 80%–150%。
 - **AI 接口配置**
-  - **供应商预设**：一键填充 DeepSeek、OpenAI、Moonshot、Ollama 的标准 Base URL 与默认模型。
+  - **供应商预设**：一键填充 **DeepSeek**（`deepseek-v4.1-flash` / `deepseek-v4.1-pro`）与 **MiMo**（`mimo-v2.6-pro` / `mimo-v2.6`）的标准 Base URL 与默认模型；其余厂商走「自定义」。已下线预设（OpenAI / Moonshot / Kimi / Qwen / Ollama）与旧模型名（`deepseek-v4-pro`、`deepseek-chat`、`mimo-v2.5` 等）在载入设置时自动迁移：换成 `custom` 并保留原 Base URL，模型名改写为当前 id，连接不会断。
   - **安全保护**：API Key **仅存于当前会话内存**，关闭应用即销毁，绝不写盘；Base URL 与 Model 持久化。
   - **参数微调**：思考过程 (Reasoning)、请求超时 (5–600 秒)、生成温度 (0.0–2.0)、自动重试轮数 (0–5)。
   - **连接测试**：「测试连接」发送最小 1-token 请求验证配置。
@@ -192,7 +192,12 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 ### 2. 素材阶段：教材与章节
 
-**教材与章节**：拖入或选择文件，预览与切章；选教材类型预设与抽取并发数。（拖放事件由画布转发给导入对话框，摘页后拖放依然有效。）
+**教材与章节**：拖入或选择文件，预览与切章；选教材类型预设与抽取并发数。
+
+- **切章自动识别**：`##` 标题之外，`1.` / `1.2` 编号、`Ünite 1` / `Bölüm 2` / `Unit 3` / `第 2 章` 单元词、纯加粗行都会提升为章标题；只有单个 `#` 书名 + `Ünite` 阶梯的纲领文件不再被切成 1 章。
+- **文档类型自动识别**：载入后按关键词与结构打分（教材 / 语法书 / 对话书 / 阅读 / 教学纲领），置信度 ≥45% 时自动切到对应预设并在下拉框与日志里显示理由；教师手动选过预设则不覆盖。纯本地启发式，不联网，不阻塞载入。
+- **教学纲领预设**：新增「教学纲领 / 课程大纲」，抽取提示词追加纲领专用规则——只抽纲领点名的目标与语法主题，纲领没写目标语词形时跳过而不是编造，语法主题无例句也建语法点。
+- **纲领 → 整门课程规划**：规划窗口新增「载入教学纲领…」，读 `.md/.txt/.pdf/.docx` 后自动填主题、等级范围、章节数、课时数、词预算、can-do 与约束（单元顺序原样进入约束）；配置了 AI 时再由模型精读一遍，失败自动回落本地启发式结果。
 
 ### 3. 知识阶段：知识点审校 + 气泡池
 
@@ -249,10 +254,10 @@ tool/gui/
 │   ├── main.py                 # 程序主入口（--gallery 打开组件画廊）
 │   ├── theme.py                # 主题应用（调色板 + 密度 + UI 缩放）
 │   ├── theme_tokens.py         # 设计 token 单一真源（色/间距/圆角/字阶/层级/密度，Qt-free）
-│   ├── application/            # 62 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
+│   ├── application/            # 63 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
 │   │   ├── commands/               # 6 个 .py — Undoable edit commands for the course editor (B2).
 │   │   └── experience_handlers/    # 12 个 .py — Experience skill handlers (M7).
-│   ├── backend/                # 118 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
+│   ├── backend/                # 120 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
 │   │   ├── ai/                     # 11 个 .py — AI backend package (OpenAI-compatible course generation).
 │   │   └── experience/             # 54 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
 │   ├── dialogs/                # 59 个 .py — 对话框与独立子窗口
@@ -292,6 +297,10 @@ tool/gui/
 
 1. **版本自动递增 (Version Bump)**：自动更新课程元数据版本号。
 2. **音频清单检测 (Audio Sound Manifest)**：核对题目引用的音频路径在 `assets/sounds` 下是否存在，生成音频资源补全清单。
+
+### 听力音频生成（MiniMax TTS）
+
+「应用菜单 → 生成听力音频」调用 `tool/generate_audio.py`（`t2a_v2`）。对话框暴露官方参数：模型（`speech-2.8-hd` 默认，另有 `2.8-turbo` / `2.6` / `02` / `01` 系列）、音色、**发音语言 Boost**（留空按课程 `index.json` 语言推导，`tr → Turkish`，未知语言用 `auto`）、**文本规范化**（默认 `quality`，LLM 辅助处理数字/日期/缩写；仅 2.8/2.6 非流式生效）、情绪、语速。土耳其语的 ı/ş/ğ/ü 依赖 `language_boost` 正确音素化；多语音色（如 `English_Graceful_Lady`）比中文音色读土耳其语更少母语口音。API Key 只经环境变量传给子进程，不落盘、不上命令行。
 3. **差异与报告导出**：生成详细 Markdown 版本发布报告。
 
 ---

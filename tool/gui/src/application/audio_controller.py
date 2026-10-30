@@ -66,6 +66,9 @@ class AudioController:
             model=dlg.model(),
             speed=dlg.speed(),
             force=dlg.force(),
+            language_boost=dlg.language_boost(),
+            text_normalization=dlg.text_normalization(),
+            emotion=dlg.emotion(),
         )
         if not dlg.api_key():
             QMessageBox.warning(parent_widget, "生成听力音频", "请填写 MiniMax API Key。")

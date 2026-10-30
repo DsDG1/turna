@@ -45,7 +45,7 @@ def build_ai_tab(dlg) -> QWidget:
     provider_form.addRow("API Key:", dlg.ai_key_edit)
 
     dlg.ai_model_edit = QLineEdit()
-    dlg.ai_model_edit.setPlaceholderText("模型名称，例如 gpt-4o")
+    dlg.ai_model_edit.setPlaceholderText("模型名称，例如 deepseek-v4.1-flash / mimo-v2.6-pro")
     provider_form.addRow("模型:", dlg.ai_model_edit)
 
     dlg.ai_reasoning_check = QCheckBox("启用 reasoning / thinking 字段")

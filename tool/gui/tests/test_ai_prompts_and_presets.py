@@ -16,6 +16,8 @@ from src.backend.ai_presets import (
     PRICING,
     apply_preset,
     estimate_cost,
+    migrate_provider,
+    normalize_model_id,
     preset_for_provider,
     pricing_for_model,
     provider_names,
@@ -40,10 +42,28 @@ class AiPresetsTest(unittest.TestCase):
     def test_provider_names_includes_builtin(self) -> None:
         names = provider_names()
         self.assertIn("deepseek", names)
-        self.assertIn("openai", names)
-        self.assertIn("moonshot", names)
-        self.assertIn("ollama", names)
+        self.assertIn("mimo", names)
         self.assertIn("custom", names)
+
+    def test_retired_providers_are_not_offered(self) -> None:
+        # Product decision (2026-10-20): only DeepSeek / MiMo / custom are
+        # selectable; the removed vendors survive solely as migrations.
+        names = provider_names()
+        for retired in ("openai", "moonshot", "ollama", "kimi", "qwen"):
+            self.assertNotIn(retired, names)
+            preset, base_url, _model = migrate_provider(retired)
+            self.assertEqual(preset, "custom")
+            self.assertTrue(base_url)
+            self.assertEqual(preset_for_provider(retired).name, "custom")
+
+    def test_normalize_model_id_maps_renames(self) -> None:
+        self.assertEqual(normalize_model_id("deepseek-v4-pro"), "deepseek-v4.1-pro")
+        self.assertEqual(
+            normalize_model_id("deepseek-v4-flash"), "deepseek-v4.1-flash"
+        )
+        self.assertEqual(normalize_model_id("mimo-v2.5"), "mimo-v2.6")
+        # A proxy alias is never rewritten.
+        self.assertEqual(normalize_model_id("my-proxy-alias"), "my-proxy-alias")
 
     def test_preset_for_deepseek(self) -> None:
         preset = preset_for_provider("deepseek")
@@ -58,7 +78,7 @@ class AiPresetsTest(unittest.TestCase):
     def test_apply_preset_fills_defaults(self) -> None:
         url, model, reasoning = apply_preset("", "", False, "deepseek")
         self.assertEqual(url, "https://api.deepseek.com")
-        self.assertEqual(model, "deepseek-v4-pro")
+        self.assertEqual(model, "deepseek-v4.1-flash")
         self.assertTrue(reasoning)
 
     def test_apply_preset_custom_preserves_values(self) -> None:
@@ -70,7 +90,7 @@ class AiPresetsTest(unittest.TestCase):
         self.assertTrue(reasoning)
 
     def test_pricing_for_known_model(self) -> None:
-        entry = pricing_for_model("deepseek-v4-pro")
+        entry = pricing_for_model("deepseek-v4.1-flash")
         self.assertIsNotNone(entry)
         self.assertEqual(entry["currency"], "CNY")
 
@@ -79,8 +99,8 @@ class AiPresetsTest(unittest.TestCase):
 
     def test_estimate_cost_known_model(self) -> None:
         usage = {"prompt_tokens": 1_000_000, "completion_tokens": 500_000}
-        cost, currency = estimate_cost(usage, "deepseek-chat")
-        self.assertEqual(cost, 3.0)  # 1*1 + 0.5*4 = 3.0
+        cost, currency = estimate_cost(usage, "deepseek-v4.1-flash")
+        self.assertEqual(cost, 1.5)  # 1*0.5 + 0.5*2.0 = 1.5
         self.assertEqual(currency, "CNY")
 
     def test_estimate_cost_unknown_model(self) -> None:
@@ -90,8 +110,9 @@ class AiPresetsTest(unittest.TestCase):
         self.assertEqual(currency, "")
 
     def test_pricing_export_matches_module_table(self) -> None:
-        self.assertIn("deepseek-v4-pro", PRICING)
-        self.assertIn("gpt-4o", PRICING)
+        self.assertIn("deepseek-v4.1-flash", PRICING)
+        self.assertIn("deepseek-v4.1-pro", PRICING)
+        self.assertIn("mimo-v2.6-pro", PRICING)
 
 
 class AiPromptTemplateTest(unittest.TestCase):

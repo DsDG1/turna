@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from src.backend.ai.course_plan import (
@@ -20,13 +21,45 @@ from src.backend.ai.course_plan import (
     validate_plan,
 )
 from src.backend.ai.facade import generate_course
+from src.backend.attachment_extractor import extract_attachment
 from src.backend.course_plan_store import CoursePlanStore
+from src.backend.syllabus_brief import (
+    ai_brief,
+    brief_summary,
+    brief_to_spec_values,
+    heuristic_brief,
+)
 
 logger = logging.getLogger(__name__)
 
 #: Re-exported so the planner window can populate its level combos without
 #: importing the backend module.
 PLAN_LEVELS: tuple[str, ...] = CEFR_LEVELS
+
+#: Suffixes read as UTF-8 text directly; anything else goes through
+#: ``attachment_extractor`` (text-native PDF / docx only).
+_TEXT_SUFFIXES = frozenset({".md", ".markdown", ".txt"})
+
+
+def _read_plan_document(path: Path) -> str:
+    """Read a syllabus document into plain text.
+
+    Raises ``RuntimeError`` with an actionable message when the file yields no
+    text (scanned PDF) — the plan window surfaces the string as-is.
+    """
+    suffix = path.suffix.lower()
+    if suffix in _TEXT_SUFFIXES:
+        return path.read_text(encoding="utf-8")
+    result = extract_attachment(path)
+    if not result.ok:
+        raise RuntimeError(
+            f"{result.error}\n建议改用 .md/.txt，或使用文本原生 PDF。"
+        )
+    content = result.content or {}
+    text = str(content.get("text") or "")
+    if not text.strip():
+        raise RuntimeError("文件未提取到文本（可能是扫描件）。")
+    return text
 
 
 def next_level(level: str) -> str:
@@ -99,6 +132,45 @@ class CoursePlanService:
             can_do=[str(x) for x in can_do],
             constraints=str(constraints or ""),
         )
+
+    # --- syllabus ingestion --------------------------------------------
+
+    def load_syllabus(self, path: str, config: Any = None) -> dict[str, Any]:
+        """Turn a teaching syllabus file into plan-form values.
+
+        Reads the document, runs the deterministic :mod:`syllabus_brief`
+        heuristic, and — when ``config`` is a complete AI config — asks the
+        model to refine it. The AI step degrades to the heuristic on any
+        failure, so this method only raises for unreadable documents.
+
+        Returns plain data (dicts/lists/strings) so the widget never touches a
+        backend dataclass.
+        """
+        document = Path(path)
+        if not document.exists():
+            raise RuntimeError(f"文件不存在：{document}")
+        text = _read_plan_document(document)
+        defaults = self.default_spec()
+        heuristic = heuristic_brief(text, default_level=defaults.level_from)
+        brief = heuristic
+        if config is not None and getattr(config, "is_complete", False):
+            brief = ai_brief(
+                config,
+                defaults.language,
+                defaults.source_language,
+                text,
+                heuristic=heuristic,
+            )
+        values = brief_to_spec_values(brief)
+        values["can_do"] = list(values.get("can_do") or [])
+        return {
+            "values": values,
+            "summary": brief_summary(brief),
+            "warnings": list(brief.warnings),
+            "units": list(brief.units),
+            "source": brief.source,
+            "path": str(document),
+        }
 
     # --- generation -----------------------------------------------------
 

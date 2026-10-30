@@ -19,6 +19,13 @@ from dataclasses import dataclass
 class TextbookPreset:
     """Extraction behaviour for one textbook content type.
 
+    - ``document_kind``: coarse document class (``textbook`` / ``grammar`` /
+      ``dialogue`` / ``reading`` / ``syllabus``). ``document_profile`` maps a
+      detected kind back to a preset through ``preset_for_kind``.
+    - ``prompt_addendum``: extra extraction rules appended to the built-in
+      rules block. This is how a syllabus (objectives + grammar topics, few
+      example sentences) tells the model to stay inside the document instead of
+      inventing vocabulary.
     - ``temperature``: LLM sampling temperature for extraction. Grammar books
       benefit from lower temperature (deterministic rules); dialogue/reading
       from slightly higher (capture varied expressions).
@@ -54,6 +61,26 @@ class TextbookPreset:
     window_chars: int = 8000
     overlap_chars: int = 500
     lesson_template: str = "intro"
+    document_kind: str = "textbook"
+    prompt_addendum: str = ""
+
+
+#: Extra rules for a teaching syllabus / curriculum outline: the document names
+#: objectives and grammar topics but rarely shows the target-language forms.
+_SYLLABUS_ADDENDUM = (
+    "\n- This document is a TEACHING SYLLABUS / curriculum outline, not a "
+    "textbook chapter. Its entries are objectives, functions, grammar topics "
+    "and assessment notes; example sentences are sparse.\n"
+    "- Extract only what the syllabus explicitly names. Never invent a target-"
+    "language form for an objective that is written only in the source "
+    "language; skip that entry instead.\n"
+    "- Expand a stated objective into at most 3-5 concrete words or fixed "
+    "expressions that a teacher would obviously need first, and tag them by "
+    "the objective they serve.\n"
+    "- Grammar topics named in the syllabus become grammarPoints even when no "
+    "example sentence is present; put the syllabus wording into "
+    "``explanation`` and leave example ids empty."
+)
 
 
 #: Built-in textbook presets keyed by machine name.
@@ -66,6 +93,7 @@ BUILTIN_TEXTBOOK_PRESETS: dict[str, TextbookPreset] = {
         strategy="standard",
         max_chapter_chars=8000,
         lesson_template="intro",
+        document_kind="textbook",
     ),
     "grammar": TextbookPreset(
         name="grammar",
@@ -76,6 +104,7 @@ BUILTIN_TEXTBOOK_PRESETS: dict[str, TextbookPreset] = {
         max_tokens=4096,
         max_chapter_chars=8000,
         lesson_template="intro",
+        document_kind="grammar",
     ),
     "dialogue": TextbookPreset(
         name="dialogue",
@@ -85,6 +114,7 @@ BUILTIN_TEXTBOOK_PRESETS: dict[str, TextbookPreset] = {
         strategy="standard",
         max_chapter_chars=8000,
         lesson_template="intro",
+        document_kind="dialogue",
     ),
     "reading": TextbookPreset(
         name="reading",
@@ -95,6 +125,22 @@ BUILTIN_TEXTBOOK_PRESETS: dict[str, TextbookPreset] = {
         max_chapter_chars=10000,
         window_chars=10000,
         lesson_template="intro",
+        document_kind="reading",
+    ),
+    "syllabus": TextbookPreset(
+        name="syllabus",
+        label="教学纲领 / 课程大纲",
+        description=(
+            "按纲领条目抽取：目标、语法主题、必备词汇；不编造纲领没写的词形。"
+        ),
+        temperature=0.2,
+        strategy="standard",
+        max_tokens=4096,
+        max_chapter_chars=12000,
+        window_chars=12000,
+        lesson_template="intro",
+        document_kind="syllabus",
+        prompt_addendum=_SYLLABUS_ADDENDUM,
     ),
 }
 
@@ -104,6 +150,20 @@ def preset_for(name: str) -> TextbookPreset:
     return BUILTIN_TEXTBOOK_PRESETS.get(name, BUILTIN_TEXTBOOK_PRESETS["general"])
 
 
+def preset_for_kind(kind: str) -> TextbookPreset:
+    """Return the preset matching a detected document ``kind``.
+
+    ``document_profile`` detects ``textbook`` / ``grammar`` / ``dialogue`` /
+    ``reading`` / ``syllabus``; an unknown kind falls back to ``general`` so a
+    mis-detection never blocks the import.
+    """
+    key = (kind or "").strip().lower()
+    for preset in BUILTIN_TEXTBOOK_PRESETS.values():
+        if preset.document_kind == key:
+            return preset
+    return BUILTIN_TEXTBOOK_PRESETS["general"]
+
+
 def preset_names() -> list[str]:
     """Return built-in preset machine names in a stable display order."""
-    return ["general", "grammar", "dialogue", "reading"]
+    return ["general", "grammar", "dialogue", "reading", "syllabus"]

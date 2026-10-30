@@ -784,3 +784,61 @@ class TargetedReextractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _syllabus_md() -> str:
+    return (
+        "# Türkçe A1 Ders İzlencesi\n\n"
+        "本教学纲领覆盖 A1 等级，每单元 6 课，教学目标明确。\n\n"
+        "Ünite 1: Tanışma\n\n"
+        "- 教学目标：能进行简单的自我介绍\n"
+        "- 语法：kişi zamirleri\n\n"
+        "Ünite 2: Aile\n\n"
+        "- 学习目标：能介绍家庭成员\n"
+        "- 语法：iyelik ekleri\n\n"
+        "Ünite 3: Günlük rutin\n\n"
+        "- 能说出日常活动\n\n"
+        "考核：单元小测 50%，期末口试 50%。\n"
+    )
+
+
+class PresetAutoDetectTest(unittest.TestCase):
+    """Loading a document auto-selects a preset unless the teacher chose one."""
+
+    def _load(self, text: str, **kwargs: Any):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(text)
+            path = Path(f.name)
+        self.addCleanup(path.unlink)
+        ctrl = _RecordingController(ai_config_fn=AiApiConfig, **kwargs)
+        return ctrl, ctrl.load_file(path)
+
+    def test_syllabus_document_switches_preset(self) -> None:
+        ctrl, result = self._load(_syllabus_md())
+        self.assertEqual(result.outcome, "success")
+        self.assertEqual(ctrl.preset.name, "syllabus")
+        self.assertEqual(len(ctrl.chapters), 3)
+        self.assertEqual(result.details.get("preset"), "syllabus")
+
+    def test_explicit_preset_is_not_overridden(self) -> None:
+        from src.backend.textbook_presets import preset_for
+
+        ctrl, _result = self._load(_syllabus_md(), preset=preset_for("reading"))
+        self.assertEqual(ctrl.preset.name, "reading")
+
+    def test_detection_callback_reports_profile(self) -> None:
+        captured: list[dict[str, Any]] = []
+        ctrl, _result = self._load(
+            _syllabus_md(), on_preset_detected=captured.append
+        )
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0]["kind"], "syllabus")
+        self.assertEqual(captured[0]["preset"], "syllabus")
+        self.assertIn("summary", captured[0])
+        self.assertFalse(captured[0]["explicit"])
+
+    def test_generic_textbook_keeps_general_preset(self) -> None:
+        ctrl, _result = self._load(_sample_md())
+        self.assertEqual(ctrl.preset.name, "general")

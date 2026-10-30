@@ -8,6 +8,32 @@
 
 ## 当前基线
 
+- **2026-10-30（教材/纲领适配 + MiniMax TTS 参数 + AI 模型名对齐）**：
+  **209 模块 / 2977 例**（发现器 `countTestCases`；上一条目 206 / 2925，+3 模块 +52 例 =
+  `test_markdown_auto_split` 16 + `test_document_profile` 10 + `test_syllabus_brief` 18 +
+  既有模块新增 8）。
+  - 新增 `backend/document_profile.py`（文档类型启发式 + 可选 AI 复核）、
+    `backend/syllabus_brief.py`（纲领 → CoursePlanSpec 取值）、
+    `application/audio_options.py`（UI 侧 TTS 选项表，避免 dialogs 直连 backend）；
+    `markdown_chopper` 增 `split_chapters_auto` / `heading_style` / `plain_unit_titles`。
+  - 导入管线改为自动切章（编号 / `Ünite` 单元词 / 加粗行 / 单 `#` 书名 + 阶梯），
+    载入后自动识别文档类型并在教师未手动选预设时切换（置信度 ≥ 0.45），
+    新 `syllabus` 预设带 `prompt_addendum`（纲领专用抽取规则）。
+  - 规划窗口新增「载入教学纲领…」：`.md/.txt/.pdf/.docx` → 主题/等级/章节/课时/词预算/
+    can-do/约束；AI 失败回落启发式；单元数是 `section_count` 的权威。
+  - MiniMax：`language_boost`（按课程语言推导，默认 Turkish）、`text_normalization_mode`
+    （默认 quality）、`emotion`、`sample_rate`/`bitrate`、模型白名单；GUI 音色表补多语音色。
+  - AI 模型名与 App 同源：DeepSeek `deepseek-v4.1-flash|pro`、MiMo `mimo-v2.6-pro|v2.6`；
+    旧 id/provider 走迁移表（转 custom + 保留 Base URL）。
+  - 顺手修好两条既有门禁红项：`course_plan_window` 的两处 `QMessageBox.question` 改走
+    `ui_guard.safe_question`；`course_health_panel` 两处 lambda 槽改具名方法
+    （`test_ui_guard` / `test_signal_lifecycle` 恢复绿）。
+  - 门禁：`app_dialogs` 13、`broad_except` 873、`widgets_dialogs` 4 未变；
+    **`ui_backend` 166 → 167 已重钉**（`tool/guard_limits.json`）：唯一新增是
+    `dialogs/textbook_import_controller.py` 直接 import `backend/document_profile`
+    —— 与该文件已有的 `textbook_presets` / `knowledge_extractor` 同型，
+    不额外造 application 包装层。重钉理由记在此处，数字只此一处可改。
+
 - **2026-10-21（P0-2 / P0-3 整门课程大纲 + 逐节生成导入）**：
   **206 模块 / 2925 例**（发现器 `countTestCases`；上一条目 205 / 2896，+1 模块 +29 例 =
   `test_course_plan` 29 例）。

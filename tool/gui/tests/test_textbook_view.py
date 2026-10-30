@@ -344,8 +344,10 @@ class ExtractionOptionsTest(unittest.TestCase):
         _TestApp.get()
         self.dlg = TextbookImportDialog(None, None)
 
-    def test_preset_combo_has_four_types_and_defaults_to_general(self) -> None:
-        self.assertEqual(self.dlg._preset_combo.count(), 4)
+    def test_preset_combo_lists_all_types_and_defaults_to_general(self) -> None:
+        from src.backend.textbook_presets import preset_names
+
+        self.assertEqual(self.dlg._preset_combo.count(), len(preset_names()))
         self.dlg._apply_preset()
         self.assertEqual(self.dlg._controller.preset.name, "general")
 

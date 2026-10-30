@@ -114,10 +114,55 @@ AI 以**资源池为词表**（grounded）编排：从池中按原 id 选词复�
 | grammar(语法书) | 0.15 | standard | 8000 | intro | 侧重语法点,规则更确定 |
 | dialogue(对话书) | 0.5 | standard | 8000 | intro | 侧重日常表达与口语 |
 | reading(阅读材料) | 0.3 | vocab_only | 10000 | intro | 仅抽词汇,忽略隐式语法 |
+| syllabus(教学纲领/课程大纲) | 0.2 | standard | 12000 | intro | 目标+语法主题+必备词的纲领条目 |
 
 预设控制 `extract_knowledge_points` 的 `temperature` / `strategy` / `max_tokens` /
 `max_chapter_chars`,以及 `build_section_from_chapter` 的 `lesson_template`
 (目前仅 `intro` 有意义;`practice`/`review` 亦可,未知值回退 `intro`)。
+
+每个预设还带 `prompt_addendum`,追加到 `knowledge_prompt` 的规则块之后(不改 JSON
+schema)。`syllabus` 的追加规则要求:只抽纲领点名的内容;纲领用提示语言描述目标而没给
+目标语词形时**跳过该条**而不是编造;纲领点名的语法主题即使没有例句也建语法点,把纲领
+原文写进 `explanation`。
+
+### 5.1 切章自动识别
+
+[`markdown_chopper.split_chapters_auto`](../../tool/gui/src/backend/markdown_chopper.py)
+是导入管线的入口(`split_chapters` 保留显式层级契约)。它按顺序判断:
+
+1. 有 `#` 标题 → 用被选层级切分(默认 2 层;若 2 层不足 2 个则按出现最多的层级)。
+2. 只有一个 `#` 书名 + 下面 `Ünite 1` / `1.` 阶梯(纲领常见形态) → 把这些普通行提升为
+   `##` 再切,避免整本只切出 1 章。
+3. 完全没有 `#` → 识别 `1.` / `1.2` 编号、`Ünite` / `Bölüm` / `Ders` / `Unit` /
+   `Lesson` / `Chapter` / `第 N 章` / 单元 / 模块、纯加粗行。
+   编号只有从 `1` 开始且同层 ≥2 条才当章标题,避免把「1. 先放盐」这种有序列表误判。
+
+### 5.2 文档类型自动识别
+
+载入文件后 [`document_profile.profile_document`](../../tool/gui/src/backend/document_profile.py)
+用本地关键词 + 结构信号(列表密度、说话人行、长段落、单元阶梯)给 5 类文档打分,
+输出 `kind / preset / confidence / evidence` 并写 telemetry (`textbook.document.profile`)。
+
+- 置信度 ≥ 0.45 且教师**没有手动选过预设**时,控制器自动切到对应预设,下拉框与日志同步。
+- 教师手动选过 → 只报告不覆盖。
+- 纯本地计算,不联网、不阻塞载入;AI 复核(`classify_document_with_ai`)是可选增强,
+  失败一律回落启发式结果。
+
+### 5.3 教学纲领 → 整门课程规划
+
+教学纲领不是教材:它给的是单元顺序、等级、课时和 can-do 目标,词汇要靠设计阶段补。
+因此纲领有两条路径:
+
+| 路径 | 入口 | 产物 |
+|------|------|------|
+| 逐章抽知识点 | 课程工坊「导入教材」+ 选 `syllabus` 预设(或自动识别) | sections(仍需审校) |
+| 课程骨架规划 | 应用菜单「整门课程规划」→「载入教学纲领…」 | CoursePlanSpec(主题/等级/章节/课时/词预算/can-do/约束) |
+
+第二条路径由 [`syllabus_brief`](../../tool/gui/src/backend/syllabus_brief.py) 实现:
+本地启发式读单元阶梯、CEFR 标注、`每单元 N 课`、`词汇量 N`、can-do 行;配置了 AI 时
+再让模型按严格 JSON 精读一遍(单元是权威:模型给的 `section_count` 与单元数不一致时
+以单元数为准),失败回落启发式。规划窗口把结果写进表单,教师确认后才生成大纲;纲领的
+单元顺序原样进入 `constraints`,规划器不得增删或调换。
 
 ---
 

@@ -26,6 +26,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.application.audio_options import (
+    TTS_EMOTIONS,
+    TTS_LANGUAGE_BOOSTS,
+    TTS_MODEL_CHOICES,
+    TTS_NORMALIZATION_CHOICES,
+    TTS_VOICE_CHOICES,
+)
 from src.application.settings import Settings
 from src.theme import current_palette
 
@@ -51,17 +58,10 @@ class GenerateAudioDialog(QDialog):
         form = QFormLayout()
         form.setSpacing(10)
 
-        # Editable voice-id combo: common MiniMax voices plus the persisted one.
+        # Editable voice-id combo: known MiniMax voices plus the persisted one.
         self._voice_combo = QComboBox()
         self._voice_combo.setEditable(True)
-        _known_voices = [
-            "female-tianmei",
-            "male-qn-jingying",
-            "female-yujie",
-            "male-qn-daxiong",
-            "female-shaonv",
-            "male-chengshu",
-        ]
+        _known_voices = list(TTS_VOICE_CHOICES)
         current_voice = settings.tts_voice_id or "female-tianmei"
         if current_voice not in _known_voices:
             _known_voices.insert(0, current_voice)
@@ -70,9 +70,53 @@ class GenerateAudioDialog(QDialog):
         self._voice_combo.setCurrentText(current_voice)
         form.addRow("音色 Voice ID：", self._voice_combo)
 
-        self._model_edit = QLineEdit(settings.tts_model or "speech-2.8-hd")
-        self._model_edit.setPlaceholderText("speech-2.8-hd")
-        form.addRow("模型 Model：", self._model_edit)
+        # Editable model combo: current documented models, user can type an
+        # alias (proxy / pinned snapshot).
+        self._model_combo = QComboBox()
+        self._model_combo.setEditable(True)
+        _known_models = list(TTS_MODEL_CHOICES)
+        current_model = settings.tts_model or "speech-2.8-hd"
+        if current_model not in _known_models:
+            _known_models.insert(0, current_model)
+        for m in _known_models:
+            self._model_combo.addItem(m)
+        self._model_combo.setCurrentText(current_model)
+        form.addRow("模型 Model：", self._model_combo)
+
+        # language_boost: empty = derive from the course language (tr -> Turkish).
+        self._boost_combo = QComboBox()
+        self._boost_combo.setEditable(True)
+        self._boost_combo.addItem("（按课程语言自动）", "")
+        for b in TTS_LANGUAGE_BOOSTS:
+            self._boost_combo.addItem(b, b)
+        persisted_boost = settings.tts_language_boost or ""
+        index = self._boost_combo.findData(persisted_boost)
+        if index >= 0:
+            self._boost_combo.setCurrentIndex(index)
+        else:
+            self._boost_combo.setCurrentText(persisted_boost)
+        form.addRow("发音语言 Boost：", self._boost_combo)
+
+        self._normalize_combo = QComboBox()
+        for mode in TTS_NORMALIZATION_CHOICES:
+            self._normalize_combo.addItem(
+                "quality（LLM 辅助，推荐）" if mode == "quality" else "basic（规则）",
+                mode,
+            )
+        n_index = self._normalize_combo.findData(
+            settings.tts_text_normalization or "quality"
+        )
+        self._normalize_combo.setCurrentIndex(max(0, n_index))
+        form.addRow("文本规范化：", self._normalize_combo)
+
+        self._emotion_combo = QComboBox()
+        self._emotion_combo.addItem("（由模型决定）", "")
+        for emotion in TTS_EMOTIONS:
+            if emotion:
+                self._emotion_combo.addItem(emotion, emotion)
+        e_index = self._emotion_combo.findData(settings.tts_emotion or "")
+        self._emotion_combo.setCurrentIndex(max(0, e_index))
+        form.addRow("情绪 Emotion：", self._emotion_combo)
 
         self._speed_spin = QDoubleSpinBox()
         self._speed_spin.setRange(0.5, 2.0)
@@ -92,7 +136,10 @@ class GenerateAudioDialog(QDialog):
         form.addRow("API Key：", self._key_edit)
         layout.addLayout(form)
 
-        hint = QLabel("API Key 仅在内存中用于本次生成，不会写入设置。")
+        hint = QLabel(
+            "API Key 仅在内存中用于本次生成，不会写入设置。\n"
+            "土耳其语建议选多语音色（English_* 系列）；发音语言留空即按课程语言自动推导。"
+        )
         hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
         layout.addWidget(hint)
 
@@ -130,6 +177,9 @@ class GenerateAudioDialog(QDialog):
         self._settings.tts_model = self.model()
         self._settings.tts_speed = self.speed()
         self._settings.tts_force = self.force()
+        self._settings.tts_language_boost = self.language_boost()
+        self._settings.tts_text_normalization = self.text_normalization()
+        self._settings.tts_emotion = self.emotion()
         # API key is memory-only on Settings; it is never persisted by save().
         self._settings.tts_api_key = self.api_key()
 
@@ -139,7 +189,21 @@ class GenerateAudioDialog(QDialog):
         return self._voice_combo.currentText().strip() or "female-tianmei"
 
     def model(self) -> str:
-        return self._model_edit.text().strip() or "speech-2.8-hd"
+        return self._model_combo.currentText().strip() or "speech-2.8-hd"
+
+    def language_boost(self) -> str:
+        """Selected ``language_boost``; '' means "derive from course language"."""
+        text = self._boost_combo.currentText().strip()
+        data = self._boost_combo.currentData()
+        if text in ("", "（按课程语言自动）"):
+            return ""
+        return str(data or text)
+
+    def text_normalization(self) -> str:
+        return str(self._normalize_combo.currentData() or "quality")
+
+    def emotion(self) -> str:
+        return str(self._emotion_combo.currentData() or "")
 
     def speed(self) -> float:
         return self._speed_spin.value()

@@ -11,6 +11,7 @@ majority of the import logic unit-testable without a QApplication event loop.
 from __future__ import annotations
 
 import functools
+import json
 import logging
 import sys
 import time
@@ -27,6 +28,11 @@ if str(_GUI) not in sys.path:
 from src.backend.extraction_quality import (
     ExtractionQualityReport,
     compute_quality_report,
+)
+from src.backend.document_profile import (
+    profile_document,
+    profile_summary,
+    profile_to_json,
 )
 from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import SectionImportPreview
@@ -106,6 +112,7 @@ class TextbookImportController:
         on_status: Callable[[str], None] | None = None,
         on_quality_report_changed: Callable[[ExtractionQualityReport], None] | None = None,
         on_usage_update: Callable[[int, UsageDict, UsageDict], None] | None = None,
+        on_preset_detected: Callable[[dict[str, Any]], None] | None = None,
         language: str = "Turkish",
         source_language: str = "Chinese",
         project_name: str = "",
@@ -127,10 +134,16 @@ class TextbookImportController:
         self._on_status = on_status or (lambda _msg: None)
         self._on_quality_report_changed = on_quality_report_changed or (lambda _r: None)
         self._on_usage_update = on_usage_update or (lambda _idx, _chap, _proj: None)
+        # Fired with the detected profile when the controller auto-switches the
+        # preset, so the dialog can move its combo to match the real state.
+        self._on_preset_detected = on_preset_detected or (lambda _profile: None)
         self._language = language
         self._source_language = source_language
         self._project_name = project_name
         self._preset = preset or preset_for("general")
+        # ``False`` means "no human choice yet": a document load may then
+        # auto-switch the preset to the detected document type.
+        self._preset_explicit = preset is not None
         self._max_concurrent = max(1, int(max_concurrent))
         self._auto_cascade = bool(auto_cascade)
         self._attempted_strategies: dict[int, set[str]] = {}
@@ -193,7 +206,13 @@ class TextbookImportController:
 
     @preset.setter
     def preset(self, value: TextbookPreset | None) -> None:
+        self.set_preset(value, explicit=True)
+
+    def set_preset(self, value: TextbookPreset | None, *, explicit: bool = True) -> None:
+        """Set the active preset; ``explicit=False`` keeps auto-detection live."""
         self._preset = value or preset_for("general")
+        if explicit:
+            self._preset_explicit = True
 
     @property
     def max_concurrent(self) -> int:
@@ -278,10 +297,14 @@ class TextbookImportController:
             )
 
         self._split_into_chapters()
+        profile_line = self._detect_document_preset()
         result = ImportStepResult.success(
             "chapters",
-            f"解析完成，共 {len(self._chapters)} 章。",
-            details={"chapter_count": len(self._chapters)},
+            f"解析完成，共 {len(self._chapters)} 章。{profile_line}",
+            details={
+                "chapter_count": len(self._chapters),
+                "preset": self._preset.name,
+            },
         )
         self._emit_step(self.STEP_CHAPTERS, result)
         self._autosave(force=True)
@@ -358,10 +381,14 @@ class TextbookImportController:
         self._source_path = path
         self._md = text
         self._split_into_chapters()
+        profile_line = self._detect_document_preset()
         result = ImportStepResult.success(
             "chapters",
-            f"解析完成，共 {len(self._chapters)} 章。",
-            details={"chapter_count": len(self._chapters)},
+            f"解析完成，共 {len(self._chapters)} 章。{profile_line}",
+            details={
+                "chapter_count": len(self._chapters),
+                "preset": self._preset.name,
+            },
         )
         self._emit_step(self.STEP_CHAPTERS, result)
         self._autosave(force=True)
@@ -391,6 +418,39 @@ class TextbookImportController:
     def _split_into_chapters(self) -> None:
         chapters = split_markdown_into_chapters(self._md)
         self._chapters = [_ChapterResult(chapter=ch) for ch in chapters]
+
+    def _detect_document_preset(self) -> str:
+        """Profile the loaded document and auto-pick a preset when allowed.
+
+        The heuristic is deterministic and network-free, so it runs on the file
+        load path. A preset the teacher picked explicitly is never overridden;
+        the detected profile is still reported so the choice can be revisited.
+
+        Returns a one-line human summary for the step result / import log.
+        """
+        profile = profile_document(self._md)
+        telemetry.record_event(
+            "textbook.document.profile",
+            payload={"profile": json.loads(profile_to_json(profile))},
+        )
+        if not self._preset_explicit and profile.confidence >= 0.45:
+            detected = preset_for(profile.preset)
+            if detected.name != self._preset.name:
+                self._preset = detected
+                self._on_extract_log(
+                    f"\n- 文档类型自动识别：{profile.label}"
+                    f"（{profile.confidence:.0%}）→ 预设「{detected.label}」 -"
+                )
+        self._on_preset_detected(
+            {
+                "preset": self._preset.name,
+                "kind": profile.kind,
+                "confidence": profile.confidence,
+                "summary": profile_summary(profile),
+                "explicit": self._preset_explicit,
+            }
+        )
+        return profile_summary(profile)
 
     # ------------------------------------------------------------------ ③ chapters
     def set_chapter_kept(self, index: int, kept: bool) -> None:

@@ -70,6 +70,35 @@ class BuildCommandTest(unittest.TestCase):
         )
         self.assertIn("--force", cmd)
 
+    def test_argv_carries_language_boost_and_normalization(self) -> None:
+        cmd = generate_audio_client.build_command(
+            Path("/c/course"),
+            Path("/c/sounds"),
+            TtsOptions(
+                language_boost="Turkish",
+                text_normalization="basic",
+                emotion="calm",
+            ),
+        )
+        self.assertIn("--language-boost", cmd)
+        self.assertIn("Turkish", cmd)
+        self.assertIn("--text-normalization", cmd)
+        self.assertIn("basic", cmd)
+        self.assertIn("--emotion", cmd)
+        self.assertIn("calm", cmd)
+
+    def test_argv_always_sends_normalization_and_omits_empty_boost(self) -> None:
+        cmd = generate_audio_client.build_command(
+            Path("/c/course"), Path("/c/sounds"), TtsOptions()
+        )
+        # Script-side default must never be silently overridden by an empty arg.
+        self.assertIn("--text-normalization", cmd)
+        self.assertIn("quality", cmd)
+        self.assertIn("--sample-rate", cmd)
+        self.assertIn("32000", cmd)
+        self.assertNotIn("--language-boost", cmd)
+        self.assertNotIn("--emotion", cmd)
+
 
 class RunGenerateTest(unittest.TestCase):
     def test_parses_generated_lines_and_json_summary(self) -> None:

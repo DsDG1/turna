@@ -131,6 +131,7 @@ class TextbookImportDialog(QDialog):
             on_status=self._on_status,
             on_quality_report_changed=self._on_quality_report_changed,
             on_usage_update=self._on_usage_update,
+            on_preset_detected=self._on_preset_detected,
             language=project.language if project else "Turkish",
             source_language=project.source_language if project else "Chinese",
             project_name=project.name if project else "",
@@ -138,7 +139,9 @@ class TextbookImportDialog(QDialog):
         )
 
         self._build_ui()
-        self._apply_preset()  # push the default textbook-type preset to the controller
+        # Push the default textbook-type preset without marking it as an
+        # explicit choice: loading a document may still auto-detect the type.
+        self._apply_preset(explicit=False)
         self._selected_chapter_index: int | None = None
         if project is not None:
             self._picked_label.setText(
@@ -368,12 +371,32 @@ class TextbookImportDialog(QDialog):
     def _on_quality_report_changed(self, report) -> None:
         self._refresh_quality_summary(report)
 
-    def _apply_preset(self, *_args) -> None:
-        """Push the selected textbook-type preset onto the controller."""
+    def _apply_preset(self, *_args, explicit: bool = True) -> None:
+        """Push the selected textbook-type preset onto the controller.
+
+        ``explicit=False`` is used for the initial default push only: it keeps
+        document-load auto-detection enabled.
+        """
         from src.backend.textbook_presets import preset_for
 
         name = self._preset_combo.currentData() if hasattr(self, "_preset_combo") else None
-        self._controller.preset = preset_for(name) if name else None
+        self._controller.set_preset(
+            preset_for(name) if name else None, explicit=explicit
+        )
+
+    def _on_preset_detected(self, profile: dict) -> None:
+        """Mirror the controller's auto-detected preset into the combo box."""
+        if not hasattr(self, "_preset_combo"):
+            return
+        name = str((profile or {}).get("preset") or "")
+        index = self._preset_combo.findData(name)
+        if index >= 0 and index != self._preset_combo.currentIndex():
+            blocked = self._preset_combo.blockSignals(True)
+            self._preset_combo.setCurrentIndex(index)
+            self._preset_combo.blockSignals(blocked)
+        summary = str((profile or {}).get("summary") or "")
+        if summary:
+            self._preset_combo.setToolTip(summary)
 
     def _on_usage_update(self, chapter_index: int, chapter_usage: dict, project_usage: dict) -> None:
         """Render the running project token/cost estimate (bookplan2 Phase 5)."""

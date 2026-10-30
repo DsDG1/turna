@@ -14,6 +14,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tool"))
@@ -24,6 +25,7 @@ from generate_audio import (  # type: ignore
     SOUNDS_DIR,
     MiniMaxBackend,
     cmd_all,
+    language_boost_for_code,
     collect_entries,
     generate_entry,
     listening_asset_path,
@@ -105,6 +107,63 @@ class TestMiniMaxBackend(unittest.TestCase):
         self.assertIn("minimax", backend.name())
         self.assertIn("male-qn-jingying", backend.name())
         self.assertIn("0.85", backend.name())
+        self.assertIn("lang=Turkish", backend.name())
+        self.assertIn("normalize=quality", backend.name())
+
+    def test_backend_payload_carries_language_boost_and_normalization(self) -> None:
+        """The official t2a_v2 fields must actually reach the request body."""
+        os.environ["MINIMAX_API_KEY"] = "sk-test"
+        backend = MiniMaxBackend(
+            voice_id="English_Graceful_Lady",
+            speed=0.9,
+            model="speech-2.8-hd",
+            language_boost="Turkish",
+            text_normalization="quality",
+            emotion="calm",
+        )
+        captured: dict[str, dict] = {}
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+            def read(self):
+                # 1 silent MP3 frame worth of bytes, hex-encoded.
+                return json.dumps({"data": {"audio": "fffb"}}).encode("utf-8")
+
+        def _urlopen(request, timeout=None):  # noqa: ANN001 - test double
+            captured["payload"] = json.loads(request.data.decode("utf-8"))
+            return _Resp()
+
+        with mock.patch("urllib.request.urlopen", _urlopen):
+            out = Path(tempfile.mkdtemp(prefix="tts_payload_")) / "a.mp3"
+            backend.synthesize("Merhaba dünya", out)
+        payload = captured["payload"]
+        self.assertEqual(payload["language_boost"], "Turkish")
+        self.assertEqual(payload["text_normalization_mode"], "quality")
+        self.assertEqual(payload["voice_setting"]["emotion"], "calm")
+        self.assertEqual(payload["audio_setting"]["format"], "mp3")
+        self.assertEqual(payload["model"], "speech-2.8-hd")
+
+    def test_language_boost_derives_from_course_language_code(self) -> None:
+        os.environ["MINIMAX_API_KEY"] = "sk-test"
+        self.assertEqual(language_boost_for_code("tr"), "Turkish")
+        self.assertEqual(language_boost_for_code("tr-TR"), "Turkish")
+        self.assertEqual(language_boost_for_code("de"), "German")
+        self.assertEqual(language_boost_for_code("xx"), "auto")
+
+    def test_unknown_language_boost_is_rejected(self) -> None:
+        os.environ["MINIMAX_API_KEY"] = "sk-test"
+        with self.assertRaises(RuntimeError):
+            MiniMaxBackend(language_boost="Klingon")
+
+    def test_unknown_model_only_warns(self) -> None:
+        os.environ["MINIMAX_API_KEY"] = "sk-test"
+        backend = MiniMaxBackend(model="my-proxy-tts")
+        self.assertEqual(backend.model, "my-proxy-tts")
 
 
 class TestGenerateAudio(unittest.TestCase):

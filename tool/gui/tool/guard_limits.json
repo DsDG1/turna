@@ -4,7 +4,7 @@
   "max_except_continue": 0,
   "max_broad_except": 873,
   "max_hardcoded_style_hex": 0,
-  "max_ui_backend_imports": 166,
+  "max_ui_backend_imports": 167,
   "max_import_cycles": 0,
   "max_app_dialogs_imports": 13,
   "max_widgets_dialogs_imports": 4

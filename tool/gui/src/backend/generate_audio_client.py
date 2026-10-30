@@ -44,6 +44,13 @@ class TtsOptions:
     model: str = "speech-2.8-hd"
     speed: float = 0.9
     force: bool = False
+    #: MiniMax ``language_boost``. Empty = let the script derive it from the
+    #: course's ``index.json`` language (``tr`` -> ``Turkish``).
+    language_boost: str = ""
+    text_normalization: str = "quality"
+    emotion: str = ""
+    sample_rate: int = 32000
+    bitrate: int = 128000
 
 
 @dataclass(frozen=True)
@@ -155,7 +162,17 @@ def build_command(
         opts.model,
         "--speed",
         f"{opts.speed:g}",
+        "--text-normalization",
+        opts.text_normalization or "quality",
+        "--sample-rate",
+        str(int(opts.sample_rate or 32000)),
+        "--bitrate",
+        str(int(opts.bitrate or 128000)),
     ]
+    if opts.language_boost:
+        cmd.extend(["--language-boost", opts.language_boost])
+    if opts.emotion:
+        cmd.extend(["--emotion", opts.emotion])
     if opts.force:
         cmd.append("--force")
     cmd.extend(["all", "--format", "json"])

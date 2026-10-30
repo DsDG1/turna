@@ -18,9 +18,10 @@ from src.backend.textbook_presets import (
 
 
 class BuiltinPresetsTest(unittest.TestCase):
-    def test_four_builtin_presets_present(self) -> None:
+    def test_builtin_presets_present(self) -> None:
         self.assertEqual(
-            set(preset_names()), {"general", "grammar", "dialogue", "reading"}
+            set(preset_names()),
+            {"general", "grammar", "dialogue", "reading", "syllabus"},
         )
         for name in preset_names():
             self.assertIn(name, BUILTIN_TEXTBOOK_PRESETS)

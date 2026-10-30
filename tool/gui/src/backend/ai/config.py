@@ -16,7 +16,9 @@ class AiCancelled(Exception):
 class AiApiConfig:
     base_url: str = "https://api.deepseek.com"
     api_key: str = ""
-    model: str = "deepseek-v4-pro"
+    # Mirrors the Dart ``kDeepseekPreset.defaultModel``. v4.1 is the current
+    # generation; the pro tier is opt-in via ``model_json`` for hard schemas.
+    model: str = "deepseek-v4.1-flash"
     # Whether the endpoint accepts ``reasoning_effort`` / ``thinking``. ``None``
     # (the default) infers this from the host via ``is_deepseek`` - DeepSeek's
     # documented behavior - so the common case needs no extra config. Set

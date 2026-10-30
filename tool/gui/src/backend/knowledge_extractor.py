@@ -185,6 +185,7 @@ def extract_knowledge_points(
     max_retries: int = 1,
     max_tokens: int | None = None,
     max_chapter_chars: int = _MAX_CHAPTER_CHARS,
+    extra_rules: str = "",
 ) -> KnowledgePoints:
     """Extract knowledge points for ``chapter`` via the LLM, with retries.
 
@@ -202,15 +203,25 @@ def extract_knowledge_points(
       ``RuntimeError`` describing the last errors.
     - ``id_prefix`` is ``"ch-{slug}-"`` so resource ids are deterministic and
       route through the merge path on re-import.
+    - ``extra_rules`` carries the selected ``TextbookPreset.prompt_addendum``
+      (document-type scope rules, e.g. "this is a syllabus").
     """
     id_prefix = f"ch-{chapter.slug}-"
     if strategy == "vocab_only":
         messages = build_vocab_only_extraction_messages(
-            language, source_language, chapter, max_chars=max_chapter_chars
+            language,
+            source_language,
+            chapter,
+            max_chars=max_chapter_chars,
+            extra_rules=extra_rules,
         )
     else:
         messages = build_extraction_messages(
-            language, source_language, chapter, max_chars=max_chapter_chars
+            language,
+            source_language,
+            chapter,
+            max_chars=max_chapter_chars,
+            extra_rules=extra_rules,
         )
 
     kp = _run_extraction_loop(
@@ -286,6 +297,7 @@ def extract_knowledge_points_windowed(
     max_retries: int = 1,
     max_tokens: int | None = None,
     max_chapter_chars: int = _MAX_CHAPTER_CHARS,
+    extra_rules: str = "",
 ) -> KnowledgePoints:
     """Extract knowledge points, sliding-windowing over-long chapters (P4-1).
 
@@ -323,6 +335,7 @@ def extract_knowledge_points_windowed(
             max_retries=max_retries,
             max_tokens=max_tokens,
             max_chapter_chars=max_chapter_chars,
+            extra_rules=extra_rules,
         )
 
     # Windows are pre-sized to ~max_window_chars plus up to overlap_chars of
@@ -349,6 +362,7 @@ def extract_knowledge_points_windowed(
                     max_retries=max_retries,
                     max_tokens=max_tokens,
                     max_chapter_chars=window_cap,
+                    extra_rules=extra_rules,
                 )
             )
         except AiCancelled:
@@ -385,6 +399,7 @@ def reextract_knowledge_targeted(
     max_retries: int = 1,
     max_tokens: int | None = None,
     max_chapter_chars: int = _MAX_CHAPTER_CHARS,
+    extra_rules: str = "",
 ) -> KnowledgePoints:
     """Re-extract one chapter guided by its quality issues (P4-4).
 
@@ -397,7 +412,13 @@ def reextract_knowledge_targeted(
     """
     id_prefix = f"ch-{chapter.slug}-"
     messages = build_targeted_reextract_messages(
-        language, source_language, chapter, kp, issues, max_chars=max_chapter_chars
+        language,
+        source_language,
+        chapter,
+        kp,
+        issues,
+        max_chars=max_chapter_chars,
+        extra_rules=extra_rules,
     )
     return _run_extraction_loop(
         config,
