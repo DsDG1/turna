@@ -230,6 +230,40 @@ void main() {
     });
   });
 
+  group('Card 默认底色', () {
+    // Card 是单色容器，画不出渐变，所以它的 color 必须落在 glassSolid 的
+    // 同一个色阶上，否则一页里会同时出现「纯白卡」和「淡彩卡」两代材质。
+    // 这条断言把两者钉在一起：改 l1Subtle 的参数，Card 自动跟随；谁要是
+    // 手改 CardThemeData.color 成别的值，这里立刻红。
+    for (final mode in [Brightness.light, Brightness.dark]) {
+      testWidgets('${mode.name} 下与 glassSolid 同源', (tester) async {
+        late BuildContext ctx;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: mode == Brightness.light
+                ? TurnaTheme.lightTheme
+                : TurnaTheme.darkTheme,
+            home: Builder(
+              builder: (c) {
+                ctx = c;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+
+        final solid = TurnaTheme.glassSolid(
+          ctx,
+          TurnaTheme.glassNeutral,
+          level: GlassLevel.l1Subtle,
+        );
+        final card =
+            Theme.of(ctx).cardTheme.color;
+        expect(card, solid, reason: 'Card 底色与玻璃实面漂移了');
+      });
+    }
+  });
+
   group('ListTile 主题', () {
     // 15 处裸 ListTile / CheckboxListTile / SwitchListTile 散在 12 个文件，
     // 靠全局主题收口。这里钉住四套主题都注册过，防止以后被误删 ——

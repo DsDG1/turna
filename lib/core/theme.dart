@@ -75,7 +75,27 @@ class TurnaTheme {
   static const Color background = Colors.white;
   static const Color surface = Colors.white;
   static const Color scaffoldBackground = Colors.white;
-  static const Color cardBackground = Colors.white;
+
+  /// `Card` 组件的默认底色（8 处真实 Material Card：anki 卡片浏览 / 牌组
+  /// 统计 / 修复中心 / 复习来源详情）。
+  ///
+  /// 取 [GlassLevel.l1Subtle] 的**最深一档**，与 [glassSolid] 同源 —— 卡片
+  /// 是单色容器，画不出渐变，但必须和旁边那些玻璃卡落在同一个色阶上，
+  /// 否则一页里会同时出现「纯白卡」和「淡彩卡」两代材质。
+  static final Color cardBackground = Color.alphaBlend(
+    glassNeutral.withValues(alpha: _glassSpec(GlassLevel.l1Subtle).tintEnd),
+    Colors.white,
+  );
+
+  /// 深色下同上，基面是 [GlassLevel.l1Subtle].darkBase，浓度走 darkTintEnd
+  /// （深色那两档和浅色不是同一组数字，取错字段会差半个色阶）。
+  static final Color darkCardBackground = Color.alphaBlend(
+    glassNeutral.withValues(
+      alpha: _glassSpec(GlassLevel.l1Subtle).darkTintEnd,
+    ),
+    _glassSpec(GlassLevel.l1Subtle).darkBase,
+  );
+
   static const Color divider = Color(0xFFE5E7E5);
 
   /// Dark scaffold / window chrome (≡ Android `turna_scaffold_dark`).
@@ -1106,7 +1126,7 @@ class TurnaTheme {
         ),
         cardTheme: CardThemeData(
           elevation: 0,
-          color: const Color(0xFF141414),
+          color: darkCardBackground,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
