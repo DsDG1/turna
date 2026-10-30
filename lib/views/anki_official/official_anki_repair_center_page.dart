@@ -147,10 +147,11 @@ class _OfficialAnkiRepairCenterPageState
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: TurnaTheme.cardBg(context),
+            decoration: TurnaTheme.glassDecoration(
+              context,
+              TurnaTheme.glassNeutral,
+              level: GlassLevel.l1Subtle,
               borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              border: Border.all(color: TurnaTheme.dividerBg(context)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

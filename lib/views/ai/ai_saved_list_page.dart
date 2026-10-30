@@ -88,9 +88,24 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                     itemBuilder: (context, i) {
                       final e = items[i];
                       return Material(
-                        color: TurnaTheme.cardBg(context),
-                        borderRadius:
-                            BorderRadius.circular(TurnaTheme.radiusMedium),
+                        // ADR 0062：列表项 → 均匀淡彩实面 + 同色描边。
+                        color: TurnaTheme.glassSolid(
+                          context,
+                          TurnaTheme.glassNeutral,
+                          level: GlassLevel.l1Subtle,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            TurnaTheme.radiusMedium,
+                          ),
+                          side: BorderSide(
+                            color: TurnaTheme.glassStroke(
+                              context,
+                              TurnaTheme.glassNeutral,
+                              level: GlassLevel.l1Subtle,
+                            ),
+                          ),
+                        ),
                         child: InkWell(
                           borderRadius:
                               BorderRadius.circular(TurnaTheme.radiusMedium),

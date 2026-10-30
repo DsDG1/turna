@@ -42,6 +42,9 @@ class SectionBottomSheet extends StatelessWidget {
         return Container(
           constraints: BoxConstraints(maxHeight: maxSheetHeight),
           decoration: BoxDecoration(
+            // sheet 面必须**不透明**（ADR 0062 例外）：底下压着课程列表，
+            // 半透明会让内容透上来，长列表读不成。sheet 的浮起感由顶圆角
+            // + M3 的 scrim 承担，不靠材质。
             color: TurnaTheme.cardBg(context),
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(TurnaTheme.radiusXLarge),

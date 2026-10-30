@@ -344,10 +344,21 @@ class _QuickSettingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
     return Material(
-      color: TurnaTheme.cardBg(context),
+      // ADR 0062：快捷设置是 2×2 格子里的容器卡 → 中性淡彩实面 + 同色描边。
+      color: TurnaTheme.glassSolid(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: radius,
-        side: BorderSide(color: TurnaTheme.statCardBorder(context)),
+        side: BorderSide(
+          color: TurnaTheme.glassStroke(
+            context,
+            TurnaTheme.glassNeutral,
+            level: GlassLevel.l1Subtle,
+          ),
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

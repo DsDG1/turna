@@ -110,11 +110,11 @@ class JourneyOverviewCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-        boxShadow: TurnaTheme.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,13 +557,21 @@ class ChangelogReleaseCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      ).copyWith(
+        // isLatest 的那条要保持 teal 强调，其余走玻璃自己的同色描边。
         border: Border.all(
           color: isLatest
               ? TurnaTheme.brandTeal.withValues(alpha: 0.45)
-              : TurnaTheme.statCardBorder(context),
+              : TurnaTheme.glassStroke(
+                  context,
+                  TurnaTheme.glassNeutral,
+                  level: GlassLevel.l1Subtle,
+                ),
         ),
       ),
       child: Column(

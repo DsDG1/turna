@@ -22,19 +22,12 @@ class AnkiImportPreviewHeaderCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      // ADR 0062：导入预览头是内容卡 → 中性淡彩玻璃。
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: TurnaTheme.brandNavy.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

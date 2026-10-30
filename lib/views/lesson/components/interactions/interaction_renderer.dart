@@ -520,8 +520,8 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
                         shape: BoxShape.circle,
                         color: stateAccent ?? Colors.transparent,
                         border: Border.all(
-                          color: stateAccent ??
-                              TurnaTheme.textHintColor(context),
+                          color:
+                              stateAccent ?? TurnaTheme.textHintColor(context),
                           width: 1.5,
                         ),
                       ),

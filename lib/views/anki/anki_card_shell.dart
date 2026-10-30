@@ -24,6 +24,9 @@ class AnkiWebViewCardShell extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
+        // 这里**刻意不用玻璃**（ADR 0062 的例外）：外壳里装的是用户自己的
+        // Anki notetype HTML，卡片原貌就是验收标准。加任何淡彩都会让用户
+        // 的卡在边缘透出不属于它的色，深色下尤甚。要改材质先改这条注释。
         color: TurnaTheme.cardBg(context),
         borderRadius: radius,
         border: Border.all(

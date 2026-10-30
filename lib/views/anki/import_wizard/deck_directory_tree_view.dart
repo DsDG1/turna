@@ -146,12 +146,11 @@ class DeckDirectoryTreeView extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: DecoratedSliver(
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
+        decoration: TurnaTheme.glassDecoration(
+          context,
+          TurnaTheme.glassNeutral,
+          level: GlassLevel.l1Subtle,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-          border: Border.all(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-          ),
         ),
         sliver: SliverPadding(
           padding: const EdgeInsets.all(14),

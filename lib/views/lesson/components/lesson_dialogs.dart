@@ -639,9 +639,21 @@ class _StatChip extends StatelessWidget {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+        // ADR 0062：这是一格格并排的小卡（AdaptiveCardGrid），用均匀淡彩
+        // 实面而非渐变玻璃 —— 每个格子各带 24px 大投影会互相糊成一团。
+        color: TurnaTheme.glassSolid(
+          context,
+          TurnaTheme.glassNeutral,
+          level: GlassLevel.l1Subtle,
+        ),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        border: Border.all(
+          color: TurnaTheme.glassStroke(
+            context,
+            TurnaTheme.glassNeutral,
+            level: GlassLevel.l1Subtle,
+          ),
+        ),
       ),
       child: Row(
         children: [

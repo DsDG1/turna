@@ -75,7 +75,13 @@ class _SectionCard extends StatelessWidget {
     final colors = SectionVisuals.colorsFor(section.id);
 
     return Material(
-      color: TurnaTheme.cardBg(context),
+      // ADR 0062：章节是导航容器，色相只留在图标里 —— 整卡用中性淡彩，
+      // 否则黄色/紫色章节会把选择页染成一页花。
+      color: TurnaTheme.glassSolid(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
+      ),
       borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       elevation: 0,
       child: InkWell(
@@ -92,7 +98,11 @@ class _SectionCard extends StatelessWidget {
                     width: 2,
                   )
                 : null,
-            boxShadow: TurnaTheme.softShadow,
+            boxShadow: TurnaTheme.glassShadow(
+              context,
+              TurnaTheme.glassNeutral,
+              level: GlassLevel.l1Subtle,
+            ),
           ),
           child: Row(
             children: [

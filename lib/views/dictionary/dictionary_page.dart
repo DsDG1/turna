@@ -161,8 +161,24 @@ class DictionaryHitTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: TurnaTheme.cardBg(context),
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      // ADR 0062：词典词条是列表项 → 均匀淡彩实面。列表里逐项渐变的重复
+      // 反而会让整列看起来脏，所以这一档不用 glassFill。描边必须有，
+      // 否则淡彩在白底上会读成一块灰。
+      color: TurnaTheme.glassSolid(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        side: BorderSide(
+          color: TurnaTheme.glassStroke(
+            context,
+            TurnaTheme.glassNeutral,
+            level: GlassLevel.l1Subtle,
+          ),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(

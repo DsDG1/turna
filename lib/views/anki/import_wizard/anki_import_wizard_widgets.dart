@@ -143,11 +143,20 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: TurnaTheme.cardBg(context),
+      // ADR 0062：导入向导的分组卡 → 中性淡彩实面 + 同色描边。
+      color: TurnaTheme.glassSolid(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         side: BorderSide(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+          color: TurnaTheme.glassStroke(
+            context,
+            TurnaTheme.glassNeutral,
+            level: GlassLevel.l1Subtle,
+          ),
         ),
       ),
       child: Column(
@@ -370,12 +379,11 @@ class DoneGroup extends StatelessWidget {
     if (rows.isEmpty) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

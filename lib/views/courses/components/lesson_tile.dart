@@ -57,7 +57,8 @@ class LessonRowShell extends StatelessWidget {
     // 与 UnitCard 的 L1 渐变同源：用淡彩最深端的实色接住，否则上下两段
     // 各自重新起渐变，接缝处会出现一道横断。
     final body = TurnaTheme.glassSolid(context, accent, level: GlassLevel.l1);
-    final stroke = TurnaTheme.glassStroke(context, accent, level: GlassLevel.l1);
+    final stroke =
+        TurnaTheme.glassStroke(context, accent, level: GlassLevel.l1);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -393,6 +394,8 @@ class LessonTypeIcon extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: TurnaTheme.anatolianClay,
                   shape: BoxShape.circle,
+                  // 这里的 cardBg 不是卡面，是「挖洞」的白环：把 clay 圆点
+                  // 从卡片背景里切出来。换玻璃色会露出一圈灰边。
                   border: Border.all(
                     color: TurnaTheme.cardBg(context),
                     width: 1.5,

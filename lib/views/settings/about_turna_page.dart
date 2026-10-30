@@ -681,11 +681,11 @@ class _AboutCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: padding,
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-        boxShadow: TurnaTheme.softShadow,
       ),
       child: child,
     );

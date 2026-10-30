@@ -392,10 +392,12 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      // ADR 0062：练习详情是单张信息卡 → 走完整玻璃（渐变 + 彩影）。
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(color: TurnaTheme.glassBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

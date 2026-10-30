@@ -118,11 +118,11 @@ class _TransparencyHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-        boxShadow: TurnaTheme.softShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -774,11 +774,11 @@ class _AboutCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        TurnaTheme.glassNeutral,
+        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-        boxShadow: TurnaTheme.softShadow,
       ),
       child: child,
     );

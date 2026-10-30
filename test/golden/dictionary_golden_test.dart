@@ -32,6 +32,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        // 不关掉的话 DEBUG 斜角会烙进基线，跟设计无关的像素也算进差异。
+        debugShowCheckedModeBanner: false,
         theme: TurnaTheme.lightTheme,
         darkTheme: TurnaTheme.darkTheme,
         themeMode: mode,
