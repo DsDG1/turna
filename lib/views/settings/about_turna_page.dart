@@ -306,8 +306,13 @@ class _HeroCard extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            border: Border.all(color: TurnaTheme.statCardBorder(context)),
-            boxShadow: TurnaTheme.softShadow,
+            // 双色品牌渐变卡：描边取白高光而非中性灰，深色下也靠它保住边缘。
+            border: Border.all(color: TurnaTheme.glassBorder(context)),
+            boxShadow: TurnaTheme.glassShadow(
+              context,
+              TurnaTheme.glassFocus,
+              level: GlassLevel.l1,
+            ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

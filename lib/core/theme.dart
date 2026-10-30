@@ -279,13 +279,6 @@ class TurnaTheme {
   }
 
   // SHADOWS
-  static List<BoxShadow> get softShadow => [
-        BoxShadow(
-          color: brandNavy.withValues(alpha: 0.07),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
 
   static List<BoxShadow> get cardShadow => [
         BoxShadow(

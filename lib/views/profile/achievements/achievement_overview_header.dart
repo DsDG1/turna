@@ -39,7 +39,14 @@ class AchievementOverviewHeader extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        // 系列色相卡：描边跟随本系列色相，不退回中性灰。
+        border: Border.all(
+          color: TurnaTheme.glassStroke(
+            context,
+            TurnaTheme.glassAchievement,
+            level: GlassLevel.l1,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -23,8 +23,8 @@ import 'package:turna/core/theme.dart';
 ///   8. 联系方式
 ///
 /// 视觉语言与 `AboutTurnaPage` 一致:
-///   - `courseTreeGradientFor` 薄荷渐变背景
-///   - `_AboutCard` 圆角白卡 + 1px 边框 + `softShadow`
+///   - 纯白画布（ADR 0062：不再铺薄荷渐变，淡彩由卡片自身承载）
+///   - `_AboutCard` 中性淡彩玻璃卡（`glassDecoration` + `l1Subtle`）
 ///   - `_SectionHeader` 短 teal 横条 + 小标题
 ///   - 网络访问两栏使用不同色温的 callout 区分「离线」与「可选联网」
 ///
@@ -536,7 +536,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// 通用内容卡片:cardBg + 1px 边框 + softShadow + 16 圆角。
+/// 通用内容卡片：中性淡彩玻璃（ADR 0062，`l1Subtle`）+ 16 圆角。
 class _AboutCard extends StatelessWidget {
   final Widget child;
 
