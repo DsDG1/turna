@@ -95,6 +95,41 @@ class AppStrings {
   }) =>
       '$displayName · 每日 $dailyXp XP / $studyMinutes 分钟';
   static String get settingsLearningPrefsTitle => '学习偏好';
+  static String get settingsCourseUpdateTitle => '从 URL 更新课程';
+  static String get settingsCourseUpdateSubtitle => '下载课程清单或 ZIP 包，校验后更新内置课程内容';
+  static String get settingsCourseUpdateDialogTitle => '更新课程内容';
+  static String get settingsCourseUpdateUrlLabel => '课程清单或 ZIP 地址';
+  static String get settingsCourseUpdateUrlHint => 'https://…/course-feed.json';
+  static String get settingsCourseUpdateUrlRequired => '请输入课程清单或 ZIP 地址';
+  static String get settingsCourseUpdateAction => '下载并更新';
+  static String get settingsCourseUpdateWorking => '正在更新…';
+  static String get settingsCourseUpdateRetryApply => '重试应用更新';
+  static String get settingsCourseUpdateChecking => '检查课程版本…';
+  static String get settingsCourseUpdateFeed => '读取课程清单…';
+  static String get settingsCourseUpdateDownloading => '下载课程包…';
+  static String get settingsCourseUpdateValidating => '校验课程包…';
+  static String get settingsCourseUpdateInstalling => '安装课程包…';
+  static String get settingsCourseUpdateApplying => '刷新课程与学习内容…';
+  static String settingsCourseUpdateSuccess(int version) =>
+      '课程已更新到 v$version，新内容已生效';
+  static String get settingsCourseUpdateAlreadyCurrent => '课程包已安装，当前内容已经是最新版';
+  static String settingsCourseUpdateDownloadFailed(Object error) =>
+      '课程更新失败：$error';
+  static String settingsCourseUpdateApplyFailed(Object error) =>
+      '课程包已下载，但应用更新失败：$error。可稍后直接重试，无需重新下载。';
+  static String get settingsCourseRestoreTitle => '恢复内置课程内容';
+  static String get settingsCourseRestoreSubtitle => '删除已下载的课程包，回到随应用发布的内置内容';
+  static String get settingsCourseRestoreDialogTitle => '恢复内置课程内容？';
+  static String get settingsCourseRestoreDialogMessage =>
+      '将删除当前语言已下载的课程包（需要重新下载才能再次更新），并重新载入内置内容。'
+      '学习进度与复习安排不会删除，但课程内容会回退到内置版本。';
+  static String get settingsCourseRestoreConfirm => '删除并恢复';
+  static String get settingsCourseRestoreDone => '已恢复内置课程内容';
+  static String get settingsCourseRestoreNothingInstalled =>
+      '当前没有已下载的课程包，正在使用内置内容';
+  static String settingsCourseRestoreFailed(Object error) => '恢复失败：$error';
+  static String settingsCourseRestoreReseedFailed(Object error) =>
+      '课程包已删除，但课程内容刷新失败：$error。下次启动会自动重新载入内置内容。';
   static String get settingsAnkiSectionTitle => '记忆卡复习';
   static String get settingsAudioSectionTitle => '声音与触感';
   static String get settingsA11ySectionTitle => '阅读与感官';
@@ -1014,6 +1049,7 @@ class AppStrings {
       PresentationReason.missingMappingDecision => '字段映射尚未确认，暂用原卡',
     };
   }
+
   static String get ankiPreviewBlockingHint => '请先指定待确认牌组的正面字段';
   static String get ankiPreviewDefaultRootName => '导入课程';
   static String ankiPreviewParsedDecks(int count) =>

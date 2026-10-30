@@ -143,15 +143,15 @@ void main() {
   });
 
   test('saveSectionJson rejects ids owned by another language', () async {
-    // 'section1' is a Turkish builtin section id.
+    // 'nt-s1' is a Turkish builtin section id (NouveauTurkish course).
     expect(
       () => _provider().saveSectionJson(
-        _sectionPayload(id: 'section1', language: 'fr'),
+        _sectionPayload(id: 'nt-s1', language: 'fr'),
       ),
       throwsA(isA<StateError>()),
     );
     // Nothing written.
-    expect(await _languagesOf(database, 'section1'), ['tr']);
+    expect(await _languagesOf(database, 'nt-s1'), ['tr']);
   });
 
   test('updateLessonInDb upserts under the existing row language', () async {

@@ -15,12 +15,14 @@ void main() {
 
   group('DatabaseSeeder round-trip', () {
     test('section1.json survives parse -> seed -> read -> serialize', () async {
+      // Seed first: CourseLoader.baseDir resolves through LanguageRegistry,
+      // which holds the packed fallback (turkish/) until the manifest loads.
+      final db = await seedInMemoryCourseDb();
       final raw = await rootBundle.loadString(
         '${CourseLoader.baseDir}/sections/section1.json',
       );
       final originalSection = parseSection(raw);
 
-      final db = await seedInMemoryCourseDb();
       final repo = CourseRepository(db);
       final roundTripped = await repo.section(originalSection.id);
 

@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/cosmetic_provider.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -41,6 +42,7 @@ import 'package:turna/views/profile/profile_screen.dart';
 import 'package:turna/views/settings/settings_app_bar.dart';
 import 'package:turna/views/settings/settings_page.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/logger.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -56,6 +58,8 @@ class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
   final ScrollHidePolicy _hidePolicy = ScrollHidePolicy();
   String? _contentUpdateVersion;
+  CourseProvider? _courseProvider;
+  int _observedContentRevision = 0;
 
   /// Lazy visited tabs (Plan 3 §23.2): a tab subtree is built on first
   /// visit and kept mounted afterwards (state/scroll survive), but hidden
@@ -81,7 +85,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final course = context.read<CourseProvider>();
+    if (identical(course, _courseProvider)) return;
+    _courseProvider?.removeListener(_onCourseContentChanged);
+    _courseProvider = course;
+    _observedContentRevision = course.contentRevision;
+    course.addListener(_onCourseContentChanged);
+  }
+
+  void _onCourseContentChanged() {
+    final revision = _courseProvider!.contentRevision;
+    if (revision == _observedContentRevision) return;
+    _observedContentRevision = revision;
+    unawaited(_maybePromptContentUpdate()
+        .catchError((Object error, StackTrace stackTrace) {
+      logger.w('Content update prompt failed',
+          error: error, stackTrace: stackTrace);
+    }));
+  }
+
+  @override
   void dispose() {
+    _courseProvider?.removeListener(_onCourseContentChanged);
     getIt<TabRouter>().index.removeListener(_onTabRouteChanged);
     super.dispose();
   }

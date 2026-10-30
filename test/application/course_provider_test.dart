@@ -193,9 +193,10 @@ void main() {
     test('load() after switching sections still no-ops on second entry',
         () async {
       await provider.load();
-      // Move to a different section so the provider's currentSectionId
-      // changes — this exercises ensureSectionLoaded on a different id.
-      final other = provider.sections.last.id;
+      // Move to a section with content so ensureSectionLoaded runs on a
+      // section body. (NouveauTurkish currently has exactly one non-empty
+      // section, nt-s1; sections.last is an idle empty shell, 0 units.)
+      final other = provider.sections.first.id;
       provider.switchToSection(other);
       await provider.ensureSectionLoaded(other);
 

@@ -12,6 +12,8 @@ import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/components/settings_course_restore_tile.dart';
+import 'package:turna/views/settings/components/settings_course_update_tile.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_learning_section.dart';
@@ -82,6 +84,10 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
             SettingsCard(
               children: [
                 const SettingsLanguageSelectorTile(),
+                settingsTileDivider(context),
+                const SettingsCourseUpdateTile(),
+                settingsTileDivider(context),
+                const SettingsCourseRestoreTile(),
                 settingsTileDivider(context),
                 SettingsToggleTile(
                   icon: Icons.record_voice_over_rounded,

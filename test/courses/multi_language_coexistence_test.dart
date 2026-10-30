@@ -79,7 +79,7 @@ void main() {
 
     final trVocab = await repo.vocabulary(languageCode: LanguageCodes.turkish);
     final frVocab = await repo.vocabulary(languageCode: LanguageCodes.french);
-    expect(trVocab.any((w) => w.id == 'w-merhaba'), isTrue);
+    expect(trVocab.any((w) => w.id == 'nt-w-merhaba'), isTrue);
     expect(frVocab.any((w) => w.id == 'fr-w-bonjour'), isTrue);
     expect(trVocab.any((w) => w.id == 'fr-w-bonjour'), isFalse);
   });

@@ -11,6 +11,7 @@ import 'package:drift/drift.dart' hide Expression;
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/bundled_media_paths.dart';
+import 'package:turna/courses/course_content_source.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/language_manifest.dart';
@@ -47,7 +48,19 @@ class DatabaseSeeder {
   final CourseDatabase db;
   final AssetBundle? bundle;
   final CourseSource? source;
-  DatabaseSeeder(this.db, {this.bundle, this.source});
+  final CourseContentSource contentSource;
+  final Map<String, Future<Future<String> Function(String)>> _contentReaders =
+      {};
+
+  DatabaseSeeder(this.db,
+      {this.bundle, this.source, CourseContentSource? contentSource})
+      : contentSource = contentSource ??
+            (bundle == null && debugBundle == null
+                ? CourseContentSource.instance
+                : CourseContentSource(
+                    bundle: bundle ?? debugBundle,
+                    updatesDirectory: () async => null,
+                  ));
 
   /// Test hook: invoked inside the import transaction after language tables
   /// are cleared and before rows are written. Throw to simulate a mid-write
@@ -95,6 +108,14 @@ class DatabaseSeeder {
         throw StateError('Course pack is missing $key');
       }
     }
+    for (final language in LanguageRegistry.instance.languages) {
+      final prefix = '${language.assetBaseDir}/';
+      if (key.startsWith(prefix)) {
+        final read = await _contentReaders.putIfAbsent(
+            language.code, () => contentSource.readerFor(language.code));
+        return read(key.substring(prefix.length));
+      }
+    }
     return (bundle ?? debugBundle ?? rootBundle).loadString(key);
   }
 
@@ -119,6 +140,8 @@ class DatabaseSeeder {
 
   Future<bool> seedIfNeeded() async {
     await LanguageRegistry.instance.load(bundle: bundle);
+    contentSource.invalidate();
+    _contentReaders.clear();
     final languages = LanguageRegistry.instance.languages;
     var wrote = false;
     CourseLoader.invalidateCaches();
@@ -217,90 +240,94 @@ class DatabaseSeeder {
       return false;
     }
     final language = LanguageRegistry.instance.byCode(code);
+    contentSource.invalidate(code);
+    _contentReaders.remove(code);
     CourseLoader.invalidateCaches();
     final wrote = await _seedLanguageIfNeeded(language);
     CourseLoader.invalidateCaches();
     return wrote;
   }
 
-  Future<bool> _seedLanguageIfNeeded(LanguageDescriptor language) async {
-    final uninstalled = await _readMeta(metaUninstalledFor(language.code));
-    if (uninstalled != null) {
-      return false;
-    }
-    final indexRaw =
-        await _tryLoadAsset(CourseLoader.indexAssetFor(language.code));
-    if (indexRaw == null) {
-      logger.w(
-        'Skipping seed for ${language.code}: missing '
-        '${CourseLoader.indexAssetFor(language.code)}',
-      );
-      return false;
-    }
-    final index = jsonDecode(indexRaw) as Map<String, dynamic>;
-    final indexLanguage = LanguageCodes.canonicalize(
-      '${index['language'] ?? language.code}',
-    );
-    if (indexLanguage != language.code) {
-      throw StateError(
-        'Language manifest/index mismatch: manifest ${language.code} '
-        'vs index.json $indexLanguage',
-      );
-    }
-    final indexVersion = '${index['version'] ?? 0}';
+  Future<bool> _seedLanguageIfNeeded(LanguageDescriptor language) =>
+      db.transaction(() async {
+        final uninstalled = await _readMeta(metaUninstalledFor(language.code));
+        if (uninstalled != null) {
+          return false;
+        }
+        final indexRaw =
+            await _tryLoadAsset(CourseLoader.indexAssetFor(language.code));
+        if (indexRaw == null) {
+          logger.w(
+            'Skipping seed for ${language.code}: missing '
+            '${CourseLoader.indexAssetFor(language.code)}',
+          );
+          return false;
+        }
+        final index = jsonDecode(indexRaw) as Map<String, dynamic>;
+        final indexLanguage = LanguageCodes.canonicalize(
+          '${index['language'] ?? language.code}',
+        );
+        if (indexLanguage != language.code) {
+          throw StateError(
+            'Language manifest/index mismatch: manifest ${language.code} '
+            'vs index.json $indexLanguage',
+          );
+        }
+        final indexVersion = '${index['version'] ?? 0}';
 
-    final expressionsRaw = await _tryLoadAsset(
-      CourseLoader.expressionsAssetFor(language.code),
-    );
-    final expressionsVersion = expressionsRaw == null
-        ? '0'
-        : '${(jsonDecode(expressionsRaw) as Map<String, dynamic>)['version'] ?? 0}';
-    final assetVersion = '$indexVersion+$expressionsVersion';
+        final expressionsRaw = await _tryLoadAsset(
+          CourseLoader.expressionsAssetFor(language.code),
+        );
+        final expressionsVersion = expressionsRaw == null
+            ? '0'
+            : '${(jsonDecode(expressionsRaw) as Map<String, dynamic>)['version'] ?? 0}';
+        final assetVersion = '$indexVersion+$expressionsVersion';
 
-    var storedVersion = await _readMeta(metaContentVersionFor(language.code));
-    if (language.code == LanguageCodes.turkish) {
-      final legacy = await _readMeta(metaContentVersion);
-      if (storedVersion == null) {
-        storedVersion = legacy;
-      } else if (legacy != null &&
-          legacy != storedVersion &&
-          legacy != assetVersion) {
-        storedVersion = legacy;
-      }
-    }
-    final existingSections = await (db.select(db.sections)
-          ..where((t) => t.languageCode.equals(language.code))
-          ..limit(1))
-        .get();
-    final hasSections = existingSections.isNotEmpty;
+        var storedVersion =
+            await _readMeta(metaContentVersionFor(language.code));
+        if (language.code == LanguageCodes.turkish) {
+          final legacy = await _readMeta(metaContentVersion);
+          if (storedVersion == null) {
+            storedVersion = legacy;
+          } else if (legacy != null &&
+              legacy != storedVersion &&
+              legacy != assetVersion) {
+            storedVersion = legacy;
+          }
+        }
+        final existingSections = await (db.select(db.sections)
+              ..where((t) => t.languageCode.equals(language.code))
+              ..limit(1))
+            .get();
+        final hasSections = existingSections.isNotEmpty;
 
-    if (storedVersion == assetVersion && hasSections) {
-      return false;
-    }
+        if (storedVersion == assetVersion && hasSections) {
+          return false;
+        }
 
-    if (storedVersion != null && storedVersion != assetVersion) {
-      logger.i(
-        'Course ${language.code} version $storedVersion → $assetVersion; reseeding',
-      );
-    } else if (storedVersion == assetVersion && !hasSections) {
-      logger.i(
-        'Course ${language.code} version $assetVersion matches but sections '
-        'missing; reseeding',
-      );
-    } else {
-      logger.i(
-        'Course ${language.code} empty or unversioned; seeding $assetVersion',
-      );
-    }
+        if (storedVersion != null && storedVersion != assetVersion) {
+          logger.i(
+            'Course ${language.code} version $storedVersion → $assetVersion; reseeding',
+          );
+        } else if (storedVersion == assetVersion && !hasSections) {
+          logger.i(
+            'Course ${language.code} version $assetVersion matches but sections '
+            'missing; reseeding',
+          );
+        } else {
+          logger.i(
+            'Course ${language.code} empty or unversioned; seeding $assetVersion',
+          );
+        }
 
-    await _clearLanguageTables(language.code);
-    await _seedLanguage(language, indexRaw: indexRaw, index: index);
-    await _writeMeta(metaContentVersionFor(language.code), assetVersion);
-    if (language.code == LanguageCodes.turkish) {
-      await _writeMeta(metaContentVersion, assetVersion);
-    }
-    return true;
-  }
+        await _clearLanguageTables(language.code);
+        await _seedLanguage(language, indexRaw: indexRaw, index: index);
+        await _writeMeta(metaContentVersionFor(language.code), assetVersion);
+        if (language.code == LanguageCodes.turkish) {
+          await _writeMeta(metaContentVersion, assetVersion);
+        }
+        return true;
+      });
 
   /// Deprecated name: seeding is version-driven, not "if empty". Prefer
   /// [seedIfNeeded].

@@ -81,6 +81,10 @@ flutter:
     - assets/courses/
     - assets/courses/turkish/
     - assets/courses/turkish/sections/
+    # 主线课程 NouveauTurkish（manifest 的 tr 语言指向这里）。旧的 turkish/
+    # 目录仍是打包资产：部分课程测试经 rootBundle 读它的真实文件。
+    - assets/courses/nouveau-turkish/
+    - assets/courses/nouveau-turkish/sections/
     # 曾经有一门法语课程作为「多语言并存」的验收 fixture 打包在此。它已随
     # 0.9 移出交付：内置课程只保留土耳其语，法语资产转为 test/fixtures/
     # french_course/ 下的测试 fixture，不再进包。真正的新语言请自建资产树

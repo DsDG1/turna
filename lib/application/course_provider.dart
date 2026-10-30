@@ -99,6 +99,10 @@ class CourseProvider extends ChangeNotifier {
   String? _selectedUnitId;
   String? _selectedLessonId;
   bool _isLoaded = false;
+  int _contentRevision = 0;
+
+  /// The revision of builtin content applied during this app session.
+  int get contentRevision => _contentRevision;
 
   /// Active course scope (typed). Built-in language course by default.
   CourseScope _scope = const BuiltinCourseScope(LanguageCodes.turkish);
@@ -645,6 +649,46 @@ class CourseProvider extends ChangeNotifier {
     _sectionLoadErrors.clear();
     notifyListeners();
     await load();
+  }
+
+  /// Applies a completed local content update and refreshes the visible course.
+  ///
+  /// Serialized with scope switches. Learning progress is retained; the home
+  /// page offers the existing keep/reset choice when the content version changes.
+  Future<bool> refreshBuiltinContent(String languageCode) {
+    final run = _scopeSwitchChain.then((_) async {
+      await Future.wait(_sectionLoadFutures.values.toList());
+      final changed = await _languageLifecycle.refreshContent(languageCode);
+      if (changed) {
+        await reloadCourse();
+        _contentRevision++;
+        notifyListeners();
+      }
+      return changed;
+    });
+    _scopeSwitchChain = run.then<void>((_) {}, onError: (Object _) {});
+    return run;
+  }
+
+  /// Marks the currently seeded content version as acknowledged.
+  ///
+  /// Used after a settings-driven restore to bundled content: the version
+  /// moves *down*, which would otherwise re-arm the ADR-0002 keep/reset prompt
+  /// on the next launch even though the user chose that rollback. A preference
+  /// write must never turn a successful restore into an error, so failures are
+  /// logged only.
+  Future<void> acknowledgeContentVersion() async {
+    final prefs = _appPrefs;
+    if (prefs == null) return;
+    final db = CourseLoader.databaseOrNull();
+    if (db == null) return;
+    final stored = await CourseRepository(db).contentVersion();
+    if (stored == null) return;
+    try {
+      await prefs.setString(LocalStateKeys.contentVersionAcknowledged, stored);
+    } catch (error) {
+      logger.w('Failed to acknowledge content version $stored', error: error);
+    }
   }
 
   // --- Course scope switching ---

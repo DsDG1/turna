@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "words": [
+    {
+      "id": "nt-w-turkce",
+      "term": "Türkçe",
+      "translation": "土耳其语",
+      "pronunciation": "türk-çe",
+      "tags": ["noun"]
+    },
+    {
+      "id": "nt-w-ev",
+      "term": "ev",
+      "translation": "房子",
+      "pronunciation": "ev",
+      "tags": ["noun"]
+    },
+    {
+      "id": "nt-w-merhaba",
+      "term": "merhaba",
+      "translation": "你好",
+      "pronunciation": "mer-ha-ba",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "nt-w-tesekkurler",
+      "term": "teşekkürler",
+      "translation": "谢谢",
+      "pronunciation": "te-şek-kür-ler",
+      "tags": ["greeting"]
+    }
+  ]
+}

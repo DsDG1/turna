@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "sections": [
+    {
+      "id": "nt-s1",
+      "name": "起步 · Merhaba",
+      "description": "A1 起步：问候、点单、道谢，以及和土耳其语的第一次见面。",
+      "level": "A1",
+      "prerequisiteSectionIds": [],
+      "file": "sections/section1.json"
+    },
+    {
+      "id": "nt-s2",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s1"
+      ],
+      "file": "sections/section2.json"
+    },
+    {
+      "id": "nt-s3",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s2"
+      ],
+      "file": "sections/section3.json"
+    },
+    {
+      "id": "nt-s4",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s3"
+      ],
+      "file": "sections/section4.json"
+    },
+    {
+      "id": "nt-s5",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s4"
+      ],
+      "file": "sections/section5.json"
+    },
+    {
+      "id": "nt-s6",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s5"
+      ],
+      "file": "sections/section6.json"
+    },
+    {
+      "id": "nt-s7",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s6"
+      ],
+      "file": "sections/section7.json"
+    },
+    {
+      "id": "nt-s8",
+      "name": "预留 · 待施工",
+      "prerequisiteSectionIds": [
+        "nt-s7"
+      ],
+      "file": "sections/section8.json"
+    }
+  ]
+}

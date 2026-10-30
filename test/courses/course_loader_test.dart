@@ -1,8 +1,9 @@
 // Tests for the bundled course JSON loader, the on-disk course data, and the
-// strict course validator. The bundled course is currently a minimal Turkish
-// scaffold (one section, one lesson, empty vocab) — these tests assert the
-// loader works against that scaffold and that the validators catch structural
-// violations in inline lesson graphs.
+// strict course validator. The shipped course is NouveauTurkish
+// (assets/courses/nouveau-turkish/): section1 is under construction, the
+// other sections are idle empty shells. These tests assert the loader works
+// against that course and that the validators catch structural violations
+// in inline lesson graphs.
 
 import 'dart:io';
 
@@ -22,7 +23,8 @@ import 'package:turna/domain/course/word_entry.dart';
 import '../helpers/in_memory_course_db.dart';
 
 /// Per-section files live under this directory; the index orders them.
-final Directory _sectionsDir = Directory('assets/courses/turkish/sections');
+final Directory _sectionsDir =
+    Directory('assets/courses/nouveau-turkish/sections');
 
 /// Parse every per-section file (in stable, sorted order) into a flat list
 /// of [Section]s, mirroring what [CourseLoader.load] assembles at runtime.
@@ -43,7 +45,7 @@ void main() {
   // requires the Flutter binding to be initialized.
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('turkish/sections/*.json', () {
+  group('nouveau-turkish/sections/*.json', () {
     late List<Section> sections;
 
     setUpAll(() {
@@ -97,7 +99,9 @@ void main() {
       for (final s in sections) {
         for (final u in s.units) {
           for (final l in u.lessons) {
-            for (final stage in l.content.stages) {
+            // flattenedStages expands subLessons / listeningPhases, so intro
+            // lessons contribute their items too.
+            for (final stage in l.flattenedStages) {
               final ids = stage.items
                   .map((i) => i.id)
                   .where((id) => id.isNotEmpty)
@@ -116,7 +120,7 @@ void main() {
 
     test('every ShowWord references an existing word id', () {
       final vocab = parseVocabulary(
-          File('assets/courses/turkish/vocab.json').readAsStringSync());
+          File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync());
       final wordIds = vocab.map((w) => w.id).toSet();
       for (final s in sections) {
         for (final u in s.units) {
@@ -136,16 +140,16 @@ void main() {
     });
   });
 
-  group('turkish/vocab.json', () {
+  group('nouveau-turkish/vocab.json', () {
     late List<WordEntry> words;
 
     setUpAll(() {
       words = parseVocabulary(
-          File('assets/courses/turkish/vocab.json').readAsStringSync());
+          File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync());
     });
 
     test('parses without error', () {
-      // The scaffold ships an empty (but well-formed) vocab list.
+      // The course ships a small (but well-formed) vocab list.
       expect(words, isA<List<WordEntry>>());
     });
 
@@ -169,9 +173,9 @@ void main() {
             reason: 'section ${shell.id} shell should have empty units');
       }
 
-      // The scaffold's single section's L1 tree loads lazily and is cached.
-      final world1 = await CourseLoader.loadSection('section1');
-      final world2 = await CourseLoader.loadSection('section1');
+      // The course's first section loads lazily and is cached.
+      final world1 = await CourseLoader.loadSection('nt-s1');
+      final world2 = await CourseLoader.loadSection('nt-s1');
       expect(identical(world1, world2), isTrue,
           reason: 'loadSection should cache the resolved section');
       expect(world1.units, isNotEmpty);
@@ -179,11 +183,13 @@ void main() {
       // Tree lessons are metadata-only; content comes from lessonById.
       final meta = world1.units
           .expand((u) => u.lessons)
-          .firstWhere((l) => l.id == 's1-l1');
+          .firstWhere((l) => l.id == 'nt-u1-l1');
       expect(meta.content.stages, isEmpty);
 
-      final body = await CourseLoader.loadLessonById('s1-l1');
-      expect(body.content.stages, isNotEmpty);
+      final body = await CourseLoader.loadLessonById('nt-u1-l1');
+      // The lesson is an intro lesson: its items live in subLessons, which
+      // flattenedStages expands.
+      expect(body.flattenedStages, isNotEmpty);
     });
 
     test('loadSection throws for an unknown section id', () async {
@@ -194,9 +200,10 @@ void main() {
 
     test('loadLessonById returns the right lesson with content', () async {
       await CourseLoader.load();
-      final lesson = await CourseLoader.loadLessonById('s1-l1');
-      expect(lesson.id, 's1-l1');
-      expect(lesson.content.stages, isNotEmpty);
+      final lesson = await CourseLoader.loadLessonById('nt-u1-l1');
+      expect(lesson.id, 'nt-u1-l1');
+      // Intro lesson: content lives in subLessons (flattenedStages expands).
+      expect(lesson.flattenedStages, isNotEmpty);
     });
 
     test('loadLessonById throws for an unknown id', () async {
@@ -208,10 +215,10 @@ void main() {
     test('DB reconstruction matches seed metadata; bodies via lessonById',
         () async {
       await CourseLoader.load();
-      final fromDb = await CourseLoader.loadSection('section1');
-      final fromFile = parseSection(
-          File('assets/courses/turkish/sections/section1.json')
-              .readAsStringSync());
+      final fromDb = await CourseLoader.loadSection('nt-s1');
+      final fromFile = parseSection(File(
+              'assets/courses/nouveau-turkish/sections/section1.json')
+          .readAsStringSync());
       expect(fromDb.id, fromFile.id);
       expect(fromDb.name, fromFile.name);
       expect(
@@ -369,7 +376,7 @@ void main() {
 
     setUpAll(() {
       vocab = parseVocabulary(
-          File('assets/courses/turkish/vocab.json').readAsStringSync());
+          File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync());
     });
 
     List<Section> oneLessonSections(Lesson lesson) => [
@@ -593,7 +600,7 @@ void main() {
 
     setUpAll(() {
       final vocab = parseVocabulary(
-          File('assets/courses/turkish/vocab.json').readAsStringSync());
+          File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync());
       vocabIds = {for (final w in vocab) w.id};
     });
 

@@ -5,10 +5,10 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter/services.dart' show rootBundle;
 
 // Project imports:
 import 'package:turna/application/language_registry.dart';
+import 'package:turna/courses/course_content_source.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/section_level_overlay.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -21,6 +21,8 @@ import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/word_entry.dart';
+
+export 'course_json_parser.dart';
 
 /// Loads a language course from a SQLite database ([CourseDatabase]) that is
 /// seeded from the bundled JSON assets under `assets/courses/turkish/` on
@@ -144,7 +146,8 @@ class CourseLoader {
   static Future<Map<String, String>> _readIndexLevels(
       String languageCode) async {
     try {
-      final raw = await rootBundle.loadString(indexAssetFor(languageCode));
+      final raw = await CourseContentSource.instance
+          .loadCourseJson(languageCode, 'index.json');
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) {
         return sectionLevelsFromIndex(decoded);
@@ -361,95 +364,4 @@ class CourseLoader {
   /// Owning section id for a lesson, or `null` if unknown.
   static Future<String?> sectionIdForLesson(String lessonId) =>
       CourseRepository(_db).sectionIdForLesson(lessonId);
-}
-
-/// Parse a single [Section] from a per-section JSON string. Used by
-/// [DatabaseSeeder] (seed path) and tests; not on the runtime read path.
-/// Visible for testing.
-Section parseSection(String raw) => Section.fromJson(
-    _normalizeSection(jsonDecode(raw) as Map<String, dynamic>));
-
-/// Pre-process a raw section map before handing it to [Section.fromJson].
-///
-/// Supports the flat-lesson authoring shape: a lesson may declare
-/// `content.questions: [...]` instead of `content.stages: [...]`. Here we
-/// synthesize a single default stage wrapping those questions so the runtime
-/// model is always `List<Stage>` and no downstream consumer ever branches on
-/// "flat vs grouped". A lesson must carry exactly one of `stages`/`questions`
-/// — carrying both is rejected by [validateCourse] via the loader.
-Map<String, dynamic> _normalizeSection(Map<String, dynamic> section) {
-  final units = section['units'] as List<dynamic>?;
-  if (units == null) return section;
-  section['units'] = [
-    for (final u in units) _normalizeUnit(u as Map<String, dynamic>),
-  ];
-  return section;
-}
-
-Map<String, dynamic> _normalizeUnit(Map<String, dynamic> unit) {
-  final lessons = unit['lessons'] as List<dynamic>?;
-  if (lessons == null) return unit;
-  unit['lessons'] = [
-    for (final l in lessons) _normalizeLesson(l as Map<String, dynamic>),
-  ];
-  return unit;
-}
-
-Map<String, dynamic> _normalizeLesson(Map<String, dynamic> lesson) {
-  final content = lesson['content'] as Map<String, dynamic>?;
-  if (content == null) return lesson;
-  final hasStages = content.containsKey('stages');
-  final hasQuestions = content.containsKey('questions');
-  if (!hasQuestions) return lesson;
-  if (hasStages) {
-    throw FormatException(
-      'Lesson ${lesson['id']} declares both "stages" and "questions" in its '
-      'content; use exactly one.',
-    );
-  }
-  // Flat shape: wrap the questions in one default stage. The lesson's own
-  // name becomes the stage name; the synthetic stage id is stable.
-  final questions = content['questions'] as List<dynamic>;
-  final lessonName = (lesson['name'] as String?) ?? 'Practice';
-  content['stages'] = [
-    {
-      'id': 'stage-default',
-      'name': lessonName,
-      'items': questions,
-    },
-  ];
-  content.remove('questions');
-  return lesson;
-}
-
-/// Parse a list of [WordEntry]s from a JSON string. Used by [DatabaseSeeder]
-/// and tests. Visible for testing.
-List<WordEntry> parseVocabulary(String raw) => _parseVocabulary(raw);
-
-List<WordEntry> _parseVocabulary(String raw) {
-  final json = jsonDecode(raw) as Map<String, dynamic>;
-  final words = json['words'] as List<dynamic>;
-  return words
-      .map((e) => WordEntry.fromJson(e as Map<String, dynamic>))
-      .toList(growable: false);
-}
-
-/// Parse a list of [GrammarPoint]s from a JSON string. Used by
-/// [DatabaseSeeder] and tests. Visible for testing.
-List<GrammarPoint> parseGrammarPoints(String raw) {
-  final json = jsonDecode(raw) as Map<String, dynamic>;
-  final points = json['grammarPoints'] as List<dynamic>;
-  return points
-      .map((e) => GrammarPoint.fromJson(e as Map<String, dynamic>))
-      .toList(growable: false);
-}
-
-/// Parse a list of [Expression]s from a JSON string. Used by
-/// [DatabaseSeeder] and tests. Visible for testing.
-List<Expression> parseExpressions(String raw) {
-  final json = jsonDecode(raw) as Map<String, dynamic>;
-  final expressions = (json['expressions'] as List<dynamic>?) ?? [];
-  return expressions
-      .map((e) => Expression.fromJson(e as Map<String, dynamic>))
-      .toList(growable: false);
 }

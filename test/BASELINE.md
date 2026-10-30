@@ -7,6 +7,33 @@
 
 ---
 
+### 2026-10-30 课程内容更新：恢复内置内容入口与发布脚本防护
+
+- **性质**：功能批次；**测试数 +54**（`course_ota_service_test` 8 → 13 条；新增 `course_restore_tile_test` 6 条；新增 `publish_course_test.py` 43 条，其中 1 条 symlink 用例在 Windows 跳过）。Python 基线 60 → 103。
+- **改动**：`CourseOtaService.clearInstalledContent` 删除 `<documents>/content_updates/<lang>/`（顺序 backup → target → tmp，避免恢复逻辑复活旧包）并失效选源快照；设置页新增 `SettingsCourseRestoreTile`，确认后清包 → `refreshBuiltinContent` → `CourseProvider.acknowledgeContentVersion`（版本降级不重弹 ADR 0002 提示）。`publish_course.py` 新增 `check_builtin_version`：低于内置版本硬失败，同版打 stderr 警告并提示 `--bump`；`read_previous_feed` 缺失 required 文件改为 `PublishError`。
+- **验证**：`flutter analyze` 仅剩既有 `course_database_seeder.dart` 一条 `unawaited_futures` info；`course_ota_service_test` **13 passed**、`course_restore_tile_test` **6 passed**；`python -m unittest discover -s test` **103 passed / 1 skipped**。
+- **未验**：全量 `flutter test` 未跑；真机恢复入口、远端托管与进度提示未验。
+
+---
+
+### 2026-10-30 课程内容更新：手动入口与重播种全链路
+
+- **性质**：功能批次；**测试数 +6**（新增 `course_update_tile_test` 5 条；`course_ota_service_test` 7 → 8 条）。
+- **改动**：学习设置页新增 `SettingsCourseUpdateTile`，输入 feed / zip URL 后展示下载阶段、字节进度与错误；成功调用 `CourseProvider.refreshBuiltinContent`，复用学习／备份互斥和首页保留／重置进度提示。若包已安装但应用更新失败，对话框保留结果并允许只重试应用，不重复下载。新增真实本地 HTTP + 内存 DB 集成断言：安装新版后完成 `2+1 → 3+1` 重播种，课程树显示包内新标题。
+- **验证**：定向 `flutter analyze` **No issues found**；`course_update_tile_test` **5 passed / 0 failed**，`course_ota_service_test` **8 passed / 0 failed**。
+- **未验**：全量测试未跑；真机手动入口、远端托管和首页进度提示未验。
+
+---
+
+### 2026-10-30 课程内容更新：OTA 下载校验与可恢复安装
+
+- **性质**：功能批次；**测试数 +7**（新增 `course_ota_service_test` 7 条）。
+- **改动**：新增 `CourseOtaService` 与 feed 契约模型，支持 zip 直链 / feed、相对包 URL、手动重定向与 HTTPS/显式局域网 HTTP 策略；下载后核对大小和 SHA-256，仅解压安全的 JSON 路径，复用 `CourseContentSource.validateDownloadedDirectory` 做整包解析与课程校验，并拒绝不高于当前的内容版本。安装先保留旧目录再切换，失败回滚；下次更新可恢复中断备份并清理临时目录。成功后只失效读取快照，应用层重播种留给设置页入口串联。
+- **验证**：定向 `flutter analyze` **No issues found**；`course_ota_service_test` **7 passed / 0 failed**，覆盖相对 URL 成功安装、校验和错误、zip-slip、断流清理、旧版拒绝、切换失败回滚和中断恢复。
+- **未验**：全量测试未跑；设置页入口、`refreshBuiltinContent` 串联及真机下载/重播种未验；远端托管仍未配置。
+
+---
+
 ### 2026-10-30 课程结构：课时内小课（subLesson）分段播放
 
 - **性质**：功能批次；**测试数 +6**（`lesson_viewmodel_flow_test` 19 → 25 条，新增 `LessonViewModel sub-lesson segments` 组）。

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Export a content inventory for the Turkish course.
+"""Export a content inventory for the packed course.
 
-Outputs a Markdown report listing all vocabulary, expressions, grammar points,
-and where each is referenced inside lessons. Refresh with
-`python3 tool/export_content_inventory.py`; also runs during `tool/build_release.py`.
+Follows the language manifest (`assets/courses/manifest.json`) so the report
+always covers the course the app actually ships, instead of a hardcoded
+directory. Outputs a Markdown report listing all vocabulary, expressions,
+grammar points, and where each is referenced inside lessons. Refresh with
+`python3 tool/export_content_inventory.py`; also runs during
+`tool/build_release.py`.
 """
 
 from __future__ import annotations
@@ -14,8 +17,31 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-COURSE_DIR = Path(__file__).resolve().parent.parent / "assets" / "courses" / "turkish"
-OUTPUT = Path(__file__).resolve().parent.parent / "docs" / "content_inventory_current.md"
+REPO = Path(__file__).resolve().parent.parent
+
+
+def _packed_course_dir() -> Path:
+    """The course dir the app actually ships, per the language manifest.
+
+    Falls back to the historical `turkish/` directory when the manifest is
+    missing or malformed.
+    """
+    manifest = REPO / "assets" / "courses" / "manifest.json"
+    dir_name = "turkish"
+    try:
+        with manifest.open("r", encoding="utf-8") as f:
+            languages = json.load(f).get("languages", [])
+        for lang in languages:
+            if lang.get("dir"):
+                dir_name = str(lang["dir"])
+                break
+    except (OSError, ValueError, KeyError):
+        pass
+    return REPO / "assets" / "courses" / dir_name
+
+
+COURSE_DIR = _packed_course_dir()
+OUTPUT = REPO / "docs" / "content_inventory_current.md"
 
 
 def load_json(path: Path) -> Any:

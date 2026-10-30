@@ -12,6 +12,7 @@ import 'package:turna/data/course_repository.dart';
 import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 
 /// Uninstall / reinstall lifecycle for packed builtin languages (extracted
 /// from [CourseProvider]; behavior locked by multi_language_coexistence_test).
@@ -32,6 +33,27 @@ class BuiltinLanguageLifecycleService {
   /// Re-read the catalog + tree after [languageCode]'s content changed; the
   /// provider decides whether a scope fallback is needed first.
   final Future<void> Function(String languageCode) reloadAfterChange;
+
+  /// Reseeds a builtin course from its current source without resetting progress.
+  ///
+  /// The caller reloads the course tree after this returns `true`. Source
+  /// selection is refreshed by the seeder before comparing content versions.
+  Future<bool> refreshContent(String languageCode) async {
+    final gate = tryResolveStudyActivityGate();
+    if (gate?.isStudyActive ?? false) throw RemoteBackupBusyException();
+    if (gate == null) return _refreshContent(languageCode);
+    return gate.runInScope(
+        'builtin-content-refresh', () => _refreshContent(languageCode));
+  }
+
+  Future<bool> _refreshContent(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    final db = CourseLoader.databaseOrNull();
+    if (db == null) throw StateError('Course database is not open');
+    final changed = await DatabaseSeeder(db).seedLanguage(code);
+    if (changed) LanguageContentStore.drop(code);
+    return changed;
+  }
 
   Future<void> uninstall(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
