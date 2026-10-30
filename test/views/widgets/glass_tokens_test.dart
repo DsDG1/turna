@@ -264,6 +264,53 @@ void main() {
     }
   });
 
+  group('按钮族', () {
+    // 高对比曾漏覆盖按钮：copyWith 只换了 colorScheme.primary，按钮仍是硬编码
+    // 的亮 teal。HC light 的对比因此比它自己的 primary 低一档，HC dark 更糟
+    // （primary 已是 brandReed，按钮还是暗青）。这组断言把四套都钉住。
+    Color? filledBg(ThemeData t) =>
+        t.filledButtonTheme.style?.backgroundColor?.resolve(<WidgetState>{});
+    Color? outlinedFg(ThemeData t) =>
+        t.outlinedButtonTheme.style?.foregroundColor?.resolve(<WidgetState>{});
+    Color? fabBg(ThemeData t) => t.floatingActionButtonTheme.backgroundColor;
+
+    test('亮色与深色的实心按钮走 brandTeal', () {
+      for (final t in [TurnaTheme.lightTheme, TurnaTheme.darkTheme]) {
+        expect(filledBg(t), TurnaTheme.brandTeal);
+        expect(outlinedFg(t), TurnaTheme.brandTeal);
+        expect(fabBg(t), TurnaTheme.brandTeal);
+      }
+    });
+
+    test('高对比亮色走 primaryDark，不再沿用亮 teal', () {
+      final t = TurnaTheme.highContrastLightTheme;
+      expect(filledBg(t), TurnaTheme.primaryDark);
+      expect(outlinedFg(t), TurnaTheme.primaryDark);
+      expect(fabBg(t), TurnaTheme.primaryDark);
+      expect(
+        filledBg(t),
+        isNot(TurnaTheme.brandTeal),
+        reason: 'HC 亮色退回亮 teal，说明 copyWith 又漏了按钮族',
+      );
+    });
+
+    test('高对比深色走 brandReed', () {
+      final t = TurnaTheme.highContrastDarkTheme;
+      expect(filledBg(t), TurnaTheme.brandReed);
+      expect(outlinedFg(t), TurnaTheme.brandReed);
+      expect(fabBg(t), TurnaTheme.brandReed);
+    });
+
+    test('实心按钮的文字色与底色不撞（HC 深色是黑字 on 亮青）', () {
+      final hcDark = TurnaTheme.highContrastDarkTheme;
+      final fg = hcDark.filledButtonTheme.style?.foregroundColor
+          ?.resolve(<WidgetState>{});
+      expect(fg, Colors.black);
+      expect(TurnaTheme.contrastRatio(fg!, TurnaTheme.brandReed),
+          greaterThanOrEqualTo(7.0));
+    });
+  });
+
   group('ListTile 主题', () {
     // 15 处裸 ListTile / CheckboxListTile / SwitchListTile 散在 12 个文件，
     // 靠全局主题收口。这里钉住四套主题都注册过，防止以后被误删 ——

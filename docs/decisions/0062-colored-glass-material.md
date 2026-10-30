@@ -116,4 +116,6 @@ ADR 0035 把浅色背景冷雾中性化到 `#F3F7F9`，并确立「平板中性�
 - 新建 `lib/views/widgets/glass_surface.dart` 作为通用容器。
 - 消费方按域推进：Play/AI（`SoftCard`）、Settings（`SettingsCard`）、做题（`InteractionOptionTile` / `LessonPracticeCard`）、课程树（章节 / 单元 / 课程行 / 下一课）、复习域（主卡 / 语法 / 完成 / 统计）。
 - `AmbientBackdrop` 从「湿地渐变 + 晨雾 + 滚动视差」退化为无状态纯画布；`courseTreeGradient` 退化为纯白（深色纯黑）。
+- `cardTheme.color` 并入玻璃色阶（`cardBackground` / `darkCardBackground` 由 `_glassSpec(l1Subtle)` 算出，不写死 hex）——`Card` 是单色容器画不出渐变，但必须和旁边的玻璃卡落在同一色阶上。
+- `listTileTheme` 补齐（缩进 + `iconColor`），把 15 处裸 `ListTile` 的图标色收口。
 - 所有 light / dark golden 基线因材质变更重录。

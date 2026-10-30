@@ -828,6 +828,77 @@ class TurnaTheme {
         iconColor: icon,
       );
 
+  /// 按钮族：四套主题共用一份定义。
+  ///
+  /// 抽出来的原因是**高对比曾漏覆盖**：`_buildHighContrastLight` 是
+  /// `lightTheme.copyWith(...)`，改了 `colorScheme.primary` 却没换按钮 ——
+  /// 于是 HC 的按钮继续用亮 teal，比它自己的 primary 浅一档；HC dark 更糟，
+  /// primary 已经是 brandReed，按钮却还是暗青。
+  ///
+  /// [fill] 实心按钮底色 / [onFill] 其文字色 / [line] 文字与描边按钮色。
+  static ElevatedButtonThemeData elevatedButtonTheme({
+    required Color fill,
+    required Color onFill,
+  }) =>
+      ElevatedButtonThemeData(
+        // styleFrom 把 elevation 当基准（按下 +6）；copyWith 压平所有状态。
+        style: ElevatedButton.styleFrom(
+          backgroundColor: fill,
+          foregroundColor: onFill,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+      );
+
+  static FilledButtonThemeData filledButtonTheme({
+    required Color fill,
+    required Color onFill,
+  }) =>
+      FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: fill,
+          foregroundColor: onFill,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      );
+
+  static TextButtonThemeData textButtonTheme({required Color line}) =>
+      TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: line,
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      );
+
+  static OutlinedButtonThemeData outlinedButtonTheme({required Color line}) =>
+      OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: line,
+          side: BorderSide(color: line, width: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+          ),
+        ),
+      );
+
+  static FloatingActionButtonThemeData floatingActionButtonTheme({
+    required Color fill,
+    required Color onFill,
+  }) =>
+      FloatingActionButtonThemeData(
+        backgroundColor: fill,
+        foregroundColor: onFill,
+        elevation: 4,
+      );
+
   static Color streakChipBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
 
@@ -925,54 +996,16 @@ class TurnaTheme {
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: textOnPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+        elevatedButtonTheme: elevatedButtonTheme(
+          fill: primary,
+          onFill: textOnPrimary,
         ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: textOnPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+        filledButtonTheme: filledButtonTheme(
+          fill: primary,
+          onFill: textOnPrimary,
         ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: primary,
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: primary,
-            side: const BorderSide(color: primary, width: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-          ),
-        ),
+        textButtonTheme: textButtonTheme(line: primary),
+        outlinedButtonTheme: outlinedButtonTheme(line: primary),
         dialogTheme: DialogThemeData(
           backgroundColor: cardBackground,
           surfaceTintColor: Colors.transparent,
@@ -1029,10 +1062,9 @@ class TurnaTheme {
           color: brandTeal,
           linearTrackColor: Color(0xFFE0E0E0),
         ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: brandTeal,
-          foregroundColor: Colors.white,
-          elevation: 4,
+        floatingActionButtonTheme: floatingActionButtonTheme(
+          fill: primary,
+          onFill: textOnPrimary,
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
@@ -1132,54 +1164,16 @@ class TurnaTheme {
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: textOnPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+        elevatedButtonTheme: elevatedButtonTheme(
+          fill: primary,
+          onFill: textOnPrimary,
         ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: textOnPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+        filledButtonTheme: filledButtonTheme(
+          fill: primary,
+          onFill: textOnPrimary,
         ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: brandReed,
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: brandReed,
-            side: const BorderSide(color: primary, width: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-          ),
-        ),
+        textButtonTheme: textButtonTheme(line: primary),
+        outlinedButtonTheme: outlinedButtonTheme(line: primary),
         dialogTheme: DialogThemeData(
           backgroundColor: const Color(0xFF141414),
           surfaceTintColor: Colors.transparent,
@@ -1236,10 +1230,9 @@ class TurnaTheme {
           color: brandTealLight,
           linearTrackColor: Color(0xFF2A2A2A),
         ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: brandTeal,
-          foregroundColor: Colors.white,
-          elevation: 4,
+        floatingActionButtonTheme: floatingActionButtonTheme(
+          fill: primary,
+          onFill: textOnPrimary,
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
@@ -1326,6 +1319,22 @@ class TurnaTheme {
             letterSpacing: -0.3,
           ),
           iconTheme: IconThemeData(color: primaryDark),
+        ),
+        // 按钮族必须显式补：copyWith 只改了 colorScheme.primary，不换
+        // 按钮的话会继续用亮 teal，比 HC 自己的 primary 浅一档。
+        elevatedButtonTheme: elevatedButtonTheme(
+          fill: primaryDark,
+          onFill: Colors.white,
+        ),
+        filledButtonTheme: filledButtonTheme(
+          fill: primaryDark,
+          onFill: Colors.white,
+        ),
+        textButtonTheme: textButtonTheme(line: primaryDark),
+        outlinedButtonTheme: outlinedButtonTheme(line: primaryDark),
+        floatingActionButtonTheme: floatingActionButtonTheme(
+          fill: primaryDark,
+          onFill: Colors.white,
         ),
         cardTheme: CardThemeData(
           elevation: 0,
@@ -1466,6 +1475,22 @@ class TurnaTheme {
             letterSpacing: -0.3,
           ),
           iconTheme: IconThemeData(color: brandReed),
+        ),
+        // 同 HC light：不补就会继续用暗青，在纯黑底上对比不足。
+        // brandReed 是亮青绿，所以填的是黑字而不是白字。
+        elevatedButtonTheme: elevatedButtonTheme(
+          fill: brandReed,
+          onFill: Colors.black,
+        ),
+        filledButtonTheme: filledButtonTheme(
+          fill: brandReed,
+          onFill: Colors.black,
+        ),
+        textButtonTheme: textButtonTheme(line: brandReed),
+        outlinedButtonTheme: outlinedButtonTheme(line: brandReed),
+        floatingActionButtonTheme: floatingActionButtonTheme(
+          fill: brandReed,
+          onFill: Colors.black,
         ),
         cardTheme: CardThemeData(
           elevation: 0,
