@@ -332,6 +332,114 @@ class TurnaTheme {
         ),
       ];
 
+  // ---------------------------------------------------------------------------
+  // ELEVATION TIERS — 做题页的三层语义高度
+  // ---------------------------------------------------------------------------
+  //
+  // 深色分支**不能**复用浅色参数. 深色画布是纯黑 [darkScaffold], 而
+  // [brandNavy] 阴影投在 #000 上等于不存在 —— 这正是"深色永远不够立体"的
+  // 根因. 深色改由"卡面明度台阶 + 白色描边/光晕"表达高度, 阴影只留一层
+  // 极弱白光做轮廓分离.
+  //
+  // 浅色仍是 navy 双层影 (远大近小), 模拟光照下的悬浮磨砂面.
+
+  /// L1 内容卡: 选项卡 / 次级卡 / 阅读卡.
+  static List<BoxShadow> surfaceL1Shadow(BuildContext context) =>
+      _isDark(context)
+          ? [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.09),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
+              ),
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.05),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ];
+
+  /// L2 浮起卡: 主词卡 / 提交后主卡 / 选中态.
+  static List<BoxShadow> surfaceL2Shadow(BuildContext context) =>
+      _isDark(context)
+          ? [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.07),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.10),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ];
+
+  /// L3 状态外发光: 选中 / 正确 / 错误. accent 由调用方给.
+  static List<BoxShadow> stateGlow(Color accent) => [
+        BoxShadow(
+          color: accent.withValues(alpha: 0.20),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
+        ),
+      ];
+
+  /// L1 卡面底色 — 深色比画布抬高一级 (#161616 on #000).
+  static Color surfaceL1Fill(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF161616) : Colors.white;
+
+  /// L2 卡面底色.
+  static Color surfaceL2Fill(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF1C1C1C) : Colors.white;
+
+  /// L1 描边 — 深色用白 10%, 浅色用固定灰阶.
+  static Color surfaceL1Border(BuildContext context) => _isDark(context)
+      ? Colors.white.withValues(alpha: 0.10)
+      : const Color(0xFFE4EBE7);
+
+  /// 卡面顶部内高光 — 浅色是磨砂受光面, 深色是玻璃边.
+  ///
+  /// 返回的是**相对 `base` 的增亮渐变**, 调用方把 `base` 作为第二停靠点,
+  /// 这样 `back` 变体的品牌底色不会被渐变盖掉 (旧的写法同时传 `color` 和
+  /// `gradient`, 而 `BoxDecoration` 只画 gradient, 底色其实一直失效).
+  static LinearGradient cardTopLight(BuildContext context, Color base) =>
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.alphaBlend(
+            Colors.white.withValues(alpha: _isDark(context) ? 0.06 : 0.42),
+            base,
+          ),
+          base,
+        ],
+        stops: const [0.0, 0.6],
+      );
+
+  /// 做题页画布底色.
+  ///
+  /// 浅色刻意比白卡低一档: 页面与卡面都是纯白时, 阴影是唯一分离线索,
+  /// 卡片读起来就是"平的". 深色沿用纯黑画布.
+  static Color lessonCanvasBg(BuildContext context) =>
+      _isDark(context) ? darkScaffold : const Color(0xFFF5F8F7);
+
+  /// 选项条圆角 — 比主卡 (radiusLarge) 小一号, 层级一眼分得开.
+  static const double radiusOption = 14.0;
+
   // BORDER RADIUS
   static const double radiusSmall = 8.0;
   static const double radiusMedium = 12.0;

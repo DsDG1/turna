@@ -136,142 +136,137 @@ class _ShowWordCardState extends State<_ShowWordCard> {
         // The card itself is the tappable "continue" affordance. We do NOT
         // wrap it in a button-labeled Semantics: that would merge the whole
         // subtree into one node and swallow the inner tap-to-speak gestures,
-        // making pronunciation inaccessible to screen readers. The InkWell
-        // already exposes a tap action; the speak buttons below carry their
-        // own Semantics so they surface as distinct, labeled actions.
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            onTap: widget.submitted ? null : _handleTap,
-            child: LessonPracticeCard(
-              variant: LessonPracticeCardVariant.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Tappable word: speak the term, don't advance. Its own
-                  // Semantics makes it a distinct, labeled button so screen
-                  // readers can reach the pronunciation action independently
-                  // of the card's "continue" tap.
-                  Semantics(
-                    button: true,
-                    label: AppStrings.lessonSpeakTerm(widget.term),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => widget.speakVocab
-                          ? widget.audioController.speakWord(widget.wordId)
-                          : widget.audioController.speak(widget.term),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              widget.term,
-                              style: TextStyle(
-                                fontSize: 44,
-                                fontWeight: FontWeight.w700,
-                                color: TurnaTheme.textPrimaryColor(context),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Icon(
-                              Icons.volume_up_rounded,
-                              color: TurnaTheme.brandTeal,
-                              size: 28,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (widget.posLabel.isNotEmpty) ...[
-                    Text(
-                      widget.posLabel,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (widget.imageAsset != null &&
-                      widget.imageAsset!.isNotEmpty) ...[
-                    RoundedCachedAssetImage(asset: widget.imageAsset!),
-                    const SizedBox(height: 12),
-                  ],
-                  if (widget.translation.isNotEmpty)
-                    Text(
-                      widget.translation,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: TurnaTheme.textSecondaryColor(context),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  if (widget.contextSentence != null &&
-                      widget.contextSentence!.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Semantics(
-                      button: true,
-                      label: AppStrings.lessonSpeakContextSentence,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => widget.audioController.speak(
-                          _targetPart(widget.contextSentence!),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-                            borderRadius:
-                                BorderRadius.circular(TurnaTheme.radiusMedium),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.volume_up_rounded,
-                                color: TurnaTheme.brandTeal,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  widget.contextSentence!,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color:
-                                        TurnaTheme.textSecondaryColor(context),
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
+        // making pronunciation inaccessible to screen readers. The card's own
+        // InkWell exposes the tap action, and the speak chips below carry
+        // their own Semantics so they surface as distinct, labeled actions.
+        child: LessonPracticeCard(
+          variant: LessonPracticeCardVariant.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 40),
+          onTap: widget.submitted ? null : _handleTap,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Tappable word: speak the term, don't advance. Its own
+              // Semantics makes it a distinct, labeled button so screen
+              // readers can reach the pronunciation action independently
+              // of the card's "continue" tap.
+              Semantics(
+                button: true,
+                label: AppStrings.lessonSpeakTerm(widget.term),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => widget.speakVocab
+                      ? widget.audioController.speakWord(widget.wordId)
+                      : widget.audioController.speak(widget.term),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.term,
+                          style: TextStyle(
+                            fontSize: 40,
+                            height: 1.1,
+                            fontWeight: FontWeight.w700,
+                            color: TurnaTheme.textPrimaryColor(context),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  Text(
-                    AppStrings.lessonTapToContinue,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: TurnaTheme.textHintColor(context)
-                          .withValues(alpha: 0.8),
-                      letterSpacing: 0.4,
+                        const SizedBox(width: 12),
+                        const Icon(
+                          Icons.volume_up_rounded,
+                          color: TurnaTheme.brandTeal,
+                          size: 28,
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+              if (widget.posLabel.isNotEmpty) ...[
+                Text(
+                  widget.posLabel,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (widget.imageAsset != null &&
+                  widget.imageAsset!.isNotEmpty) ...[
+                RoundedCachedAssetImage(asset: widget.imageAsset!),
+                const SizedBox(height: 12),
+              ],
+              if (widget.translation.isNotEmpty)
+                Text(
+                  widget.translation,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.4,
+                    color: TurnaTheme.textSecondaryColor(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              if (widget.contextSentence != null &&
+                  widget.contextSentence!.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Semantics(
+                  button: true,
+                  label: AppStrings.lessonSpeakContextSentence,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => widget.audioController.speak(
+                      _targetPart(widget.contextSentence!),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
+                        borderRadius:
+                            BorderRadius.circular(TurnaTheme.radiusMedium),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.volume_up_rounded,
+                            color: TurnaTheme.brandTeal,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              widget.contextSentence!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: TurnaTheme.textSecondaryColor(context),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+              Text(
+                AppStrings.lessonTapToContinue,
+                style: TextStyle(
+                  fontSize: 13,
+                  color:
+                      TurnaTheme.textHintColor(context).withValues(alpha: 0.8),
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -304,44 +299,38 @@ class _UnknownItemCard extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            onTap: onTap,
-            child: LessonPracticeCard(
-              variant: LessonPracticeCardVariant.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.help_outline_rounded,
-                    size: 48,
-                    color: TurnaTheme.textHint.withValues(alpha: 0.4),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    AppStrings.lessonItemNotLoaded,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: TurnaTheme.textHintColor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    AppStrings.lessonTapToContinue,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: TurnaTheme.textHintColor(context)
-                          .withValues(alpha: 0.8),
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ],
+        child: LessonPracticeCard(
+          variant: LessonPracticeCardVariant.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 40),
+          onTap: onTap,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.help_outline_rounded,
+                size: 48,
+                color: TurnaTheme.textHint.withValues(alpha: 0.4),
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                AppStrings.lessonItemNotLoaded,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                AppStrings.lessonTapToContinue,
+                style: TextStyle(
+                  fontSize: 13,
+                  color:
+                      TurnaTheme.textHintColor(context).withValues(alpha: 0.8),
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
           ),
         ),
       ),

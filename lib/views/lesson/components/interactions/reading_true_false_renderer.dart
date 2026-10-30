@@ -86,6 +86,18 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
 
+    final canSubmit = !submitted && _selectedBool != null;
+    // 按钮由页面底栏统一画; 这里只报"能不能提交 / 提交做什么".
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: canSubmit,
+      submit: canSubmit
+          ? () => widget.onSubmit(
+                _selectedBool == widget.answer,
+                userAnswerText: _selectedBool! ? 'True' : 'False',
+              )
+          : null,
+    );
+
     return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,18 +143,6 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          if (!submitted)
-            LessonCheckButton(
-              label: AppStrings.lessonCheck,
-              enabled: _selectedBool != null,
-              onPressed: _selectedBool != null
-                  ? () => widget.onSubmit(
-                        _selectedBool == widget.answer,
-                        userAnswerText: _selectedBool! ? 'True' : 'False',
-                      )
-                  : null,
-            ),
         ],
       ),
     );

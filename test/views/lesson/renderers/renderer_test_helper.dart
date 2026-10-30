@@ -5,12 +5,17 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/practice_session_body.dart';
 
 class RendererTestHarness {
   final List<(bool correct, String? userAnswer)> submissions = [];
+  int advances = 0;
 
+  /// 渲染器现在把 CTA 交给页面底栏, 所以 harness 必须挂真实的
+  /// [PracticeSessionBody] —— 否则"核对"按钮根本不存在, 测试会满屏找不到.
   Widget build(
     InteractionRenderer renderer,
     Interaction interaction, {
@@ -18,12 +23,18 @@ class RendererTestHarness {
   }) {
     return MaterialApp(
       home: Scaffold(
-        body: renderer.build(
-          interaction,
-          state,
-          (correct, {userAnswerText, reviewQuality}) {
-            submissions.add((correct, userAnswerText));
-          },
+        body: PracticeSessionBody(
+          submitted: state.submitted,
+          autoAdvance: renderer.autoAdvance,
+          continueLabel: AppStrings.lessonContinueUpper,
+          onAdvance: () => advances++,
+          child: renderer.build(
+            interaction,
+            state,
+            (correct, {userAnswerText, reviewQuality}) {
+              submissions.add((correct, userAnswerText));
+            },
+          ),
         ),
       ),
     );

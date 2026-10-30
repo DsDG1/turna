@@ -143,6 +143,17 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
 
+    // 按钮由页面底栏统一画; 这里只报"能不能提交 / 提交做什么".
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: _canSubmit,
+      submit: _canSubmit
+          ? () => widget.onSubmit(
+                _isCorrect(),
+                userAnswerText: (_picked.toList()..sort()).join(','),
+              )
+          : null,
+    );
+
     return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,19 +180,6 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),
-          if (!submitted) ...[
-            const SizedBox(height: 20),
-            LessonCheckButton(
-              label: AppStrings.lessonCheck,
-              enabled: _canSubmit,
-              onPressed: _canSubmit
-                  ? () => widget.onSubmit(
-                        _isCorrect(),
-                        userAnswerText: (_picked.toList()..sort()).join(','),
-                      )
-                  : null,
-            ),
-          ],
         ],
       ),
     );

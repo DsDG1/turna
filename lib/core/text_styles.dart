@@ -17,21 +17,26 @@ import 'package:turna/core/theme.dart';
 abstract final class AppTextStyles {
   /// Small uppercase caption shown above each interaction body
   /// ("Fill in the blank", "Listen and pick", etc.).
+  ///
+  /// 11/600 + 0.8 字距: 它是"分区标记"而不是正文, 压到 11 才能和题干
+  /// (22/600) 拉开三档层级; 14 时和选项文字抢视线.
   static TextStyle caption(BuildContext context) => TextStyle(
-        fontSize: 14,
+        fontSize: 11,
         fontWeight: FontWeight.w600,
         color: TurnaTheme.textHintColor(context),
-        letterSpacing: 0.4,
+        letterSpacing: 0.8,
+        height: 1.4,
       );
 
   /// Large body prompt — used for fill-blank, multiple-choice, translate.
-  /// Line height intentionally omitted so callers pick their own: fill_blank
-  /// passes `.copyWith(height: 1.4)`, while MC / translate rely on the
-  /// platform default font height (~1.2) to match the original rendering.
+  ///
+  /// 行高在这里统一给 1.35; 调用方仍可用 `copyWith(height: ...)` 覆盖
+  /// (fill_blank 用 1.4). 不给行高时中英混排的行距会随字形漂移.
   static TextStyle promptLg(BuildContext context) => TextStyle(
         fontSize: 22,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
         color: TurnaTheme.textPrimaryColor(context),
+        height: 1.35,
       );
 
   /// Medium body prompt — used for listening, type-the-word, reading MCQs.
@@ -39,6 +44,7 @@ abstract final class AppTextStyles {
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: TurnaTheme.textPrimaryColor(context),
+        height: 1.4,
       );
 
   /// Bottom action button label ("CHECK" / "CONTINUE" / "GOT IT").

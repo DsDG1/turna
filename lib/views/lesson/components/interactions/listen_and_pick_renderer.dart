@@ -98,6 +98,17 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
     final correct = widget.state.correct;
     final canSubmit = !submitted && _picked != null;
 
+    // 按钮由页面底栏统一画; 这里只报"能不能提交 / 提交做什么".
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: canSubmit,
+      submit: canSubmit
+          ? () => widget.onSubmit(
+                _picked == widget.correctIndex,
+                userAnswerText: widget.options[_picked!],
+              )
+          : null,
+    );
+
     return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,17 +138,6 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
               label: AppStrings.lessonCorrectAnswer,
               answer: widget.options[widget.correctIndex],
             ),
-          if (!submitted) ...[
-            const SizedBox(height: 24),
-            LessonCheckButton(
-              label: AppStrings.lessonCheck,
-              enabled: canSubmit,
-              onPressed: canSubmit
-                  ? () => widget.onSubmit(_picked == widget.correctIndex,
-                      userAnswerText: widget.options[_picked!])
-                  : null,
-            ),
-          ],
         ],
       ),
     );

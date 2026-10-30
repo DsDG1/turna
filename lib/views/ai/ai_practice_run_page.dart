@@ -271,23 +271,16 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
           return _message(AppStrings.aiPracticeRunnerEmpty);
         }
         final renderer = lookupRenderer(_renderers, interaction);
-        final showCheck = vm.hasSubmitted && !renderer.autoAdvance;
         final passage = _lessons[_lessonIndex].content.readingPassage;
-        Widget? header;
-        if (passage != null) {
-          header = ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-            ),
-            child: LessonReadingPassageCard(passage: passage),
-          );
-        }
+        final Widget? header =
+            passage == null ? null : LessonReadingPassageCard(passage: passage);
         return PracticeSessionBody(
           stageName: vm.currentStageName,
           stageAccent: TurnaTheme.brandTeal,
           header: header,
-          showCheck: showCheck,
-          checkLabel: vm.isAnswerCorrect
+          submitted: vm.hasSubmitted,
+          autoAdvance: renderer.autoAdvance,
+          continueLabel: vm.isAnswerCorrect
               ? AppStrings.lessonContinueUpper
               : AppStrings.lessonGotItUpper,
           onAdvance: () => vm.advance(),

@@ -1451,6 +1451,7 @@ class AppStrings {
   static String lessonSelectRange(int min, int max, int count) =>
       '选择 $min–$max 项（已选 $count 项）';
   static String get lessonReadingComprehensionCaption => '阅读理解';
+  static String get lessonReadingExpand => '展开原文';
   static String get lessonShortAnswerCaption => '简答题';
   static String get lessonTypeYourAnswer => '输入你的答案…';
   static String get lessonTrueFalseCaption => '判断题';

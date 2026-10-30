@@ -60,9 +60,26 @@ class _TranslateBody extends StatefulWidget {
 class _TranslateBodyState extends State<_TranslateBody> {
   final TextEditingController _controller = TextEditingController();
 
+  /// 文本类题型的"能否提交"来自 controller, 输入变化不会重建父 widget ——
+  /// 所以既要 build 时同步一次首帧, 也要监听输入变化.
+  void _syncDraft(BuildContext context) {
+    final canSubmit =
+        !widget.state.submitted && _controller.text.trim().isNotEmpty;
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: canSubmit,
+      submit: canSubmit ? _trySubmit : null,
+    );
+  }
+
+  void _onTextChanged() {
+    if (!mounted) return;
+    _syncDraft(context);
+  }
+
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_onTextChanged);
     if (widget.state.submitted && widget.state.userAnswerText != null) {
       _controller.text = widget.state.userAnswerText!;
     }
@@ -70,6 +87,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
 
   @override
   void dispose() {
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -111,6 +129,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
   Widget build(BuildContext context) {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
+
+    _syncDraft(context);
 
     return InteractionBody(
       child: Column(
@@ -175,20 +195,6 @@ class _TranslateBodyState extends State<_TranslateBody> {
             LessonCorrectAnswerBanner(
                 label: AppStrings.lessonCorrectTranslation,
                 answer: widget.expected),
-          ],
-          if (!submitted) ...[
-            const SizedBox(height: 24),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _controller,
-              builder: (context, value, _) {
-                final canSubmit = value.text.trim().isNotEmpty;
-                return LessonCheckButton(
-                  label: AppStrings.lessonCheck,
-                  enabled: canSubmit,
-                  onPressed: canSubmit ? _trySubmit : null,
-                );
-              },
-            ),
           ],
         ],
       ),

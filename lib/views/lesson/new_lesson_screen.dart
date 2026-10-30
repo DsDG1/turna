@@ -135,7 +135,8 @@ class _NewLessonPageState extends State<NewLessonPage>
             if (!didPop) _onClosePressed(context);
           },
           child: Scaffold(
-            backgroundColor: TurnaTheme.scaffoldBg(context),
+            // 画布比白卡低一档: 页面与卡面都是纯白时, 阴影是唯一分离线索.
+            backgroundColor: TurnaTheme.lessonCanvasBg(context),
             appBar: _LessonAppBar(
               vm: _vm,
               onClose: () => _onClosePressed(context),
@@ -433,7 +434,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 4);
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 6);
 
   @override
   Widget build(BuildContext context) {
@@ -488,10 +489,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             if (s.stage != null) ...[
               const SizedBox(height: 2),
               Text(
-                s.total > 0
-                    ? '${_subtitlePrefix(s.segment, s.stage!)}'
-                      '  ${AppStrings.lessonQuestionIndex(s.question, s.total)}'
-                    : _subtitlePrefix(s.segment, s.stage!),
+                _subtitle(s.segment, s.stage!, s.question, s.total),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -514,12 +512,19 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: s.progress,
-            backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(
-              TurnaTheme.brandTeal,
+          preferredSize: const Size.fromHeight(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                minHeight: 6,
+                value: s.progress,
+                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  TurnaTheme.brandTeal,
+                ),
+              ),
             ),
           ),
         ),
@@ -535,10 +540,22 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
     return interactionAiHintEligible(i);
   }
 
-  /// Subtitle line: "小课 k/n · 阶段名" on segmented lessons, the bare stage
-  /// name otherwise.
-  static String _subtitlePrefix(String? segment, String stage) =>
-      segment == null ? stage : '$segment · $stage';
+  /// Subtitle line: `小课 k/n   第 x/y 题`.
+  ///
+  /// 不再拼阶段名 —— 阶段条已经写着它, 两处重复等于白占一行. 分段课程取
+  /// 小课序号, 非分段课程退回到题号; 两者都没有时兜底回阶段名.
+  static String _subtitle(
+    String? segment,
+    String stage,
+    int question,
+    int total,
+  ) {
+    final parts = <String>[
+      if (segment != null) segment,
+      if (total > 0) AppStrings.lessonQuestionIndex(question, total),
+    ];
+    return parts.isEmpty ? stage : parts.join('   ');
+  }
 }
 
 /// Lesson body. Rebuilds only when the current interaction / submission state
@@ -632,23 +649,14 @@ class _LessonBody extends StatelessWidget {
         final renderer = lookupRenderer(renderers, interaction);
         final readingPassage = lesson.content.readingPassage;
         final legacyPassage = lesson.content.passage;
-        final showCheck = interactionState.submitted && !renderer.autoAdvance;
-        Widget? header;
-        if (readingPassage != null) {
-          header = ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-            ),
-            child: LessonReadingPassageCard(passage: readingPassage),
-          );
-        } else if (legacyPassage.isNotEmpty) {
-          header = ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-            ),
-            child: LessonLegacyReadingPassage(text: legacyPassage),
-          );
-        }
+        final interactionId = vm.currentInteractionId;
+        // 折叠卡自带 4 行上限, 不再需要 40% 视口的 ConstrainedBox —— 那个
+        // 约束曾经和卡内的 SingleChildScrollView 一起构成双滚动区.
+        final Widget? header = readingPassage != null
+            ? LessonReadingPassageCard(passage: readingPassage)
+            : legacyPassage.isNotEmpty
+                ? LessonLegacyReadingPassage(text: legacyPassage)
+                : null;
 
         return Column(
           children: [
@@ -658,10 +666,11 @@ class _LessonBody extends StatelessWidget {
                 stageAccent: TurnaTheme.brandTeal,
                 header: header,
                 scrollController: scrollController,
-                interactionKey: ValueKey(vm.currentInteractionId),
+                interactionKey: ValueKey(interactionId),
                 wrapRendererBoundary: true,
-                showCheck: showCheck,
-                checkLabel: interactionState.correct == true
+                submitted: interactionState.submitted,
+                autoAdvance: renderer.autoAdvance,
+                continueLabel: interactionState.correct == true
                     ? AppStrings.lessonContinueUpper
                     : AppStrings.lessonGotItUpper,
                 onAdvance: onAdvance,

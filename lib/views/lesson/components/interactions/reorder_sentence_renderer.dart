@@ -101,6 +101,14 @@ class _ReorderBodyState extends State<_ReorderBody> {
     final correct = widget.state.correct;
     final canSubmit = !submitted && _picked.length == widget.correct.length;
 
+    // 按钮由页面底栏统一画; 这里只报"能不能提交 / 提交做什么".
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: canSubmit,
+      submit: canSubmit
+          ? () => widget.onSubmit(_matches(), userAnswerText: _formatAnswer())
+          : null,
+    );
+
     return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -143,17 +151,6 @@ class _ReorderBodyState extends State<_ReorderBody> {
             LessonCorrectAnswerBanner(
                 label: AppStrings.lessonCorrectOrder,
                 answer: widget.correct.join(' ')),
-          ],
-          if (!submitted) ...[
-            const SizedBox(height: 24),
-            LessonCheckButton(
-              label: AppStrings.lessonCheck,
-              enabled: canSubmit,
-              onPressed: canSubmit
-                  ? () => widget.onSubmit(_matches(),
-                      userAnswerText: _formatAnswer())
-                  : null,
-            ),
           ],
         ],
       ),

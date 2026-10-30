@@ -20,9 +20,11 @@ enum LessonPracticeCardVariant {
 /// 练习页面的「半拟物质感」主卡容器.
 ///
 /// 视觉构成 (自下而上):
-/// 1. 双层柔阴影 ([TurnaTheme.elevatedCardShadow]) — 模拟光照下的悬浮感.
-/// 2. 底色 + 极轻白色渐变 (左上→右下, 0.55→0.0 透明) — 模拟磨砂面的光照面.
-/// 3. 细描边 (1.5px) — 不抢戏, 仅保持轮廓清晰.
+/// 1. 双层柔阴影 ([TurnaTheme.surfaceL2Shadow]) — 浅色投品牌深蓝, 深色投
+///    极弱白光. 深色画布是纯黑, navy 阴影在上面等于不存在, 这是深色模式
+///    "卡片发平"的根因.
+/// 2. 底色 + 顶光渐变 ([TurnaTheme.cardTopLight]) — 模拟磨砂面的受光面.
+/// 3. 细描边 (1px) — 不抢戏, 仅保持轮廓清晰.
 ///
 /// 该组件被 [AnkiCardRenderer] / [ShowWordRenderer] / [TranslateSentenceRenderer]
 /// 共用. 替换某个 renderer 的卡片容器时, 只需把外层 `Container` /
@@ -37,6 +39,11 @@ class LessonPracticeCard extends StatelessWidget {
   /// 嵌入卡片) 应关闭, 避免曲线打架.
   final bool appearAnimation;
 
+  /// 整张卡作为点击目标时的回调 (ShowWord 的"点卡片继续").
+  ///
+  /// 传了它才会切到 `Material + Ink` 的绘制路径 —— 见 [build] 里的注释.
+  final VoidCallback? onTap;
+
   const LessonPracticeCard({
     super.key,
     required this.child,
@@ -44,6 +51,7 @@ class LessonPracticeCard extends StatelessWidget {
     this.variant = LessonPracticeCardVariant.front,
     this.minHeight = 200,
     this.appearAnimation = true,
+    this.onTap,
   });
 
   @override
@@ -51,26 +59,51 @@ class LessonPracticeCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final colors = _resolveColors(context, isDark, variant);
+    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+
+    // 只给 gradient. 同时传 `color` 时 BoxDecoration 只画 gradient,
+    // 底色会静默失效 —— back 变体的品牌底就是这么被吞掉的.
+    final fill = BoxDecoration(
+      gradient: TurnaTheme.cardTopLight(context, colors.fill),
+      borderRadius: radius,
+      border: Border.all(color: colors.border, width: 1),
+    );
+
+    final Widget body;
+    if (onTap == null) {
+      body = Container(
+        constraints: BoxConstraints(minHeight: minHeight),
+        padding: padding,
+        decoration: fill,
+        child: child,
+      );
+    } else {
+      // 用 Ink 而不是 Container: Container 是不透明绘制层, 会把上层 Material
+      // 的水波纹整个盖掉, 点下去毫无反馈. Ink 把底色画在 Material 上, 水波纹
+      // 浮在底色之上, 而卡片内部的手势 (点词读音) 仍先于卡片本身命中.
+      body = Material(
+        type: MaterialType.transparency,
+        child: Ink(
+          decoration: fill,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: minHeight),
+              child: Padding(padding: padding, child: child),
+            ),
+          ),
+        ),
+      );
+    }
 
     final card = Container(
-      constraints: BoxConstraints(minHeight: minHeight),
-      padding: padding,
+      // 阴影挂在最外层普通 Container 上: Ink 的装饰会被 Material 裁掉外阴影.
       decoration: BoxDecoration(
-        color: colors.fill,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        // 渐变模拟「光照下磨砂面」, 不透明度极低.
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: isDark ? 0.04 : 0.55),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-        ),
-        border: Border.all(color: colors.border, width: 1.5),
-        boxShadow: TurnaTheme.elevatedCardShadow,
+        borderRadius: radius,
+        boxShadow: TurnaTheme.surfaceL2Shadow(context),
       ),
-      child: child,
+      child: body,
     );
 
     if (!appearAnimation) return card;
@@ -97,21 +130,25 @@ class LessonPracticeCard extends StatelessWidget {
     bool isDark,
     LessonPracticeCardVariant v,
   ) {
+    final base = TurnaTheme.surfaceL2Fill(context);
     switch (v) {
       case LessonPracticeCardVariant.front:
         return _CardColors(
-          fill: TurnaTheme.cardBg(context),
-          border: TurnaTheme.brandTeal.withValues(alpha: 0.20),
+          fill: base,
+          border: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.30 : 0.20),
         );
       case LessonPracticeCardVariant.back:
         return _CardColors(
-          fill: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.18 : 0.10),
-          border: TurnaTheme.brandTeal.withValues(alpha: 0.45),
+          fill: Color.alphaBlend(
+            TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.22 : 0.10),
+            base,
+          ),
+          border: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.55 : 0.45),
         );
       case LessonPracticeCardVariant.surface:
         return _CardColors(
-          fill: TurnaTheme.cardBg(context),
-          border: TurnaTheme.brandTeal.withValues(alpha: 0.15),
+          fill: base,
+          border: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.22 : 0.15),
         );
     }
   }

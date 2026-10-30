@@ -193,14 +193,14 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
                       return const Center(child: CircularProgressIndicator());
                     }
                     final renderer = lookupRenderer(_renderers, interaction);
-                    final showCheck = selected.$4 && !renderer.autoAdvance;
                     return PracticeSessionBody(
                       stageName: selected.$3,
                       stageAccent: TurnaTheme.error,
                       interactionKey: ValueKey(vm.currentInteractionId),
                       wrapRendererBoundary: true,
-                      showCheck: showCheck,
-                      checkLabel: selected.$5
+                      submitted: selected.$4,
+                      autoAdvance: renderer.autoAdvance,
+                      continueLabel: selected.$5
                           ? AppStrings.commonContinue
                           : AppStrings.commonGotIt,
                       onAdvance: () => vm.advance(),

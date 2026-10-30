@@ -195,8 +195,9 @@ class _DailyChallengePageState extends State<DailyChallengePage>
     return PracticeSessionBody(
       stageName: vm.currentStageName,
       stageAccent: TurnaTheme.leagueAmethyst,
-      showCheck: vm.hasSubmitted && !renderer.autoAdvance,
-      checkLabel: vm.isAnswerCorrect
+      submitted: vm.hasSubmitted,
+      autoAdvance: renderer.autoAdvance,
+      continueLabel: vm.isAnswerCorrect
           ? AppStrings.playDailyContinue
           : AppStrings.playDailyGotIt,
       onAdvance: () => vm.advance(),
