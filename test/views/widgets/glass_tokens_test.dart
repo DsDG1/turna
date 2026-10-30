@@ -229,4 +229,44 @@ void main() {
       }
     });
   });
+
+  group('ListTile 主题', () {
+    // 15 处裸 ListTile / CheckboxListTile / SwitchListTile 散在 12 个文件，
+    // 靠全局主题收口。这里钉住四套主题都注册过，防止以后被误删 ——
+    // 删掉不会有编译错误，只会让 4 处未显式配色的 leading 图标悄悄退回
+    // 默认的 onSurfaceVariant。
+    test('四套主题都注册了 contentPadding 与 iconColor', () {
+      final themes = <String, ThemeData>{
+        'light': TurnaTheme.lightTheme,
+        'dark': TurnaTheme.darkTheme,
+        'hcLight': TurnaTheme.highContrastLightTheme,
+        'hcDark': TurnaTheme.highContrastDarkTheme,
+      };
+
+      for (final entry in themes.entries) {
+        final tile = entry.value.listTileTheme;
+        expect(
+          tile.contentPadding,
+          const EdgeInsets.symmetric(horizontal: 16),
+          reason: '${entry.key} 的 ListTile 缩进没注册',
+        );
+        expect(tile.iconColor, isNotNull, reason: '${entry.key} 缺 iconColor');
+      }
+    });
+
+    // 刻意留空两项：填了会切断 textTheme 的继承，并盖掉调用方自己传的
+    // style（15 处里有 6 处显式传了 title/subtitle 的 style）。
+    // 这条断言守的是那个决定，而不是「代码现在长这样」。
+    test('不覆盖 title/subtitle 文字样式', () {
+      for (final t in [
+        TurnaTheme.lightTheme,
+        TurnaTheme.darkTheme,
+        TurnaTheme.highContrastLightTheme,
+        TurnaTheme.highContrastDarkTheme,
+      ]) {
+        expect(t.listTileTheme.titleTextStyle, isNull);
+        expect(t.listTileTheme.subtitleTextStyle, isNull);
+      }
+    });
+  });
 }

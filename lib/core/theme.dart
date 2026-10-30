@@ -791,6 +791,23 @@ class TurnaTheme {
     );
   }
 
+  /// ListTile 主题：把散落各处的裸 `ListTile` / `CheckboxListTile` /
+  /// `SwitchListTile` 的缩进与图标色收口（15 处、12 文件）。
+  ///
+  /// **刻意不设** `titleTextStyle` / `subtitleTextStyle`：留空才会 fallback
+  /// 到 `textTheme.titleMedium` / `bodyMedium`，而四套主题的 textTheme 已经
+  /// 定好了颜色与字重。显式设死会切断那层继承，还会盖掉调用方自己传的
+  /// `style:`（15 处里有 6 处传了）。
+  ///
+  /// **同样不设** `selectedColor` / `selectedTileColor`：全项目 0 处 ListTile
+  /// 传 `selected: true`，这两项永远不生效 —— M3 默认值就够用。等真有选中
+  /// 行的需求再加，别让它们变成第二个「注释说在用、实际零引用」的 token。
+  static ListTileThemeData listTileTheme({required Color icon}) =>
+      ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        iconColor: icon,
+      );
+
   static Color streakChipBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
 
@@ -974,6 +991,7 @@ class TurnaTheme {
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),
+        listTileTheme: listTileTheme(icon: textSecondary),
         chipTheme: expressiveChipTheme(
           background: const Color(0xFFF5F6F5),
           selectedFill: brandTeal.withValues(alpha: 0.16),
@@ -1180,6 +1198,7 @@ class TurnaTheme {
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),
+        listTileTheme: listTileTheme(icon: darkTextSecondary),
         chipTheme: expressiveChipTheme(
           background: const Color(0xFF121212),
           selectedFill: brandTeal.withValues(alpha: 0.28),
@@ -1327,6 +1346,7 @@ class TurnaTheme {
             borderSide: const BorderSide(color: errorDark, width: 2),
           ),
         ),
+        listTileTheme: listTileTheme(icon: Colors.black),
         chipTheme: expressiveChipTheme(
           background: Colors.white,
           selectedFill: primaryDark.withValues(alpha: 0.18),
@@ -1466,6 +1486,7 @@ class TurnaTheme {
             borderSide: const BorderSide(color: errorLight, width: 2),
           ),
         ),
+        listTileTheme: listTileTheme(icon: Colors.white),
         chipTheme: expressiveChipTheme(
           background: Colors.black,
           selectedFill: brandReed.withValues(alpha: 0.28),
