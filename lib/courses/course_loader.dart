@@ -25,7 +25,7 @@ import 'package:turna/domain/course/word_entry.dart';
 export 'course_json_parser.dart';
 
 /// Loads a language course from a SQLite database ([CourseDatabase]) that is
-/// seeded from the bundled JSON assets under `assets/courses/turkish/` on
+/// seeded from the bundled JSON assets under `assets/courses/<lang>/` on
 /// first launch.
 ///
 /// At startup only the section index and vocabulary are read — section bodies
@@ -88,7 +88,10 @@ class CourseLoader {
   static String expressionsAssetFor(String languageCode) =>
       '${baseDirFor(languageCode)}/expressions.json';
 
-  /// Turkish asset dir — tests that `File()`-read the packed tree.
+  /// Turkish asset dir — tests that `File()`-read the packed tree. Resolves
+  /// through [LanguageRegistry], so it follows the manifest (`nouveau-turkish`
+  /// since the NouveauTurkish switch) and falls back to the pre-manifest entry
+  /// only before the registry has loaded.
   static String get baseDir => baseDirFor(LanguageCodes.turkish);
 
   /// Cached per-language loads of index + vocabulary.

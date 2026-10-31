@@ -1,7 +1,7 @@
 // Consolidated component tests for lesson interaction renderers:
 // FillBlank, ListenAndPick, ListenOnly, MultiSelect, MultipleChoice,
 // ReadingMcq, ReadingShortAnswer, ReadingTrueFalse, ReorderSentence,
-// TranslateSentence, TypeTheWord, and ShowWord.
+// TranslateSentence, TypeTheWord, ShowWord, and ReadAloud.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +16,7 @@ import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_only_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/read_aloud_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/multi_select_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/multiple_choice_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reading_mcq_renderer.dart';
@@ -26,8 +27,15 @@ import 'package:turna/views/lesson/components/interactions/show_word_renderer.da
 import 'package:turna/views/lesson/components/interactions/translate_sentence_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/type_the_word_renderer.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
+
 import '../../../helpers/in_memory_course_db.dart';
 import 'fake_audio_controller.dart';
+import 'fake_read_aloud_backend.dart';
 import 'renderer_test_helper.dart';
 
 void main() {
@@ -720,6 +728,164 @@ void main() {
       );
       expect(button.onPressed, isNull);
       expect(harness.submissions, isEmpty);
+    });
+  });
+
+  group('ReadAloudRenderer', () {
+    // The mic card only exists when the master switch is on (opt-in, ADR
+    // 0061); these tests register a real SettingsProvider over mock prefs so
+    // the gate helper reads a live value instead of the DI-absent fallback.
+    late AppPrefs prefs;
+    late SettingsProvider settings;
+
+    setUp(() async {
+      await getIt.reset();
+      SharedPreferences.setMockInitialValues({});
+      final streaming = await StreamingSharedPreferences.instance;
+      prefs = AppPrefs(streaming);
+      settings = SettingsProvider(prefs);
+      getIt.registerSingleton<SettingsProvider>(settings);
+    });
+
+    tearDown(getIt.reset);
+
+    testWidgets(
+        'gate off degrades to a listen-only card with an in-card '
+        'enable offer', (tester) async {
+      final renderer = ReadAloudRenderer(FakeReadAloudBackend());
+      const interaction = Interaction.readAloud(
+        id: 'ra-gate-off',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+
+      // Enable offer is visible because the backend itself is capable.
+      expect(
+        find.widgetWithText(OutlinedButton, '开启跟读练习'),
+        findsOneWidget,
+      );
+      await tapContinue(tester);
+      expect(harness.submissions, [(true, 'read-aloud-degraded')]);
+    });
+
+    testWidgets('unsupported builds degrade without an enable offer',
+        (tester) async {
+      final renderer =
+          ReadAloudRenderer(FakeReadAloudBackend(supported: false));
+      const interaction = Interaction.readAloud(
+        id: 'ra-unsupported',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+
+      expect(find.widgetWithText(OutlinedButton, '开启跟读练习'), findsNothing);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      await tapContinue(tester);
+      expect(harness.submissions, [(true, 'read-aloud-degraded')]);
+    });
+
+    testWidgets('mic flow: final transcript scores and submits pass',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-pass',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      expect(backend.startLocales, ['tr']);
+      backend.emitPartial('mer');
+      await tester.pump();
+      backend.emitFinal('merhaba');
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, [(true, 'merhaba')]);
+      // Word-level feedback replaces the plain sentence.
+      expect(
+        find.byKey(const ValueKey('read-aloud-words')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('active readAloud card displays speaker button to model pronunciation',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-speaker',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      expect(find.byType(SpeakerButton), findsOneWidget);
+      await tester.tap(find.byType(SpeakerButton));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a weak transcript fails without blocking progression',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-fail',
+        targetText: 'bir çay lütfen',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+      backend.emitFinal('bir');
+      await tester.pumpAndSettle();
+
+      // 1/3 words < 0.6 threshold: binary fail, transcript recorded.
+      expect(harness.submissions, [(false, 'bir')]);
+    });
+
+    testWidgets('an empty final transcript is a retry, not a submission',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-empty',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+      backend.emitFinal('  ');
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, isEmpty);
+      expect(find.text('没听清，再点麦克风试一次'), findsOneWidget);
+    });
+
+    testWidgets('permission refusal degrades the card for this item',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend(ready: false);
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-perm',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(find.text('麦克风权限被拒绝——请在系统设置中允许后重试'), findsOneWidget);
     });
   });
 }

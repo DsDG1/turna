@@ -29,7 +29,7 @@ pip install PySide6 PyPDF2 python-docx
 
 > ⚠️ **沙箱提示**：TRAE/VS Code 受限沙箱遇 `WinError 5` 装不上 PySide6 时，改用本机系统终端跑 GUI 与打包；后端核心无 PySide6 依赖，单元测试可在沙箱执行。
 
-项目根目录执行 `python -m tool.gui.src.main`，启动后点 **「课程仓库 → 打开课程目录」** 选本地课程目录（如 `assets/courses/turkish/`）。
+项目根目录执行 `python -m tool.gui.src.main`，启动后点 **「课程仓库 → 打开课程目录」** 选本地课程目录（如主线课程 `assets/courses/nouveau-turkish/`；旧样板房 `assets/courses/turkish/` 仍可打开，但已不在 manifest 中）。
 
 > 打开 / 新建 / 最近仓库切换时，若当前课程有未保存更改，先弹 **保存并打开 / 放弃更改 / 取消** 三选一；「保存并打开」走完整保存管线，保存失败则中止切换。
 

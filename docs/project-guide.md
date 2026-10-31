@@ -58,7 +58,7 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction
 ```
 
-全是 Freezed 不可变类 + JSON 序列化，`Lesson.flattenedStages` 把嵌套内容展平成渲染器可遍历的 `List<Stage>`。Interaction 题型清单以 `lib/domain/course/interaction.dart` 为准（不在此处数数），均 `@injectable` 注册到 GetIt：`showWord`、`multipleChoice`、`multiSelect`、`fillBlank`（打字比对走 `foldTurkish`）、`translateSentence`、`reorderSentence`、`typeTheWord`、`listenAndPick`、`listenOnly`、`imageRecall`、`dictation`、`readingMcq`、`readingTrueFalse`、`readingShortAnswer`、`ankiCard`、`ankiHtmlCard`（官方复习路径用 WebView 渲染原 notetype HTML，存量卡降级为占位卡）。
+全是 Freezed 不可变类 + JSON 序列化，`Lesson.flattenedStages` 把嵌套内容展平成渲染器可遍历的 `List<Stage>`。Interaction 题型清单以 `lib/domain/course/interaction.dart` 为准（不在此处数数），均 `@injectable` 注册到 GetIt：`showWord`、`multipleChoice`、`multiSelect`、`fillBlank`（打字比对走 `foldTurkish`）、`translateSentence`、`reorderSentence`、`typeTheWord`、`listenAndPick`、`listenOnly`、`imageRecall`、`dictation`、`readingMcq`、`readingTrueFalse`、`readingShortAnswer`、`ankiCard`、`ankiHtmlCard`（官方复习路径用 WebView 渲染原 notetype HTML，存量卡降级为占位卡）、`readAloud`（跟读，[ADR 0061](./decisions/0061-read-aloud-word-matching.md)：平台识别 + 词面匹配，Android/iOS；其余平台降级为听示范卡）。
 
 6 种教学模板 + 1 种兜底：intro 认识新词；practice 受控语境反复操练填空 / 翻译 / 组句；listening 听力训练（自下而上的语音解码）；reading 阅读理解（短文 + 三道递进题）；review 跨单元回顾；mastery 混合题型限时完成；legacy 兜底模板，兼容旧版课程数据。
 
@@ -186,11 +186,11 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 
 ## 13. 课程数据格式与 Authoring
 
-JSON 放在 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSeeder` 播种进 SQLite。最小 `index.json`：
+JSON 放在 `assets/courses/<lang>/`——当前 `tr` 由 `assets/courses/manifest.json` 指向 `nouveau-turkish/`——由 `CourseLoader` 加载、`DatabaseSeeder` 播种进 SQLite。最小 `index.json`：
 
 ```json
-{ "version": 12, "language": "tr", "displayName": "Turkish",
-  "sections": [ { "id": "section1", "name": "Section 1", "level": "A1",
+{ "version": 2, "language": "tr",
+  "sections": [ { "id": "nt-s1", "name": "起步 · Merhaba", "level": "A1",
     "prerequisiteSectionIds": [], "file": "sections/section1.json" } ] }
 ```
 
@@ -208,7 +208,7 @@ JSON 放在 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 
 - 排行榜 / 天梯 / 好友 / 分享。社会比较短期提升参与度，但抑制内在动机（Deci & Ryan, 1985 自我决定理论）。本项目选内容驱动。
 - 活力值 / 连签修复 / 商店道具。惩罚机制（答错扣活力）和「失败恐惧」相关，可能让学习者回避高难度内容——而高难度内容恰恰是 i+1 原则要求的习得区间。
-- 口语录音匹配。自动语音评分在非主流语种（含土耳其语）上可靠性和效度不足，本项目用 TTS + 听力路径覆盖语音输入训练。
+- 口语录音匹配（**音素级发音评分**）。自动语音评分在非主流语种（含土耳其语）上可靠性和效度不足——Azure 发音评估不支持 tr-TR，sherpa-onnx 无土耳其语 CTC 模型，该档维持不做。**词面跟读匹配（readAloud）已采用**：[ADR 0061](./decisions/0061-read-aloud-word-matching.md)，平台识别 + 逐词比对，测可懂度不评口音，Android/iOS only。
 - 云端 CMS / Firebase / 推送通知。本地优先保证离线可用性与数据隐私，也避免服务端维护成本。
 - XP 倍率 / 每日 XP 目标 / 宝石购买 / 道具 / 社交成就。同上，去摩擦和付费。
 - 全局错误弹窗。可恢复的加载失败走 Provider 状态机承载（如 `SectionLoadState.error`），一次性动作用 SnackBar；不引入拦全应用的全局弹窗。

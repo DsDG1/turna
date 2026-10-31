@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- 跟读练习（ADR 0061）：首次点麦克风时由系统弹权限请求。识别由系统
+	     语音服务处理，可能经网络（设置页文案同口径）。 -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>跟读练习需要使用麦克风录下你读出的句子，用于识别比对。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>跟读练习需要语音识别来比对你说出的句子。识别由系统语音服务处理，可能经网络。</string>
 </dict>
 </plist>

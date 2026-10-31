@@ -21,7 +21,8 @@ void main() {
     }
   });
 
-  test('the degradation set covers exactly the ADR 0047 exclusions', () {
+  test('the degradation set covers exactly the ADR 0047/0056/0061 exclusions',
+      () {
     // If a feature is added to the enum it must be a deliberate decision, and
     // the list here is what makes that decision visible in a diff.
     //
@@ -41,11 +42,17 @@ void main() {
     // a filed security assessment report plus real-name verification for
     // synthetic-content services, which an individual developer cannot obtain
     // (ADR 0056). The companion build ships without the AI module at all.
+    //
+    // `readAloud` (跟读 recognition) is a platform gap again: `speech_to_text`
+    // has no OHOS implementation and Core Speech Kit's recognizer is
+    // Chinese-oriented, so read-aloud exercises degrade to listen-only cards
+    // (ADR 0061).
     expect(
       OhosDegradation.values.toSet(),
       {
         OhosDegradation.remoteBackup,
         OhosDegradation.aiGeneration,
+        OhosDegradation.readAloud,
       },
     );
   });

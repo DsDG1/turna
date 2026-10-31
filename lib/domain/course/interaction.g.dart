@@ -399,3 +399,19 @@ Map<String, dynamic> _$DictationToJson(Dictation instance) => <String, dynamic>{
       'sourceNoteId': instance.sourceNoteId,
       'runtimeType': instance.$type,
     };
+
+ReadAloud _$ReadAloudFromJson(Map<String, dynamic> json) => ReadAloud(
+      id: json['id'] as String? ?? '',
+      targetText: json['targetText'] as String,
+      prompt: json['prompt'] as String? ?? 'Read the sentence aloud',
+      grammarPointId: json['grammarPointId'] as String?,
+      $type: json['runtimeType'] as String?,
+    );
+
+Map<String, dynamic> _$ReadAloudToJson(ReadAloud instance) => <String, dynamic>{
+      'id': instance.id,
+      'targetText': instance.targetText,
+      'prompt': instance.prompt,
+      'grammarPointId': instance.grammarPointId,
+      'runtimeType': instance.$type,
+    };

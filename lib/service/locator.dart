@@ -237,6 +237,14 @@ class LocalStateKeys {
   // Master gate for the read-aloud feature (auto-read + per-course TTS entry
   // in course management). Opt-in: false until the user enables it.
   static const String ttsFeatureEnabled = 'settings.ttsFeatureEnabled';
+  // Master gate for 跟读 (mic read-aloud recognition) exercises, ADR 0061.
+  // Distinct from [ttsFeatureEnabled] (智能朗读, the app speaking): this one
+  // lets the app *listen*. Opt-in and default off because recognition runs
+  // through the platform speech service, which may process audio over the
+  // network. While off, read-aloud exercises degrade to listen-only cards
+  // that offer an in-lesson toggle.
+  static const String readAloudExercisesEnabled =
+      'settings.readAloudExercisesEnabled';
   static const String reviewBatchSize = 'settings.reviewBatchSize';
   // Legacy: 'settings.ttsEngine' selected the bundled Piper offline model in
   // the Swahili build. Turkish uses system/Google TTS only, so the engine

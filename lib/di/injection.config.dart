@@ -99,6 +99,7 @@ import '../service/audio_backend.dart' as _i903;
 import '../service/export_service.dart' as _i542;
 import '../service/local_reminder_service.dart' as _i711;
 import '../service/locator.dart' as _i523;
+import '../service/read_aloud_backend.dart' as _i688;
 import '../service/remote_backup/backup_snapshot_service.dart' as _i100;
 import '../service/remote_backup/remote_backup_config.dart' as _i527;
 import '../service/speech_backend.dart' as _i615;
@@ -124,6 +125,8 @@ import '../views/lesson/components/interactions/multi_select_renderer.dart'
     as _i147;
 import '../views/lesson/components/interactions/multiple_choice_renderer.dart'
     as _i990;
+import '../views/lesson/components/interactions/read_aloud_renderer.dart'
+    as _i51;
 import '../views/lesson/components/interactions/reading_mcq_renderer.dart'
     as _i235;
 import '../views/lesson/components/interactions/reading_short_answer_renderer.dart'
@@ -153,8 +156,8 @@ extension GetItInjectableX on _i174.GetIt {
       environment,
       environmentFilter,
     );
-    final serviceModule = _$ServiceModule();
     final audioModule = _$AudioModule();
+    final serviceModule = _$ServiceModule();
     final rendererModule = _$RendererModule();
     gh.factory<_i940.AnkiCardRenderer>(() => _i940.AnkiCardRenderer());
     gh.factory<_i702.AnkiHtmlCardRetiredRenderer>(
@@ -185,6 +188,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i687.AiRecentTasksProvider());
     gh.lazySingleton<_i118.ReviewDataRevision>(
         () => _i118.ReviewDataRevision());
+    gh.lazySingleton<_i688.ReadAloudBackend>(
+        () => audioModule.readAloudBackend);
     gh.lazySingleton<_i565.TabRouter>(() => serviceModule.tabRouter());
     gh.lazySingleton<_i1034.ICredentialStore>(
         () => serviceModule.credentialStore());
@@ -244,6 +249,8 @@ extension GetItInjectableX on _i174.GetIt {
       () => audioModule.effectsAudio,
       instanceName: 'effectsAudio',
     );
+    gh.factory<_i51.ReadAloudRenderer>(
+        () => _i51.ReadAloudRenderer(gh<_i688.ReadAloudBackend>()));
     gh.lazySingleton<_i417.GemsProvider>(
         () => _i417.GemsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i233.LanguageProvider>(
@@ -399,6 +406,15 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.lazySingleton<_i740.ProgressProvider>(
         () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
+    gh.lazySingleton<_i936.AppRouter>(
+        () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
+    gh.lazySingleton<_i706.ReviewProgressProvider>(
+        () => _i706.ReviewProgressProvider(
+              gh<_i280.IReviewHistoryStore>(),
+              gh<_i361.SrsProvider>(),
+              gh<_i1008.GrammarReviewProvider>(),
+              gh<_i888.IAnkiImportStore>(),
+            ));
     gh.lazySingleton<Set<_i931.InteractionRenderer>>(
         () => rendererModule.renderers(
               gh<_i440.ShowWordRenderer>(),
@@ -417,15 +433,7 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i702.AnkiHtmlCardRetiredRenderer>(),
               gh<_i215.ImageRecallRenderer>(),
               gh<_i909.DictationRenderer>(),
-            ));
-    gh.lazySingleton<_i936.AppRouter>(
-        () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
-    gh.lazySingleton<_i706.ReviewProgressProvider>(
-        () => _i706.ReviewProgressProvider(
-              gh<_i280.IReviewHistoryStore>(),
-              gh<_i361.SrsProvider>(),
-              gh<_i1008.GrammarReviewProvider>(),
-              gh<_i888.IAnkiImportStore>(),
+              gh<_i51.ReadAloudRenderer>(),
             ));
     gh.lazySingleton<_i257.MemoryCurveProvider>(() => _i257.MemoryCurveProvider(
           gh<_i280.IReviewHistoryStore>(),
@@ -454,8 +462,8 @@ extension GetItInjectableX on _i174.GetIt {
   }
 }
 
-class _$ServiceModule extends _i180.ServiceModule {}
-
 class _$AudioModule extends _i83.AudioModule {}
+
+class _$ServiceModule extends _i180.ServiceModule {}
 
 class _$RendererModule extends _i702.RendererModule {}

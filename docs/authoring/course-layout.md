@@ -17,7 +17,10 @@ assets/courses/<lang>/
     ...
 ```
 
-Turkish default: `assets/courses/turkish/`.
+Default target: the directory named by `assets/courses/manifest.json` for the
+language (currently `assets/courses/nouveau-turkish/` for `tr`). `--course-dir`
+overrides it; every path below is relative to that course directory, not to the
+repository root.
 
 ### `index.json`
 
@@ -67,13 +70,13 @@ Authors always edit **full** content in the JSON files. The L1/L2 split is a
 ## Validate before commit
 
 ```bash
-# Human-readable
-python tool/course_cli.py validate --course-dir assets/courses/turkish
+# Human-readable (defaults to the course dir named by the manifest)
+python tool/course_cli.py validate
 
 # Machine-readable (GUI / CI)
-python tool/course_cli.py validate --format json --course-dir assets/courses/turkish
+python tool/course_cli.py validate --format json
 
-python tool/course_cli.py lint --course-dir assets/courses/turkish
+python tool/course_cli.py lint
 ```
 
 Exit code `0` = ok; non-zero = errors. JSON shape:

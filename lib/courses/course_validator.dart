@@ -416,6 +416,13 @@ void _validateStages(
               '${item.expressionId}.');
         }
       }
+      // ReadAloud is driven entirely by targetText (model audio is TTS), so
+      // an empty one leaves nothing to read and nothing to match against.
+      if (item is ReadAloud && item.targetText.trim().isEmpty) {
+        errors
+            .add('${prefix}ReadAloud "${item.id}" in stage ${stage.id} (lesson '
+                '${lesson.id}) has an empty targetText.');
+      }
     }
   }
 }
@@ -502,6 +509,10 @@ void _validateListeningPhases(
               '${lesson.id}) references missing expressionId '
               '${item.expressionId}.');
         }
+      }
+      if (item is ReadAloud && item.targetText.trim().isEmpty) {
+        errors.add('ReadAloud "${item.id}" in listeningPhase ${phase.id} '
+            '(lesson ${lesson.id}) has an empty targetText.');
       }
     }
   }

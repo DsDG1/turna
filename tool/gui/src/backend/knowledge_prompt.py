@@ -5,8 +5,9 @@ Pure functions only - no I/O, no LLM calls. Used by
 textbook-import pipeline, bookplan.md).
 
 The returned JSON shape matches ``knowledge_schema.coerce_knowledge_points``
-(words/expressions/grammarPoints) and the real entry shapes in
-``assets/courses/turkish/``. We deliberately do NOT ask for a ``units`` array -
+(words/expressions/grammarPoints) and the real entry shapes in the shipped
+course tree (``assets/courses/manifest.json`` → ``nouveau-turkish/``). We
+deliberately do NOT ask for a ``units`` array -
 ``parse_completion`` would reject anything without ``units``; instead the
 downstream builds the lesson via ``build_intro_lesson``.
 

@@ -53,7 +53,7 @@ NouveauTurkish **已切进 app**（manifest 指向它）：第 1 课《Merhaba!�
 | 听力 | 4 | 听不同的声音、语速和说法 |
 | 情景对话 | 3 | 点单、询问、回应这类真实场景（课型还没有，要新建） |
 | 小故事 | 3 | 用学过的词读懂新情节 |
-| 主动开口 | 2 | 看图说话、跟着语音回应（课型还没有，要新建） |
+| 主动开口 | 2 | 看图说话、跟着语音回应（课型还没有，要新建；核心识别能力已落地为 `readAloud` 题型——平台识别 + 词面匹配，[ADR 0061](./docs/decisions/0061-read-aloud-word-matching.md)，section1 已有示例题，正式的主动开口课开建时直接用） |
 | 单元测试 | 1 | 不给提示，完成一个真实的小任务 |
 
 ### 新旧内容怎么相处（NouveauTurkish 方案）
@@ -64,7 +64,9 @@ NouveauTurkish **已切进 app**（manifest 指向它）：第 1 课《Merhaba!�
 - 新课程骨架：8 个 section、`nt-` 前缀 id；section1 有内容，
   section2–8 是空壳（`units: []`，validator 认可），将来每个 section 的
   unit 数量保持一致。
-- **旧 `turkish/` 一概不动**：它还是 app 当前注册的课程、引擎和测试的活数据。
+- **旧 `turkish/` 一概不动**：它已不是 app 注册的课程，但是唯一完整的 8 章参照
+  课程，引擎与多处测试仍拿它当活数据（`turkish_enrichment_structure_test`、
+  `bundled_media_paths_test`、课程 CLI 的样例 fixture）。
 - **已切进 app（2026-10-30）**：manifest（`assets/courses/manifest.json`）的
   `tr` 语言 `dir` 已指向 `nouveau-turkish`，pubspec 已注册它的资产目录，
   app 打开就是 NouveauTurkish。旧 `turkish/` 资产仍打包（部分测试经

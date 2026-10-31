@@ -612,7 +612,14 @@ class _CourseCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: TurnaTheme.cardBg(context),
+        // ADR 0062：课程卡是容器 → 中性淡彩实面。Material 只吃单色，
+        // 所以用 glassSolid 接住 glassFill 渐变的最低点，与其它卡的
+        // 观感一致又不会在 InkWell 下露出两段色差。
+        color: TurnaTheme.glassSolid(
+          context,
+          TurnaTheme.glassNeutral,
+          level: GlassLevel.l1Subtle,
+        ),
         borderRadius: radius,
         child: InkWell(
           onTap: onTap,
@@ -1007,7 +1014,11 @@ class _RestoreLanguageCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: TurnaTheme.cardBg(context),
+        color: TurnaTheme.glassSolid(
+          context,
+          TurnaTheme.glassNeutral,
+          level: GlassLevel.l1Subtle,
+        ),
         borderRadius: radius,
         child: InkWell(
           onTap: onRestore,
@@ -1222,4 +1233,3 @@ class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
     );
   }
 }
-

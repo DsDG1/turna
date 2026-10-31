@@ -7,7 +7,7 @@ import 'package:turna/domain/course/language_codes.dart';
 
 /// Grammar points for the grammar-review SRS queue.
 ///
-/// Grammar points are bundled in `assets/courses/turkish/grammar_points.json`,
+/// Grammar points are bundled in `assets/courses/<lang>/grammar_points.json`,
 /// seeded into the local SQLite DB, and loaded asynchronously at app start by
 /// [CourseLoader.load]. The synchronous lookup [grammarPointById] is
 /// populated as a side-effect of the first call to [loadGrammarPoints]

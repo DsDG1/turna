@@ -78,11 +78,11 @@ class TestSchemaConstants(unittest.TestCase):
         self.assertIs(KEY_RUNTIME_TYPE, ItemKey.RUNTIME_TYPE)
 
     def test_interaction_type_matches_lesson_content(self) -> None:
-        """Ensure all 14 interaction types match ALLOWED_RUNTIME_TYPES in lesson_content."""
+        """Ensure all 15 interaction types match ALLOWED_RUNTIME_TYPES in lesson_content."""
         from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES
 
         enum_values = tuple(member.value for member in InteractionType)
-        self.assertEqual(len(enum_values), 14)
+        self.assertEqual(len(enum_values), 15)
         self.assertEqual(enum_values, ALLOWED_RUNTIME_TYPES)
 
     def test_template_type_matches_lesson_content(self) -> None:

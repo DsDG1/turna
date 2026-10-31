@@ -28,5 +28,11 @@ void main() {
       expect(foldTurkish(combiningDotI), foldTurkish('i'));
       expect(foldTurkish('İ'.toLowerCase()), foldTurkish('i'));
     });
+
+    test('circumflex vowels fold to basic Latin vowels', () {
+      expect(foldTurkish('hâlâ'), foldTurkish('hala'));
+      expect(foldTurkish('kâğıt'), foldTurkish('kağıt'));
+      expect(foldTurkish('sükûn'), foldTurkish('sukun'));
+    });
   });
 }

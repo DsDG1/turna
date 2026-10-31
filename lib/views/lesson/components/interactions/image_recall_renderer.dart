@@ -98,9 +98,7 @@ class _ImageRecallBodyState extends State<_ImageRecallBody> {
           ),
           const SizedBox(height: 20),
           AnkiMediaStrip(imageAssets: widget.imageAssets),
-          if (!_revealed &&
-              widget.hint != null &&
-              widget.hint!.isNotEmpty) ...[
+          if (!_revealed && widget.hint != null && widget.hint!.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
               widget.hint!,

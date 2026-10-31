@@ -8,9 +8,20 @@
          refuses settings.blockNetworkLoads=false without INTERNET; debug/profile
          already declare this, release did not, so factory create crashed. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Read-aloud (跟读) exercises: microphone for platform speech
+         recognition (ADR 0061). Runtime request is triggered by
+         speech_to_text on the learner's first tap of the mic button, never at
+         startup. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <!-- Same visibility rule as TTS_SERVICE above, for SpeechRecognizer:
+             on Android 11+ the recognizer's service can't be found without
+             declaring the intent query. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
         <package android:name="com.google.android.tts" />
     </queries>

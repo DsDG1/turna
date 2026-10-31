@@ -242,6 +242,22 @@ sealed class Interaction with _$Interaction {
     String? sourceNoteId,
   }) = Dictation;
 
+  /// 跟读 (ADR 0061): the learner reads [targetText] aloud; the platform
+  /// speech recognizer transcribes it and the app compares word-by-word
+  /// (word-level matching — intelligibility, not phone-level pronunciation
+  /// scoring) and submits a binary pass/fail through the standard pipeline.
+  ///
+  /// Model audio is not a pre-generated asset: the renderer speaks
+  /// [targetText] through the normal TTS path. Platforms without a usable
+  /// recognizer (the companion build, see `ReadAloudBackend`) degrade this to
+  /// a listen-only card so the lesson still progresses.
+  const factory Interaction.readAloud({
+    @Default('') String id,
+    required String targetText,
+    @Default('Read the sentence aloud') String prompt,
+    String? grammarPointId,
+  }) = ReadAloud;
+
   factory Interaction.fromJson(Map<String, dynamic> json) {
     try {
       return _$InteractionFromJson(json);
@@ -283,6 +299,7 @@ String? interactionGrammarPointId(Interaction interaction) {
     ReadingMcq(:final grammarPointId) => grammarPointId,
     ReadingTrueFalse(:final grammarPointId) => grammarPointId,
     ReadingShortAnswer(:final grammarPointId) => grammarPointId,
+    ReadAloud(:final grammarPointId) => grammarPointId,
     AnkiCard() => null,
     AnkiHtmlCard() => null,
     ImageRecall() => null,
@@ -316,6 +333,9 @@ bool interactionAiHintEligible(Interaction interaction) {
     // reveal; offering a hint here would leak the answer's context.
     ImageRecall() => false,
     Dictation() => false,
+    // The sentence is fully visible; the task is speaking it, and a text hint
+    // cannot help with that.
+    ReadAloud() => false,
   };
 }
 
@@ -340,6 +360,7 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     AnkiHtmlCard(:final backHtml) => backHtml,
     ImageRecall(:final answerText) => answerText,
     Dictation(:final expected) => expected,
+    ReadAloud(:final targetText) => targetText,
   };
 }
 
@@ -365,6 +386,9 @@ String interactionPromptLabel(Interaction interaction) {
     // Neither has a text prompt on the question face by design.
     ImageRecall() => '',
     Dictation() => '',
+    // The default prompt is generic boilerplate; the sentence itself
+    // identifies the question in completion summaries.
+    ReadAloud(:final targetText) => targetText,
   };
 }
 
@@ -388,6 +412,7 @@ String interactionTypeLabel(Interaction interaction) {
     AnkiHtmlCard() => 'HTML Card',
     ImageRecall() => 'Image Recall',
     Dictation() => 'Dictation',
+    ReadAloud() => 'Read Aloud',
   };
 }
 
@@ -414,5 +439,6 @@ String? interactionOptionsLabel(Interaction interaction) {
     AnkiHtmlCard() => null,
     ImageRecall() => null,
     Dictation() => null,
+    ReadAloud() => null,
   };
 }

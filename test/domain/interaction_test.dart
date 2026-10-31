@@ -40,6 +40,35 @@ void main() {
       expect(mc.options, ['a', 'b']);
       expect(mc.correctIndex, 0);
     });
+
+    test('readAloud parses with its wire discriminator', () {
+      final interaction = Interaction.fromJson(const {
+        'runtimeType': 'readAloud',
+        'id': 'ra-1',
+        'targetText': 'Merhaba!',
+        'prompt': '读出这句话',
+      });
+      expect(interaction, isA<ReadAloud>());
+      final ra = interaction as ReadAloud;
+      expect(ra.targetText, 'Merhaba!');
+      expect(ra.prompt, '读出这句话');
+      expect(ra.grammarPointId, isNull);
+    });
+
+    test('readAloud missing targetText degrades to the sentinel', () {
+      // A readAloud without its required field is a malformed item: the
+      // fallback ShowWord must swallow it so the lesson still loads, with
+      // the sentinel wordId the validator reports.
+      final interaction = Interaction.fromJson(const {
+        'runtimeType': 'readAloud',
+        'id': 'ra-broken',
+      });
+      expect(interaction, isA<ShowWord>());
+      expect(
+        (interaction as ShowWord).wordId,
+        '$unknownInteractionWordIdPrefix${'readAloud'}',
+      );
+    });
   });
 
   group('interactionAiHintEligible', () {
@@ -70,6 +99,15 @@ void main() {
       );
       expect(
         interactionAiHintEligible(const Interaction.listenOnly(transcript: '')),
+        isFalse,
+      );
+    });
+
+    test('ReadAloud is NOT eligible (task is speaking, not comprehension)', () {
+      expect(
+        interactionAiHintEligible(
+          const Interaction.readAloud(targetText: 'Merhaba!'),
+        ),
         isFalse,
       );
     });

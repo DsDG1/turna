@@ -75,6 +75,7 @@ INTERACTION_LABELS: dict[str, str] = {
     InteractionType.READING_SHORT_ANSWER: "阅读简答",
     InteractionType.ANKI_CARD: "Anki 卡片",
     InteractionType.ANKI_HTML_CARD: "Anki HTML 卡片",
+    InteractionType.READ_ALOUD: "跟读",
 }
 
 TEMPLATE_LABELS: dict[str, str] = {
@@ -236,6 +237,14 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("sourceNoteId", False, "string", ""),
         FieldSpec("sourceCardId", False, "string", ""),
         FieldSpec("wordId", False, "string", ""),
+    ],
+    # 跟读 (ADR 0061): the learner reads targetText aloud; the app speaks it
+    # via TTS as the model (no audioAsset) and scores word-level matching.
+    InteractionType.READ_ALOUD: [
+        FieldSpec("id", False, "string", ""),
+        FieldSpec("targetText", True, "string", ""),
+        FieldSpec("prompt", False, "string", "Read the sentence aloud"),
+        FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
 }
 

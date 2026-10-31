@@ -13,12 +13,14 @@ import 'package:turna/views/lesson/components/interactions/multiple_choice_rende
 import 'package:turna/views/lesson/components/interactions/reading_mcq_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reading_short_answer_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reading_true_false_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/read_aloud_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reorder_sentence_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/show_word_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/translate_sentence_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/type_the_word_renderer.dart';
 
 import 'renderers/fake_audio_controller.dart';
+import 'renderers/fake_read_aloud_backend.dart';
 
 void main() {
   final renderers = <InteractionRenderer>{
@@ -36,6 +38,7 @@ void main() {
     ReadingShortAnswerRenderer(),
     ImageRecallRenderer(),
     DictationRenderer(),
+    ReadAloudRenderer(FakeReadAloudBackend()),
   };
 
   final samples = <Interaction>[
@@ -103,6 +106,7 @@ void main() {
       audioAssets: ['word.mp3'],
       expected: 'kedi',
     ),
+    const Interaction.readAloud(id: 'n', targetText: 'Merhaba!'),
   ];
 
   test('every Interaction variant resolves a renderer', () {

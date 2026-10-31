@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/render/official_anki_media_resol
 import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/html_stripper.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
@@ -330,7 +331,8 @@ class AudioController {
     double? speed,
     String? languageCode,
   }) async {
-    if (text.isEmpty) {
+    final cleanText = stripHtml(text).trim();
+    if (cleanText.isEmpty) {
       const empty = TtsSpeakResult(
         source: TtsSpeakSource.failed,
         error: 'empty text',
@@ -342,7 +344,7 @@ class AudioController {
     final effectiveSpeed = speed ?? _ttsSpeed;
 
     try {
-      await _speakWithSystemTts(text, effectiveSpeed,
+      await _speakWithSystemTts(cleanText, effectiveSpeed,
           languageCode: languageCode);
       const ok = TtsSpeakResult(source: TtsSpeakSource.system);
       _lastSpeakResult = ok;

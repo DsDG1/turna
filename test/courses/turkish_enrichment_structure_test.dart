@@ -1,6 +1,12 @@
-// Structural gates for the non–AI-pipeline Turkish content enrichment.
-// Asserts the shipped assets/courses/turkish tree: no placeholders, multi-
-// lesson units, listening + reading per section, and material pool growth.
+// Structural gates for the retired sample course (`assets/courses/turkish`).
+//
+// This tree is no longer the course the app ships: `assets/courses/manifest.json`
+// points `tr` at `nouveau-turkish/`. It stays packed because it is the only
+// complete 8-section reference course (and several fixtures read its real
+// files), so the gates below guard it against accidental edits — they describe
+// the legacy tree, not current product content. Shipped-content coverage lives
+// in `course_loader_test.dart`, `seeder_round_trip_test.dart`, and
+// `docs/content_inventory_current.md`.
 
 import 'dart:convert';
 import 'dart:io';
@@ -49,7 +55,7 @@ void main() {
         as List<dynamic>;
   });
 
-  test('index keeps 8 sections A1→B2 with prerequisite chain', () {
+  test('legacy tree keeps 8 sections A1→B2 with prerequisite chain', () {
     final shells = index['sections'] as List<dynamic>;
     expect(shells, hasLength(8));
     final levels = shells.map((s) => (s as Map)['level']).toList();

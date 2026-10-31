@@ -7,6 +7,19 @@
 
 ---
 
+### 2026-10-31 语音朗读与跟读识别优化（跟读示范音 + 数词/4字母词/撇号/戴帽元音对齐容错）
+
+- **性质**：体验与算法优化批次；**测试数 +7**（`read_aloud_scoring_test` +4 条：数词与数字双向等价、4 字母词单编辑距离容错、撇号规整、戴帽元音对比；`turkish_text_test` +1 条：长元音/戴帽元音折叠；`read_aloud_backend_test` +1 条：Locale 候选智能解析；`interaction_renderers_test` +1 条：跟读卡片发音示范 SpeakerButton 渲染与点击）。
+- **改动**：
+  1. `lib/views/lesson/components/interactions/read_aloud_renderer.dart`：在 `_ReadAloudBody`（正常跟读卡片）中补齐 `SpeakerButton`，支持学习者开口前随时收听标准示范音；实现录音与 TTS 双向通道互斥（录音启动时即时切断底层 TTS，点击发音时即时停止麦克风录音）；`_MicButton` 增加录音中的呼吸阴影动效（`AnimatedContainer`）。
+  2. `lib/core/read_aloud_scoring.dart`：增补 0–10 常用数词与阿拉伯数字双向等价映射（彻底解决 ASR 将 "Bir çay" 识成 "1 çay" 导致的判错问题）；放宽单编辑距离容错门槛至 $\ge 4$ 字母（使 `ışık ↔ isik` 等核心高频词符合 ADR 0061 容错设计）；`_normalizeFolded` 剥除比较层撇号（兼容 `Türkiye'de ↔ Türkiyede` 专有名词黏着）。
+  3. `lib/core/turkish_text.dart`：`foldTurkish` 支持戴帽长元音（`â, î, û` 折叠为 `a, i, u`）。
+  4. `lib/service/read_aloud_backend.dart`：`SpeechToTextReadAloudBackend.resolveLocaleId` 针对请求语言（如 `tr`）智能候选匹配系统可用 Locale（优先匹配 `tr-TR` / `tr_TR`），提升 iOS / Android OEM 设备的可用性。
+  5. `lib/application/audio_controller.dart`：`_speakWithResult` 前置接入 `stripHtml` 文本清洗，去除富文本/HTML实体干扰。
+- **未验**：真机环境下不同系统 ASR 引擎对更长连续句子的识别延迟与分段表现。
+
+---
+
 ### 2026-10-31 全 app 材质统一：彩色玻璃（ADR 0062，B0/B0.5/B1 批次）
 
 - **性质**：视觉批次；**测试数 +9**（新增 `views/widgets/glass_tokens_test` 7 条、`golden/practice_card_golden_test` 2 条）+ **golden 基线 +2**（`practice_card_light/dark`），golden 总数 12 → 14。

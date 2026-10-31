@@ -16,7 +16,7 @@ Examples:
   python tool/generate_audio.py all --voice-id male-qn-jingying --speed 0.9
   python tool/generate_audio.py all --model speech-2.8-turbo --emotion calm
   python tool/generate_audio.py list section:foundations
-  python tool/generate_audio.py speak "Habari za asubuhi" assets/sounds/turkish/listening/l-greetings.mp3
+  python tool/generate_audio.py speak "Günaydın" assets/sounds/turkish/listening/l-greetings.mp3
 
 ``language_boost`` defaults to the course's own language (``index.json``
 ``language``: ``tr`` → ``Turkish``); an explicit ``--language-boost`` wins, and
@@ -45,7 +45,30 @@ from typing import Any
 
 from course_cli import is_listening_lesson  # type: ignore
 
-COURSE_DIR = Path(__file__).resolve().parent.parent / "assets" / "courses" / "turkish"
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _packed_course_dir() -> Path:
+    """Course dir the app ships, per the language manifest (absolute path).
+
+    Follows `assets/courses/manifest.json` so audio generation never scans a
+    retired course tree. Falls back to the NouveauTurkish directory when the
+    manifest is missing or malformed.
+    """
+    manifest = _REPO_ROOT / "assets" / "courses" / "manifest.json"
+    dir_name = "nouveau-turkish"
+    try:
+        with manifest.open("r", encoding="utf-8") as f:
+            for lang in json.load(f).get("languages", []):
+                if lang.get("dir"):
+                    dir_name = str(lang["dir"])
+                    break
+    except (OSError, ValueError, KeyError):
+        pass
+    return _REPO_ROOT / "assets" / "courses" / dir_name
+
+
+COURSE_DIR = _packed_course_dir()
 SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds" / "turkish"
 
 MINIMAX_API_URL = os.environ.get("MINIMAX_API_URL", "https://api.minimax.io/v1/t2a_v2")
@@ -583,7 +606,7 @@ def main(argv: list[str] | None = None) -> int:
         "--course-dir",
         type=Path,
         default=COURSE_DIR,
-        help="Course directory (default: assets/courses/turkish)",
+        help=f"Course directory (default: {COURSE_DIR.relative_to(_REPO_ROOT).as_posix()})",
     )
     parser.add_argument(
         "--sounds-dir",

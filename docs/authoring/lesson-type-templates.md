@@ -7,8 +7,8 @@
 > 所有 JSON 编写完成后必须运行：
 >
 > ```bash
-> python tool/course_cli.py validate --course-dir assets/courses/turkish
-> python tool/course_cli.py lint --course-dir assets/courses/turkish
+> python tool/course_cli.py validate
+> python tool/course_cli.py lint
 > ```
 
 ---
@@ -59,6 +59,20 @@ app 播放时把**每个子课当作一节自包含的小课**：走完一个子
 - `fillBlank`：填空
 - `translateSentence`：翻译句子
 - `reorderSentence`：句子排序
+- `readAloud`：跟读（[ADR 0061](../decisions/0061-read-aloud-word-matching.md)）。
+  只有 `targetText` 必填（非空，Dart 与 Python validator 都查）——示范音不写
+  `audioAsset`，app 用 TTS 直接读 `targetText`；识别与逐词比对由 app 完成，
+  评分二元（≥60% 词读到为过）。平台不支持时自动降级为听示范卡，内容侧无需
+  关心。示例：
+
+  ```json
+  {
+    "runtimeType": "readAloud",
+    "id": "ra-u1-merhaba",
+    "targetText": "Merhaba!",
+    "prompt": "进店的第一句，读出声来"
+  }
+  ```
 
 ### 示例
 

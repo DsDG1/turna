@@ -15,6 +15,7 @@ import 'package:turna/views/lesson/components/interactions/multiple_choice_rende
 import 'package:turna/views/lesson/components/interactions/reading_mcq_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reading_short_answer_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reading_true_false_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/read_aloud_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/reorder_sentence_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/show_word_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/translate_sentence_renderer.dart';
@@ -55,6 +56,7 @@ abstract class RendererModule {
     AnkiHtmlCardRetiredRenderer ankiHtmlCard,
     ImageRecallRenderer imageRecall,
     DictationRenderer dictation,
+    ReadAloudRenderer readAloud,
   ) =>
       {
         showWord,
@@ -73,5 +75,6 @@ abstract class RendererModule {
         ankiHtmlCard,
         imageRecall,
         dictation,
+        readAloud,
       };
 }

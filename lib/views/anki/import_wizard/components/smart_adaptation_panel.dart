@@ -280,10 +280,13 @@ String _issueLabel(AdaptationIssue issue) {
   // 文案统一收在 AppStrings（字符串表是术语门禁的扫描面，散落在组件里
   // 的中文字面量改口径时容易漏）。
   return switch (issue) {
-    AdaptationIssue.schemaVersion => AppStrings.ankiAdaptationIssueSchemaVersion,
+    AdaptationIssue.schemaVersion =>
+      AppStrings.ankiAdaptationIssueSchemaVersion,
     AdaptationIssue.scopeSource => AppStrings.ankiAdaptationIssueScopeSource,
-    AdaptationIssue.scopeNotetype => AppStrings.ankiAdaptationIssueScopeNotetype,
-    AdaptationIssue.scopeTemplate => AppStrings.ankiAdaptationIssueScopeTemplate,
+    AdaptationIssue.scopeNotetype =>
+      AppStrings.ankiAdaptationIssueScopeNotetype,
+    AdaptationIssue.scopeTemplate =>
+      AppStrings.ankiAdaptationIssueScopeTemplate,
     AdaptationIssue.unknownBlockKind =>
       AppStrings.ankiAdaptationIssueUnknownBlockKind,
     AdaptationIssue.unknownSelection =>
@@ -296,9 +299,11 @@ String _issueLabel(AdaptationIssue issue) {
       AppStrings.ankiAdaptationIssueUnknownDefaultExercise,
     AdaptationIssue.unknownBindingRole =>
       AppStrings.ankiAdaptationIssueUnknownBindingRole,
-    AdaptationIssue.unknownFallback => AppStrings.ankiAdaptationIssueUnknownFallback,
+    AdaptationIssue.unknownFallback =>
+      AppStrings.ankiAdaptationIssueUnknownFallback,
     AdaptationIssue.emptyFront => AppStrings.ankiAdaptationIssueEmptyFront,
-    AdaptationIssue.answerOnFront => AppStrings.ankiAdaptationIssueAnswerOnFront,
+    AdaptationIssue.answerOnFront =>
+      AppStrings.ankiAdaptationIssueAnswerOnFront,
     AdaptationIssue.backOnlyFieldOnFront =>
       AppStrings.ankiAdaptationIssueBackOnlyFieldOnFront,
     AdaptationIssue.allSamplesUnsupported =>

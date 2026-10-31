@@ -255,6 +255,18 @@
                         "source": "你好",
                         "expected": "merhaba",
                         "hints": ["全小写", "7 个字母"]
+                      },
+                      {
+                        "runtimeType": "readAloud",
+                        "id": "ra-sl2-merhaba",
+                        "targetText": "Merhaba!",
+                        "prompt": "进店的第一句，这次读出声来——应用会听你读得怎么样"
+                      },
+                      {
+                        "runtimeType": "readAloud",
+                        "id": "ra-sl2-tesekkurler",
+                        "targetText": "Teşekkürler!",
+                        "prompt": "接过咖啡的这句也读一遍。跟读需要麦克风权限，识别由系统语音服务完成"
                       }
                     ]
                   }

@@ -226,7 +226,7 @@ python tool/mix_listening_a1.py one \
 
 ### 4.4 批量生成 MiniMax 语音
 
-批量生成命令、环境变量与脚本行为见 [`project-guide.md`](../project-guide.md) §12.1（`tool/generate_audio.py`，MiniMax T2A v2）。脚本扫描 `assets/courses/turkish/` 下 `template: listening` 的课程，按 `listeningPhases[].audioAsset` + `transcript` 生成 MP3 到 `assets/sounds/turkish/listening/`。
+批量生成命令、环境变量与脚本行为见 [`project-guide.md`](../project-guide.md) §12.1（`tool/generate_audio.py`，MiniMax T2A v2）。脚本扫描 `assets/courses/manifest.json` 指向的课程目录（当前 `assets/courses/nouveau-turkish/`）下 `template: listening` 的课程，按 `listeningPhases[].audioAsset` + `transcript` 生成 MP3 到 `assets/sounds/turkish/listening/`。
 
 ---
 

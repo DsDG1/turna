@@ -45,6 +45,8 @@ Interaction _$InteractionFromJson(Map<String, dynamic> json) {
       return ImageRecall.fromJson(json);
     case 'dictation':
       return Dictation.fromJson(json);
+    case 'readAloud':
+      return ReadAloud.fromJson(json);
 
     default:
       throw CheckedFromJsonException(json, 'runtimeType', 'Interaction',
@@ -148,6 +150,7 @@ extension InteractionPatterns on Interaction {
     TResult Function(AnkiHtmlCard value)? ankiHtmlCard,
     TResult Function(ImageRecall value)? imageRecall,
     TResult Function(Dictation value)? dictation,
+    TResult Function(ReadAloud value)? readAloud,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -184,6 +187,8 @@ extension InteractionPatterns on Interaction {
         return imageRecall(_that);
       case Dictation() when dictation != null:
         return dictation(_that);
+      case ReadAloud() when readAloud != null:
+        return readAloud(_that);
       case _:
         return orElse();
     }
@@ -220,6 +225,7 @@ extension InteractionPatterns on Interaction {
     required TResult Function(AnkiHtmlCard value) ankiHtmlCard,
     required TResult Function(ImageRecall value) imageRecall,
     required TResult Function(Dictation value) dictation,
+    required TResult Function(ReadAloud value) readAloud,
   }) {
     final _that = this;
     switch (_that) {
@@ -255,6 +261,8 @@ extension InteractionPatterns on Interaction {
         return imageRecall(_that);
       case Dictation():
         return dictation(_that);
+      case ReadAloud():
+        return readAloud(_that);
     }
   }
 
@@ -288,6 +296,7 @@ extension InteractionPatterns on Interaction {
     TResult? Function(AnkiHtmlCard value)? ankiHtmlCard,
     TResult? Function(ImageRecall value)? imageRecall,
     TResult? Function(Dictation value)? dictation,
+    TResult? Function(ReadAloud value)? readAloud,
   }) {
     final _that = this;
     switch (_that) {
@@ -323,6 +332,8 @@ extension InteractionPatterns on Interaction {
         return imageRecall(_that);
       case Dictation() when dictation != null:
         return dictation(_that);
+      case ReadAloud() when readAloud != null:
+        return readAloud(_that);
       case _:
         return null;
     }
@@ -438,6 +449,9 @@ extension InteractionPatterns on Interaction {
     TResult Function(String id, List<String> audioAssets, String expected,
             String? hint, String? sourceNoteId)?
         dictation,
+    TResult Function(String id, String targetText, String prompt,
+            String? grammarPointId)?
+        readAloud,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -532,6 +546,9 @@ extension InteractionPatterns on Interaction {
       case Dictation() when dictation != null:
         return dictation(_that.id, _that.audioAssets, _that.expected,
             _that.hint, _that.sourceNoteId);
+      case ReadAloud() when readAloud != null:
+        return readAloud(
+            _that.id, _that.targetText, _that.prompt, _that.grammarPointId);
       case _:
         return orElse();
     }
@@ -648,6 +665,9 @@ extension InteractionPatterns on Interaction {
     required TResult Function(String id, List<String> audioAssets,
             String expected, String? hint, String? sourceNoteId)
         dictation,
+    required TResult Function(
+            String id, String targetText, String prompt, String? grammarPointId)
+        readAloud,
   }) {
     final _that = this;
     switch (_that) {
@@ -741,6 +761,9 @@ extension InteractionPatterns on Interaction {
       case Dictation():
         return dictation(_that.id, _that.audioAssets, _that.expected,
             _that.hint, _that.sourceNoteId);
+      case ReadAloud():
+        return readAloud(
+            _that.id, _that.targetText, _that.prompt, _that.grammarPointId);
     }
   }
 
@@ -854,6 +877,9 @@ extension InteractionPatterns on Interaction {
     TResult? Function(String id, List<String> audioAssets, String expected,
             String? hint, String? sourceNoteId)?
         dictation,
+    TResult? Function(String id, String targetText, String prompt,
+            String? grammarPointId)?
+        readAloud,
   }) {
     final _that = this;
     switch (_that) {
@@ -947,6 +973,9 @@ extension InteractionPatterns on Interaction {
       case Dictation() when dictation != null:
         return dictation(_that.id, _that.audioAssets, _that.expected,
             _that.hint, _that.sourceNoteId);
+      case ReadAloud() when readAloud != null:
+        return readAloud(
+            _that.id, _that.targetText, _that.prompt, _that.grammarPointId);
       case _:
         return null;
     }
@@ -3392,6 +3421,118 @@ class _$DictationCopyWithImpl<$Res> implements $DictationCopyWith<$Res> {
       sourceNoteId: freezed == sourceNoteId
           ? _self.sourceNoteId
           : sourceNoteId // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class ReadAloud implements Interaction {
+  const ReadAloud(
+      {this.id = '',
+      required this.targetText,
+      this.prompt = 'Read the sentence aloud',
+      this.grammarPointId,
+      final String? $type})
+      : $type = $type ?? 'readAloud';
+  factory ReadAloud.fromJson(Map<String, dynamic> json) =>
+      _$ReadAloudFromJson(json);
+
+  @override
+  @JsonKey()
+  final String id;
+  final String targetText;
+  @JsonKey()
+  final String prompt;
+  final String? grammarPointId;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $ReadAloudCopyWith<ReadAloud> get copyWith =>
+      _$ReadAloudCopyWithImpl<ReadAloud>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$ReadAloudToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is ReadAloud &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.targetText, targetText) ||
+                other.targetText == targetText) &&
+            (identical(other.prompt, prompt) || other.prompt == prompt) &&
+            (identical(other.grammarPointId, grammarPointId) ||
+                other.grammarPointId == grammarPointId));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, id, targetText, prompt, grammarPointId);
+
+  @override
+  String toString() {
+    return 'Interaction.readAloud(id: $id, targetText: $targetText, prompt: $prompt, grammarPointId: $grammarPointId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $ReadAloudCopyWith<$Res>
+    implements $InteractionCopyWith<$Res> {
+  factory $ReadAloudCopyWith(ReadAloud value, $Res Function(ReadAloud) _then) =
+      _$ReadAloudCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id, String targetText, String prompt, String? grammarPointId});
+}
+
+/// @nodoc
+class _$ReadAloudCopyWithImpl<$Res> implements $ReadAloudCopyWith<$Res> {
+  _$ReadAloudCopyWithImpl(this._self, this._then);
+
+  final ReadAloud _self;
+  final $Res Function(ReadAloud) _then;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? targetText = null,
+    Object? prompt = null,
+    Object? grammarPointId = freezed,
+  }) {
+    return _then(ReadAloud(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      targetText: null == targetText
+          ? _self.targetText
+          : targetText // ignore: cast_nullable_to_non_nullable
+              as String,
+      prompt: null == prompt
+          ? _self.prompt
+          : prompt // ignore: cast_nullable_to_non_nullable
+              as String,
+      grammarPointId: freezed == grammarPointId
+          ? _self.grammarPointId
+          : grammarPointId // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }

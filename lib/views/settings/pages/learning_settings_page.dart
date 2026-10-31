@@ -10,6 +10,7 @@ import 'package:turna/application/settings/commands/reset_learning_settings_comm
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/settings_course_restore_tile.dart';
@@ -98,6 +99,8 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
                 ),
                 const _TtsSpeedGate(),
                 settingsTileDivider(context),
+                const _ReadAloudGate(),
+                settingsTileDivider(context),
                 const SettingsSrsRetentionTile(),
                 settingsTileDivider(context),
                 const SettingsReviewBatchTile(),
@@ -140,6 +143,26 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 跟读 (mic recognition) master switch, ADR 0061. Hidden entirely on builds
+/// without a recognizer (the companion build) — a toggle that cannot work is
+/// worse than an absent one. The divider travels with the tile, same as
+/// [_TtsSpeedGate].
+class _ReadAloudGate extends StatelessWidget {
+  const _ReadAloudGate();
+
+  @override
+  Widget build(BuildContext context) {
+    if (isDegraded(OhosDegradation.readAloud)) return const SizedBox.shrink();
+    return SettingsToggleTile(
+      icon: Icons.mic_rounded,
+      title: AppStrings.settingsReadAloudTitle,
+      subtitle: AppStrings.settingsReadAloudSubtitle,
+      valueSelector: (p) => p.readAloudExercisesEnabled,
+      onChanged: (p, v) => p.setReadAloudExercisesEnabled(v),
     );
   }
 }

@@ -203,7 +203,6 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
     return parts.isEmpty ? null : parts.join(' · ');
   }
 
-
   List<String> _kindsFor(StudyPresetMode mode) {
     return switch (mode) {
       StudyPresetMode.interactive => const <String>[

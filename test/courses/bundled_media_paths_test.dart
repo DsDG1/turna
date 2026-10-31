@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/courses/bundled_media_paths.dart';
 
 void main() {
+  // Sample course dir for the pure string-rewrite helper; the helper is
+  // language-agnostic, so the value only has to be a plausible asset root.
   const dir = 'assets/courses/turkish';
 
   test('media/ refs become bundled asset paths', () {

@@ -508,7 +508,7 @@ class PracticeItemsDialog(QDialog):
 
     The panel binds to ``{"items": entry["practiceItems"]}`` so add/delete/edit
     mutate the entry's actual list in place (same reference, no copy-back
-    needed). Supports all 14 interaction runtimeTypes incl. anki cards.
+    needed). Supports all 15 interaction runtimeTypes incl. anki cards.
     """
 
     def __init__(

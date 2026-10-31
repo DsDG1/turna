@@ -26,8 +26,9 @@ import 'package:turna/domain/course/word_entry.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
 ///
-/// The DB is a derived cache of `assets/courses/turkish/`. Content is stored
-/// **normalized** — the seeder runs `parseSection` before writing the
+/// The DB is a derived cache of the bundled course JSON
+/// (`assets/courses/<lang>/`, resolved through `CourseContentSource`). Content
+/// is stored **normalized** — the seeder runs `parseSection` before writing the
 /// `LessonContent` blob.
 ///
 /// **Invariant:** skip only when `contentVersion` meta equals the asset

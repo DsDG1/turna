@@ -88,7 +88,8 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     String asset,
     Future<String?> Function(String) resolve,
   ) async {
-    if (AnkiAudioResolver.isAnkiAsset(asset) || CoursePackMedia.isPackAsset(asset)) {
+    if (AnkiAudioResolver.isAnkiAsset(asset) ||
+        CoursePackMedia.isPackAsset(asset)) {
       return _resolveSafely(resolve, asset);
     }
     // Bare official-collection filename (`hello.mp3`): the official Anki

@@ -37,8 +37,12 @@ class AnkiSchemaShapeTest(unittest.TestCase):
     def test_anki_types_registered(self) -> None:
         self.assertIn("ankiCard", ALLOWED_RUNTIME_TYPES)
         self.assertIn("ankiHtmlCard", ALLOWED_RUNTIME_TYPES)
-        # Appended at the end — existing order untouched.
-        self.assertEqual(ALLOWED_RUNTIME_TYPES[-2:], ("ankiCard", "ankiHtmlCard"))
+        # Anki types appended before readAloud — existing order untouched,
+        # readAloud (ADR 0061) is the latest tail entry.
+        self.assertEqual(
+            ALLOWED_RUNTIME_TYPES[-3:],
+            ("ankiCard", "ankiHtmlCard", "readAloud"),
+        )
 
     def test_anki_card_field_set(self) -> None:
         self.assertEqual(

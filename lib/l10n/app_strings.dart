@@ -647,6 +647,21 @@ class AppStrings {
   static String get settingsTtsSpeedTitle => 'TTS 语速';
   static String get settingsTtsSpeedSubtitle => '调整语音播放速度';
   static String settingsTtsSpeedValue(String ttsSpeed) => '${ttsSpeed}x';
+  static String get settingsReadAloudTitle => '跟读练习';
+  static String get readAloudCaption => '跟读';
+  static String get settingsReadAloudSubtitle =>
+      '对着句子朗读，应用识别比对。语音由系统识别服务处理，可能经网络';
+  static String get settingsReadAloudUnavailable => '此设备暂不支持跟读识别，跟读题会以听示范形式出现';
+  static String get readAloudMicHint => '点击麦克风，读出这句话';
+  static String get readAloudListening => '正在听……读完后稍作停顿';
+  static String get readAloudStop => '点击停止';
+  static String get readAloudHeardPrefix => '听到的是：';
+  static String get readAloudNoMatch => '没听清，再点麦克风试一次';
+  static String get readAloudPermissionDenied => '麦克风权限被拒绝——请在系统设置中允许后重试';
+  static String get readAloudDegradedHint => '跟读识别不可用：先听示范，再自己读一遍';
+  static String get readAloudEnableTitle => '跟读练习未开启';
+  static String get readAloudEnableHint => '开启后可以对着句子朗读，应用会识别比对';
+  static String get readAloudEnableAction => '开启跟读练习';
   static String get settingsDailyReminderTitle => '每日提醒';
   static String get settingsDailyReminderSubtitle => '温和地提醒复习——无连续天数惩罚';
   static String get settingsDailyReminderUnsupported => '当前平台暂不支持本地通知，这个开关用不了';
@@ -821,8 +836,7 @@ class AppStrings {
   static String get aboutMilestone1Body =>
       '完成整洁架构框架：依赖注入整合、音频/内容解耦、SRS 队列基类、GameProvider 外观模式、集成测试、发布流水线。';
   static String get aboutMilestone2Title => '斯瓦希里语 → 土耳其语转向';
-  static String get aboutMilestone2Body =>
-      '将目标语言迁移到土耳其语，并在第 1 章填充了真实的问候语课程（8 个单词 + 2 个表达）。';
+  static String get aboutMilestone2Body => '将目标语言迁移到土耳其语，并完成第 1 章的问候语课程。';
   static String get aboutMilestone3Title => '无障碍设置';
   static String get aboutMilestone3Body =>
       '添加了神经多样性友好选项：文字大小、减弱动态效果、高对比度、阅读障碍友好字体、感官减弱、专注模式。';
@@ -993,8 +1007,7 @@ class AppStrings {
   static String ankiAdaptationPlanLabel(String planId, int revision) =>
       '方案 $planId · 修订 $revision';
   static String get ankiAdaptationRestoreTitle => '显示方式';
-  static String get ankiAdaptationRestoreHint =>
-      '这些组目前按适配方案展示，恢复后回到原卡；排期不受影响';
+  static String get ankiAdaptationRestoreHint => '这些组目前按适配方案展示，恢复后回到原卡；排期不受影响';
   static String get ankiAdaptationRestoreEmpty => '当前没有生效的适配方案';
   static String get ankiAdaptationRestoreOne => '恢复原卡';
   static String get ankiAdaptationRestoreAll => '全部恢复原卡';
@@ -2042,8 +2055,7 @@ class AppStrings {
   static String ankiPendingImportPhase(String phase) => '阶段：$phase';
   static String get ankiImportDialogTitle => '导入记忆卡组';
   static String get ankiImportSelectTitle => '导入记忆卡组';
-  static String get ankiImportSelectSubtitle =>
-      '先在牌组应用导出牌组文件（.apkg），再从这里导入。';
+  static String get ankiImportSelectSubtitle => '先在牌组应用导出牌组文件（.apkg），再从这里导入。';
   static String get ankiChooseFile => '选择文件';
   // Wizard step labels for the new step indicator at the top of the page.
   static String get ankiStepSelect => '选择文件';

@@ -23,6 +23,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _hapticFeedbackEnabled = true;
   double _ttsSpeed = 1.0;
   bool _ttsFeatureEnabled = false;
+  bool _readAloudExercisesEnabled = false;
   bool _dailyReminderEnabled = false;
   int _dailyReminderHour = 19;
   int _dailyReminderMinute = 0;
@@ -47,6 +48,13 @@ class SettingsProvider extends ChangeNotifier {
   /// speak buttons keep working. Not reset by "reset learning defaults" —
   /// it gates a feature, not a learning parameter.
   bool get ttsFeatureEnabled => _ttsFeatureEnabled;
+
+  /// Master gate for 跟读 (mic recognition) exercises, ADR 0061: opt-in
+  /// (default off). Opt-in because recognition runs through the platform
+  /// speech service, which may process audio over the network; the settings
+  /// copy says so. While off, read-aloud exercises degrade to listen-only
+  /// cards. Not reset by "reset learning defaults".
+  bool get readAloudExercisesEnabled => _readAloudExercisesEnabled;
 
   bool get dailyReminderEnabled => _dailyReminderEnabled;
   int get dailyReminderHour => _dailyReminderHour;
@@ -84,6 +92,9 @@ class SettingsProvider extends ChangeNotifier {
         .getValue();
     _ttsFeatureEnabled = _appPrefs.preferences
         .getBool(LocalStateKeys.ttsFeatureEnabled, defaultValue: false)
+        .getValue();
+    _readAloudExercisesEnabled = _appPrefs.preferences
+        .getBool(LocalStateKeys.readAloudExercisesEnabled, defaultValue: false)
         .getValue();
     _dailyReminderEnabled = _appPrefs.preferences
         .getBool(LocalStateKeys.dailyReminderEnabled, defaultValue: false)
@@ -151,6 +162,15 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setTtsFeatureEnabled(bool value) async {
     _ttsFeatureEnabled = value;
     await _appPrefs.setBool(LocalStateKeys.ttsFeatureEnabled, value: value);
+    notifyListeners();
+  }
+
+  Future<void> setReadAloudExercisesEnabled(bool value) async {
+    _readAloudExercisesEnabled = value;
+    await _appPrefs.setBool(
+      LocalStateKeys.readAloudExercisesEnabled,
+      value: value,
+    );
     notifyListeners();
   }
 

@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/service/audio_backend.dart';
+import 'package:turna/service/read_aloud_backend.dart';
 import 'package:turna/service/speech_backend.dart';
 
 /// Provides the two independent [AudioBackend] instances and the single
@@ -56,4 +57,11 @@ abstract class AudioModule {
     @Named('speechAudio') AudioBackend speech,
   ) =>
       createSpeechBackend(tts: tts, speaker: speech);
+
+  /// Read-aloud (跟读) recognition (ADR 0061). The factory itself handles the
+  /// platform split, so no `FlutterTts`-style manual gating is needed here:
+  /// on targets without a recognizer it returns the unavailable impl, which
+  /// never touches the plugin's platform channel.
+  @lazySingleton
+  ReadAloudBackend get readAloudBackend => createReadAloudBackend();
 }

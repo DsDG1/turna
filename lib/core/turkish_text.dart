@@ -11,10 +11,11 @@
 /// (`LanguageCodes.lookupFoldKey`) keeps the linguistic `I → ı` rule; lesson
 /// matching must stay **symmetric** for both sides of the compare.
 ///
-/// This helper strips combining marks (U+0300–U+036F) and collapses the
-/// dotted/dotless I family (`İ`, `I`, `ı`) to plain `i` so keyboard layout
-/// (ASCII vs Turkish) does not change the grade. Apply the same function to
-/// input and expected.
+/// This helper strips combining marks (U+0300–U+036F), collapses the
+/// dotted/dotless I family (`İ`, `I`, `ı`) to plain `i`, and normalizes
+/// circumflex vowels (`â/Â` → `a`, `î/Î` → `i`, `û/Û` → `u`) so keyboard
+/// layout (ASCII vs Turkish) and speech recognition transcriptions do not
+/// change the grade. Apply the same function to input and expected.
 String foldTurkish(String s) {
   final buf = StringBuffer();
   for (final rune in s.runes) {
@@ -22,6 +23,19 @@ String foldTurkish(String s) {
     if (rune == 0x0130 || rune == 0x0049 || rune == 0x0131) {
       // İ, ASCII I, and dotless ı all fold to `i` for compare-only grading.
       buf.writeCharCode(0x0069);
+      continue;
+    }
+    // Circumflex vowels â, î, û fold to plain a, i, u
+    if (rune == 0x00C2 || rune == 0x00E2) {
+      buf.writeCharCode(0x0061); // a
+      continue;
+    }
+    if (rune == 0x00CE || rune == 0x00EE) {
+      buf.writeCharCode(0x0069); // i
+      continue;
+    }
+    if (rune == 0x00DB || rune == 0x00FB) {
+      buf.writeCharCode(0x0075); // u
       continue;
     }
     buf.writeCharCode(rune);

@@ -89,8 +89,7 @@ class SmartAdaptationHost extends StatelessWidget {
   OfficialAnkiMappingSuggestion _suggestionFor(
     OfficialAnkiProjectionSchema schema,
   ) {
-    return suggestions[schema.notetypeId] ??
-        officialAnkiSuggestMapping(schema);
+    return suggestions[schema.notetypeId] ?? officialAnkiSuggestMapping(schema);
   }
 
   Future<CardAdaptationResult> _generate(

@@ -112,7 +112,7 @@ class TemplateType(StrEnum):
 
 
 class InteractionType(StrEnum):
-    """The 14 interaction item runtimeType identifiers."""
+    """The 15 interaction item runtimeType identifiers."""
 
     SHOW_WORD = "showWord"
     MULTIPLE_CHOICE = "multipleChoice"
@@ -128,6 +128,8 @@ class InteractionType(StrEnum):
     READING_SHORT_ANSWER = "readingShortAnswer"
     ANKI_CARD = "ankiCard"
     ANKI_HTML_CARD = "ankiHtmlCard"
+    # 跟读 (ADR 0061): learner reads targetText aloud, app matches word-level.
+    READ_ALOUD = "readAloud"
 
 
 class ListeningPhaseType(StrEnum):

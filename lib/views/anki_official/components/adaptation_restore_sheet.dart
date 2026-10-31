@@ -166,8 +166,11 @@ class _AdaptationRestoreSheetState extends State<AdaptationRestoreSheet> {
                   children: [
                     Expanded(
                       child: Text(
-                        adaptationScopeLabel(entry, (id, template) =>
-                            AppStrings.ankiAdaptationScopeLabel(id, template)),
+                        adaptationScopeLabel(
+                            entry,
+                            (id, template) =>
+                                AppStrings.ankiAdaptationScopeLabel(
+                                    id, template)),
                         style: TextStyle(
                           fontSize: 13,
                           color: TurnaTheme.textPrimaryColor(context),
@@ -197,7 +200,6 @@ class _AdaptationRestoreSheetState extends State<AdaptationRestoreSheet> {
       ),
     );
   }
-
 }
 
 /// `notetype:template[:cloze]` → 人类可读标签。解析失败时原样返回，避免
@@ -210,4 +212,3 @@ String adaptationScopeLabel(
   if (scope == null) return scopeKey;
   return format(scope.notetypeId, scope.templateOrdinal);
 }
-

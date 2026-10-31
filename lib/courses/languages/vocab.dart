@@ -6,7 +6,7 @@ import 'package:turna/domain/course/word_entry.dart';
 
 /// Curated target-language vocabulary for the SRS word pool.
 ///
-/// Words are bundled in `assets/courses/turkish/vocab.json` and loaded
+/// Words are bundled in `assets/courses/<lang>/vocab.json` and loaded
 /// asynchronously at app start by [CourseLoader.load]. The synchronous
 /// lookups [vocabById] / [vocabByTranslation] are populated
 /// as a side-effect of the first call to [loadVocabulary] and

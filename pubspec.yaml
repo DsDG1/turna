@@ -48,6 +48,12 @@ dependencies:
   # Direct dep: remote backup reads prefs values untyped (sp.get) on top of
   # streaming_shared_preferences, which only exposes typed getters.
   shared_preferences: ^2.2.3
+  # Read-aloud (跟读) recognition on Android/iOS: platform SpeechRecognizer /
+  # SFSpeechRecognizer behind the app's ReadAloudBackend seam. No OHOS
+  # implementation exists — the backend factory returns an unavailable impl
+  # there, so the plugin's missing platform channel is never touched (ADR
+  # 0061). Plain upstream dependency, never a dependency_overrides entry.
+  speech_to_text: ^7.5.0
   sqlite3: ^2.4.0
   sqlite3_flutter_libs: ^0.5.24
   streaming_shared_preferences: ^2.0.0
@@ -82,7 +88,9 @@ flutter:
     - assets/courses/turkish/
     - assets/courses/turkish/sections/
     # 主线课程 NouveauTurkish（manifest 的 tr 语言指向这里）。旧的 turkish/
-    # 目录仍是打包资产：部分课程测试经 rootBundle 读它的真实文件。
+    # 目录仍是打包资产：它是唯一完整的 8 章参照课程，部分 fixture 与
+    # turkish_enrichment_structure_test 经 rootBundle 读它的真实文件。
+    # 退包条件：把这些测试改为读 test/fixtures/ 之后，才能删上面两行。
     - assets/courses/nouveau-turkish/
     - assets/courses/nouveau-turkish/sections/
     # 曾经有一门法语课程作为「多语言并存」的验收 fixture 打包在此。它已随

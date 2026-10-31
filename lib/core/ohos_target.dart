@@ -72,6 +72,12 @@ enum OhosDegradation {
   /// app-store compliance, not for a platform gap — see the class doc and
   /// ADR 0056.
   aiGeneration,
+
+  /// Read-aloud (跟读) recognition. The `speech_to_text` plugin has no OHOS
+  /// implementation and the platform's own recognizer (Core Speech Kit) is
+  /// Chinese-oriented, so the companion build degrades read-aloud exercises
+  /// to listen-only cards via `ReadAloudBackend.isSupported` (ADR 0061).
+  readAloud,
 }
 
 /// Degradations that apply to the running build. Empty everywhere but OHOS.

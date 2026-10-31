@@ -72,12 +72,16 @@ class LanguageManifest {
 
   /// Fallback list matching the packed manifest (Turkish only since 0.9 —
   /// French moved to `test/fixtures/` and is no longer a packed language).
+  ///
+  /// `dir` must stay byte-identical to `assets/courses/manifest.json`: when the
+  /// manifest asset fails to load, every course read falls back to this entry,
+  /// so a stale directory here silently seeds the retired course tree.
   static const List<LanguageDescriptor> packedFallback = [
     LanguageDescriptor(
       code: LanguageCodes.turkish,
       displayName: 'Turkish',
       ttsLocale: 'tr-TR',
-      dir: 'turkish',
+      dir: 'nouveau-turkish',
       nativeLabel: 'Türkçe öğren',
       signatureChars: 'ğĞıİşŞ',
     ),

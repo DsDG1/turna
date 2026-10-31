@@ -12,8 +12,9 @@ Subcommands:
   audio-manifest  Emit a CSV of all referenced audio assets and their status.
   diff            Compare two course directories and list changed IDs.
 
-All commands default to `assets/courses/turkish` as the course directory and
-can be overridden with `--course-dir`.
+All commands default to the course directory named by
+`assets/courses/manifest.json` (the course the app actually ships) and can be
+overridden with `--course-dir`.
 """
 
 from __future__ import annotations
@@ -28,7 +29,30 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-DEFAULT_COURSE_DIR = Path("assets/courses/turkish")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _packed_course_dir() -> Path:
+    """The course dir the app ships, per the language manifest.
+
+    Follows `assets/courses/manifest.json` so the default target never drifts
+    from what is actually bundled. Falls back to the NouveauTurkish directory
+    when the manifest is missing or malformed.
+    """
+    manifest = REPO_ROOT / "assets" / "courses" / "manifest.json"
+    dir_name = "nouveau-turkish"
+    try:
+        with manifest.open("r", encoding="utf-8") as f:
+            for lang in json.load(f).get("languages", []):
+                if lang.get("dir"):
+                    dir_name = str(lang["dir"])
+                    break
+    except (OSError, ValueError, KeyError):
+        pass
+    return Path("assets") / "courses" / dir_name
+
+
+DEFAULT_COURSE_DIR = _packed_course_dir()
 SOUNDS_DIR = Path("assets/sounds")
 
 # Design-contract limits (must match lib/courses/course_validator.dart).
@@ -649,6 +673,19 @@ def _validate_stages(
                             f"expressionId {expr_id}",
                         )
                     )
+            elif item.get("runtimeType") == "readAloud":
+                # Mirror of the Dart validator: readAloud is driven entirely
+                # by targetText (model audio is TTS), so an empty one leaves
+                # nothing to read or match against.
+                target_text = (item.get("targetText") or "").strip()
+                if not target_text:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"{prefix}ReadAloud {item_id} in stage {sid} "
+                            f"(lesson {lesson_id}) has empty targetText",
+                        )
+                    )
 
 
 def _validate_sub_lessons(
@@ -777,6 +814,16 @@ def _validate_listening_phases(
                             f"ShowWord {item_id} in listeningPhase {pid} "
                             f"(lesson {lesson_id}) references missing "
                             f"expressionId {expr_id}",
+                        )
+                    )
+            elif item.get("runtimeType") == "readAloud":
+                target_text = (item.get("targetText") or "").strip()
+                if not target_text:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"ReadAloud {item_id} in listeningPhase {pid} "
+                            f"(lesson {lesson_id}) has empty targetText",
                         )
                     )
 
@@ -1544,7 +1591,7 @@ def main(argv: list[str] | None = None) -> int:
         "--course-dir",
         type=_course_dir,
         default=DEFAULT_COURSE_DIR,
-        help="Course directory to operate on (default: assets/courses/turkish)",
+        help=f"Course directory to operate on (default: {DEFAULT_COURSE_DIR.as_posix()})",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
