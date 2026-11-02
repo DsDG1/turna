@@ -127,6 +127,8 @@
 
 ## 8. 设计翻新
 
+全 App 逐页重设计（计划见 [`app-design-refresh-plan.md`](./app-design-refresh-plan.md)）已进入实施：**P0 页面、状态与资产清点完成**，四份产物在 [`design-refresh/`](./design-refresh/)——页面覆盖表（含断链与死入口处置标注）、逐页旧版结构、资产清单、分级问题列表与截图场景口径。P1 进行中：AI 详情断链路由（A1）已修复注册；六类核心视觉稿浅色二稿已确认（课程主页为紧凑三层目录 + 底部继续条）；**P1 完成主体**：六类核心视觉稿浅色二稿已确认（课程主页为紧凑三层目录 + 底部继续条）；四类材质对照与深色 / 200% 字号 / 高对比样稿、R07–R10 / R11–R13 / R14–R18 全页面族线框已出，品牌规则与逐族决定收口在 [`design-refresh/p1-language-and-wireframes.md`](./design-refresh/p1-language-and-wireframes.md)。下一步 P2：按其「P2 输入」清单建立新版主题与组件系统。**记忆卡域独立于语言课程域已立 [ADR 0066](./decisions/0066-anki-deck-domain-independence.md)**：新版信息架构中课程管理不再含 Anki 牌组与导入卡、导入完成不再切换课程、练习中心不做 Anki 课程域裁剪；记忆卡功能与导入管线保持原版。开工前待办收敛为两项：五个无生产入口路由的处置（A2）、鸿蒙会话 chrome 契约显式化（A3，随复习域实现落地）。
+
 「湿地雾光」的公共色彩、纸面/玻璃材质、间距圆角、跨域卡片、静态几何图形、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
 
 **已取得的运行证据**：Pixel 6 / Android 15 模拟器的 debug 构建已走通启动、四个主 Tab、词典输入与无结果、深色、高对比、200% 字号，以及课程树展开 → 13/13 子课作答（含文本键盘输入）→ 完成 → 返回并显示真实进度。截图与覆盖记录位于 `dist/design-refresh/`。

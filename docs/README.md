@@ -28,6 +28,18 @@
 | [`../README.md`](../README.md) | 项目是什么、能做什么、怎么跑起来 |
 | [`../test/BASELINE.md`](../test/BASELINE.md) | 查最近某次改动的测试基线与收据 |
 
+## 设计翻新（全 App 重设计）
+
+P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-plan.md) 的逐页重设计；随实施阶段推进继续在此登记。
+
+| 文档 | 说明 |
+|---|---|
+| [`design-refresh/p0-coverage.md`](./design-refresh/p0-coverage.md) | 页面覆盖表：全部路由 / Tab 内嵌页 / 非路由页 / 弹层清单，处置分类含断链与死入口标注 |
+| [`design-refresh/p0-structure.md`](./design-refresh/p0-structure.md) | 逐页旧版结构：首屏模块顺序、交互区、状态覆盖与各页面族共性问题 |
+| [`design-refresh/p0-assets.md`](./design-refresh/p0-assets.md) | 资产清单：栅格资产、代码品牌系统、教学与记忆卡资产的重绘边界 |
+| [`design-refresh/p0-issues.md`](./design-refresh/p0-issues.md) | 问题列表（按是否阻断设计分级）与截图场景采集口径 |
+| [`design-refresh/p1-language-and-wireframes.md`](./design-refresh/p1-language-and-wireframes.md) | P1 定型：品牌规则要点、全局版面模式、R01–R18 逐族线框决定与 P2 组件输入 |
+
 ## 构建与发布
 
 | 文档 | 说明 |
@@ -95,6 +107,7 @@
 | [0063](./decisions/0063-settings-glass-quiet-tier.md) | 设置域深层页的弱化玻璃档 |
 | [0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md) | 子课提升为课程树节点与独立会话 |
 | [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 |
+| [0066](./decisions/0066-anki-deck-domain-independence.md) | 记忆卡域独立于语言课程域 |
 
 ## 其它位置
 
