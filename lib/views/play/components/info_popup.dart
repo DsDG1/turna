@@ -329,7 +329,7 @@ class _AnimatedPanel extends StatelessWidget {
               borderRadius: const BorderRadius.all(
                 Radius.circular(TurnaTheme.radiusXLarge),
               ),
-              border: Border.all(color: TurnaTheme.glassBorder(context)),
+              border: Border.all(color: TurnaTheme.dividerBg(context)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(

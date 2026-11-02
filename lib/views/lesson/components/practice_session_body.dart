@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/motion.dart';
+import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Shared lesson-practice chrome: stage banner, optional header (reading
 /// passage), scrollable renderer, bottom action bar.
@@ -114,10 +117,11 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
       ],
     );
 
+    final content = TurnaPageContent(maxWidth: 720, child: body);
     // 安全区只收一次: 有底栏时由底栏自己吞底部 inset (它的底色要铺满),
     // 没有底栏时退回到整列. 两边都加就会在按钮上方凭空多出 34px 死区.
-    if (!widget.autoAdvance) return body;
-    return SafeArea(top: false, left: false, right: false, child: body);
+    if (!widget.autoAdvance) return content;
+    return SafeArea(top: false, left: false, right: false, child: content);
   }
 }
 
@@ -132,9 +136,11 @@ class _EnterTransition extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+        accessibilityOf(context).reduceMotion;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 220),
+      duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
         opacity: t,

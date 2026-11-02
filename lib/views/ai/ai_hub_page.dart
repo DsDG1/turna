@@ -13,6 +13,8 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_practice_library_section.dart';
@@ -72,53 +74,56 @@ class AiHubPage extends StatelessWidget {
       ),
       body: SafeArea(
         top: false,
-        child: CustomScrollView(
-          slivers: [
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            const SliverToBoxAdapter(child: _HeroSection()),
-            // AI 助手入口的**页面级**显式标识：用户在产生第一轮输出之前
-            // 就知道这里的内容是模型生成的。单条输出的角标另由
-            // AiMarkdownBody 承担。
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
-              sliver: SliverToBoxAdapter(child: AiGeneratedBanner()),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
-            // 生成物不再直接写课程树：它们先进入「我的练习」，在这里看进度、
-            // 开工、存放或删除。生成任务由 app 级队列承载，切页不中断。
-            SliverToBoxAdapter(
-              child: AiPracticeLibrarySection(
-                onGenerate: () => showAiPracticeGenerateSheet(context),
+        child: TurnaPageContent(
+          maxWidth: 840,
+          child: CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              const SliverToBoxAdapter(child: _HeroSection()),
+              // AI 助手入口的**页面级**显式标识：用户在产生第一轮输出之前
+              // 就知道这里的内容是模型生成的。单条输出的角标另由
+              // AiMarkdownBody 承担。
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                sliver: SliverToBoxAdapter(child: AiGeneratedBanner()),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            const SliverToBoxAdapter(child: _ContinueSection()),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            const SliverToBoxAdapter(child: _StartSection()),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            // AI 助手偏好（回复语言/解释深度/揭示与上下文注入）——偏好属于
-            // 助手而不是连接配置，从 AI 连接页迁移至此（Plan 2 §6.2）。
-            const SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverToBoxAdapter(child: AiExplainPrefsCard()),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            // 系统提示词：把「AI 到底被交代了什么」摊开给用户看，并允许在
-            // 默认文本之后追加自己的要求（默认部分不可替换）。
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverToBoxAdapter(
-                child: ToolsTile(
-                  title: AppStrings.aiHubOpenPromptSheet,
-                  subtitle: AppStrings.aiHubOpenPromptSheetSubtitle,
-                  icon: Icons.code_rounded,
-                  accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
-                  onTap: () => showAiPromptSheet(context),
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              // 生成物不再直接写课程树：它们先进入「我的练习」，在这里看进度、
+              // 开工、存放或删除。生成任务由 app 级队列承载，切页不中断。
+              SliverToBoxAdapter(
+                child: AiPracticeLibrarySection(
+                  onGenerate: () => showAiPracticeGenerateSheet(context),
                 ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: _ContinueSection()),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: _StartSection()),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              // AI 助手偏好（回复语言/解释深度/揭示与上下文注入）——偏好属于
+              // 助手而不是连接配置，从 AI 连接页迁移至此（Plan 2 §6.2）。
+              const SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverToBoxAdapter(child: AiExplainPrefsCard()),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              // 系统提示词：把「AI 到底被交代了什么」摊开给用户看，并允许在
+              // 默认文本之后追加自己的要求（默认部分不可替换）。
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverToBoxAdapter(
+                  child: ToolsTile(
+                    title: AppStrings.aiHubOpenPromptSheet,
+                    subtitle: AppStrings.aiHubOpenPromptSheetSubtitle,
+                    icon: Icons.code_rounded,
+                    accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
+                    onTap: () => showAiPromptSheet(context),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            ],
+          ),
         ),
       ),
     );

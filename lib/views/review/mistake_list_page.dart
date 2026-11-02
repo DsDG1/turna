@@ -17,7 +17,7 @@ import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/home/motion/turna_motion.dart';
+import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/turna_select.dart';
@@ -123,10 +123,8 @@ class _MistakesStatsHeader extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Row(
@@ -318,11 +316,9 @@ class _MistakeCard extends StatelessWidget {
     final isWord = mistake.wordId != null;
 
     return Container(
-      // ADR 0062：错题列表是长列表 → 中性灰 L1Subtle，避免每张卡都带色相。
-      decoration: TurnaTheme.glassDecoration(
+      // 错题列表是重复的行：扁平纸面，色相留在图标和文字上。
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Padding(

@@ -15,6 +15,7 @@ import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
+import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -40,7 +41,12 @@ import 'package:turna/core/theme.dart';
 class NewLessonPage extends StatefulWidget {
   final String lessonId;
 
-  const NewLessonPage({super.key, required this.lessonId});
+  /// Targets one sub-lesson of a multi-sub-lesson lesson (course-tree node
+  /// entry): the session plays just that sub-lesson and settles per session
+  /// (ADR 0063). Null plays the whole lesson (flat lessons, legacy entries).
+  final String? subLessonId;
+
+  const NewLessonPage({super.key, required this.lessonId, this.subLessonId});
 
   @override
   State<NewLessonPage> createState() => _NewLessonPageState();
@@ -75,6 +81,7 @@ class _NewLessonPageState extends State<NewLessonPage>
 
   @override
   void dispose() {
+    unawaited(getIt<AudioController>().stopSystemTts());
     _vm.removeListener(_onVmChanged);
     _lessonScroll.dispose();
     super.dispose();
@@ -89,7 +96,10 @@ class _NewLessonPageState extends State<NewLessonPage>
       if (mounted) setState(() => _loadFailed = true);
       return;
     }
-    final ok = await _vm.loadLesson(widget.lessonId);
+    final ok = await _vm.loadLesson(
+      widget.lessonId,
+      subLessonId: widget.subLessonId,
+    );
     if (!mounted) return;
     if (!ok) {
       setState(() => _loadFailed = true);

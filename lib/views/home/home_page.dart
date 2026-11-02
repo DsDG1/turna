@@ -30,7 +30,8 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/splash/splash_page.dart';
-import 'package:turna/views/home/motion/turna_motion.dart';
+import 'package:turna/core/motion.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/home/components/components.dart';
 import 'package:turna/views/home/components/scroll_hide_bar.dart';
 import 'package:turna/views/home/components/tab_stack.dart';
@@ -305,12 +306,15 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: NotificationListener<ScrollNotification>(
                   onNotification: _onScrollNotification,
-                  child: TabStack(
-                    index: currentIndex,
-                    children: [
-                      for (var i = 0; i < _screens.length; i++)
-                        _visited[i] ? _screens[i] : const SizedBox.shrink(),
-                    ],
+                  child: TurnaPageContent(
+                    maxWidth: 960,
+                    child: TabStack(
+                      index: currentIndex,
+                      children: [
+                        for (var i = 0; i < _screens.length; i++)
+                          _visited[i] ? _screens[i] : const SizedBox.shrink(),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -8,7 +8,7 @@ import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/play/components/info_popup.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
 import 'package:turna/core/theme.dart';
 
 /// Play Hub 队列数据快照：一次从 providers 读取，供浮窗面板纯展示。

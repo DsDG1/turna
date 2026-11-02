@@ -12,14 +12,42 @@
 import 'dart:async';
 
 // Package imports:
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 
 // Project imports:
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/course_database.dart';
 
 import '../helpers/in_memory_course_db.dart';
+
+/// 夹具 section —— 自带一个 unit, 用来证明"正文真的被装载了".
+///
+/// 现成的课程 section 都不行: nt-s2…nt-s8 是"预留 · 待施工"（0 unit）,
+/// 而 nt-s1 正是 load() 预载的那一个. 这里自己插一行, 让本测试不依赖课程
+/// 资产的施工进度.
+const String _fixtureSectionId = 'nt-fixture-body';
+const String _fixtureUnitId = 'nt-fixture-body-u1';
+
+Future<void> _insertFixtureSection(CourseDatabase db) async {
+  await db.into(db.sections).insert(
+        SectionsCompanion.insert(
+          id: _fixtureSectionId,
+          name: '夹具 · 有正文',
+          // 排在课程 section 之后 —— load() 只预载第一个, 夹具不能当第一个.
+          sortOrder: const Value(999),
+        ),
+      );
+  await db.into(db.units).insert(
+        UnitsCompanion.insert(
+          id: _fixtureUnitId,
+          sectionId: _fixtureSectionId,
+          name: '夹具 unit',
+        ),
+      );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,11 +57,13 @@ void main() {
     late String targetSectionId;
 
     setUp(() async {
-      await seedInMemoryCourseDb();
+      final db = await seedInMemoryCourseDb();
+      await _insertFixtureSection(db);
       provider = CourseProvider();
       await provider.load();
-      // 选一个 body 尚未加载的 section（load() 只预载第一个）。
-      targetSectionId = provider.sections.last.id;
+      // 选一个 body 尚未加载、但有正文的 section（load() 只预载第一个）。
+      targetSectionId = _fixtureSectionId;
+      expect(provider.sections.map((s) => s.id), contains(targetSectionId));
       expect(
           provider.sectionLoadState(targetSectionId), SectionLoadState.initial);
     });

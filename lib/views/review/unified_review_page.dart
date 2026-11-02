@@ -19,6 +19,7 @@ import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/domain/review/review_source.dart';
 import 'package:turna/application/review/review_ledger_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
 import 'package:turna/views/review/components/binary_recall_bar.dart';
@@ -217,14 +218,16 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
 
   @override
   void dispose() {
+    unawaited(_audioController.stopSystemTts());
     _controller.removeListener(_onStateChanged);
     _controller.dispose();
     super.dispose();
   }
 
-  void _speakText(String text) {
+  Future<void> _speakText(String text, {bool feedback = false}) async {
     if (text.isEmpty) return;
-    _audioController.speak(text);
+    final result = await _audioController.speakWithResult(text);
+    if (feedback && mounted) showTtsFailureFeedback(context, result);
   }
 
   /// 讲解用的目标语言。
@@ -371,7 +374,8 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                         isRevealed: _controller.isRevealed,
                         onReveal: _controller.reveal,
                         onSpeak: content is StandardCourseCardContent
-                            ? () => _speakText(content.frontText)
+                            ? () =>
+                                _speakText(content.frontText, feedback: true)
                             : null,
                         onObjectiveResult: structured
                             ? (correct) {

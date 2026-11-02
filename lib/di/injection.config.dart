@@ -33,7 +33,6 @@ import '../application/ai/engine/ai_engine.dart' as _i717;
 import '../application/ai/engine/ai_engine_config_holder.dart' as _i691;
 import '../application/ai/engine/ai_http_client.dart' as _i518;
 import '../application/ai/engine/ai_recent_tasks_provider.dart' as _i687;
-import '../application/ai/engine/ai_usage_meter.dart' as _i644;
 import '../application/ai/practice/ai_practice_generator.dart' as _i1041;
 import '../application/ai/practice/ai_practice_job_queue.dart' as _i543;
 import '../application/ai/practice/ai_practice_source_context.dart' as _i372;
@@ -238,11 +237,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => audioModule.audioPlayer,
       instanceName: 'audioPlayer',
     );
-    gh.lazySingleton<_i717.AiEngine>(() => _i717.AiEngine(
-          gh<_i518.AiHttpClient>(),
-          gh<_i423.AiCache>(),
-          meter: gh<_i644.AiUsageMeter>(),
-        ));
     gh.lazySingleton<_i188.VocabAudioResolver>(
         () => _i73.VocabAudioResolverImpl());
     gh.lazySingleton<_i903.AudioBackend>(
@@ -291,6 +285,10 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i793.SettingsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i318.IAiPracticeRepository>(
         () => _i648.AiPracticeRepository(gh<_i604.CourseDatabase>()));
+    gh.lazySingleton<_i717.AiEngine>(() => _i717.AiEngine(
+          gh<_i518.AiHttpClient>(),
+          gh<_i423.AiCache>(),
+        ));
     gh.lazySingleton<_i1068.AiGroundedResourceProvider>(() =>
         _i1068.AiGroundedResourceProvider(
             repository: gh<_i876.ICourseRepository>()));
@@ -363,6 +361,10 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i80.AchievementService>(),
               gh<_i620.StudyStatsProvider>(),
             ));
+    gh.lazySingleton<_i740.ProgressProvider>(() => _i740.ProgressProvider(
+          gh<_i565.GameProvider>(),
+          lessonProgress: gh<_i409.LessonProgressProvider>(),
+        ));
     gh.lazySingleton<_i1041.AiPracticeGenerator>(
         () => _i1041.AiPracticeGenerator(
               gh<_i717.AiEngine>(),
@@ -404,8 +406,6 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i495.LessonCompletionCoordinator>(),
           progressProvider: gh<_i409.LessonProgressProvider>(),
         ));
-    gh.lazySingleton<_i740.ProgressProvider>(
-        () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
     gh.lazySingleton<_i936.AppRouter>(
         () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
     gh.lazySingleton<_i706.ReviewProgressProvider>(

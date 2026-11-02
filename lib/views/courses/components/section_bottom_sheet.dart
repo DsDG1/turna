@@ -51,10 +51,7 @@ class SectionBottomSheet extends StatelessWidget {
             ),
             boxShadow: TurnaTheme.cardShadow,
             border: Border(
-              top: BorderSide(
-                color: TurnaTheme.glassBorder(context),
-                width: 1.2,
-              ),
+              top: BorderSide(color: TurnaTheme.dividerBg(context)),
             ),
           ),
           child: SafeArea(

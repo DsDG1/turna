@@ -13,7 +13,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/ai/components/ai_practice_actions.dart';
 import 'package:turna/views/ai/components/ai_practice_card.dart';
 import 'package:turna/views/ai/components/ai_practice_job_banner.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
 
 /// "我的练习" block embedded in the AI Hub: running job + latest three drafts.
 class AiPracticeLibrarySection extends StatefulWidget {

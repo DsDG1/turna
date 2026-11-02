@@ -306,12 +306,18 @@ class _HeroCard extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            // 双色品牌渐变卡：描边取白高光而非中性灰，深色下也靠它保住边缘。
-            border: Border.all(color: TurnaTheme.glassBorder(context)),
+            // ADR 0063：一代白描边（浮起 chrome 用法）换成二代同色相描边。
+            border: Border.all(
+              color: TurnaTheme.glassStroke(
+                context,
+                TurnaTheme.glassFocus,
+                level: GlassLevel.l1Quiet,
+              ),
+            ),
             boxShadow: TurnaTheme.glassShadow(
               context,
               TurnaTheme.glassFocus,
-              level: GlassLevel.l1,
+              level: GlassLevel.l1Quiet,
             ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -689,7 +695,7 @@ class _AboutCard extends StatelessWidget {
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: child,

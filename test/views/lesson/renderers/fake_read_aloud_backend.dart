@@ -10,6 +10,7 @@ class FakeReadAloudBackend implements ReadAloudBackend {
   FakeReadAloudBackend({
     this.supported = true,
     this.ready = true,
+    this.readyFailure = ReadAloudFailure.permissionDenied,
   });
 
   /// When false, mimics [UnavailableReadAloudBackend] without its
@@ -18,6 +19,7 @@ class FakeReadAloudBackend implements ReadAloudBackend {
 
   /// Answer [ensureReady] gives: false = permission denied / no service.
   bool ready;
+  ReadAloudFailure readyFailure;
 
   final List<String> startLocales = [];
   int stopCount = 0;
@@ -27,6 +29,9 @@ class FakeReadAloudBackend implements ReadAloudBackend {
 
   @override
   bool get isSupported => supported;
+
+  @override
+  ReadAloudFailure? get lastFailure => ready ? null : readyFailure;
 
   @override
   Future<bool> ensureReady() async => ready;

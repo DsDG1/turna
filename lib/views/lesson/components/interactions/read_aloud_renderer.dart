@@ -19,6 +19,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/read_aloud_backend.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// 跟读 (read-aloud) card, ADR 0061: show the sentence, speak it as the
 /// model, then recognize the learner's utterance and submit a binary verdict
@@ -76,6 +77,7 @@ class _ReadAloudBody extends StatefulWidget {
 
 class _ReadAloudBodyState extends State<_ReadAloudBody> {
   bool _listening = false;
+  bool _starting = false;
   String? _partial;
   String? _trouble;
   bool _gaveUpMic = false;
@@ -100,16 +102,19 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   }
 
   Future<void> _speak() async {
+    if (_starting) return;
     if (_listening) {
-      unawaited(widget.backend.stop());
+      await widget.backend.stop();
+      if (!mounted) return;
       setState(() => _listening = false);
     }
     try {
       if (getIt.isRegistered<AudioController>()) {
-        await getIt<AudioController>().speak(
+        final result = await getIt<AudioController>().speakWithResult(
           widget.targetText,
           languageCode: currentSpeechLanguages().target,
         );
+        if (mounted) showTtsFailureFeedback(context, result);
       }
     } catch (_) {
       // GetIt optional dependency guard for unit tests without audio graph
@@ -117,43 +122,50 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   }
 
   Future<void> _onMicTap() async {
-    if (widget.state.submitted) return;
+    if (widget.state.submitted || _starting) return;
     if (_listening) {
       // Tap-to-stop: the backend delivers the final transcript through the
       // same onResult channel, so scoring happens in one place.
       unawaited(widget.backend.stop());
       return;
     }
-    // Stop any in-flight model TTS so mic does not pick up phone speaker audio
+    _starting = true;
     try {
-      if (getIt.isRegistered<AudioController>()) {
-        unawaited(getIt<AudioController>().stopSystemTts());
+      // The native stop must finish before recognition opens the microphone.
+      try {
+        if (getIt.isRegistered<AudioController>()) {
+          await getIt<AudioController>().stopSystemTts();
+        }
+      } catch (_) {
+        // GetIt optional dependency guard for unit tests without audio graph
       }
-    } catch (_) {
-      // Best-effort cleanup when AudioController is not registered in test harness
-    }
 
-    final ready = await widget.backend.ensureReady();
-    if (!mounted || widget.state.submitted) return;
-    if (!ready) {
+      final ready = await widget.backend.ensureReady();
+      if (!mounted || widget.state.submitted) return;
+      if (!ready) {
+        final failure =
+            widget.backend.lastFailure ?? ReadAloudFailure.permissionDenied;
+        setState(() {
+          _gaveUpMic = true;
+          _trouble = _failureText(failure);
+        });
+        return;
+      }
       setState(() {
-        _gaveUpMic = true;
-        _trouble = AppStrings.readAloudPermissionDenied;
+        _listening = true;
+        _partial = null;
+        _trouble = null;
       });
-      return;
+      await widget.backend.start(
+        // The course's target language: the recognizer needs the right locale
+        // or it transcribes Turkish as if it were the device language.
+        locale: currentSpeechLanguages().target,
+        onResult: _onResult,
+        onError: _onError,
+      );
+    } finally {
+      _starting = false;
     }
-    setState(() {
-      _listening = true;
-      _partial = null;
-      _trouble = null;
-    });
-    await widget.backend.start(
-      // The course's target language: the recognizer needs the right locale
-      // or it transcribes Turkish as if it were the device language.
-      locale: currentSpeechLanguages().target,
-      onResult: _onResult,
-      onError: _onError,
-    );
   }
 
   void _onResult(String text, bool isFinal) {
@@ -174,17 +186,21 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
     widget.onSubmit(score.passed, userAnswerText: text);
   }
 
+  String _failureText(ReadAloudFailure reason) => switch (reason) {
+        ReadAloudFailure.permissionDenied =>
+          AppStrings.readAloudPermissionDenied,
+        ReadAloudFailure.serviceUnavailable =>
+          AppStrings.readAloudServiceUnavailable,
+        ReadAloudFailure.networkUnavailable =>
+          AppStrings.readAloudNetworkUnavailable,
+        ReadAloudFailure.recognitionFailed => AppStrings.readAloudNoMatch,
+      };
+
   void _onError(ReadAloudFailure reason) {
     if (!mounted || widget.state.submitted) return;
     setState(() {
       _listening = false;
-      _trouble = switch (reason) {
-        ReadAloudFailure.permissionDenied =>
-          AppStrings.readAloudPermissionDenied,
-        ReadAloudFailure.serviceUnavailable ||
-        ReadAloudFailure.recognitionFailed =>
-          AppStrings.readAloudNoMatch,
-      };
+      _trouble = _failureText(reason);
     });
   }
 

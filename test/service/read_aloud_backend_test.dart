@@ -4,10 +4,13 @@
 // (the `_FakeFlutterTts` noSuchMethod convention from speech_backend_test);
 // what is under test is the seam's contract — that ensureReady is
 // initialize, that listen carries the course locale, that stop reaches the
-// plugin, and that plugin error strings collapse into the three categories
+// plugin, and that plugin error strings collapse into the four categories
 // the UI distinguishes. The unavailable backend must fail loudly on start,
 // not pretend to listen.
 
+import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
@@ -18,13 +21,20 @@ class _FakeSpeechToText implements SpeechToText {
   _FakeSpeechToText({this.initializeResult = true});
 
   bool initializeResult;
+  Object? initializeError;
+  Completer<bool>? initializeCompleter;
+  Completer<List<LocaleName>>? localesCompleter;
+  int initializeCalls = 0;
 
   final List<String?> listenLocales = [];
   int stopCount = 0;
   List<LocaleName> availableLocales = [];
+  SpeechListenOptions? lastListenOptions;
 
   @override
-  Future<List<LocaleName>> locales() async => availableLocales;
+  Future<List<LocaleName>> locales() {
+    return localesCompleter?.future ?? Future.value(availableLocales);
+  }
 
   // SpeechToText exposes a public errorListener setter; the fake redeclares
   // it as a plain field so tests can read what initialize wired.
@@ -39,9 +49,14 @@ class _FakeSpeechToText implements SpeechToText {
     debugLogging = false,
     Duration finalTimeout = const Duration(seconds: 2),
     List<SpeechConfigOption>? options,
-  }) async {
+  }) {
+    initializeCalls++;
     errorListener = onError;
-    return initializeResult;
+    final pending = initializeCompleter;
+    if (pending != null) return pending.future;
+    final error = initializeError;
+    if (error != null) return Future.error(error);
+    return Future.value(initializeResult);
   }
 
   @override
@@ -59,6 +74,7 @@ class _FakeSpeechToText implements SpeechToText {
     SpeechListenOptions? listenOptions,
   }) async {
     resultListener = onResult;
+    lastListenOptions = listenOptions;
     listenLocales.add(listenOptions?.localeId ?? localeId);
   }
 
@@ -81,6 +97,31 @@ void main() {
       expect(await backend.ensureReady(), isFalse);
       // The error listener wired at initialize is kept for later sessions.
       expect(fake.errorListener, isNotNull);
+      expect(backend.lastFailure, ReadAloudFailure.permissionDenied);
+    });
+
+    test('missing recognizer degrades instead of throwing', () async {
+      final fake = _FakeSpeechToText()
+        ..initializeError = PlatformException(
+          code: 'recognizerNotAvailable',
+          message: 'Speech recognition not available on this device',
+        );
+      final backend = SpeechToTextReadAloudBackend(fake);
+
+      expect(await backend.ensureReady(), isFalse);
+      expect(backend.lastFailure, ReadAloudFailure.serviceUnavailable);
+    });
+
+    test('concurrent readiness calls share one initialization', () async {
+      final fake = _FakeSpeechToText()..initializeCompleter = Completer<bool>();
+      final backend = SpeechToTextReadAloudBackend(fake);
+
+      final first = backend.ensureReady();
+      final second = backend.ensureReady();
+      expect(fake.initializeCalls, 1);
+
+      fake.initializeCompleter!.complete(true);
+      expect(await Future.wait([first, second]), [true, true]);
     });
 
     test('start passes the locale and forwards results', () async {
@@ -95,6 +136,9 @@ void main() {
       );
 
       expect(fake.listenLocales, ['tr']);
+      expect(fake.lastListenOptions?.listenMode, ListenMode.dictation);
+      expect(fake.lastListenOptions?.cancelOnError, isTrue);
+      expect(fake.lastListenOptions?.listenFor, const Duration(seconds: 30));
       fake.resultListener!(
         SpeechRecognitionResult(
           [const SpeechRecognitionWords('merhaba', null, 1.0)],
@@ -104,7 +148,8 @@ void main() {
       expect(results.last, ('merhaba', true));
     });
 
-    test('start resolves region-specific locale if available on device', () async {
+    test('start resolves region-specific locale if available on device',
+        () async {
       final fake = _FakeSpeechToText();
       fake.availableLocales = [
         LocaleName('en_US', 'English'),
@@ -119,6 +164,20 @@ void main() {
       );
 
       expect(fake.listenLocales, ['tr_TR']);
+    });
+
+    test('unanswered locale discovery falls back and still starts', () async {
+      final fake = _FakeSpeechToText()
+        ..localesCompleter = Completer<List<LocaleName>>();
+      final backend = SpeechToTextReadAloudBackend(fake);
+
+      await backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: (_) {},
+      );
+
+      expect(fake.listenLocales, ['tr']);
     });
 
     test('stop reaches the plugin', () async {
@@ -150,6 +209,19 @@ void main() {
           'error_language_unavailable',
         ),
         ReadAloudFailure.serviceUnavailable,
+      );
+    });
+
+    test('network and server errors map to networkUnavailable', () {
+      expect(
+        SpeechToTextReadAloudBackend.categorizeFailure('error_network'),
+        ReadAloudFailure.networkUnavailable,
+      );
+      expect(
+        SpeechToTextReadAloudBackend.categorizeFailure(
+          'error_server_disconnected',
+        ),
+        ReadAloudFailure.networkUnavailable,
       );
     });
 

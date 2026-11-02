@@ -8,14 +8,18 @@
 // Invariant under test: skip iff contentVersion matches asset version AND
 // sections exist; any write path clears course tables before INSERT.
 
+// Dart imports:
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -55,11 +59,19 @@ void main() {
           .getSingleOrNull();
 
       expect(sections1, isNotEmpty);
-      // The Turkish course ships real vocab + expressions + grammar points (S1-S8).
       expect(vocab1, isNotEmpty);
-      expect(grammar1, isNotEmpty);
-      // Expressions ship real content too.
-      expect(expressions1, isNotEmpty);
+      // The seeder's contract is "the DB mirrors the bundled JSON" (and
+      // "empty optional tables never force a reseed" — see the test name).
+      // The shipped Turkish course ships vocab + sections; its grammar and
+      // expression assets are legitimately `[]`. Assert the mirror against
+      // the assets themselves instead of hard-coding a content expectation
+      // the shipping course is free to change.
+      final grammarAsset =
+          File(CourseLoader.grammarPointsAssetFor('tr')).readAsStringSync();
+      final expressionsAsset =
+          File(CourseLoader.expressionsAssetFor('tr')).readAsStringSync();
+      expect(grammar1.length, parseGrammarPoints(grammarAsset).length);
+      expect(expressions1.length, parseExpressions(expressionsAsset).length);
       expect(meta1, isNotNull);
 
       await db1.close();
@@ -187,6 +199,53 @@ void main() {
           .getSingle();
       // New composite format joins index + expressions versions with '+'.
       expect(meta.value, contains('+'));
+    });
+
+    test('seeding writes sub-lesson summaries onto segmented lessons',
+        () async {
+      final path = await _tempDbPath();
+      addTearDown(() async {
+        final parent = File(path).parent;
+        if (await parent.exists()) {
+          await parent.delete(recursive: true);
+        }
+      });
+
+      final db = CourseDatabase(NativeDatabase(File(path)));
+      addTearDown(db.close);
+      expect(await DatabaseSeeder(db).seedIfNeeded(), isTrue);
+
+      // The bundled course carries segmented (sub-lesson) lessons; their L1
+      // rows must expose one summary per sub-lesson, ids unique and names
+      // non-empty, mirroring the L2 bodies (ADR 0063).
+      final segmented = await (db.select(db.lessons)
+            ..where((t) => t.subLessonSummaries.isNotValue('[]')))
+          .get();
+      expect(segmented, isNotEmpty,
+          reason: 'the active bundled course has sub-lesson lessons');
+
+      final seenIds = <String>{};
+      for (final row in segmented) {
+        final summaries =
+            SubLessonSummariesCodec.decode(row.subLessonSummaries);
+        expect(summaries, isNotEmpty);
+        for (final summary in summaries) {
+          expect(summary.id, isNotEmpty);
+          expect(summary.name, isNotEmpty);
+          expect(seenIds.add('${row.id}::${summary.id}'), isTrue,
+              reason: 'sub-lesson ids are unique within a lesson');
+        }
+        // The summaries must mirror the stored body's sub-lessons exactly.
+        final content = await (db.select(db.lessonContents)
+              ..where((t) => t.lessonId.equals(row.id)))
+            .getSingle();
+        final body = jsonDecode(content.contentJson) as Map<String, dynamic>;
+        final bodySubIds = [
+          for (final sub in (body['subLessons'] as List? ?? []))
+            (sub as Map<String, dynamic>)['id'] as String? ?? '',
+        ];
+        expect(summaries.map((s) => s.id).toList(), bodySubIds);
+      }
     });
   });
 }

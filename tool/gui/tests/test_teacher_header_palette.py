@@ -26,7 +26,7 @@ _SECTION = {"name": "S1", "id": "s1"}
 _UNIT = {"name": "U1", "id": "u1"}
 _LESSON = {"name": "L1", "id": "l1", "template": "listening"}
 
-_DARK = {"text_secondary": "#B9CCC0", "accent": "#1F727E", "text_on_accent": "#FFF"}
+_DARK = {"text_secondary": "#A7B2B8", "accent": "#1F727E", "text_on_accent": "#FFF"}
 _LIGHT = {"text_secondary": "#4A5568", "accent": "#1F727E", "text_on_accent": "#FFF"}
 _HC_LIGHT = {
     "text_secondary": "#1A1A1A",

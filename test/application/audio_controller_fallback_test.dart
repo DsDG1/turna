@@ -78,6 +78,16 @@ class _TestAudioController extends AudioController {
   }
 
   @override
+  Future<TtsSpeakResult> speakWithResult(
+    String text, {
+    double? speed,
+    String? languageCode,
+  }) async {
+    ttsCalls.add(text);
+    return const TtsSpeakResult(source: TtsSpeakSource.system);
+  }
+
+  @override
   Future<void> speakFromAsset(String assetPath) async {
     assetCalls.add(assetPath);
   }

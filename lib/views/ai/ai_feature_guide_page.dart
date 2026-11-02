@@ -12,7 +12,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
 import 'package:turna/core/theme.dart';
 
 /// AI 助手功能介绍页 — 常驻手册。

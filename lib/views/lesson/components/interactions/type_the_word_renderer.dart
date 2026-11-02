@@ -13,6 +13,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/core/theme.dart';
 
 /// Play audio, then type what was heard. Match is case-insensitive and
@@ -95,7 +96,9 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   }
 
   Future<void> _speak() async {
-    await getIt<AudioController>().speakWord(widget.audioAsset);
+    final result =
+        await getIt<AudioController>().speakWordWithResult(widget.audioAsset);
+    if (mounted) showTtsFailureFeedback(context, result);
   }
 
   bool _matches(String input) =>

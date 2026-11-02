@@ -105,7 +105,7 @@ class DueChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-                border: Border.all(color: TurnaTheme.glassBorder(context)),
+                border: Border.all(color: TurnaTheme.dividerBg(context)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -142,7 +142,7 @@ class Streak extends StatelessWidget {
         color: TurnaTheme.streakChipBg(context),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         border: Border.all(
-          color: TurnaTheme.glassBorder(context),
+          color: TurnaTheme.dividerBg(context),
           width: 1,
         ),
       ),
@@ -188,7 +188,7 @@ class ScoreCard extends StatelessWidget {
         color: TurnaTheme.scoreChipBg(context),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         border: Border.all(
-          color: TurnaTheme.glassBorder(context),
+          color: TurnaTheme.dividerBg(context),
           width: 1,
         ),
       ),

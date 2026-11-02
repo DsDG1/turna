@@ -11,6 +11,7 @@ import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 @RoutePage()
 class SectionPickerPage extends StatelessWidget {
@@ -36,22 +37,25 @@ class SectionPickerPage extends StatelessWidget {
         ),
         builder: (context, data, _) {
           final courseProvider = context.read<CourseProvider>();
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            itemCount: data.sections.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final section = data.sections[index];
-              final isSelected = section.id == data.currentId;
-              return _SectionCard(
-                section: section,
-                isSelected: isSelected,
-                onTap: () {
-                  courseProvider.switchToSection(section.id);
-                  Navigator.of(context).pop();
-                },
-              );
-            },
+          return TurnaPageContent(
+            maxWidth: 720,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              itemCount: data.sections.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final section = data.sections[index];
+                final isSelected = section.id == data.currentId;
+                return _SectionCard(
+                  section: section,
+                  isSelected: isSelected,
+                  onTap: () {
+                    courseProvider.switchToSection(section.id);
+                    Navigator.of(context).pop();
+                  },
+                );
+              },
+            ),
           );
         },
       ),

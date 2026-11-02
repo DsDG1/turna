@@ -209,7 +209,7 @@ class _PrivacyHero extends StatelessWidget {
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       clipBehavior: Clip.antiAlias,
@@ -372,7 +372,7 @@ class _NetworkCallout extends StatelessWidget {
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       clipBehavior: Clip.antiAlias,
@@ -550,7 +550,7 @@ class _AboutCard extends StatelessWidget {
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: child,

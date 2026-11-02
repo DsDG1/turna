@@ -48,6 +48,23 @@ void main() {
         isFalse,
       );
     });
+
+    test('vertical CTA gradient is the same teal pair, bottom-up', () {
+      // 做题页底栏主按钮用竖向渐变: 颜色序列仍是 brandTeal → brandTealLight
+      // (ADR 0033 的主 CTA 规则), 轴向自下往上 ⇒ 视觉上"上亮下暗"的受光实体键.
+      expect(TurnaTheme.buttonGradientVertical.colors, [
+        TurnaTheme.brandTeal,
+        TurnaTheme.brandTealLight,
+      ]);
+      final dec = TurnaTheme.primaryCtaDecoration(vertical: true);
+      expect(dec.gradient, TurnaTheme.buttonGradientVertical);
+      expect(
+        (dec.gradient as LinearGradient)
+            .colors
+            .contains(TurnaTheme.anatolianClay),
+        isFalse,
+      );
+    });
   });
 
   group('ColorScheme secondary / primary roles', () {

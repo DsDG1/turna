@@ -25,6 +25,14 @@ mixin _$Lesson {
   List<String> get prerequisiteLessonIds;
   LessonContent get content;
 
+  /// L1 tree metadata: one entry per sub-lesson, populated from the
+  /// `lessons.sub_lesson_summaries` DB column (never from section JSON —
+  /// excluded from JSON in both directions so the authoring wire format
+  /// stays untouched). Empty on L2 bodies loaded by id unless the
+  /// repository filled it; the tree is the only consumer.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<SubLessonSummary> get subLessonSummaries;
+
   /// Create a copy of Lesson
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +57,9 @@ mixin _$Lesson {
                 other.template == template) &&
             const DeepCollectionEquality()
                 .equals(other.prerequisiteLessonIds, prerequisiteLessonIds) &&
-            (identical(other.content, content) || other.content == content));
+            (identical(other.content, content) || other.content == content) &&
+            const DeepCollectionEquality()
+                .equals(other.subLessonSummaries, subLessonSummaries));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -62,11 +72,12 @@ mixin _$Lesson {
       type,
       template,
       const DeepCollectionEquality().hash(prerequisiteLessonIds),
-      content);
+      content,
+      const DeepCollectionEquality().hash(subLessonSummaries));
 
   @override
   String toString() {
-    return 'Lesson(id: $id, name: $name, description: $description, type: $type, template: $template, prerequisiteLessonIds: $prerequisiteLessonIds, content: $content)';
+    return 'Lesson(id: $id, name: $name, description: $description, type: $type, template: $template, prerequisiteLessonIds: $prerequisiteLessonIds, content: $content, subLessonSummaries: $subLessonSummaries)';
   }
 }
 
@@ -82,7 +93,9 @@ abstract mixin class $LessonCopyWith<$Res> {
       LessonType type,
       LessonTemplate template,
       List<String> prerequisiteLessonIds,
-      LessonContent content});
+      LessonContent content,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<SubLessonSummary> subLessonSummaries});
 
   $LessonContentCopyWith<$Res> get content;
 }
@@ -106,6 +119,7 @@ class _$LessonCopyWithImpl<$Res> implements $LessonCopyWith<$Res> {
     Object? template = null,
     Object? prerequisiteLessonIds = null,
     Object? content = null,
+    Object? subLessonSummaries = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -136,6 +150,10 @@ class _$LessonCopyWithImpl<$Res> implements $LessonCopyWith<$Res> {
           ? _self.content
           : content // ignore: cast_nullable_to_non_nullable
               as LessonContent,
+      subLessonSummaries: null == subLessonSummaries
+          ? _self.subLessonSummaries
+          : subLessonSummaries // ignore: cast_nullable_to_non_nullable
+              as List<SubLessonSummary>,
     ));
   }
 
@@ -250,15 +268,24 @@ extension LessonPatterns on Lesson {
             LessonType type,
             LessonTemplate template,
             List<String> prerequisiteLessonIds,
-            LessonContent content)?
+            LessonContent content,
+            @JsonKey(includeFromJson: false, includeToJson: false)
+            List<SubLessonSummary> subLessonSummaries)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _Lesson() when $default != null:
-        return $default(_that.id, _that.name, _that.description, _that.type,
-            _that.template, _that.prerequisiteLessonIds, _that.content);
+        return $default(
+            _that.id,
+            _that.name,
+            _that.description,
+            _that.type,
+            _that.template,
+            _that.prerequisiteLessonIds,
+            _that.content,
+            _that.subLessonSummaries);
       case _:
         return orElse();
     }
@@ -286,14 +313,23 @@ extension LessonPatterns on Lesson {
             LessonType type,
             LessonTemplate template,
             List<String> prerequisiteLessonIds,
-            LessonContent content)
+            LessonContent content,
+            @JsonKey(includeFromJson: false, includeToJson: false)
+            List<SubLessonSummary> subLessonSummaries)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Lesson():
-        return $default(_that.id, _that.name, _that.description, _that.type,
-            _that.template, _that.prerequisiteLessonIds, _that.content);
+        return $default(
+            _that.id,
+            _that.name,
+            _that.description,
+            _that.type,
+            _that.template,
+            _that.prerequisiteLessonIds,
+            _that.content,
+            _that.subLessonSummaries);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -320,14 +356,23 @@ extension LessonPatterns on Lesson {
             LessonType type,
             LessonTemplate template,
             List<String> prerequisiteLessonIds,
-            LessonContent content)?
+            LessonContent content,
+            @JsonKey(includeFromJson: false, includeToJson: false)
+            List<SubLessonSummary> subLessonSummaries)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Lesson() when $default != null:
-        return $default(_that.id, _that.name, _that.description, _that.type,
-            _that.template, _that.prerequisiteLessonIds, _that.content);
+        return $default(
+            _that.id,
+            _that.name,
+            _that.description,
+            _that.type,
+            _that.template,
+            _that.prerequisiteLessonIds,
+            _that.content,
+            _that.subLessonSummaries);
       case _:
         return null;
     }
@@ -344,8 +389,12 @@ class _Lesson extends Lesson {
       this.type = LessonType.normal,
       this.template = LessonTemplate.legacy,
       final List<String> prerequisiteLessonIds = const <String>[],
-      required this.content})
+      required this.content,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<SubLessonSummary> subLessonSummaries =
+          const <SubLessonSummary>[]})
       : _prerequisiteLessonIds = prerequisiteLessonIds,
+        _subLessonSummaries = subLessonSummaries,
         super._();
   factory _Lesson.fromJson(Map<String, dynamic> json) => _$LessonFromJson(json);
 
@@ -378,6 +427,27 @@ class _Lesson extends Lesson {
   @override
   final LessonContent content;
 
+  /// L1 tree metadata: one entry per sub-lesson, populated from the
+  /// `lessons.sub_lesson_summaries` DB column (never from section JSON —
+  /// excluded from JSON in both directions so the authoring wire format
+  /// stays untouched). Empty on L2 bodies loaded by id unless the
+  /// repository filled it; the tree is the only consumer.
+  final List<SubLessonSummary> _subLessonSummaries;
+
+  /// L1 tree metadata: one entry per sub-lesson, populated from the
+  /// `lessons.sub_lesson_summaries` DB column (never from section JSON —
+  /// excluded from JSON in both directions so the authoring wire format
+  /// stays untouched). Empty on L2 bodies loaded by id unless the
+  /// repository filled it; the tree is the only consumer.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<SubLessonSummary> get subLessonSummaries {
+    if (_subLessonSummaries is EqualUnmodifiableListView)
+      return _subLessonSummaries;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_subLessonSummaries);
+  }
+
   /// Create a copy of Lesson
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -407,7 +477,9 @@ class _Lesson extends Lesson {
                 other.template == template) &&
             const DeepCollectionEquality()
                 .equals(other._prerequisiteLessonIds, _prerequisiteLessonIds) &&
-            (identical(other.content, content) || other.content == content));
+            (identical(other.content, content) || other.content == content) &&
+            const DeepCollectionEquality()
+                .equals(other._subLessonSummaries, _subLessonSummaries));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -420,11 +492,12 @@ class _Lesson extends Lesson {
       type,
       template,
       const DeepCollectionEquality().hash(_prerequisiteLessonIds),
-      content);
+      content,
+      const DeepCollectionEquality().hash(_subLessonSummaries));
 
   @override
   String toString() {
-    return 'Lesson(id: $id, name: $name, description: $description, type: $type, template: $template, prerequisiteLessonIds: $prerequisiteLessonIds, content: $content)';
+    return 'Lesson(id: $id, name: $name, description: $description, type: $type, template: $template, prerequisiteLessonIds: $prerequisiteLessonIds, content: $content, subLessonSummaries: $subLessonSummaries)';
   }
 }
 
@@ -441,7 +514,9 @@ abstract mixin class _$LessonCopyWith<$Res> implements $LessonCopyWith<$Res> {
       LessonType type,
       LessonTemplate template,
       List<String> prerequisiteLessonIds,
-      LessonContent content});
+      LessonContent content,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<SubLessonSummary> subLessonSummaries});
 
   @override
   $LessonContentCopyWith<$Res> get content;
@@ -466,6 +541,7 @@ class __$LessonCopyWithImpl<$Res> implements _$LessonCopyWith<$Res> {
     Object? template = null,
     Object? prerequisiteLessonIds = null,
     Object? content = null,
+    Object? subLessonSummaries = null,
   }) {
     return _then(_Lesson(
       id: null == id
@@ -496,6 +572,10 @@ class __$LessonCopyWithImpl<$Res> implements _$LessonCopyWith<$Res> {
           ? _self.content
           : content // ignore: cast_nullable_to_non_nullable
               as LessonContent,
+      subLessonSummaries: null == subLessonSummaries
+          ? _self._subLessonSummaries
+          : subLessonSummaries // ignore: cast_nullable_to_non_nullable
+              as List<SubLessonSummary>,
     ));
   }
 

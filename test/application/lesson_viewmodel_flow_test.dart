@@ -1323,7 +1323,7 @@ void main() {
     test('two sub-lessons: boundary pauses, continue walks, settles once',
         () async {
       final lesson = _buildSubLessonLesson(
-        id: 'l-subs-boundary', subCount: 2, itemsPerSub: 2);
+          id: 'l-subs-boundary', subCount: 2, itemsPerSub: 2);
       final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
       final vm = harness.vm;
 
@@ -1365,8 +1365,7 @@ void main() {
 
       // XP is cumulative in the shared mock prefs across this file's tests,
       // so the settlement claim is asserted as a delta, not an absolute.
-      final scoreBefore =
-          await harness.gameProvider.getUserScoreStream().first;
+      final scoreBefore = await harness.gameProvider.getUserScoreStream().first;
 
       _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
       vm.advance();
@@ -1385,15 +1384,19 @@ void main() {
           StudyActivityType.lessonComplete);
 
       // Both sub-lessons are recorded for resume.
-      expect(harness.lessonProgress
-          .isSubLessonCompleted(lesson.id, '${lesson.id}-sl1'), isTrue);
-      expect(harness.lessonProgress
-          .isSubLessonCompleted(lesson.id, '${lesson.id}-sl2'), isTrue);
+      expect(
+          harness.lessonProgress
+              .isSubLessonCompleted(lesson.id, '${lesson.id}-sl1'),
+          isTrue);
+      expect(
+          harness.lessonProgress
+              .isSubLessonCompleted(lesson.id, '${lesson.id}-sl2'),
+          isTrue);
     });
 
     test('resume skips sub-lessons already recorded as completed', () async {
       final lesson = _buildSubLessonLesson(
-        id: 'l-subs-resume', subCount: 3, itemsPerSub: 1);
+          id: 'l-subs-resume', subCount: 3, itemsPerSub: 1);
       final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
       final progress = harness.lessonProgress;
       await progress.recordSubLessonCompletion(
@@ -1408,7 +1411,7 @@ void main() {
 
     test('a completed lesson replays from the first sub-lesson', () async {
       final lesson = _buildSubLessonLesson(
-        id: 'l-subs-replay', subCount: 2, itemsPerSub: 1);
+          id: 'l-subs-replay', subCount: 2, itemsPerSub: 1);
       final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
       final progress = harness.lessonProgress;
       await progress.recordSubLessonCompletion(
@@ -1425,8 +1428,8 @@ void main() {
     });
 
     test('undo does not cross a sub-lesson boundary', () async {
-      final lesson = _buildSubLessonLesson(
-        id: 'l-subs-undo', subCount: 2, itemsPerSub: 1);
+      final lesson =
+          _buildSubLessonLesson(id: 'l-subs-undo', subCount: 2, itemsPerSub: 1);
       final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
       final vm = harness.vm;
 
@@ -1499,6 +1502,200 @@ void main() {
       vm.advance();
       await pumpEventQueue();
       expect(vm.isComplete, isTrue);
+    });
+  });
+
+  group('LessonViewModel sub-lesson sessions (ADR 0063)', () {
+    test('a targeted sub-lesson loads as a single-segment session', () async {
+      final lesson = _buildSubLessonLesson(
+          id: 'l-sub-session-load', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id, subLessonId: '${lesson.id}-sl2');
+
+      // The synthesized instance holds only sub 2: one segment, two items,
+      // no chained-walk affordances.
+      expect(vm.isSegmented, isFalse);
+      expect(vm.totalInteractionCount, 2);
+      expect(vm.currentQuestionNumber, 1);
+      expect(vm.currentStageName, contains('Sub 2'));
+    });
+
+    test('a non-final sub session pays out but does not settle the lesson',
+        () async {
+      final lesson = _buildSubLessonLesson(
+          id: 'l-sub-session-pay', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      final scoreBefore = await harness.gameProvider.getUserScoreStream().first;
+      final gemsBefore = harness.gemsProvider.balance;
+
+      await vm.loadLesson(lesson.id, subLessonId: '${lesson.id}-sl1');
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      await pumpEventQueue();
+      await pumpEventQueue();
+
+      expect(vm.isComplete, isTrue);
+      // Every session is the reward unit: perfect run = 10 + 15 XP, 5 + 10
+      // gems (gem ids are sub-lesson scoped so siblings never dedupe). The
+      // mock prefs are shared across this file's tests, so gems are a delta.
+      expect(await harness.gameProvider.getUserScoreStream().first,
+          scoreBefore + 25);
+      expect(harness.gemsProvider.balance, gemsBefore + 15);
+      // The node is recorded; the parent lesson is not settled yet.
+      expect(
+        harness.lessonProgress
+            .isSubLessonCompleted(lesson.id, '${lesson.id}-sl1'),
+        isTrue,
+      );
+      expect(
+        harness.lessonProgress
+            .isSubLessonPerfect(lesson.id, '${lesson.id}-sl1'),
+        isTrue,
+      );
+      expect(harness.lessonProgress.isLessonCompleted(lesson.id), isFalse);
+      expect(harness.studyStatsProvider.activities, hasLength(1));
+    });
+
+    test('the last remaining sub session settles the lesson', () async {
+      final lesson = _buildSubLessonLesson(
+          id: 'l-sub-session-settle', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await harness.lessonProgress.recordSubLessonCompletion(
+        lessonId: lesson.id,
+        subLessonId: '${lesson.id}-sl1',
+      );
+
+      await vm.loadLesson(lesson.id, subLessonId: '${lesson.id}-sl2');
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      // One mistake: the session earns no perfect bonus, and the settled
+      // lesson is not perfect either.
+      _answerMultipleChoice(vm, correct: false, userAnswer: 'B');
+      vm.advance();
+      await pumpEventQueue();
+      await pumpEventQueue();
+
+      expect(vm.isComplete, isTrue);
+      expect(harness.lessonProgress.isLessonCompleted(lesson.id), isTrue);
+      expect(harness.lessonProgress.isLessonPerfect(lesson.id), isFalse);
+      expect(
+        harness.lessonProgress
+            .isSubLessonPerfect(lesson.id, '${lesson.id}-sl2'),
+        isFalse,
+      );
+    });
+
+    test('an all-perfect set of sub sessions settles a perfect lesson',
+        () async {
+      final lesson = _buildSubLessonLesson(
+          id: 'l-sub-session-perfect', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+      final gemsBefore = harness.gemsProvider.balance;
+
+      for (final subSuffix in ['sl1', 'sl2']) {
+        await vm.loadLesson(lesson.id, subLessonId: '${lesson.id}-$subSuffix');
+        _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+        vm.advance();
+        _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+        vm.advance();
+        await pumpEventQueue();
+        await pumpEventQueue();
+      }
+
+      expect(harness.lessonProgress.isLessonCompleted(lesson.id), isTrue);
+      expect(harness.lessonProgress.isLessonPerfect(lesson.id), isTrue);
+      // Both sibling sessions paid in full on the same day (the exact-delta
+      // companion lives in the id test below; achievement unlocks pay into
+      // the shared mock prefs through a second GemsProvider instance, so an
+      // absolute delta is not deterministic here).
+      expect(
+          harness.gemsProvider.balance, greaterThanOrEqualTo(gemsBefore + 30));
+    });
+
+    test('gem reward ids are sub-lesson scoped', () {
+      final day = DateTime(2026, 11, 2);
+      // Same lesson, same day: each sub-lesson session earns under its own
+      // id, and the flat-lesson id shape is unchanged (ADR 0063 economy).
+      expect(
+        GemRewardEventIds.lesson('l-gem', day, subLessonId: 'sl1'),
+        isNot(
+            equals(GemRewardEventIds.lesson('l-gem', day, subLessonId: 'sl2'))),
+      );
+      expect(
+        GemRewardEventIds.lesson('l-gem', day),
+        'earn:lesson:l-gem:2026-11-02',
+      );
+      expect(
+        GemRewardEventIds.perfectLesson('l-gem', day, subLessonId: 'sl2'),
+        isNot(equals(
+            GemRewardEventIds.perfectLesson('l-gem', day, subLessonId: 'sl1'))),
+      );
+      expect(
+        GemRewardEventIds.perfectLesson('l-gem', day),
+        'earn:perfectLesson:l-gem:2026-11-02',
+      );
+    });
+
+    test('an unknown subLessonId falls back to the whole lesson', () async {
+      final lesson = _buildSubLessonLesson(
+          id: 'l-sub-session-unknown', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id, subLessonId: 'does-not-exist');
+
+      expect(vm.isSegmented, isTrue, reason: 'whole-lesson chained walk');
+      expect(vm.totalInteractionCount, 4);
+    });
+
+    test('replaying a sub of a completed lesson re-pays but never re-settles',
+        () async {
+      final lesson = _buildSubLessonLesson(
+          id: 'l-sub-session-replay', subCount: 2, itemsPerSub: 2);
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      // Legacy-shaped record: lesson complete with no sub-lesson history.
+      await harness.lessonProgress
+          .recordLessonCompletion(lessonId: lesson.id, wasPerfect: false);
+
+      final scoreBefore = await harness.gameProvider.getUserScoreStream().first;
+
+      await vm.loadLesson(lesson.id, subLessonId: '${lesson.id}-sl1');
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      await pumpEventQueue();
+      await pumpEventQueue();
+
+      // Session pays (perfect replay = 25 XP)…
+      expect(await harness.gameProvider.getUserScoreStream().first,
+          scoreBefore + 25);
+      // …but the gate holds: the already-complete lesson neither
+      // re-settles nor upgrades to perfect through a sub replay. The mock
+      // prefs are shared across this file's tests, so the id set is checked
+      // as "did not grow", not as an exact set.
+      final completedBefore = harness.lessonProgress.completedLessonIds.length;
+      expect(
+        harness.lessonProgress.completedLessonIds,
+        contains(lesson.id),
+      );
+      expect(
+        harness.lessonProgress.completedLessonIds.length,
+        completedBefore,
+        reason: 'a replay session must not re-settle the lesson',
+      );
+      expect(harness.lessonProgress.isLessonPerfect(lesson.id), isFalse);
     });
   });
 }

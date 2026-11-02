@@ -37,7 +37,10 @@ import 'package:turna/core/performance_trace.dart';
 /// the API key (see [AiCache.makeKey]).
 @lazySingleton
 class AiEngine {
-  AiEngine(this._http, this._cache, {AiUsageMeter? meter})
+  // [AiUsageMeter] is deliberately not a GetIt registration (see its class
+  // doc); without [@ignoreParam] the generator emits `meter: gh<AiUsageMeter>()`
+  // and the first `getIt<AiEngine>()` instantiation throws.
+  AiEngine(this._http, this._cache, {@ignoreParam AiUsageMeter? meter})
       : _meter = meter ?? AiUsageMeter.instance;
 
   final AiHttpClient _http;

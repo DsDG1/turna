@@ -138,6 +138,17 @@ class AccentColorTest(unittest.TestCase):
     def test_info_accent_uses_brand_sky(self) -> None:
         self.assertEqual(palette_for("dark")["info"], BRAND_SKY)
 
+    def test_dark_neutral_text_matches_flutter(self) -> None:
+        """Dark secondary/hint text must match lib/core/theme.dart neutral gray."""
+        dark = palette_for("dark")
+        self.assertEqual(dark["text_secondary"], "#A7B2B8")
+        self.assertEqual(dark["text_disabled"], "#79858C")
+        flutter_theme = (_GUI.parents[1] / "lib" / "core" / "theme.dart").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Color(0xFFA7B2B8)", flutter_theme)
+        self.assertIn("Color(0xFF79858C)", flutter_theme)
+
     def test_button_gradient_ends_are_readable_with_white_text(self) -> None:
         # Relative luminance calculation for WCAG contrast, kept local so the
         # test documents the contract without adding a runtime dependency.

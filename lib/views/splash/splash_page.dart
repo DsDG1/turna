@@ -18,6 +18,9 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Returns true when a TTS dialog was shown (counts against the session
 /// modal budget). Dismissing the barrier keeps the system voice.
@@ -165,11 +168,10 @@ enum _GoogleTtsPromptAction {
 
 /// Startup gate — NOT a welcome screen.
 ///
-/// It exists only because the router needs an initial page whose guard can
-/// hold navigation until the course shells are ready, and because a failed
-/// boot needs a retry affordance. There is deliberately no mascot, no product
-/// name, no tagline and no "get started" button: the learner goes straight to
-/// [HomeRoute] the moment the providers are up (see [_SplashPageState._maybeSkip]).
+/// It holds navigation only while the course shells load and provides retry
+/// after a failed boot. The geometric brand composition never adds an
+/// artificial delay or a "get started" step: the learner goes straight to
+/// [HomeRoute] when the providers are ready (see [_SplashPageState._maybeSkip]).
 @RoutePage()
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -236,56 +238,60 @@ class _SplashPageState extends State<SplashPage> {
       backgroundColor: TurnaTheme.scaffoldBg(context),
       body: SafeArea(
         child: Center(
-          child: bootFailed
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      AppStrings.splashCourseLoadFailed,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => continueTurnaStartup(retrySeed: true),
-                      child: Text(AppStrings.commonRetry),
-                    ),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                    const SizedBox(height: 14),
-                    ListenableBuilder(
-                      listenable: turnaStartupProgress,
-                      builder: (context, _) {
-                        final label = splashStartupStatusLabel(
-                          turnaStartupProgress.phase,
-                          courseLoaded: course?.isLoaded ?? false,
-                          bootFailed: course?.bootFailed ?? false,
-                        );
-                        if (label == null) return const SizedBox.shrink();
-                        return Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: TurnaTheme.textSecondaryColor(context),
-                              ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+          child: TurnaPageContent(
+            maxWidth: 420,
+            padding: const EdgeInsets.all(24),
+            child: bootFailed
+                ? PracticeEmptyState(
+                    icon: Icons.cloud_off_rounded,
+                    accentColor: TurnaTheme.error,
+                    title: AppStrings.splashCourseLoadFailed,
+                    actionLabel: AppStrings.commonRetry,
+                    onAction: () => continueTurnaStartup(retrySeed: true),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TurnaGeometry(
+                        kind: TurnaGeometryKind.journey,
+                        size: 156,
+                        child: Image.asset(
+                          'assets/images/app_logo.png',
+                          width: 80,
+                          height: 80,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                      const SizedBox(height: 14),
+                      ListenableBuilder(
+                        listenable: turnaStartupProgress,
+                        builder: (context, _) {
+                          final label = splashStartupStatusLabel(
+                            turnaStartupProgress.phase,
+                            courseLoaded: course?.isLoaded ?? false,
+                            bootFailed: course?.bootFailed ?? false,
+                          );
+                          if (label == null) return const SizedBox.shrink();
+                          return Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: TurnaTheme.textSecondaryColor(context),
+                                ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );

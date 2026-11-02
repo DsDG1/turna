@@ -6,6 +6,7 @@ import 'lesson_content.dart';
 import 'lesson_segment.dart';
 import 'listening_phase.dart';
 import 'stage.dart';
+import 'sub_lesson_summary.dart';
 
 part 'lesson.freezed.dart';
 part 'lesson.g.dart';
@@ -65,6 +66,15 @@ abstract class Lesson with _$Lesson {
     @Default(LessonTemplate.legacy) LessonTemplate template,
     @Default(<String>[]) List<String> prerequisiteLessonIds,
     required LessonContent content,
+
+    /// L1 tree metadata: one entry per sub-lesson, populated from the
+    /// `lessons.sub_lesson_summaries` DB column (never from section JSON —
+    /// excluded from JSON in both directions so the authoring wire format
+    /// stays untouched). Empty on L2 bodies loaded by id unless the
+    /// repository filled it; the tree is the only consumer.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(<SubLessonSummary>[])
+    List<SubLessonSummary> subLessonSummaries,
   }) = _Lesson;
 
   const Lesson._();

@@ -12,6 +12,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/core/theme.dart';
 
 /// Listen-only summary (or similar) card: play audio / TTS, then continue.
@@ -74,12 +75,14 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
   Future<void> _speak() async {
     // Path-vs-word-id routing and asset-prefix normalization live in
     // AudioController so renderers stay free of content/path heuristics.
-    await getIt<AudioController>().speakListenContent(
+    final result = await getIt<AudioController>().speakListenContentWithResult(
       audioAsset: widget.audioAsset,
       transcript: widget.transcript,
     );
 
-    if (mounted) setState(() => _hasPlayed = true);
+    if (!mounted) return;
+    setState(() => _hasPlayed = true);
+    showTtsFailureFeedback(context, result);
   }
 
   @override

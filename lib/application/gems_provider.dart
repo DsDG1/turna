@@ -42,11 +42,23 @@ abstract final class GemRewardEventIds {
         '${local.day.toString().padLeft(2, '0')}';
   }
 
-  static String lesson(String lessonId, DateTime completedAt) =>
-      'earn:lesson:$lessonId:${localDay(completedAt)}';
+  static String lesson(
+    String lessonId,
+    DateTime completedAt, {
+    String? subLessonId,
+  }) =>
+      subLessonId == null
+          ? 'earn:lesson:$lessonId:${localDay(completedAt)}'
+          : 'earn:lesson:$lessonId:$subLessonId:${localDay(completedAt)}';
 
-  static String perfectLesson(String lessonId, DateTime completedAt) =>
-      'earn:perfectLesson:$lessonId:${localDay(completedAt)}';
+  static String perfectLesson(
+    String lessonId,
+    DateTime completedAt, {
+    String? subLessonId,
+  }) =>
+      subLessonId == null
+          ? 'earn:perfectLesson:$lessonId:${localDay(completedAt)}'
+          : 'earn:perfectLesson:$lessonId:$subLessonId:${localDay(completedAt)}';
 
   static String achievement(String achievementId) =>
       'earn:achievement:$achievementId';

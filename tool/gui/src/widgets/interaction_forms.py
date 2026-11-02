@@ -1,4 +1,4 @@
-"""Dynamic forms for the 14 Interaction runtimeTypes.
+"""Dynamic forms for the 15 Interaction runtimeTypes.
 
 Each form binds to an item dict (in the adapter's in-memory lesson tree) and
 writes edits back in place. Reference fields (wordId / expressionId /

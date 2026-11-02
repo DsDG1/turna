@@ -91,4 +91,82 @@ void main() {
     await progress.removeLessonIds(const {});
     expect(progress.completedLessonIds, {'l-1'});
   });
+
+  group('sub-lesson node records (ADR 0063)', () {
+    test('recordSubLessonCompletion/Perfect track per-node state', () async {
+      await progress.recordSubLessonCompletion(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+      await progress.recordSubLessonPerfect(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+
+      expect(progress.isSubLessonCompleted('l-s', 'sl1'), isTrue);
+      expect(progress.isSubLessonPerfect('l-s', 'sl1'), isTrue);
+      expect(progress.isSubLessonCompleted('l-s', 'sl2'), isFalse);
+      expect(progress.isSubLessonPerfect('l-s', 'sl2'), isFalse);
+      // Node records never touch lesson-level completion.
+      expect(progress.isLessonCompleted('l-s'), isFalse);
+    });
+
+    test('removeLessonIds cascades into the sub-lesson sets', () async {
+      await progress.recordSubLessonCompletion(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+      await progress.recordSubLessonPerfect(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+      await progress.recordSubLessonCompletion(
+        lessonId: 'l-keep',
+        subLessonId: 'sl1',
+      );
+
+      await progress.removeLessonIds({'l-s'});
+
+      expect(progress.isSubLessonCompleted('l-s', 'sl1'), isFalse);
+      expect(progress.isSubLessonPerfect('l-s', 'sl1'), isFalse);
+      expect(progress.isSubLessonCompleted('l-keep', 'sl1'), isTrue);
+    });
+
+    test('resetLessonProgress clears the sub-lesson sets', () async {
+      await progress.recordSubLessonCompletion(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+      await progress.recordSubLessonPerfect(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+
+      await progress.resetLessonProgress();
+
+      expect(progress.isSubLessonCompleted('l-s', 'sl1'), isFalse);
+      expect(progress.isSubLessonPerfect('l-s', 'sl1'), isFalse);
+      expect(
+        prefs.preferences.getStringList(LocalStateKeys.perfectSubLessonIds,
+            defaultValue: []).getValue(),
+        isEmpty,
+      );
+    });
+
+    test('reloadFromPrefs restores the sub-lesson sets', () async {
+      await progress.recordSubLessonCompletion(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+      await progress.recordSubLessonPerfect(
+        lessonId: 'l-s',
+        subLessonId: 'sl1',
+      );
+
+      progress.reloadFromPrefs();
+
+      expect(progress.isSubLessonCompleted('l-s', 'sl1'), isTrue);
+      expect(progress.isSubLessonPerfect('l-s', 'sl1'), isTrue);
+    });
+  });
 }

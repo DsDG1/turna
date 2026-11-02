@@ -1101,10 +1101,15 @@ class NewLessonRoute extends _i54.PageRouteInfo<NewLessonRouteArgs> {
   NewLessonRoute({
     _i55.Key? key,
     required String lessonId,
+    String? subLessonId,
     List<_i54.PageRouteInfo>? children,
   }) : super(
           NewLessonRoute.name,
-          args: NewLessonRouteArgs(key: key, lessonId: lessonId),
+          args: NewLessonRouteArgs(
+            key: key,
+            lessonId: lessonId,
+            subLessonId: subLessonId,
+          ),
           initialChildren: children,
         );
 
@@ -1114,32 +1119,44 @@ class NewLessonRoute extends _i54.PageRouteInfo<NewLessonRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<NewLessonRouteArgs>();
-      return _i37.NewLessonPage(key: args.key, lessonId: args.lessonId);
+      return _i37.NewLessonPage(
+        key: args.key,
+        lessonId: args.lessonId,
+        subLessonId: args.subLessonId,
+      );
     },
   );
 }
 
 class NewLessonRouteArgs {
-  const NewLessonRouteArgs({this.key, required this.lessonId});
+  const NewLessonRouteArgs({
+    this.key,
+    required this.lessonId,
+    this.subLessonId,
+  });
 
   final _i55.Key? key;
 
   final String lessonId;
 
+  final String? subLessonId;
+
   @override
   String toString() {
-    return 'NewLessonRouteArgs{key: $key, lessonId: $lessonId}';
+    return 'NewLessonRouteArgs{key: $key, lessonId: $lessonId, subLessonId: $subLessonId}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! NewLessonRouteArgs) return false;
-    return key == other.key && lessonId == other.lessonId;
+    return key == other.key &&
+        lessonId == other.lessonId &&
+        subLessonId == other.subLessonId;
   }
 
   @override
-  int get hashCode => key.hashCode ^ lessonId.hashCode;
+  int get hashCode => key.hashCode ^ lessonId.hashCode ^ subLessonId.hashCode;
 }
 
 /// generated route for

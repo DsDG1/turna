@@ -150,7 +150,7 @@ class _OfficialAnkiRepairCenterPageState
             decoration: TurnaTheme.glassDecoration(
               context,
               TurnaTheme.glassNeutral,
-              level: GlassLevel.l1Subtle,
+              level: GlassLevel.l1Quiet,
               borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Row(

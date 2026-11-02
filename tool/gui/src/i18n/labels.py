@@ -58,6 +58,7 @@ FIELD_LABELS: dict[str, str] = {
     "scrambled": "打乱顺序",
     "correct": "正确顺序",
     "statement": "陈述",
+    "targetText": "朗读目标句",
     "expectedAnswer": "参考答案",
     "transcript": "原文",
     "context": "上下文",

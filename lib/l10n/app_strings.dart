@@ -658,6 +658,9 @@ class AppStrings {
   static String get readAloudHeardPrefix => '听到的是：';
   static String get readAloudNoMatch => '没听清，再点麦克风试一次';
   static String get readAloudPermissionDenied => '麦克风权限被拒绝——请在系统设置中允许后重试';
+  static String get readAloudServiceUnavailable => '系统没有可用的语音识别服务，请安装或启用后重试';
+  static String get readAloudNetworkUnavailable =>
+      '识别服务连接失败，请检查网络或下载该语言的离线识别资源后重试';
   static String get readAloudDegradedHint => '跟读识别不可用：先听示范，再自己读一遍';
   static String get readAloudEnableTitle => '跟读练习未开启';
   static String get readAloudEnableHint => '开启后可以对着句子朗读，应用会识别比对';
@@ -731,6 +734,13 @@ class AppStrings {
   static const String settingsPlaySampleWord = 'Merhaba';
   static String get settingsPlaySample => '播放示例（$settingsPlaySampleWord）…';
   static String get settingsOpenSystemTts => '打开系统 TTS 设置…';
+  static String get ttsOpenSettingsAction => '语音设置';
+  static String get ttsFailureVoiceMissing => '该语言的语音包未下载，请在系统设置中安装';
+  static String get ttsFailureEngineUnavailable => '语音引擎未就绪，请检查系统语音设置';
+  static String get ttsFailureSynthesis => '语音合成失败，请检查语音包和网络后重试';
+  static String get ttsFailureTimeout => '语音播放超时，请重试';
+  static String get ttsFailureEmptyText => '没有可朗读的文本';
+  static String get ttsFailureUnknown => '语音播放失败，请重试';
   static String get settingsInstallGoogleTts => '安装/打开 Google TTS…';
   static String settingsTtsNoVoicePlayed(Object error) => '未播放语音。$error';
   static String get settingsTtsNoVoicePlayedFallback =>
@@ -748,7 +758,7 @@ class AppStrings {
   static String get settingsSensoryReduceTitle => '减少感官刺激';
   static String get settingsSensoryReduceSubtitle => '静音非必要声音和触感';
   static String get settingsFocusModeTitle => '专注模式';
-  static String get settingsFocusModeSubtitle => '隐藏主屏幕的轮播欢迎动画';
+  static String get settingsFocusModeSubtitle => '隐藏非必要装饰与推荐';
   static String get settingsUiLanguageTitle => '应用语言';
   static String get settingsUiLanguageSubtitle => '选择界面语言';
   static String get settingsUiLanguageSystem => '跟随系统';

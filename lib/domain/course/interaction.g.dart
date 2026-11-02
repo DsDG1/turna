@@ -97,6 +97,10 @@ FillBlank _$FillBlankFromJson(Map<String, dynamic> json) => FillBlank(
       sentence: json['sentence'] as String,
       answer: json['answer'] as String,
       hint: json['hint'] as String?,
+      choices: (json['choices'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       audioAssets: (json['audioAssets'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -114,6 +118,7 @@ Map<String, dynamic> _$FillBlankToJson(FillBlank instance) => <String, dynamic>{
       'sentence': instance.sentence,
       'answer': instance.answer,
       'hint': instance.hint,
+      'choices': instance.choices,
       'audioAssets': instance.audioAssets,
       'imageAssets': instance.imageAssets,
       'grammarPointId': instance.grammarPointId,
@@ -210,6 +215,7 @@ ReorderSentence _$ReorderSentenceFromJson(Map<String, dynamic> json) =>
           (json['scrambled'] as List<dynamic>).map((e) => e as String).toList(),
       correct:
           (json['correct'] as List<dynamic>).map((e) => e as String).toList(),
+      prompt: json['prompt'] as String?,
       grammarPointId: json['grammarPointId'] as String?,
       $type: json['runtimeType'] as String?,
     );
@@ -219,6 +225,7 @@ Map<String, dynamic> _$ReorderSentenceToJson(ReorderSentence instance) =>
       'id': instance.id,
       'scrambled': instance.scrambled,
       'correct': instance.correct,
+      'prompt': instance.prompt,
       'grammarPointId': instance.grammarPointId,
       'runtimeType': instance.$type,
     };

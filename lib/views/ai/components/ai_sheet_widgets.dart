@@ -6,14 +6,14 @@ import 'package:turna/core/theme.dart';
 
 /// Shared visual building blocks for the AI tutor surfaces (config page, hint
 /// sheet, depth-tutor sheet, chat page) so they share one card-based design
-/// language: soft-tint group cards with a glass hairline border, tinted input
+/// language: soft-tint group cards with a neutral hairline, tinted input
 /// fields, and a matching primary/secondary button pair.
 ///
 /// Extracted from the config form's former private `_groupCard` /
 /// `_fieldDecoration` so every AI surface reuses the exact same look without
 /// duplicating the theme-token wiring.
 
-/// A group card: soft-tint fill, 1px glass border, rounded corners, with an
+/// A group card: soft-tint fill, 1px neutral border, rounded corners, with an
 /// accent icon + title header. The canonical "card element" used across the AI
 /// sheets.
 class AiGroupCard extends StatelessWidget {
@@ -43,7 +43,7 @@ class AiGroupCard extends StatelessWidget {
         color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
         border: Border.all(
-          color: TurnaTheme.glassBorder(context),
+          color: TurnaTheme.dividerBg(context),
           width: 1,
         ),
       ),
@@ -71,7 +71,7 @@ class AiGroupCard extends StatelessWidget {
   }
 }
 
-/// A headerless card surface with the same soft-tint + glass-border treatment
+/// A headerless card surface with the same soft-tint + neutral-border treatment
 /// as [AiGroupCard], for content blocks that don't need a titled header (e.g.
 /// an explanation body or a result panel).
 class AiSurfaceCard extends StatelessWidget {
@@ -94,7 +94,7 @@ class AiSurfaceCard extends StatelessWidget {
         color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
         border: Border.all(
-          color: TurnaTheme.glassBorder(context),
+          color: TurnaTheme.dividerBg(context),
           width: 1,
         ),
       ),

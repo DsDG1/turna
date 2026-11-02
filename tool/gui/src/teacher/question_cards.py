@@ -93,6 +93,7 @@ class QuestionCard(QFrame):
         InteractionType.REORDER_SENTENCE: "_build_reorder_sentence",
         InteractionType.ANKI_CARD: "_build_anki_card",
         InteractionType.ANKI_HTML_CARD: "_build_anki_html_card",
+        InteractionType.READ_ALOUD: "_build_read_aloud",
     }
 
     def __init__(
@@ -657,6 +658,17 @@ class QuestionCard(QFrame):
         layout.addWidget(back_preview)
 
         self._add_media_list(layout, "audioAssets")
+
+    def _build_read_aloud(self, layout: QVBoxLayout) -> None:
+        self._add_labeled_edit(layout, "prompt")
+        self._add_labeled_edit(layout, "targetText")
+        hint = QLabel("💡 提示：学员跟读比对的基准句；移动端使用系统 TTS 朗读示范，无需挂载本地音频。")
+        _pal = current_palette()
+        hint.setStyleSheet(
+            f"color: {_pal.get('text_secondary', '#A7B2B8')}; font-size: 11px;"
+        )
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
 
     def _build_fallback(self, layout: QVBoxLayout) -> None:
         from src.widgets.interaction_forms import InteractionForm

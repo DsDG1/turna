@@ -141,6 +141,37 @@ class SubmitGuardsTest(unittest.TestCase):
             self.assertIn("未提供参考答案", _status_text(card))
         dlg.deleteLater()
 
+    def test_read_aloud_try_card(self) -> None:
+        adapter = CourseAdapter()
+        dlg = LessonPreviewDialog(
+            adapter,
+            _lesson(
+                {
+                    "readAloud": [
+                        {
+                            "prompt": "跟读句子",
+                            "targetText": "Merhaba",
+                        }
+                    ]
+                }
+            ),
+        )
+        card = dlg.findChildren(_PreviewCard)[0]
+        check_btn = next(b for b in card.findChildren(QPushButton) if b.text() == "提交试做比对")
+        quick_btn = next(b for b in card.findChildren(QPushButton) if b.text() == "填入目标句")
+        from PySide6.QtWidgets import QLineEdit
+        edit = card.findChild(QLineEdit)
+        self.assertIsNotNone(edit)
+
+        quick_btn.click()
+        self.assertEqual(edit.text(), "Merhaba")
+
+        with patch("src.teacher.preview_window.QMessageBox.information") as info:
+            check_btn.click()
+            info.assert_called_once()
+            self.assertIn("跟读匹配通过", info.call_args[0][2])
+        dlg.deleteLater()
+
 
 class PreviewScrollTest(unittest.TestCase):
     @classmethod

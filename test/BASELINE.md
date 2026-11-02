@@ -7,6 +7,106 @@
 
 ---
 
+### 2026-11-02 玻璃降彩度，并分开玻璃对象与扁平纸面（ADR 0065）
+
+- **性质**：视觉批次；**测试数 +1**（`glass_tokens_test` 新增「彩度系数 glassChroma」1 条：`warning` / `glassFocus` 的玻璃底比未降彩的同浓度罩染更灰、描边同步降彩、投影冷却比例锁在 `glassShadowCooling`、`l1Quiet` 与 `l1Subtle` 浓度仍相等）。非 golden 全量未重跑，计数相对上一条的 2570 只记这一条增量。
+- **改动**：
+  1. 彩度：`TurnaTheme.glassChroma = 0.72`，在 `_glassMix` / `glassStroke` 罩染前乘上 accent 的 HSL 饱和度。浓度表、高光、投影强度不动。`cardBackground` 与胶囊导航淡彩走同一条混色。同色相投影向 `brandNavy` 的靠拢从 0.28 收到 `glassShadowCooling = 0.40`。
+  2. 纸面：新增 `flatPaperDecoration`。课程树章节头、单元头、课行壳，以及复习进度 / 错题列表 / 错题仪表盘 / 学习洞察的成组卡片，从弱玻璃渐变改成实色 + 1px 中性描边。下一课行是纸面 + `brandTeal` 描边。
+  3. 白高光边只留底部胶囊和 SnackBar。首页状态芯片、AI 浮层卡、提示词预览与功能芯片、练习信息弹窗、课程底部弹层改用 `dividerBg`。`CountBadge` 去掉 accent 彩影。
+  4. 文档：ADR 0065、`docs/README.md` 索引。
+- **验证**：`dart analyze`（本批 15 个文件）**No issues found**；`glass_tokens_test` **20 passed**；`docs_hygiene_test` **12 passed**；`flutter test --tags golden` **14 passed**。其中 10 张因卡面变淡或课程树改纸面重录（课程树、词典、练习卡、设置提醒、练习页，各浅色 / 深色）；高对比洞察与 SRS 空态 4 张像素未变，未重录。**未验**：非 golden 全量、真机浅 / 深色观感。
+
+---
+
+### 2026-11-02 子课提升为课程树节点与独立会话（ADR 0064）
+
+- **性质**：功能批次（课程树粒度 + 播放会话 + 经济口径）；**测试数 +17**（`lesson_viewmodel_flow_test` 子课会话组 +7：目标子课装载为单段会话、非末子课会话发奖不结算课、末子课结算、全完美集结算完美课、宝石幂等键子课作用域、未知 subLessonId 回退整课、已完成课重玩不重结算；`course_tree_test` 子课节点组 +4：组头+子课瓦片渲染、next-up 落在首个未完成节点、子课记录推进组头进度、旧整课完成记录兼容；`schema_migration_test` +1：v33→v34 加列并从 content blob 回填；`course_repository_test` +1：section() 携带摘要且不水化课体（含损坏列降级）；`lesson_progress_provider_test` 子课节点组 +4：记录/级联/重置/重载）。另有 +1 为本会话开始前工作树已有的未记增量，全量计数随之从上条目的 2552 走到 2570。
+- **改动**：
+  1. 数据：`lessons` 表 v34 新增 `sub_lesson_summaries` 列（`SubLessonSummariesCodec` 单点编解码，`SubLessonSummary` 只带 id/name/sortOrder）；v34 迁移加列 + 从存量 `content_json` Dart 回填；`DatabaseSeeder` 与 `AiCourseProvider` 两个写入方播种时派生；`CourseRepository._toLesson` 映射。**刻意不填充 L1 的 `content.subLessons`**——否则 `LessonViewModel._lessonHasBody` 会把树行误判为可播放（ADR 0064 §2）。
+  2. 进度：`LessonProgressProvider` 新增 `perfectSubLessonIds` 持久集（键 `lessonId::subLessonId`）与 `recordSubLessonPerfect` / `isSubLessonPerfect`，reset / removeLessonIds / reloadFromPrefs 级联；子课记录现在 `notifyListeners`（树上节点状态要刷新）。`ProgressProvider` 增可空 `lessonProgress` 注入并直连子课读取（不扩 `GameProvider` 接口——其测试 fake 均 `implements GameProvider`）。备份补漏：`completedSubLessonIds`（此前不在备份清单）与 `perfectSubLessonIds` 进 `backup_manifest_policy`。
+  3. 会话：`NewLessonPage` 增可选 `subLessonId` 路由参数；`LessonViewModel.loadLesson(lessonId, {subLessonId})` 合成「只含该子课」的单段实例（`_targetedSubLessonSession`，拆组门槛 ≥2），结算门「非末子课不结算课级记录、末子课且进入时未完成才结算」；`LessonCompletionCoordinator.complete` 增 `subLessonId` / `settlesLesson` / `settlesLessonPerfect`（每会话发 10XP+5 宝石、全对 +15+10；课级 perfect = 全部子课完美）；`GemRewardEventIds.lesson/perfectLesson` 编入 subLessonId。未指定 subLessonId 的旧链式路径行为不变。
+  4. 课程树：`course_tree.dart` 旅程行按可玩节点扁平化（组头 `_SubLessonGroupHeaderItem` + 子课 `_SubLessonItem`；key / reveal / 上一节点完成态全部节点化；`_nodeCompleted` 对旧整课完成记录做「全部子课视为完成」兼容）；`lesson_tile.dart` 新增 `SubLessonTile`（序号徽标，`LessonTypeIcon.indexLabel`）与 `SubLessonGroupHeader`（课名+课型图标+`小课 k/n` 进度+due/weak 角标，非按钮），`LessonRowShell.tile` 泛化为 `Widget`。
+  5. 文档：ADR 0064、`docs/authoring/lesson-type-templates.md` 播放形态段改写（含子课 name ≤12 字命名建议）、`docs/status.md` §7 补两行、`docs/README.md` ADR 索引、WHITEBOARD 收件箱记子课命名后果。
+- **验证**：`flutter analyze` **No issues found**；`flutter test --exclude-tags golden` **2570 passed / 0 failed**。**未验**：golden 快照（本批未跑 golden 档；课程树结构变化不触及既有 golden 断言锚——`course_tree_golden_test` 用平面课夹具）、真机上子课节点的观感与长名截断。
+
+---
+
+### 2026-11-01 analyze 与非 golden 全量清零：7 条既有失败逐条定性修复
+
+- **性质**：门禁修复批次（不新增功能）；**测试数 +1**（`wetland_palette_contract_test` 新增「竖向 CTA 渐变是同一对品牌色、轴向自下往上」1 条；其余为既有失败用例的断言与夹具对齐，用例数不变）。
+- **定性**：7 条失败**全部先于本批存在**，且都不是"把产品改绿"——是断言与当时的实现 / 课程资产脱节。逐条修法如下。
+- **改动**：
+  1. `lib/data/course_database_seeder.dart`：`seedLanguage` 里的 `_contentReaders.remove(code)` 返回被移除的 `Future`，直接丢弃触发 analyzer `unawaited_futures` —— 改为 `unawaited(...)`（与 `course_provider.dart` 同款写法），并把 `dart:async` 归入文件头的 `// Dart imports:` 段。
+  2. `test/core/turkish_text_test.dart`：「circumflex vowels fold to basic Latin vowels」组第三条要求 `foldTurkish('sükûn') == foldTurkish('sukun')`，但 `ü` 是**双点符**不是戴帽符——`foldTurkish` 的契约只折 `â/î/û`，`ü→u` 必须在跟读打分里算作一次"元音质量"失误（`teşekkürler` vs `tesekkurler` = 两处差异 = 未命中，见 `read_aloud_scoring_test`）。断言改为 `foldTurkish('sükûn') == 'sükun'`，钉住"戴帽符折、双点符不折"这条真实契约；**产品行为零改动**。
+  3. `test/views/dictation_renderer_test.dart`：CTA 已在 `677137b1` 归入页面底栏，测试却仍对裸 `DictationRenderer` 找「核对」按钮 —— 改为挂真实 `PracticeSessionBody`（`LessonActionScope` 契约），提交结果与纠错横幅语义不变。
+  4. `test/data/seeder_idempotent_test.dart`：断言「课程发货语法点与表达各非空」，但 `assets/courses/nouveau-turkish/grammar_points.json` 与 `expressions.json` 自建库起就是 `[]` —— 改为断言**数据库与课程资产一致**（读资产 + 同一套解析器比长度），课程资产以后填内容也不用再改测试。
+  5. `test/application/section_load_reentrancy_test.dart`：目标取 `provider.sections.last`（nt-s8，0 unit），而带正文的 nt-s1 正是 `load()` 预载的那一个 —— 测试自插一个带 unit 的夹具 section（`sortOrder` 999，排最后），让"未预载且有正文"这个前提不依赖课程施工进度。
+  6. `lib/core/theme.dart` + `lib/views/lesson/components/interactions/interaction_renderer.dart`：主 CTA 渐变字面量从页面收回主题 —— 新增 `buttonGradientVertical`（颜色序列仍是 `brandTeal → brandTealLight`，轴向自下往上 ⇒ 视觉"上亮下暗"）与 `primaryCtaDecoration(vertical: true)`（竖向档额外挂品牌光晕）；底栏主按钮改调主题装饰，**像素不变**（同色对、同轴向、同投影、同圆角），页面不再自带渐变字面量。`docs/project-guide.md` §9 的主 CTA 口径同步补一句竖向变体。
+- **验证**：`flutter analyze` **No issues found**（既有 `unawaited_futures` info 清零）；`flutter test --exclude-tags golden` **2552 passed / 0 failed**（此前 2544 passed / 7 failed）；`flutter test --tags golden` **14 passed**（无重录，CTA 像素未变）；8 个改动文件 `dart format` 全部干净。**未验**：真机浅 / 深色下底栏主按钮的观感（像素级等价，但未上真机比对）。
+
+---
+
+### 2026-11-01 设置域深层页玻璃弱化：新增 l1Quiet 档 + 一代白描边收口（ADR 0063）
+
+- **性质**：视觉批次；**测试数 +4**（`glass_tokens_test` 新增「弱化档 l1Quiet」组 4 条：淡彩浓度与 `l1Subtle` 完全同档、高光与投影都弱于 `l1Subtle`、深色两层黑投影按档位取值、与 `l1Subtle` 落在同一色阶；既有对比度组扩为同时覆盖 `l1Quiet`，不新增用例数）。
+- **改动**：
+  1. `core/theme.dart`：`GlassLevel` 增第五档 `l1Quiet`（淡彩与 `l1Subtle` 同值 0.07→0.13 / 深 0.08→0.14，sheen 0.34→0.08，描边 0.24→0.20，近层投影 0.15→0.06、远层 0.11→0.035，深色 `darkSheen` 0.05→0.02）；`_GlassSpec` 公开为 `GlassSpec` 并新增 `darkNearAlpha` / `darkFarAlpha` —— `glassShadow` 深色分支此前**写死**两层黑投影（0.30 / 0.18），不改这一处则弱化档在深色下拿到的仍是原投影；既有三档填同值保证输出逐像素不变。`glassSpec(level)` 公开为参数表读取入口（`GlassLevel` 是公开枚举，参数表公开才能让「只削高光与投影、不动淡彩」这类约定被断言钉住）。
+  2. `views/settings/widgets/primitives/settings_section.dart`：`SettingsCard` 增 `level` 参数，默认 `l1Quiet`（设置树深层 27 处调用自动跟随）。
+  3. `views/settings/settings_page.dart`：一级落地页两处 `SettingsCard` **显式**保留 `l1Subtle` —— 落地页是设置域的视觉锚点，深页才让位给表单控件；删掉这两处参数即整树弱化。
+  4. 深页散落玻璃收口：`about_turna_page`（`_AboutCard` + `_HeroCard`）、`changelog_page`（2 处）、`privacy_details_page`（3 处）、`transparency_log_page`（2 处）、`official_anki_repair_center_page`（1 处）改用 `l1Quiet`。
+  5. 一代白描边收口为二代同色相描边：`ai_api_config_page` 4 处（状态面板升级为 `glassDecoration(l1Quiet)`，供应商控件未选中态与两条行内状态条改 `glassStroke(l1Quiet)`）+ `about_turna_page` 品牌头图 1 处（描边与投影改 `l1Quiet`，保留 teal→clay 品牌渐变）。范围外的 `glassBorder` 用法（胶囊导航 / SnackBar / 顶部统计条 / AI sheet / Play 弹窗 / 课程底部弹层）按 ADR 0062 §范围外 一律不动 —— 那是浮起 chrome 的正当用途。
+- **验证**：`flutter analyze` 仅剩既有 `course_database_seeder.dart` 一条 `unawaited_futures` info；全量 `flutter test --exclude-tags golden` **2544 passed / 7 failed**，7 条**全部先于本批存在**（与「2026-10-31 全 app 材质统一：彩色玻璃」条目所列同一集合：`section_load_reentrancy_test`、`turkish_text_test`、`seeder_idempotent_test`、`dictation_renderer_test` ×3、`wetland_palette_contract_test:318`；后者 `git show HEAD:` 证实 `primaryCtaDecoration` 在此前即不存在），**失败集合未扩大**。`flutter test --tags golden` **14 passed** —— 其中 `settings_reminder_light/dark` 为本批重录（`SettingsCard` 换档后像素必变），其余 13 张 golden 逐像素未变，反证改动没有外溢到设置域以外。**未验**：真机浅/深色实机观感，以及高对比模式下的边界分离表现。
+
+---
+
+### 2026-10-31 拼句题交互重做：词库变暗锁定 + 句中拖拽调序 + 词块飞行动画
+
+- **性质**：体验批次（用户试学反馈：无动画 / 可重复点击 / 拼好的句子难修改）；**测试数 +3**（`interaction_renderers_test` 的 `ReorderSentenceRenderer` 组 +3 条：重复点击已放置词库芯片为 no-op、点句中芯片退回词库后可重放、长按拖拽句内调序；既有 3 条拼句用例改按稳定 pool id 点芯片——词库芯片放进句子后不消失，按文本找会双命中）。
+- **改动**：
+  1. `reorder_sentence_renderer.dart` 重做：词块身份化（`_Token`，重复文本各自身份独立）；词库芯片放进句子后**原位变暗锁定**（`AnimatedOpacity` 0.35 + `onTap` 置空，结构上杜绝重复放置，词库永不重排）；句中芯片**点按退回 + 长按拖动调序**（水平 `Wrap` + `LongPressDraggable`/`DragTarget` 逐槽，拖到哪个芯片上就落在那个位置——insert-at 语义，句尾追加槽 + 拖回词库即退回；不用 `ReorderableListView`，纵向列表会把句子竖排）；放入/退回时**幽灵芯片飞行**（根 `Overlay` + `Rect.lerp`，260ms easeOutCubic，测量方式同 `PlayInfoPopup`），减少动效（系统禁用动画 / a11y `reducedMotion`）时整条链路退化为瞬时；`dispose` 清理飞行条目防题目切换泄漏。
+  2. `interaction_renderer.dart` 新增共享 `WordChip`（拼句词库/句中芯片与选择填空候选词块原本是逐行雷同的双胞胎私有类，收口为一个组件，`onTap == null` 即不可点态并从语义树禁用）；`fill_blank_renderer.dart` 的 `_ChoiceChip` 删除换用之。
+- **验证**：`flutter analyze --no-fatal-infos` 通过（仅剩既有 `course_database_seeder.dart` 一条 info）；`flutter test test/views/lesson/renderers/interaction_renderers_test.dart` **53 passed**（含拖拽手势模拟）。SDK 切换按 §9.1：本批先用 fork 跑 build_runner（内容轮次），analyze/test 前官方 `flutter pub get` 把 package_config 指回官方 SDK。**未验**：真机飞行动画手感与长按拖拽的触觉反馈。
+
+---
+
+### 2026-10-31 课程题型口径落地：选择填空 / 翻译拼句 / 词块点读（NouveauTurkish L1 重做）
+
+- **性质**：功能批次；**测试数 +4**（`interaction_renderers_test` 的 `FillBlankRenderer` 组 +3 条选择填空：CHECK 门控、选词提交与提交后锁定、错选提交；`ReorderSentenceRenderer` 组 +1 条中文题面渲染与拼句提交）。
+- **改动**：
+  1. `lib/domain/course/interaction.dart`：`FillBlank` 增 `choices`（非空即切换为选择填空）、`ReorderSentence` 增 `prompt`（非空即在词库上方渲染源句题面，成为翻译拼句）；freezed/json 生成物同步。
+  2. `lib/application/smart_speech.dart`：新增 `speakTargetChip`——目标语词块点读（词块是题目语言材料本身，不门控；DI 不可用时静默返回 null，选词动作不受影响）。
+  3. `fill_blank_renderer.dart`：choices 模式渲染候选词块（点选填空＋点读，提交后锁定），打字模式行为不变；`reorder_sentence_renderer.dart`：词库与答案行词块点击即点读，带 `prompt` 时显示源句卡片。
+  4. `assets/courses/nouveau-turkish/sections/section1.json`：L1 两小节按白板「题型口径」重做——情景壳选择题（进店第一句／店员说你怎么回／递茶你说／占座你说／场合辨析／先后顺序 MCQ）替换为排序拼句（「我要一杯咖啡」「谢谢您」「两句先后」）与选择填空（对话补全、「谢谢」＝＿、ev 词火车挖空）；词认义、拼写辨认类保留选择题。
+- **验证**：`python tool/course_cli.py --course-dir assets/courses/nouveau-turkish validate` 与 `lint` 均通过；build_runner（OHOS fork SDK）通过。**未跑** `flutter analyze` / `flutter test`（默认工作流不跑门禁，新增 4 条测试待下次批次一并验证）。
+
+---
+
+### 2026-10-31 TTS 播放编排、诊断恢复与生命周期优化
+
+- **性质**：TTS 可靠性与体验优化；**测试数 +12**（`speech_backend_test` +1 条音频焦点；`tts_availability_checker_test` +4 条失败重试、成功缓存、并发查询去重、单次诊断快照；`audio_controller_tts_engine_test` +5 条最新请求获胜、主动取消、空文本、超时与合成失败分类；`tts_feedback_test` +2 条取消无提示与结构化文案）。
+- **改动**：
+  1. `AudioController` 以请求 ID 串行化完整引擎准备/播放段，最新请求取消旧请求，迟到结果不覆盖新状态；空文本不触平台，cancelled 与 failed 分离。
+  2. `FlutterTtsSpeechBackend` 开启音频焦点，原生合成失败与超时使用类型化异常，主动 stop 不再记录为播放失败。
+  3. `TtsAvailabilityChecker` 仅缓存成功引擎/语言诊断并合并并发查询，失败允许重试；`diagnose()` 复用同一引擎快照，系统设置 resumed 后强制重配刷新。
+  4. 手动朗读统一使用结构化中文错误与可选语音设置动作，自动朗读不弹提示；应用后台、课时和复习退出时停止语音。
+- **验证**：相关七个测试文件合计 **138 passed**；`flutter analyze --no-fatal-infos` 通过（仅剩既有 `course_database_seeder.dart` 一条 info）；debug 与 arm64 release APK 构建成功。Android 15 / API 35 模拟器实链：原生 `-7` 归类为 `synthesisFailed` 并显示中文修复指引，后台恢复实际触发引擎重选与语言诊断刷新。
+- **未验**：实体设备真实出声、音频焦点体感，以及安装土耳其语离线资源后的成功路径；当前模拟器仍只能验证失败处理与生命周期。
+
+---
+
+### 2026-10-31 安卓 TTS 与跟读识别故障修复
+
+- **性质**：平台音频故障修复；**测试数 +9**（`speech_backend_test` +3 条：等待原生完成、合成失败、超时停止；`read_aloud_backend_test` +4 条：识别服务缺失、并发初始化、Locale 查询超时回退、网络错误分类；`interaction_renderers_test` +2 条：服务缺失降级与网络错误重试文案）。
+- **改动**：
+  1. `lib/service/speech_backend.dart`：`flutter_tts` 开启完成等待，原生合成错误、主动停止与 60 秒超时均返回失败，不再把请求接受提前记为播放成功。
+  2. `lib/service/read_aloud_backend.dart`：并发初始化共用同一 Future；`recognizerNotAvailable` 转为服务缺失降级；Locale 查询 2 秒超时后直接使用课程语言；识别采用 dictation / 30 秒上限；网络与服务端错误独立分类，并禁用无关蓝牙权限请求。
+  3. `lib/views/lesson/components/interactions/read_aloud_renderer.dart`：启动识别前等待 TTS 停止、播放示范音前等待录音停止，增加启动中防重入；服务缺失与网络失败分别展示可操作提示。
+- **验证**：四个相关测试文件合计 **92 passed**；`flutter analyze --no-fatal-infos` 通过（仅剩既有 `course_database_seeder.dart` 一条 info）；debug 与 arm64 release APK 构建成功，release 合并权限含 `RECORD_AUDIO`。Android 15 / API 35 模拟器实链：Google 原生合成 `-7` 被捕获并显示「未播放语音」，不再提前记录 `system OK`；识别权限与启动成功，原生 `error_network` 正确映射为 `networkUnavailable`。
+- **未验**：实体安卓设备上的扬声器出声、真实麦克风识别质量，以及安装土耳其语离线资源后的成功路径；当前模拟器没有土耳其语离线资源且在线服务不可达。
+
+---
+
 ### 2026-10-31 语音朗读与跟读识别优化（跟读示范音 + 数词/4字母词/撇号/戴帽元音对齐容错）
 
 - **性质**：体验与算法优化批次；**测试数 +7**（`read_aloud_scoring_test` +4 条：数词与数字双向等价、4 字母词单编辑距离容错、撇号规整、戴帽元音对比；`turkish_text_test` +1 条：长元音/戴帽元音折叠；`read_aloud_backend_test` +1 条：Locale 候选智能解析；`interaction_renderers_test` +1 条：跟读卡片发音示范 SpeakerButton 渲染与点击）。

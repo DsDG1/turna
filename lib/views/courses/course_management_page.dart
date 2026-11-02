@@ -29,6 +29,7 @@ import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/anki_official/components/adaptation_restore_sheet.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Course management page — opened from the course switcher in the Learn
@@ -76,7 +77,10 @@ class CourseManagementPage extends StatelessWidget {
           ),
         ],
       ),
-      body: _CourseManagementBody(highlightWire: highlightWire),
+      body: TurnaPageContent(
+        maxWidth: 840,
+        child: _CourseManagementBody(highlightWire: highlightWire),
+      ),
     );
   }
 }

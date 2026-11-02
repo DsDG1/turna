@@ -146,9 +146,15 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 
 ## 9. 主题与可访问性
 
+全 App「湿地雾光」的逐页新布局、页面重构与结构差异验收见 [版面重设计与页面重构计划](./app-design-refresh-plan.md)；本节只描述已经落地的公共设计规则。
+
 `lib/core/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，以及按 `Brightness` 自适应的语义化颜色 helper。调色板是 Turna「湿地鹤」方案 A（[ADR 0033](./decisions/0033-turna-wetland-crane-palette.md)），真源是 `lib/core/theme.dart` 与 `tool/gui/src/theme_tokens.py`：主色锁 `#1F727E`，另有 `brandNavy #19324A` / `primaryLight #2F7F8E` / `primaryDark #145A64` / `brandSky #4A95A8` / `brandReed #78C7B8` / `secondary #B85C3F` / `secondaryLight #EAD9B8` / `error #E74C3C` / `success #FFD93D` / `warning #FF9F43`。
 
-主 CTA 渐变 `brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`）。角色边界：success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip；高对比模式下 secondary 可以偏离 clay。Android 状态栏/导航栏对齐 AppBar 表面（不是铺一条 teal）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。
+主 CTA 渐变 `brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`；做题页底栏主按钮走竖向变体 `primaryCtaDecoration(vertical: true)`——轴向自下往上，视觉上"上亮下暗"）。角色边界：success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip；高对比模式下 secondary 可以偏离 clay。Android 状态栏/导航栏对齐 AppBar 表面（不是铺一条 teal）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。
+
+材质分为纸面、静态彩色玻璃、扁平控件与磨砂浮层；分别由 `TurnaTheme.flatPaperDecoration`、`GlassSurface`、按钮/选项组件和底部胶囊承担，不在长列表逐项做背景模糊。间距使用 `lib/core/spacing.dart` 的 4 点节奏，圆角使用 `TurnaTheme.radiusSmall` 至 `radiusXLarge`；`lib/core/motion.dart` 是跨功能动效 token。跨功能卡片与图标井在 `lib/views/widgets/turna_cards.dart`，几何品牌图形在 `turna_geometry.dart`，以静态 CustomPainter 提供涟漪、旅程、连接与成就四种构图，深色和高对比自动切换且不进入语义树。两个组件文件附 `@Preview` 浅色/深色样板。
+
+宽屏内容由 `TurnaPageContent` 居中约束：学习主列约 720，工具与数据页约 840，主 Tab 壳约 960；手机布局不增加额外断点。启动页复用应用标识和旅程几何构图，但不为品牌展示增加等待。`PracticeEmptyState` 统一空内容、可恢复失败与下一步操作，完成页保留真实结算数据、装饰徽章和可滚动的大字号布局。
 
 全应用使用系统字体（不要回退）：不引入 `google_fonts` / `AppFonts`，`dyslexiaFont`（Lexend）连同设置项、Provider 字段、备份清单条目和 l10n 键都不保留（存量 `settings.dyslexiaFont` 偏好项成为死键，不迁移）。理由不是审美而是 ANR：欢迎页永久动画循环每次 rebuild 都调 `GoogleFonts.nunito()` 走运行时拉取，`fonts.gstatic.com` 持续 408，于是失败重试 + fallback 重解析 → 帧泵永续（真机实测 8 秒窗口 241 帧）→ 主线程 CPU 饱和（`utm` 124.9s / 进程存活 188s）→ 触摸 5 秒无人消费 → `Input dispatching timed out` ANR 击杀。系统字体零网络依赖、确定性 100%。
 
@@ -161,7 +167,7 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 | `reducedMotion` | 减少动画（`MediaQuery` 的 disableAnimations） |
 | `highContrast` | 切高对比主题（纯黑白表面 + 强边框 + 最大对比文本） |
 | `sensoryReduce` | 静音音效和触觉反馈 |
-| `focusMode` | 关掉 splash 旋转图计时器这类分心元素 |
+| `focusMode` | 撤掉非必要装饰、推荐和磨砂效果，保留当前学习任务 |
 
 `app.dart` 的 `_AppShell` 监听 ThemeProvider 和 AccessibilityProvider，选 light / dark / high-contrast 变体，注入根 `MediaQuery` 覆盖。卡片字号的实际作用域：`cardTextScale`（`AccessibilityProvider.cardTextScale` / `cardTextScaleOf(context)`）只被 Anki 卡面消费，三个消费点是 `lib/views/anki/anki_html_card_view.dart`、`lib/views/review/components/official_template_webview_body.dart`、`lib/views/anki_official/official_anki_reviewer_stage.dart`。豁免约定见 [`AGENTS.md`](../AGENTS.md)。
 

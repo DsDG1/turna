@@ -27,7 +27,11 @@ from src.backend.content_quality import (
     evaluate_unit_spiral,
     score_section,
 )
-from src.backend.overview_stats import iter_lesson_refs, lesson_is_empty
+from src.backend.overview_stats import (
+    iter_lesson_interactions,
+    iter_lesson_refs,
+    lesson_is_empty,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,7 @@ _KIND_LABELS: dict[str, str] = {
     "duplicate_term": "重复词条",
     "term_conflict": "词条冲突",
     "prereq_invalid": "前置依赖异常",
+    "read_aloud_empty_target": "跟读缺目标句",
 }
 
 
@@ -253,6 +258,26 @@ def _audit_section(
                     estimated_calls=1,
                 )
             )
+        else:
+            try:
+                for item in iter_lesson_interactions(lesson):
+                    if item.get("runtimeType") == "readAloud":
+                        target = str(item.get("targetText") or "").strip()
+                        if not target:
+                            item_id = item.get("id") or "未编号"
+                            out.append(
+                                _finding(
+                                    "read_aloud_empty_target",
+                                    SEVERITY_WARNING,
+                                    section_id=sid,
+                                    unit_id=uid,
+                                    lesson_id=lid,
+                                    title=f"跟读缺目标句：{lesson.get('name') or lid}（题 {item_id}）",
+                                    detail="跟读练习缺少 targetText，移动端将无法进行朗读与打分比对；请在课时编辑器中补齐目标句子。",
+                                )
+                            )
+            except _DATA_ERRORS:
+                pass
 
     report = None
     try:

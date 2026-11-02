@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +35,14 @@ class _FakeFlutterTts implements FlutterTts {
   final List<double> rateCalls = [];
   final List<String> engineCalls = [];
   int stopCalls = 0;
+  Completer<dynamic>? speakCompleter;
+  Object? speakError;
+
+  @override
+  Future<dynamic> awaitSpeakCompletion(bool awaitCompletion) async => 1;
+
+  @override
+  void setErrorHandler(ErrorHandler handler) {}
 
   @override
   Future<dynamic> setLanguage(String language) async {
@@ -53,12 +63,14 @@ class _FakeFlutterTts implements FlutterTts {
   }
 
   @override
-  Future<dynamic> speak(String text, {bool focus = false}) async {
+  Future<dynamic> speak(String text, {bool focus = false}) {
     speakCalls.add(text);
-    if (speakShouldThrow) {
-      throw Exception('system tts failed');
+    if (speakShouldThrow || speakError != null) {
+      return Future<dynamic>.error(
+        speakError ?? Exception('system tts failed'),
+      );
     }
-    return 1;
+    return speakCompleter?.future ?? Future<dynamic>.value(1);
   }
 
   @override
@@ -184,6 +196,78 @@ void main() {
       expect(result.source, TtsSpeakSource.failed);
       expect(tts.languageCalls, isNotEmpty);
       expect(tts.speakCalls, isEmpty);
+    });
+
+    test('a newer utterance cancels the old one and owns the final result',
+        () async {
+      final tts = _FakeFlutterTts()..speakCompleter = Completer<dynamic>();
+      final controller = _buildController(settings: settings, tts: tts);
+
+      final first = controller.speakWithResult('first');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final second = controller.speakWithResult('second');
+      await Future<void>.delayed(Duration.zero);
+      tts.speakCompleter!.complete(1);
+
+      expect(
+          await first,
+          isA<TtsSpeakResult>().having(
+            (r) => r.source,
+            'source',
+            TtsSpeakSource.cancelled,
+          ));
+      expect((await second).source, TtsSpeakSource.system);
+      expect(controller.lastSpeakResult?.source, TtsSpeakSource.system);
+      expect(tts.speakCalls, ['first', 'second']);
+    });
+
+    test('explicit stop reports cancellation instead of a playback failure',
+        () async {
+      final tts = _FakeFlutterTts()..speakCompleter = Completer<dynamic>();
+      final controller = _buildController(settings: settings, tts: tts);
+
+      final speaking = controller.speakWithResult('Merhaba');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await controller.stopSystemTts();
+
+      expect((await speaking).source, TtsSpeakSource.cancelled);
+    });
+
+    test('empty text avoids every platform call', () async {
+      final tts = _FakeFlutterTts();
+      final controller = _buildController(settings: settings, tts: tts);
+
+      final result = await controller.speakWithResult('<br>  ');
+
+      expect(result.failureReason, TtsFailureReason.emptyText);
+      expect(tts.speakCalls, isEmpty);
+      expect(tts.stopCalls, 0);
+    });
+
+    test('native timeout keeps its structured failure reason', () async {
+      final tts = _FakeFlutterTts()
+        ..speakError = const TtsPlaybackException(TtsPlaybackErrorKind.timeout);
+      final controller = _buildController(settings: settings, tts: tts);
+
+      final result = await controller.speakWithResult('Merhaba');
+
+      expect(result.source, TtsSpeakSource.failed);
+      expect(result.failureReason, TtsFailureReason.timeout);
+    });
+
+    test('native synthesis failure keeps its structured failure reason',
+        () async {
+      final tts = _FakeFlutterTts()
+        ..speakError = const TtsPlaybackException(
+          TtsPlaybackErrorKind.synthesis,
+          'synthesis -7',
+        );
+      final controller = _buildController(settings: settings, tts: tts);
+
+      final result = await controller.speakWithResult('Merhaba');
+
+      expect(result.source, TtsSpeakSource.failed);
+      expect(result.failureReason, TtsFailureReason.synthesisFailed);
     });
 
     test('rebindSystemTts forces engine reconfigure and clears language cache',

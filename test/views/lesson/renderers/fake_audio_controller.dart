@@ -66,6 +66,12 @@ class FakeAudioController implements AudioController {
   }
 
   @override
+  Future<TtsSpeakResult> speakWordWithResult(String wordId) async {
+    spoken.add(wordId);
+    return const TtsSpeakResult(source: TtsSpeakSource.system);
+  }
+
+  @override
   Future<void> speakListenContent({
     String? audioAsset,
     String transcript = '',
@@ -83,6 +89,15 @@ class FakeAudioController implements AudioController {
     } else if (text.isNotEmpty) {
       await speak(text);
     }
+  }
+
+  @override
+  Future<TtsSpeakResult> speakListenContentWithResult({
+    String? audioAsset,
+    String transcript = '',
+  }) async {
+    await speakListenContent(audioAsset: audioAsset, transcript: transcript);
+    return const TtsSpeakResult(source: TtsSpeakSource.system);
   }
 
   @override

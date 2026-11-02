@@ -127,6 +127,8 @@ class _PreviewCard(QFrame):
             self._build_text_answer(layout, prompt)
         elif rt == "reorderSentence":
             self._build_display(layout, prompt)
+        elif rt == "readAloud":
+            self._build_read_aloud(layout, prompt)
         else:
             self._build_display(layout, prompt or str(self.item))
 
@@ -250,6 +252,66 @@ class _PreviewCard(QFrame):
         check_btn = QPushButton("提交")
         check_btn.clicked.connect(_check)
         layout.addWidget(check_btn)
+        layout.addWidget(status)
+
+    def _build_read_aloud(self, layout: QVBoxLayout, prompt: str) -> None:
+        layout.addWidget(QLabel(prompt or "大声跟读以下句子："))
+        target_text = str(self.item.get("targetText") or "").strip()
+
+        target_card = QLabel(target_text or "（未填写朗读目标句）")
+        _pal = current_palette()
+        target_card.setStyleSheet(
+            f"font-size: 15px; font-weight: bold; padding: 10px; "
+            f"background-color: {_pal.get('bg_input', '#121212')}; "
+            f"border: 1px solid {_pal.get('border', '#2A2A2A')}; border-radius: 6px;"
+        )
+        target_card.setWordWrap(True)
+        layout.addWidget(target_card)
+
+        hint = QLabel("💡 移动端提示：支持点击发音示范按钮，点击录音按钮开始语音识别打分。")
+        hint.setStyleSheet(f"color: {_pal.get('text_secondary', '#A7B2B8')}; font-size: 11px;")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+
+        edit = QLineEdit()
+        edit.setPlaceholderText("试做测试：输入模拟朗读识别文本…")
+        layout.addWidget(edit)
+
+        status = QLabel("")
+        status.setStyleSheet(
+            f"color: {_pal.get('text_secondary', '#A7B2B8')}; font-size: 11px;"
+        )
+        status.setWordWrap(True)
+
+        def _check() -> None:
+            if not target_text:
+                status.setText("该题未设置朗读目标句 targetText，无法判定")
+                return
+            input_text = edit.text().strip().lower()
+            if not input_text:
+                status.setText("请先输入试做识别文本")
+                return
+            ok = input_text == target_text.lower()
+            if not ok:
+                self._emit_wrong()
+            QMessageBox.information(
+                self,
+                "结果",
+                "✅ 跟读匹配通过！"
+                if ok
+                else f"❌ 匹配未达标\n目标句：{target_text}\n识别为：{edit.text().strip()}",
+            )
+
+        btn_row = QHBoxLayout()
+        check_btn = QPushButton("提交试做比对")
+        check_btn.clicked.connect(_check)
+        btn_row.addWidget(check_btn)
+
+        quick_btn = QPushButton("填入目标句")
+        quick_btn.clicked.connect(lambda: edit.setText(target_text))
+        btn_row.addWidget(quick_btn)
+
+        layout.addLayout(btn_row)
         layout.addWidget(status)
 
     def _build_true_false(self, layout: QVBoxLayout, prompt: str) -> None:

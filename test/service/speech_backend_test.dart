@@ -10,6 +10,8 @@
 // have to fall back to a different one; both must be visible to the caller
 // rather than turning into silence.
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,8 +107,23 @@ class _FakeFlutterTts implements FlutterTts {
 
   Object? languageResult;
   Object? speakResult;
+  Completer<dynamic>? speakCompleter;
+
+  @override
+  ErrorHandler? errorHandler;
 
   final List<String> calls = <String>[];
+
+  @override
+  Future<dynamic> awaitSpeakCompletion(bool awaitCompletion) async {
+    calls.add('awaitSpeakCompletion:$awaitCompletion');
+    return 1;
+  }
+
+  @override
+  void setErrorHandler(ErrorHandler handler) {
+    errorHandler = handler;
+  }
 
   @override
   Future<dynamic> setLanguage(String language) async {
@@ -121,9 +138,9 @@ class _FakeFlutterTts implements FlutterTts {
   }
 
   @override
-  Future<dynamic> speak(String text, {bool focus = false}) async {
-    calls.add('speak:$text');
-    return speakResult;
+  Future<dynamic> speak(String text, {bool focus = false}) {
+    calls.add('speak:$text:focus=$focus');
+    return speakCompleter?.future ?? Future<dynamic>.value(speakResult);
   }
 
   @override
@@ -369,6 +386,66 @@ void main() {
             FlutterTtsSpeechBackend(_FakeFlutterTts(speakResult: result));
         expect(await backend.speak('hi'), isTrue, reason: '$result');
       }
+    });
+
+    test('waits for native completion instead of request acceptance', () async {
+      final tts = _FakeFlutterTts()..speakCompleter = Completer<dynamic>();
+      final backend = FlutterTtsSpeechBackend(tts);
+      var completed = false;
+      final speaking = backend.speak('hi').then((result) {
+        completed = true;
+        return result;
+      });
+
+      await Future<void>.delayed(Duration.zero);
+      expect(completed, isFalse);
+
+      tts.speakCompleter!.complete(1);
+      expect(await speaking, isTrue);
+    });
+
+    test('requests transient audio focus for playback', () async {
+      final tts = _FakeFlutterTts(speakResult: 1);
+      final backend = FlutterTtsSpeechBackend(tts);
+
+      expect(await backend.speak('hi'), isTrue);
+      expect(tts.calls, contains('speak:hi:focus=true'));
+    });
+
+    test('a native synthesis error fails an accepted request', () async {
+      final tts = _FakeFlutterTts()..speakCompleter = Completer<dynamic>();
+      final backend = FlutterTtsSpeechBackend(tts);
+      final speaking = backend.speak('hi');
+
+      await Future<void>.delayed(Duration.zero);
+      tts.errorHandler!('Synthesis failure -7');
+
+      await expectLater(
+        speaking,
+        throwsA(isA<TtsPlaybackException>().having(
+          (e) => e.kind,
+          'kind',
+          TtsPlaybackErrorKind.synthesis,
+        )),
+      );
+    });
+
+    test('a stalled native request times out and stops', () async {
+      final tts = _FakeFlutterTts()..speakCompleter = Completer<dynamic>();
+      final backend = FlutterTtsSpeechBackend(
+        tts,
+        playbackTimeout: const Duration(milliseconds: 5),
+      );
+
+      await expectLater(
+        backend.speak('hi'),
+        throwsA(isA<TtsPlaybackException>().having(
+          (e) => e.kind,
+          'kind',
+          TtsPlaybackErrorKind.timeout,
+        )),
+      );
+      expect(tts.calls, contains('stop'));
     });
 
     test('a zero or false result is a refusal', () async {

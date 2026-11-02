@@ -17,6 +17,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 
 /// Persistence helpers for course-shaped JSON produced by importers and the
 /// AI practice pipeline.
@@ -75,6 +76,13 @@ class AiCourseProvider extends ChangeNotifier {
               template: Value(lesson.template.name),
               prerequisiteLessonIds:
                   Value(jsonEncode(lesson.prerequisiteLessonIds)),
+              subLessonSummaries: Value(
+                SubLessonSummariesCodec.encode(
+                  SubLessonSummariesCodec.fromSubLessons(
+                    lesson.content.subLessons,
+                  ),
+                ),
+              ),
               sortOrder: Value(existing.sortOrder),
             ),
           );
@@ -145,6 +153,13 @@ class AiCourseProvider extends ChangeNotifier {
                   template: Value(l.template.name),
                   prerequisiteLessonIds:
                       Value(jsonEncode(l.prerequisiteLessonIds)),
+                  subLessonSummaries: Value(
+                    SubLessonSummariesCodec.encode(
+                      SubLessonSummariesCodec.fromSubLessons(
+                        l.content.subLessons,
+                      ),
+                    ),
+                  ),
                   sortOrder: Value(lOrder),
                 ),
               );

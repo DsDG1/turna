@@ -113,7 +113,7 @@ class JourneyOverviewCard extends StatelessWidget {
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -560,7 +560,7 @@ class ChangelogReleaseCard extends StatelessWidget {
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ).copyWith(
         // isLatest 的那条要保持 teal 强调，其余走玻璃自己的同色描边。
@@ -570,7 +570,7 @@ class ChangelogReleaseCard extends StatelessWidget {
               : TurnaTheme.glassStroke(
                   context,
                   TurnaTheme.glassNeutral,
-                  level: GlassLevel.l1Subtle,
+                  level: GlassLevel.l1Quiet,
                 ),
         ),
       ),

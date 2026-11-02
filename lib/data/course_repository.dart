@@ -19,6 +19,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/domain/course/word_entry.dart';
 import 'package:injectable/injectable.dart';
@@ -831,6 +832,9 @@ class CourseRepository implements ICourseRepository {
       template: _lessonTemplateByName(row.template),
       prerequisiteLessonIds: _decodeStringList(row.prerequisiteLessonIds),
       content: content,
+      subLessonSummaries: SubLessonSummariesCodec.decode(
+        row.subLessonSummaries,
+      ),
     );
   }
 

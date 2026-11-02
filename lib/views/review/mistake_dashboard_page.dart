@@ -623,10 +623,9 @@ class _OldestCard extends StatelessWidget {
 
 // ─── Shared bits ───────────────────────────────────────────────────────────
 
-BoxDecoration _cardDecoration(BuildContext context) => TurnaTheme.glassDecoration(
+BoxDecoration _cardDecoration(BuildContext context) =>
+    TurnaTheme.flatPaperDecoration(
       context,
-      TurnaTheme.glassNeutral,
-      level: GlassLevel.l1Subtle,
       borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
     );
 

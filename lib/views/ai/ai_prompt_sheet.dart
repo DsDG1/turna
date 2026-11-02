@@ -274,7 +274,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
           decoration: BoxDecoration(
             color: TurnaTheme.tintLight,
             borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-            border: Border.all(color: TurnaTheme.glassBorder(context)),
+            border: Border.all(color: TurnaTheme.dividerBg(context)),
           ),
           child: SingleChildScrollView(
             child: SelectableText(
@@ -392,7 +392,7 @@ class _FeatureChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
             border: Border.all(
-              color: selected ? accent : TurnaTheme.glassBorder(context),
+              color: selected ? accent : TurnaTheme.dividerBg(context),
               width: selected ? 1.6 : 1,
             ),
           ),

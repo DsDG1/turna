@@ -105,3 +105,17 @@ Future<void> enterText(WidgetTester tester, String text) async {
   await tester.enterText(find.byType(TextField), text);
   await tester.pumpAndSettle();
 }
+
+/// Taps the word-bank pool chip by its stable pool id (`ValueKey('pool-<id>')`,
+/// id = original scrambled index). Text-based finders can't be used here:
+/// placed chips stay visible in the bank (dimmed), so label matches twice.
+Future<void> tapPoolChip(WidgetTester tester, int poolId) async {
+  await tester.tap(find.byKey(ValueKey('pool-$poolId')));
+  await tester.pumpAndSettle();
+}
+
+/// Taps a chip already placed in the answer row (`ValueKey('picked-<poolId>')`).
+Future<void> tapAnswerChip(WidgetTester tester, int poolId) async {
+  await tester.tap(find.byKey(ValueKey('picked-$poolId')));
+  await tester.pumpAndSettle();
+}

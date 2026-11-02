@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
 
 /// Compact progress card for the job currently running in the background.
 ///

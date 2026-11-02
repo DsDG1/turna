@@ -51,9 +51,12 @@ void main() {
       );
 
       for (final accent in accents) {
-        for (final level in [GlassLevel.l1, GlassLevel.l2]) {
-          final bg =
-              worstCaseFill(ctx, accent, level, Colors.white);
+        for (final level in [
+          GlassLevel.l1,
+          GlassLevel.l2,
+          GlassLevel.l1Quiet,
+        ]) {
+          final bg = worstCaseFill(ctx, accent, level, Colors.white);
           expect(
             TurnaTheme.contrastRatio(TurnaTheme.textPrimary, bg),
             greaterThanOrEqualTo(7.0),
@@ -84,7 +87,11 @@ void main() {
 
       final base = TurnaTheme.cardBg(ctx);
       for (final accent in accents) {
-        for (final level in [GlassLevel.l1, GlassLevel.l2]) {
+        for (final level in [
+          GlassLevel.l1,
+          GlassLevel.l2,
+          GlassLevel.l1Quiet,
+        ]) {
           final bg = worstCaseFill(ctx, accent, level, base);
           expect(
             TurnaTheme.contrastRatio(
@@ -217,7 +224,8 @@ void main() {
       );
 
       for (final level in GlassLevel.values) {
-        final g = TurnaTheme.glassFill(ctx, TurnaTheme.glassFocus, level: level);
+        final g =
+            TurnaTheme.glassFill(ctx, TurnaTheme.glassFocus, level: level);
         expect(g.colors.length, g.stops!.length);
         expect(g.colors.length, 3, reason: '预混高光后只需三个 stop');
         // 白高光已预混进 stop 色值，所以每个 stop 必须是不透明色 ——
@@ -257,11 +265,150 @@ void main() {
           TurnaTheme.glassNeutral,
           level: GlassLevel.l1Subtle,
         );
-        final card =
-            Theme.of(ctx).cardTheme.color;
+        final card = Theme.of(ctx).cardTheme.color;
         expect(card, solid, reason: 'Card 底色与玻璃实面漂移了');
       });
     }
+  });
+
+  group('弱化档 l1Quiet（ADR 0063）', () {
+    // l1Quiet 的全部意图就是「淡彩不动，只削高光与投影」。这三条把意图钉成
+    // 可执行契约：谁要是顺手把淡彩也降了（中性灰在白底上会直接消失，
+    // 见 theme.dart 里 l1Subtle 的注释），或把削掉的量又加回来，这里立刻红。
+    final quiet = TurnaTheme.glassSpec(GlassLevel.l1Quiet);
+    final subtle = TurnaTheme.glassSpec(GlassLevel.l1Subtle);
+
+    test('淡彩浓度与 l1Subtle 完全同档', () {
+      expect(quiet.tintStart, subtle.tintStart);
+      expect(quiet.tintEnd, subtle.tintEnd);
+      expect(quiet.darkTintStart, subtle.darkTintStart);
+      expect(quiet.darkTintEnd, subtle.darkTintEnd);
+      expect(quiet.darkBase, subtle.darkBase);
+    });
+
+    test('高光与投影都弱于 l1Subtle', () {
+      expect(quiet.sheen, lessThan(subtle.sheen));
+      expect(quiet.nearAlpha, lessThan(subtle.nearAlpha));
+      expect(quiet.farAlpha, lessThan(subtle.farAlpha));
+      expect(quiet.darkSheen, lessThan(subtle.darkSheen));
+    });
+
+    test('深色两层黑投影按档位取值，不是写死', () {
+      // 深色下黑投影投在近黑画布上几乎看不见，但仍然必须分档 —— 否则
+      // l1Quiet 在深色下拿到的还是 l1Subtle 那副投影，弱化只做了一半。
+      expect(quiet.darkNearAlpha, lessThan(subtle.darkNearAlpha));
+      expect(quiet.darkFarAlpha, lessThan(subtle.darkFarAlpha));
+      // 其余档位保持既有数值，输出必须逐像素不变。
+      for (final level in [GlassLevel.l1, GlassLevel.l1Subtle, GlassLevel.l2]) {
+        final spec = TurnaTheme.glassSpec(level);
+        expect(spec.darkNearAlpha, 0.18);
+        expect(spec.darkFarAlpha, 0.30);
+      }
+    });
+
+    testWidgets('与 l1Subtle 落在同一色阶（Card 契约不破）', (tester) async {
+      for (final mode in [Brightness.light, Brightness.dark]) {
+        late BuildContext ctx;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: mode == Brightness.light
+                ? TurnaTheme.lightTheme
+                : TurnaTheme.darkTheme,
+            home: Builder(
+              builder: (c) {
+                ctx = c;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+
+        final quietSolid = TurnaTheme.glassSolid(
+          ctx,
+          TurnaTheme.glassNeutral,
+          level: GlassLevel.l1Quiet,
+        );
+        expect(
+          quietSolid,
+          TurnaTheme.glassSolid(
+            ctx,
+            TurnaTheme.glassNeutral,
+            level: GlassLevel.l1Subtle,
+          ),
+          reason: '${mode.name} 下 l1Quiet 与 l1Subtle 脱开了色阶',
+        );
+        expect(
+          Theme.of(ctx).cardTheme.color,
+          quietSolid,
+          reason: '${mode.name} 下 Card 底色与 l1Quiet 实面漂移了',
+        );
+      }
+    });
+  });
+
+  group('彩度系数 glassChroma（ADR 0065）', () {
+    testWidgets('玻璃底比未降彩的同浓度罩染更灰，浓度表不动', (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TurnaTheme.lightTheme,
+          home: Builder(
+            builder: (c) {
+              ctx = c;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+
+      // 浓度表是 ADR 0063 的地板，降彩不得顺手改 alpha。
+      expect(TurnaTheme.glassChroma, lessThan(1));
+      expect(
+        TurnaTheme.glassSpec(GlassLevel.l1Quiet).tintEnd,
+        TurnaTheme.glassSpec(GlassLevel.l1Subtle).tintEnd,
+      );
+
+      final tintEnd = TurnaTheme.glassSpec(GlassLevel.l1).tintEnd;
+      for (final accent in const [
+        TurnaTheme.warning,
+        TurnaTheme.glassFocus,
+      ]) {
+        final calmed =
+            TurnaTheme.glassFill(ctx, accent, level: GlassLevel.l1).colors.last;
+        final raw = Color.alphaBlend(
+          accent.withValues(alpha: tintEnd),
+          Colors.white,
+        );
+        expect(
+          HSLColor.fromColor(calmed).saturation,
+          lessThan(HSLColor.fromColor(raw).saturation),
+          reason: '$accent 的玻璃底没有降彩',
+        );
+      }
+
+      final stroke = TurnaTheme.glassStroke(
+        ctx,
+        TurnaTheme.warning,
+        level: GlassLevel.l1,
+      );
+      expect(
+        HSLColor.fromColor(stroke).saturation,
+        lessThan(HSLColor.fromColor(TurnaTheme.warning).saturation),
+        reason: '描边仍是未降彩的 accent',
+      );
+
+      final shadow =
+          TurnaTheme.glassShadow(ctx, TurnaTheme.warning).first.color;
+      final cooled = Color.lerp(
+        TurnaTheme.warning,
+        TurnaTheme.brandNavy,
+        TurnaTheme.glassShadowCooling,
+      )!
+          .withValues(
+        alpha: TurnaTheme.glassSpec(GlassLevel.l1).nearAlpha,
+      );
+      expect(shadow, cooled, reason: '投影冷却比例漂移了');
+    });
   });
 
   group('按钮族', () {

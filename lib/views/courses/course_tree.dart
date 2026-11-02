@@ -17,13 +17,14 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/courses/components/lesson_tile.dart';
 import 'package:turna/views/courses/components/unit_card.dart';
 import 'package:turna/views/home/components/ambient_backdrop.dart';
-import 'package:turna/views/home/motion/turna_motion.dart';
+import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
 import 'components/section_switcher.dart';
 
@@ -240,33 +241,84 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
       );
 
       if (expanded || retracting) {
-        String? nextUpLessonId;
+        // 旅程行按「可玩节点」扁平化（ADR 0063）：多子课的课拆成组头行
+        // + 每子课一行，一次点击 = 一节子课的独立会话；平面课仍是一
+        // 行。next-up 与「上一节点完成」都按节点粒度计算；无 progress
+        // 时退回首节点（与旧的 next-up 行为一致）。
+        ProgressProvider? progress;
         try {
-          final progress = context.read<ProgressProvider>();
-          for (final lesson in unit.lessons) {
-            if (!progress.isLessonCompleted(lesson.id)) {
-              nextUpLessonId = lesson.id;
-              break;
-            }
-          }
+          progress = context.read<ProgressProvider>();
         } catch (_) {
           // Optional dependency: without progress the tree simply starts at
           // the first lesson instead of the next uncompleted one.
         }
 
-        for (var i = 0; i < unit.lessons.length; i++) {
-          final lesson = unit.lessons[i];
+        final nextUpNode = _nextUpNode(progress, unit);
+        final totalRows = unit.lessons.fold<int>(
+          0,
+          (sum, lesson) => sum + _lessonRowCount(lesson),
+        );
+
+        var rowIndex = 0;
+        ({String lessonId, String? subLessonId})? previousNode;
+        for (final lesson in unit.lessons) {
+          final subs = _subLessonNodes(lesson);
+          final attention = status.attentionForLesson(lesson.id);
+          if (subs == null) {
+            items.add(
+              _LessonItem(
+                sectionId: section.id,
+                unit: unit,
+                lesson: lesson,
+                attention: attention,
+                isFirst: rowIndex == 0,
+                isLast: rowIndex == totalRows - 1,
+                revealIndex: rowIndex,
+                previousNode: previousNode,
+                isNextUp: _isNode(nextUpNode, lesson.id, null),
+              ),
+            );
+            previousNode = (lessonId: lesson.id, subLessonId: null);
+            rowIndex++;
+            continue;
+          }
+
           items.add(
-            _LessonItem(
+            _SubLessonGroupHeaderItem(
               sectionId: section.id,
               unit: unit,
               lesson: lesson,
-              attention: status.attentionForLesson(lesson.id),
-              isLast: i == unit.lessons.length - 1,
-              indexInUnit: i,
-              isNextUp: lesson.id == nextUpLessonId,
+              subs: subs,
+              attention: attention,
+              isFirst: rowIndex == 0,
+              // 组内必有子课行，组头永不收底。
+              isLast: false,
+              revealIndex: rowIndex,
+              previousNode: previousNode,
             ),
           );
+          rowIndex++;
+          // 组头是旅程线上的课级节点：第一节子课的上行线段连到它。
+          previousNode = (lessonId: lesson.id, subLessonId: null);
+          for (var s = 0; s < subs.length; s++) {
+            items.add(
+              _SubLessonItem(
+                sectionId: section.id,
+                unit: unit,
+                lesson: lesson,
+                sub: subs[s],
+                subIndex: s,
+                subCount: subs.length,
+                isFirst: false,
+                isLast: rowIndex == totalRows - 1,
+                revealIndex: rowIndex,
+                isNextUp: _isNode(nextUpNode, lesson.id, subs[s].id),
+                previousNode: previousNode,
+              ),
+            );
+            previousNode = (lessonId: lesson.id, subLessonId: subs[s].id);
+            rowIndex++;
+          }
         }
       }
     }
@@ -291,6 +343,11 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
                     attached ? 0.0 : 6.0
                   ),
                 _LessonItem(isLast: final isLast) => (0.0, isLast ? 6.0 : 0.0),
+                _SubLessonGroupHeaderItem() => (0.0, 0.0),
+                _SubLessonItem(isLast: final isLast) => (
+                    0.0,
+                    isLast ? 6.0 : 0.0
+                  ),
               };
 
               final child = switch (item) {
@@ -311,10 +368,12 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
                     reduceMotion: reduceMotion,
                   ),
                 _LessonItem() => _buildLessonTile(item),
+                _SubLessonGroupHeaderItem() => _buildGroupHeader(item),
+                _SubLessonItem() => _buildSubLessonTile(item),
               };
 
               final padding = EdgeInsets.fromLTRB(12, top, 12, bottom);
-              if (item is _LessonItem && !reduceMotion) {
+              if (item is! _UnitHeaderItem && !reduceMotion) {
                 return _buildRevealSlot(item, padding: padding, tile: child);
               }
               return Padding(
@@ -368,20 +427,21 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
 
   Widget _buildLessonTile(_LessonItem item) {
     final lesson = item.lesson;
-    final previousLessonId = item.indexInUnit > 0
-        ? item.unit.lessons[item.indexInUnit - 1].id
-        : null;
 
     return Selector<ProgressProvider,
         ({bool completed, bool perfect, bool previousCompleted})>(
       selector: (_, progress) => (
         completed: progress.isLessonCompleted(lesson.id),
         perfect: progress.isLessonPerfect(lesson.id),
-        previousCompleted: previousLessonId != null &&
-            progress.isLessonCompleted(previousLessonId),
+        previousCompleted: item.previousNode != null &&
+            _nodeCompleted(
+              progress,
+              item.previousNode!.lessonId,
+              item.previousNode!.subLessonId,
+            ),
       ),
       builder: (context, value, _) => LessonRowShell(
-        isFirst: item.indexInUnit == 0,
+        isFirst: item.isFirst,
         isLast: item.isLast,
         tile: LessonTile(
           lesson: lesson,
@@ -389,13 +449,153 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
           isPerfect: value.perfect,
           isNextUp: item.isNextUp && !value.completed,
           attention: item.attention,
-          isFirst: item.indexInUnit == 0,
+          isFirst: item.isFirst,
           isLast: item.isLast,
           previousCompleted: value.previousCompleted,
-          onTap: (tileContext) => _navigateToLesson(tileContext, lesson),
+          onTap: (tileContext) => _navigateToLesson(tileContext, lesson, null),
         ),
       ),
     );
+  }
+
+  Widget _buildGroupHeader(_SubLessonGroupHeaderItem item) {
+    final lesson = item.lesson;
+    final subIds = [for (final sub in item.subs) sub.id];
+
+    return Selector<
+        ProgressProvider,
+        ({
+          int completedCount,
+          bool lessonCompleted,
+          bool lessonPerfect,
+          bool previousCompleted,
+        })>(
+      selector: (_, progress) => (
+        completedCount: subIds
+            .where((id) => _nodeCompleted(progress, lesson.id, id))
+            .length,
+        lessonCompleted: progress.isLessonCompleted(lesson.id),
+        lessonPerfect: progress.isLessonPerfect(lesson.id),
+        previousCompleted: item.previousNode != null &&
+            _nodeCompleted(
+              progress,
+              item.previousNode!.lessonId,
+              item.previousNode!.subLessonId,
+            ),
+      ),
+      builder: (context, value, _) => LessonRowShell(
+        isFirst: item.isFirst,
+        isLast: item.isLast,
+        tile: SubLessonGroupHeader(
+          lesson: lesson,
+          completedCount: value.completedCount,
+          subCount: item.subs.length,
+          isLessonCompleted: value.lessonCompleted,
+          isLessonPerfect: value.lessonPerfect,
+          attention: item.attention,
+          isFirst: item.isFirst,
+          isLast: item.isLast,
+          previousCompleted: value.previousCompleted,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubLessonTile(_SubLessonItem item) {
+    final lesson = item.lesson;
+
+    return Selector<ProgressProvider,
+        ({bool completed, bool perfect, bool previousCompleted})>(
+      selector: (_, progress) => (
+        completed: _nodeCompleted(progress, lesson.id, item.sub.id),
+        // 旧进度没有子课完美记录：整课完美回填为全部子课完美。
+        perfect: progress.isSubLessonPerfect(lesson.id, item.sub.id) ||
+            progress.isLessonPerfect(lesson.id),
+        previousCompleted: item.previousNode != null &&
+            _nodeCompleted(
+              progress,
+              item.previousNode!.lessonId,
+              item.previousNode!.subLessonId,
+            ),
+      ),
+      builder: (context, value, _) => LessonRowShell(
+        isFirst: item.isFirst,
+        isLast: item.isLast,
+        tile: SubLessonTile(
+          sub: item.sub,
+          subIndex: item.subIndex,
+          subCount: item.subCount,
+          parentType: lesson.type,
+          isCompleted: value.completed,
+          isPerfect: value.perfect,
+          isNextUp: item.isNextUp && !value.completed,
+          isFirst: item.isFirst,
+          isLast: item.isLast,
+          previousCompleted: value.previousCompleted,
+          onTap: (tileContext) =>
+              _navigateToLesson(tileContext, lesson, item.sub.id),
+        ),
+      ),
+    );
+  }
+
+  // --- 旅程节点辅助（ADR 0063）---
+
+  /// 多子课的课返回其 L1 子课摘要；拆组门槛 ≥2 与播放侧
+  /// `LessonViewModel._targetedSubLessonSession` 保持一致（1 节的课播放
+  /// 本就是单段，不拆）。
+  static List<SubLessonSummary>? _subLessonNodes(Lesson lesson) {
+    final subs = lesson.subLessonSummaries;
+    return subs.length >= 2 ? subs : null;
+  }
+
+  static int _lessonRowCount(Lesson lesson) {
+    final subs = _subLessonNodes(lesson);
+    return subs == null ? 1 : subs.length + 1;
+  }
+
+  static bool _isNode(
+    ({String lessonId, String? subLessonId})? node,
+    String lessonId,
+    String? subLessonId,
+  ) =>
+      node != null &&
+      node.lessonId == lessonId &&
+      node.subLessonId == subLessonId;
+
+  /// 单元内第一个未完成的可玩节点（节点粒度）。无 progress 时返回首
+  /// 节点——与旧的「无进度从第一课开始」行为一致。
+  static ({String lessonId, String? subLessonId})? _nextUpNode(
+    ProgressProvider? progress,
+    Unit unit,
+  ) {
+    for (final lesson in unit.lessons) {
+      final subs = _subLessonNodes(lesson);
+      if (subs == null) {
+        if (progress == null || !_nodeCompleted(progress, lesson.id, null)) {
+          return (lessonId: lesson.id, subLessonId: null);
+        }
+        continue;
+      }
+      for (final sub in subs) {
+        if (progress == null || !_nodeCompleted(progress, lesson.id, sub.id)) {
+          return (lessonId: lesson.id, subLessonId: sub.id);
+        }
+      }
+    }
+    return null;
+  }
+
+  /// 节点完成态。整课完成（含早于子课节点追踪的旧记录）⇒ 其全部子课
+  /// 节点视为完成；平面节点只看整课记录。
+  static bool _nodeCompleted(
+    ProgressProvider progress,
+    String lessonId,
+    String? subLessonId,
+  ) {
+    if (progress.isLessonCompleted(lessonId)) return true;
+    return subLessonId != null &&
+        progress.isSubLessonCompleted(lessonId, subLessonId);
   }
 
   /// 课程行的「帘式揭示」slot：[SizeTransition] 包住整行（含边距），行
@@ -407,20 +607,20 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
   /// 不透明期间每行每帧都要 saveLayer，把淡入压进揭示前段子窗口，动画
   /// 后段行达到完全不透明后直接绘制、不再离屏合成。
   Widget _buildRevealSlot(
-    _LessonItem item, {
+    _TreeItem item, {
     required EdgeInsets padding,
     required Widget tile,
   }) {
-    final reveal = _revealByUnit[_unitKey(item.sectionId, item.unit.id)];
+    final reveal = _revealByUnit[item.revealControllerKey];
     if (reveal == null) {
       return Padding(key: item.key, padding: padding, child: tile);
     }
     final sizeFactor = reveal.drive(
-      CurveTween(curve: TurnaMotion.stagger(item.indexInUnit)),
+      CurveTween(curve: TurnaMotion.stagger(item.revealIndex)),
     );
     final opacityFactor = reveal.drive(
       CurveTween(
-        curve: TurnaMotion.stagger(item.indexInUnit, span: 0.6),
+        curve: TurnaMotion.stagger(item.revealIndex, span: 0.6),
       ),
     );
     return SizeTransition(
@@ -430,7 +630,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
       child: Padding(
         padding: padding,
         child: FadeTransition(
-          key: ValueKey<String>('lesson-reveal-${item.lesson.id}'),
+          key: ValueKey<String>('lesson-reveal-${item.revealTag}'),
           opacity: opacityFactor,
           child: AnimatedBuilder(
             animation: sizeFactor,
@@ -526,7 +726,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
   }
 
   static String _unitKey(String sectionId, String unitId) =>
-      '$sectionId/$unitId';
+      _journeyUnitKey(sectionId, unitId);
 
   AnimationController _revealFor(String sectionId, String unitId) {
     final key = _unitKey(sectionId, unitId);
@@ -620,9 +820,16 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
     });
   }
 
-  void _navigateToLesson(BuildContext tileContext, Lesson lesson) {
-    // 原生默认路由转场进入课程页（平台自适应，全局统一策略）。
-    tileContext.router.push(NewLessonRoute(lessonId: lesson.id));
+  void _navigateToLesson(
+    BuildContext tileContext,
+    Lesson lesson,
+    String? subLessonId,
+  ) {
+    // 原生默认路由转场进入课程页（平台自适应，全局统一策略）。子课
+    // 节点带 subLessonId 进入单子课会话（ADR 0063）。
+    tileContext.router.push(
+      NewLessonRoute(lessonId: lesson.id, subLessonId: subLessonId),
+    );
   }
 
   Widget _buildErrorMessage(
@@ -818,10 +1025,24 @@ class _CourseSnapshot {
       previous.officialTreeUnavailable != next.officialTreeUnavailable;
 }
 
+/// 揭示控制器与旅程行共用的 section/unit 键：State 的静态包装与 item
+/// 类（顶层）都从这里取。
+String _journeyUnitKey(String sectionId, String unitId) => '$sectionId/$unitId';
+
 sealed class _TreeItem {
   const _TreeItem();
 
   Key get key;
+
+  /// 揭示动画控制器键（section/unit）；单元头行不进揭示 slot，占位即可。
+  String get revealControllerKey;
+
+  /// 揭示交错序号（单元内的旅程行序）；单元头行占位 0。
+  int get revealIndex;
+
+  /// 揭示渐变键的稳定尾巴（平面课 = 课 id；沿用 `lesson-reveal-*` 键
+  /// 契约，测试按它找 FadeTransition）。
+  String get revealTag;
 }
 
 class _UnitHeaderItem extends _TreeItem {
@@ -846,7 +1067,20 @@ class _UnitHeaderItem extends _TreeItem {
 
   @override
   Key get key => ValueKey<String>('unit-$sectionId-${unit.id}');
+
+  @override
+  String get revealControllerKey => '';
+
+  @override
+  int get revealIndex => 0;
+
+  @override
+  String get revealTag => '';
 }
+
+/// 旅程线上的可玩节点引用：平面课（subLessonId 为 null）或多子课组内
+/// 的一节子课。
+typedef _JourneyNode = ({String lessonId, String? subLessonId});
 
 /// 课程项不再直接渲染为列表行——它们被注入所属单元卡的「旅程面」，
 /// 仅保留在 items 列表里以维持 findChildIndexCallback 的键稳定性。
@@ -855,22 +1089,113 @@ class _LessonItem extends _TreeItem {
   final Unit unit;
   final Lesson lesson;
   final LessonAttention attention;
+  final bool isFirst;
   final bool isLast;
-  final int indexInUnit;
+  @override
+  final int revealIndex;
   final bool isNextUp;
+
+  /// 旅程线上紧邻的前一节点（跨组时为上一组最后一节子课），驱动上行
+  /// 线段染色；单元首行为 null。
+  final _JourneyNode? previousNode;
 
   const _LessonItem({
     required this.sectionId,
     required this.unit,
     required this.lesson,
     required this.attention,
+    required this.isFirst,
     required this.isLast,
-    this.indexInUnit = 0,
+    required this.revealIndex,
+    required this.previousNode,
     this.isNextUp = false,
   });
 
   @override
   Key get key => ValueKey<String>('lesson-$sectionId-${lesson.id}');
+
+  @override
+  String get revealControllerKey => _journeyUnitKey(sectionId, unit.id);
+
+  @override
+  String get revealTag => lesson.id;
+}
+
+/// 多子课的课的组头行（ADR 0063）：课级归属标识，不可点——进入与重玩
+/// 都点子课瓦片。
+class _SubLessonGroupHeaderItem extends _TreeItem {
+  final String sectionId;
+  final Unit unit;
+  final Lesson lesson;
+  final List<SubLessonSummary> subs;
+  final LessonAttention attention;
+  final bool isFirst;
+
+  /// 恒为 false：组内必有子课行，组头永不收底。
+  final bool isLast;
+  @override
+  final int revealIndex;
+  final _JourneyNode? previousNode;
+
+  const _SubLessonGroupHeaderItem({
+    required this.sectionId,
+    required this.unit,
+    required this.lesson,
+    required this.subs,
+    required this.attention,
+    required this.isFirst,
+    required this.isLast,
+    required this.revealIndex,
+    required this.previousNode,
+  });
+
+  @override
+  Key get key => ValueKey<String>('lessongroup-$sectionId-${lesson.id}');
+
+  @override
+  String get revealControllerKey => _journeyUnitKey(sectionId, unit.id);
+
+  @override
+  String get revealTag => 'group-${lesson.id}';
+}
+
+/// 一节子课的瓦片行：点击进入只玩这一节的独立会话（ADR 0063）。
+class _SubLessonItem extends _TreeItem {
+  final String sectionId;
+  final Unit unit;
+  final Lesson lesson;
+  final SubLessonSummary sub;
+  final int subIndex;
+  final int subCount;
+  final bool isFirst;
+  final bool isLast;
+  @override
+  final int revealIndex;
+  final bool isNextUp;
+  final _JourneyNode? previousNode;
+
+  const _SubLessonItem({
+    required this.sectionId,
+    required this.unit,
+    required this.lesson,
+    required this.sub,
+    required this.subIndex,
+    required this.subCount,
+    required this.isFirst,
+    required this.isLast,
+    required this.revealIndex,
+    required this.previousNode,
+    this.isNextUp = false,
+  });
+
+  @override
+  Key get key => ValueKey<String>('lesson-$sectionId-${lesson.id}-${sub.id}');
+
+  @override
+  String get revealControllerKey => _journeyUnitKey(sectionId, unit.id);
+
+  @override
+  String get revealTag => '${lesson.id}-${sub.id}';
 }
 
 class _StatusProjection {

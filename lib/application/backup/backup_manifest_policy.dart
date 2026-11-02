@@ -79,6 +79,12 @@ abstract final class BackupManifestPolicy {
     BackupPrefEntry(
         LocalStateKeys.completedLessonIds, BackupPrefType.stringList),
     BackupPrefEntry(LocalStateKeys.perfectLessonIds, BackupPrefType.stringList),
+    // Sub-lesson node state (`lessonId::subLessonId` pairs). Without these
+    // a restore would lose per-node completion on the course tree.
+    BackupPrefEntry(
+        LocalStateKeys.completedSubLessonIds, BackupPrefType.stringList),
+    BackupPrefEntry(
+        LocalStateKeys.perfectSubLessonIds, BackupPrefType.stringList),
     // ── currency / achievements / cosmetics ──
     BackupPrefEntry(LocalStateKeys.gems, BackupPrefType.int_),
     // v1 achievement list: read-only migration input, exported for

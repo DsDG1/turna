@@ -1,6 +1,8 @@
-// Flutter imports:
+// Dart imports:
+import 'dart:async';
 import 'dart:convert';
 
+// Flutter imports:
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 
@@ -22,6 +24,7 @@ import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/pos_tag.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 import 'package:turna/domain/course/word_entry.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
@@ -242,7 +245,8 @@ class DatabaseSeeder {
     }
     final language = LanguageRegistry.instance.byCode(code);
     contentSource.invalidate(code);
-    _contentReaders.remove(code);
+    // `Map.remove` 返回被移除的 Future —— 显式丢弃它, 别让 lint 当成漏 await.
+    unawaited(_contentReaders.remove(code));
     CourseLoader.invalidateCaches();
     final wrote = await _seedLanguageIfNeeded(language);
     CourseLoader.invalidateCaches();
@@ -603,6 +607,13 @@ class DatabaseSeeder {
                   template: Value(l.template.name),
                   prerequisiteLessonIds:
                       Value(jsonEncode(l.prerequisiteLessonIds)),
+                  subLessonSummaries: Value(
+                    SubLessonSummariesCodec.encode(
+                      SubLessonSummariesCodec.fromSubLessons(
+                        l.content.subLessons,
+                      ),
+                    ),
+                  ),
                   sortOrder: Value(lOrder),
                 ),
               );

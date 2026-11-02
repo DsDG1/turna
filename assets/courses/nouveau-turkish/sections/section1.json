@@ -66,14 +66,11 @@
                     "name": "土耳其语的三个怪脾气",
                     "items": [
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-word-order",
-                        "prompt": "「我要一杯咖啡」的土耳其语是 bir kahve istiyorum。逐字直译，它的顺序是？",
-                        "options": [
-                          "一杯 · 咖啡 · 我要",
-                          "我要 · 一杯 · 咖啡"
-                        ],
-                        "correctIndex": 0
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-word-order",
+                        "prompt": "「我要一杯咖啡」（istiyorum=我要，bir=一，kahve=咖啡）",
+                        "scrambled": ["kahve", "istiyorum", "bir"],
+                        "correct": ["bir", "kahve", "istiyorum"]
                       },
                       {
                         "runtimeType": "showWord",
@@ -82,11 +79,11 @@
                         "context": "土耳其语的词像小火车：ev（房子）→ evim（我的房子）→ evimde（在我的房子里），车厢一节一节挂上去。"
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-ev",
-                        "prompt": "evimde（在我的房子里）开头的 ev，是什么意思？",
-                        "options": ["房子", "汽车", "学校"],
-                        "correctIndex": 0
+                        "runtimeType": "fillBlank",
+                        "id": "fb-ev-derivative",
+                        "sentence": "ev（房子）→ evim（我的房子）→ _____（在我的房子里）",
+                        "answer": "evimde",
+                        "choices": ["evimde", "evim", "ev"]
                       },
                       {
                         "runtimeType": "multipleChoice",
@@ -119,11 +116,11 @@
                         "correctIndex": 0
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-enter-cafe",
-                        "prompt": "你走进一家咖啡馆，对店员说的第一句话是？",
-                        "options": ["Merhaba!", "Teşekkürler!", "Güle güle!"],
-                        "correctIndex": 0
+                        "runtimeType": "fillBlank",
+                        "id": "fb-merhaba-first",
+                        "sentence": "店员：Merhaba!\n你：_____",
+                        "answer": "Merhaba!",
+                        "choices": ["Merhaba!", "Teşekkürler!", "Türkçe!"]
                       },
                       {
                         "runtimeType": "translateSentence",
@@ -151,22 +148,24 @@
                         "context": "还记得上一小节的那句见面礼吗？再听一遍——走进咖啡馆的第一句话。"
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-reply",
-                        "prompt": "店员先对你说 Merhaba!，你怎么回？",
-                        "options": ["Merhaba!", "Türkçe!", "Ev!"],
-                        "correctIndex": 0
+                        "runtimeType": "fillBlank",
+                        "id": "fb-sl2-reply",
+                        "sentence": "— Merhaba!\n— _____",
+                        "answer": "Merhaba!",
+                        "choices": ["Teşekkürler!", "Merhaba!", "Türkçe!"]
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-occasion",
-                        "prompt": "下面哪个场合，不用说 merhaba？",
-                        "options": [
-                          "走进商店时",
-                          "和朋友告别时",
-                          "店员跟你打招呼时"
-                        ],
-                        "correctIndex": 1
+                        "runtimeType": "translateSentence",
+                        "id": "tr-sl2-mer",
+                        "source": "你好",
+                        "expected": "merhaba",
+                        "hints": ["全小写", "7 个字母"]
+                      },
+                      {
+                        "runtimeType": "readAloud",
+                        "id": "ra-sl2-merhaba",
+                        "targetText": "Merhaba!",
+                        "prompt": "进店的第一句，这次读出声来——应用会听你读得怎么样"
                       }
                     ]
                   },
@@ -188,29 +187,25 @@
                         "correctIndex": 0
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-tea",
-                        "prompt": "店员把一杯 çay（茶）递到你手上，你说？",
-                        "options": ["Teşekkürler!", "Merhaba!", "Türkçe!"],
-                        "correctIndex": 0
+                        "runtimeType": "fillBlank",
+                        "id": "fb-sl2-produce",
+                        "sentence": "「谢谢」= _____",
+                        "answer": "Teşekkürler",
+                        "choices": ["Teşekkürler", "Merhaba", "Türkçe"]
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-formal",
-                        "prompt": "想说得更客气一点，「谢谢您」是 teşekkürler 的正式版——把 ederim 挂在哪个词后面？",
-                        "options": [
-                          "Teşekkür ederim",
-                          "Merhaba ederim",
-                          "Türkçe ederim"
-                        ],
-                        "correctIndex": 0
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-sl2-formal",
+                        "prompt": "更客气的一版：「谢谢您」",
+                        "scrambled": ["ederim", "Teşekkür"],
+                        "correct": ["Teşekkür", "ederim"]
                       },
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-spell-tes",
-                        "prompt": "「谢谢」的正确拼写是？（注意 ş 和 ü 头上的点，还有双 k）",
-                        "options": ["teşekkürler", "teşekürler", "teşekkuler"],
-                        "correctIndex": 0
+                        "runtimeType": "translateSentence",
+                        "id": "tr-sl2-tes",
+                        "source": "谢谢",
+                        "expected": "teşekkürler",
+                        "hints": ["全小写", "11 个字母", "有两个字母带点：ş 和 ü"]
                       }
                     ]
                   },
@@ -219,14 +214,11 @@
                     "name": "两句话合起来",
                     "items": [
                       {
-                        "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-combo",
-                        "prompt": "你走进咖啡馆，先说了第一句话；咖啡端上来，说了第二句。顺序是？",
-                        "options": [
-                          "Merhaba → Teşekkürler",
-                          "Teşekkürler → Merhaba"
-                        ],
-                        "correctIndex": 0
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-sl2-combo",
+                        "prompt": "走进咖啡馆时说的一句 → 接过咖啡时说的一句",
+                        "scrambled": ["Teşekkürler!", "Merhaba!"],
+                        "correct": ["Merhaba!", "Teşekkürler!"]
                       },
                       {
                         "runtimeType": "multipleChoice",
@@ -237,30 +229,10 @@
                       },
                       {
                         "runtimeType": "multipleChoice",
-                        "id": "mc-sl2-seat",
-                        "prompt": "朋友帮你占了个座，你坐下了，对他说？",
-                        "options": ["Teşekkürler!", "Merhaba!", "Ev!"],
+                        "id": "mc-sl2-spell-tes",
+                        "prompt": "「谢谢」的正确拼写是？（注意 ş 和 ü 头上的点，还有双 k）",
+                        "options": ["teşekkürler", "teşekürler", "teşekkuler"],
                         "correctIndex": 0
-                      },
-                      {
-                        "runtimeType": "translateSentence",
-                        "id": "tr-sl2-tes",
-                        "source": "谢谢",
-                        "expected": "teşekkürler",
-                        "hints": ["全小写", "11 个字母", "有两个字母带点：ş 和 ü"]
-                      },
-                      {
-                        "runtimeType": "translateSentence",
-                        "id": "tr-sl2-mer",
-                        "source": "你好",
-                        "expected": "merhaba",
-                        "hints": ["全小写", "7 个字母"]
-                      },
-                      {
-                        "runtimeType": "readAloud",
-                        "id": "ra-sl2-merhaba",
-                        "targetText": "Merhaba!",
-                        "prompt": "进店的第一句，这次读出声来——应用会听你读得怎么样"
                       },
                       {
                         "runtimeType": "readAloud",

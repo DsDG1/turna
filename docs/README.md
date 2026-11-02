@@ -24,6 +24,7 @@
 | [`../AGENTS.md`](../AGENTS.md) | 要改代码：落点、禁则、门禁、文档锚点 |
 | [`status.md`](./status.md) | 要写"鸿蒙支持了吗""迁移完了吗""哪条还没验" |
 | [`project-guide.md`](./project-guide.md) | 想知道某个子系统怎么实现的、为什么这么设计 |
+| [`app-design-refresh-plan.md`](./app-design-refresh-plan.md) | 全 App「湿地雾光」版面重设计与页面重构：逐页蓝图、线框与视觉稿、新版组件、实施顺序和结构差异验收；不代表当前实现状态 |
 | [`../README.md`](../README.md) | 项目是什么、能做什么、怎么跑起来 |
 | [`../test/BASELINE.md`](../test/BASELINE.md) | 查最近某次改动的测试基线与收据 |
 
@@ -91,6 +92,9 @@
 | | | [0060](./decisions/0060-textbook-syllabus-adaptation-and-tts-alignment.md) | 教材/纲领适配与 TTS 参数对齐 |
 | | | [0061](./decisions/0061-read-aloud-word-matching.md) | 跟读识别：词面匹配（音素级评分维持不做） |
 | | | [0062](./decisions/0062-colored-glass-material.md) | 彩色玻璃材质：白纸上的淡彩玻璃 |
+| [0063](./decisions/0063-settings-glass-quiet-tier.md) | 设置域深层页的弱化玻璃档 |
+| [0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md) | 子课提升为课程树节点与独立会话 |
+| [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 |
 
 ## 其它位置
 

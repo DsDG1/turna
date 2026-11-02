@@ -12,6 +12,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
 /// field is a wordId in current data; we look up the target-language term from the
@@ -89,7 +90,9 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
   }
 
   Future<void> _speak() async {
-    await getIt<AudioController>().speakWord(widget.audioAsset);
+    final result =
+        await getIt<AudioController>().speakWordWithResult(widget.audioAsset);
+    if (mounted) showTtsFailureFeedback(context, result);
   }
 
   @override

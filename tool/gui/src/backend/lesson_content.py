@@ -73,8 +73,8 @@ INTERACTION_LABELS: dict[str, str] = {
     InteractionType.READING_MCQ: "阅读选择",
     InteractionType.READING_TRUE_FALSE: "阅读判断",
     InteractionType.READING_SHORT_ANSWER: "阅读简答",
-    InteractionType.ANKI_CARD: "Anki 卡片",
-    InteractionType.ANKI_HTML_CARD: "Anki HTML 卡片",
+    InteractionType.ANKI_CARD: "记忆卡片",
+    InteractionType.ANKI_HTML_CARD: "记忆卡片 (HTML)",
     InteractionType.READ_ALOUD: "跟读",
 }
 

@@ -17,6 +17,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/profile/widgets/learning_stats.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// 学习洞察 — the second-level analytics page (Plan 3 §15.2).
@@ -81,71 +82,74 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
         title: Text(AppStrings.reviewInsightsTitle),
         backgroundColor: TurnaTheme.scaffoldBg(context),
       ),
-      body: FutureBuilder<ReviewProgressSnapshot>(
-        future: _future,
-        builder: (context, snap) {
-          // Keep the previous snapshot visible while a new filter loads —
-          // only the very first load shows a centered spinner.
-          final data = snap.data ?? _lastData;
-          if (data != null) _lastData = data;
-          if (data == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final refreshing = snap.connectionState == ConnectionState.waiting;
-          final focusMode = accessibilityOf(context).focusMode;
-          return RefreshIndicator(
-            color: TurnaTheme.brandTeal,
-            onRefresh: () async {
-              _repository.invalidate();
-              final next = await _repository.load(_query);
-              if (mounted) {
-                setState(() {
-                  _lastData = next;
-                  _future = Future.value(next);
-                });
-              }
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              children: [
-                if (refreshing) const LinearProgressIndicator(minHeight: 2),
-                _FilterPanel(
-                  filter: _filter,
-                  sources: data.availableSources,
-                  onChanged: _setFilter,
+      body: TurnaPageContent(
+        maxWidth: 840,
+        child: FutureBuilder<ReviewProgressSnapshot>(
+          future: _future,
+          builder: (context, snap) {
+            // Keep the previous snapshot visible while a new filter loads —
+            // only the very first load shows a centered spinner.
+            final data = snap.data ?? _lastData;
+            if (data != null) _lastData = data;
+            if (data == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final refreshing = snap.connectionState == ConnectionState.waiting;
+            final focusMode = accessibilityOf(context).focusMode;
+            return RefreshIndicator(
+              color: TurnaTheme.brandTeal,
+              onRefresh: () async {
+                _repository.invalidate();
+                final next = await _repository.load(_query);
+                if (mounted) {
+                  setState(() {
+                    _lastData = next;
+                    _future = Future.value(next);
+                  });
+                }
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-                const SizedBox(height: 16),
-                _KpiCard(snapshot: data),
-                const SizedBox(height: 16),
-                _CurveCard(
-                  snapshot: data,
-                  eventRange: _filter.eventRange,
-                  onRangeChanged: (r) =>
-                      _setFilter(_filter.copyWith(eventRange: r)),
-                ),
-                const SizedBox(height: 16),
-                ReviewActivityHeatmap(rows: data.activity),
-                if (!focusMode) ...[
-                  const SizedBox(height: 24),
-                  StudyStatsSection(),
-                  const SizedBox(height: 16),
-                  _SourceList(
-                    rows: data.bySource,
-                    selected: _filter.source,
-                    onSelect: (src) =>
-                        _setFilter(_filter.copyWith(source: src)),
-                    onOpen: (src) => context.router.push(
-                      ReviewSourceDetailRoute(source: src),
-                    ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                children: [
+                  if (refreshing) const LinearProgressIndicator(minHeight: 2),
+                  _FilterPanel(
+                    filter: _filter,
+                    sources: data.availableSources,
+                    onChanged: _setFilter,
                   ),
+                  const SizedBox(height: 16),
+                  _KpiCard(snapshot: data),
+                  const SizedBox(height: 16),
+                  _CurveCard(
+                    snapshot: data,
+                    eventRange: _filter.eventRange,
+                    onRangeChanged: (r) =>
+                        _setFilter(_filter.copyWith(eventRange: r)),
+                  ),
+                  const SizedBox(height: 16),
+                  ReviewActivityHeatmap(rows: data.activity),
+                  if (!focusMode) ...[
+                    const SizedBox(height: 24),
+                    StudyStatsSection(),
+                    const SizedBox(height: 16),
+                    _SourceList(
+                      rows: data.bySource,
+                      selected: _filter.source,
+                      onSelect: (src) =>
+                          _setFilter(_filter.copyWith(source: src)),
+                      onOpen: (src) => context.router.push(
+                        ReviewSourceDetailRoute(source: src),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -168,10 +172,8 @@ class _FilterPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -270,10 +272,8 @@ class _KpiCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -350,10 +350,8 @@ class _CurveCard extends StatelessWidget {
     final curve = snapshot.aggregate.retentionByInterval;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -459,10 +457,8 @@ class ReviewActivityHeatmap extends StatelessWidget {
       label: summary,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: TurnaTheme.glassDecoration(
+        decoration: TurnaTheme.flatPaperDecoration(
           context,
-          TurnaTheme.glassNeutral,
-          level: GlassLevel.l1Subtle,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         ),
         child: Column(
@@ -536,10 +532,8 @@ class _SourceList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(

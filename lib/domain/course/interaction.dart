@@ -76,11 +76,16 @@ sealed class Interaction with _$Interaction {
   ///
   /// [audioAssets] / [imageAssets] hold optional prompt-side media references
   /// (e.g. `anki://<importId>/<file>` from imported Anki decks).
+  ///
+  /// Non-empty [choices] switches the exercise to 选择填空: the blank is
+  /// filled by tapping a word chip (each chip reads the word aloud) instead
+  /// of typing. Empty keeps the free-typing form.
   const factory Interaction.fillBlank({
     @Default('') String id,
     required String sentence,
     required String answer,
     String? hint,
+    @Default(<String>[]) List<String> choices,
     @Default(<String>[]) List<String> audioAssets,
     @Default(<String>[]) List<String> imageAssets,
     String? grammarPointId,
@@ -125,10 +130,16 @@ sealed class Interaction with _$Interaction {
   }) = ListenOnly;
 
   /// Reorder scrambled tokens into the canonical sentence.
+  ///
+  /// Optional [prompt] is the source-language sentence (e.g. the Chinese
+  /// line to translate): with it the exercise becomes 翻译拼句 — read the
+  /// source, build the target from the scrambled word bank. Without it the
+  /// learner rebuilds a sentence they have just seen.
   const factory Interaction.reorderSentence({
     @Default('') String id,
     required List<String> scrambled,
     required List<String> correct,
+    String? prompt,
     String? grammarPointId,
   }) = ReorderSentence;
 

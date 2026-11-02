@@ -528,10 +528,13 @@ class _StatusHero extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.softTint(context, accent),
+      // ADR 0063：一代白描边（浮起 chrome 用法）换成二代弱玻璃 —— 面板
+      // 吃到同色相淡彩渐变 + 同色相描边 + 弱投影。
+      decoration: TurnaTheme.glassDecoration(
+        context,
+        accent,
+        level: GlassLevel.l1Quiet,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
-        border: Border.all(color: TurnaTheme.glassBorder(context)),
       ),
       child: Row(
         children: [
@@ -654,8 +657,16 @@ class _ProviderCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            // ADR 0063：未选中态的一代白描边换成二代同色相描边（网格控件
+            // 不加投影，40px 高的元素加投影只会变成噪点）。
             border: Border.all(
-              color: selected ? accent : TurnaTheme.glassBorder(context),
+              color: selected
+                  ? accent
+                  : TurnaTheme.glassStroke(
+                      context,
+                      accent,
+                      level: GlassLevel.l1Quiet,
+                    ),
               width: selected ? 1.6 : 1,
             ),
           ),
@@ -1058,7 +1069,14 @@ class _ConnectionTestSectionState extends State<_ConnectionTestSection> {
       decoration: BoxDecoration(
         color: TurnaTheme.softTint(context, accent),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(color: TurnaTheme.glassBorder(context)),
+        // ADR 0063：一代白描边换成二代同色相描边（行内小条不加投影）。
+        border: Border.all(
+          color: TurnaTheme.glassStroke(
+            context,
+            accent,
+            level: GlassLevel.l1Quiet,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -1210,7 +1228,14 @@ class _CredentialSafetyNotice extends StatelessWidget {
           decoration: BoxDecoration(
             color: TurnaTheme.softTint(context, accent),
             borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-            border: Border.all(color: TurnaTheme.glassBorder(context)),
+            // ADR 0063：一代白描边换成二代同色相描边（行内小条不加投影）。
+            border: Border.all(
+              color: TurnaTheme.glassStroke(
+                context,
+                accent,
+                level: GlassLevel.l1Quiet,
+              ),
+            ),
           ),
           child: Row(
             children: [

@@ -19,7 +19,7 @@ class _FakeFlutterTts implements FlutterTts {
   final List<dynamic> engines;
   final Set<String> availableLanguages;
   final Set<String> installedLanguages;
-  final bool engineShouldFail;
+  bool engineShouldFail;
   final Set<String> googleOnlyLanguages;
   final Set<String> googleOnlyInstalled;
 
@@ -29,12 +29,16 @@ class _FakeFlutterTts implements FlutterTts {
   final List<String> engineCalls = [];
   int setEngineInFlight = 0;
   int maxSetEngineInFlight = 0;
+  int getEnginesCalls = 0;
 
   /// Artificial delay so concurrent configureSystemEngine calls overlap.
   Duration setEngineDelay = Duration.zero;
 
   @override
-  Future<dynamic> get getEngines async => engines;
+  Future<dynamic> get getEngines async {
+    getEnginesCalls++;
+    return engines;
+  }
 
   @override
   Future<dynamic> isLanguageAvailable(String language) async {
@@ -184,6 +188,75 @@ void main() {
           checker.configureSystemEngine(),
           completes,
         );
+      });
+
+      test('failed engine configuration is retried on the next request',
+          () async {
+        final tts = _FakeFlutterTts(
+          engines: const ['com.google.android.tts'],
+          engineShouldFail: true,
+        );
+        final checker =
+            TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
+
+        await checker.configureSystemEngine();
+        expect(checker.isEngineConfigured, isFalse);
+
+        tts.engineShouldFail = false;
+        await checker.configureSystemEngine();
+        expect(checker.isEngineConfigured, isTrue);
+        expect(tts.engineCalls, hasLength(2));
+      });
+
+      test('successful language probes are cached until invalidated', () async {
+        final tts = _FakeFlutterTts(
+          engines: const ['com.google.android.tts'],
+          availableLanguages: const {'tr'},
+          installedLanguages: const {'tr'},
+        );
+        final checker =
+            TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
+
+        await checker.resolveLanguageCode('tr');
+        final queries = tts.languageQueries.length;
+        await checker.resolveLanguageCode('tr');
+        expect(tts.languageQueries, hasLength(queries));
+
+        checker.invalidateDiagnostics();
+        await checker.resolveLanguageCode('tr');
+        expect(tts.languageQueries.length, greaterThan(queries));
+      });
+
+      test('concurrent language probes share one platform lookup', () async {
+        final tts = _FakeFlutterTts(
+          engines: const ['com.google.android.tts'],
+          availableLanguages: const {'tr'},
+          installedLanguages: const {'tr'},
+        )..setEngineDelay = const Duration(milliseconds: 20);
+        final checker =
+            TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
+
+        await Future.wait([
+          checker.resolveLanguageCode('tr'),
+          checker.resolveLanguageCode('tr'),
+        ]);
+
+        expect(tts.languageQueries, ['tr']);
+      });
+
+      test('diagnose reads one engine snapshot and reuses it', () async {
+        final tts = _FakeFlutterTts(
+          engines: const ['com.google.android.tts'],
+          availableLanguages: const {'tr'},
+          installedLanguages: const {'tr'},
+        );
+        final checker =
+            TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
+
+        await checker.diagnose('tr');
+        await checker.diagnose('tr');
+
+        expect(tts.getEnginesCalls, 1);
       });
 
       test('isSystemTtsAvailable requires at least one engine', () async {

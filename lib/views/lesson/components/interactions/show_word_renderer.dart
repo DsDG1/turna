@@ -15,6 +15,7 @@ import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/core/theme.dart';
 
 /// Flashcard introducing a vocabulary word.
@@ -155,9 +156,16 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                 label: AppStrings.lessonSpeakTerm(widget.term),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.speakVocab
-                      ? widget.audioController.speakWord(widget.wordId)
-                      : widget.audioController.speak(widget.term),
+                  onTap: () async {
+                    final result = widget.speakVocab
+                        ? await widget.audioController
+                            .speakWordWithResult(widget.wordId)
+                        : await widget.audioController
+                            .speakWithResult(widget.term);
+                    if (context.mounted) {
+                      showTtsFailureFeedback(context, result);
+                    }
+                  },
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Row(
@@ -219,9 +227,14 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                   label: AppStrings.lessonSpeakContextSentence,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => widget.audioController.speak(
-                      _targetPart(widget.contextSentence!),
-                    ),
+                    onTap: () async {
+                      final result = await widget.audioController
+                          .speakWithResult(
+                              _targetPart(widget.contextSentence!));
+                      if (context.mounted) {
+                        showTtsFailureFeedback(context, result);
+                      }
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),

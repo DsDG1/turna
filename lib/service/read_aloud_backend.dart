@@ -17,8 +17,13 @@
 // must therefore only ever be called from a user action — the mic button —
 // never from startup probing.
 
+// Dart imports:
+import 'dart:async';
+
 // Package imports:
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show kDebugMode, kIsWeb, visibleForTesting;
+import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 // Project imports:
@@ -34,9 +39,12 @@ enum ReadAloudFailure {
   /// Google recognition service).
   serviceUnavailable,
 
-  /// The session started but recognition itself failed: nothing spoken,
-  /// no match, network hiccup. Not an answer — the learner can tap the mic
-  /// again.
+  /// The recognition service could not be reached, or its online language
+  /// resources could not be downloaded.
+  networkUnavailable,
+
+  /// The session started but recognition itself failed: nothing spoken or no
+  /// match. Not an answer — the learner can tap the mic again.
   recognitionFailed,
 }
 
@@ -51,6 +59,9 @@ abstract class ReadAloudBackend {
   /// Whether this build can recognize at all. Synchronous so callers can
   /// choose the degraded card before asking the user anything.
   bool get isSupported;
+
+  /// The most recent readiness or recognition failure, if one occurred.
+  ReadAloudFailure? get lastFailure;
 
   /// Requests the microphone permission (first call only) and verifies a
   /// recognition service exists.
@@ -82,29 +93,59 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
   SpeechToTextReadAloudBackend(this._speech);
 
   final SpeechToText _speech;
-
-  /// Errors observed outside a session (initialize-time) are parked here so
-  /// a session that starts afterwards does not miss a permanent failure.
   ReadAloudErrorListener? _errorListener;
+  ReadAloudFailure? _lastFailure;
+  Future<bool>? _readyInFlight;
 
   @override
   bool get isSupported => true;
 
   @override
-  Future<bool> ensureReady() async {
-    return _speech.initialize(
-      onError: (error) {
-        logger.w(
-          'read-aloud: recognition error ${error.errorMsg} '
-          '(permanent=${error.permanent})',
-        );
-        _errorListener?.call(_categorize(error.errorMsg));
-      },
-      // Status is not surfaced through the seam: the final result — not the
-      // `done` status — is the session's completion signal, because only the
-      // result carries the transcript the scorer needs.
-      onStatus: (_) {},
-    );
+  ReadAloudFailure? get lastFailure => _lastFailure;
+
+  @override
+  Future<bool> ensureReady() {
+    final active = _readyInFlight;
+    if (active != null) return active;
+    final future = _initialize();
+    _readyInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_readyInFlight, future)) _readyInFlight = null;
+    });
+  }
+
+  Future<bool> _initialize() async {
+    _lastFailure = null;
+    try {
+      final ready = await _speech.initialize(
+        debugLogging: kDebugMode,
+        options: [SpeechToText.androidNoBluetooth],
+        onError: (error) {
+          logger.w(
+            'read-aloud: recognition error ${error.errorMsg} '
+            '(permanent=${error.permanent})',
+          );
+          _reportFailure(_categorize(error.errorMsg));
+        },
+        // The final result — not the `done` status — is the completion signal,
+        // because only the result carries the transcript the scorer needs.
+        onStatus: (_) {},
+      );
+      if (!ready) _lastFailure ??= ReadAloudFailure.permissionDenied;
+      return ready;
+    } on PlatformException catch (e, st) {
+      logger.w(
+        'read-aloud: initialize failed (${e.code})',
+        error: e,
+        stackTrace: st,
+      );
+      _lastFailure = _platformFailure(e.code);
+      return false;
+    } catch (e, st) {
+      logger.w('read-aloud: initialize failed', error: e, stackTrace: st);
+      _lastFailure = ReadAloudFailure.recognitionFailed;
+      return false;
+    }
   }
 
   @override
@@ -114,44 +155,55 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
     required ReadAloudErrorListener onError,
   }) async {
     _errorListener = onError;
-    final resolvedLocale = await resolveLocaleId(locale);
-    await _speech.listen(
-      onResult: (result) =>
-          onResult(result.recognizedWords, result.finalResult),
-      listenOptions: SpeechListenOptions(
-        partialResults: true,
-        localeId: resolvedLocale,
-        // A read-aloud utterance is short: end the session after a pause
-        // rather than waiting for the recognizer's own timeouts, but cap the
-        // whole session so a noisy room cannot record indefinitely.
-        pauseFor: const Duration(seconds: 3),
-        listenFor: const Duration(seconds: 15),
-      ),
-    );
+    _lastFailure = null;
+    try {
+      final resolvedLocale = await resolveLocaleId(locale);
+      await _speech.listen(
+        onResult: (result) =>
+            onResult(result.recognizedWords, result.finalResult),
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: ListenMode.dictation,
+          localeId: resolvedLocale,
+          pauseFor: const Duration(seconds: 3),
+          listenFor: const Duration(seconds: 30),
+        ),
+      );
+    } on PlatformException catch (e, st) {
+      logger.w(
+        'read-aloud: listen failed (${e.code})',
+        error: e,
+        stackTrace: st,
+      );
+      _reportFailure(_platformFailure(e.code));
+    } catch (e, st) {
+      logger.w('read-aloud: listen failed', error: e, stackTrace: st);
+      _reportFailure(ReadAloudFailure.recognitionFailed);
+    }
   }
 
   /// Resolves the most appropriate locale identifier for [requestedLocale].
   ///
-  /// On iOS / Android, recognizers frequently expose locales as region tags
-  /// (e.g. `tr_TR` or `tr-TR`) rather than bare language codes (`tr`). When
-  /// available, we find the best matching locale supported by the platform.
+  /// Locale discovery is an optimization only. Some Android recognition
+  /// services never answer it, so a failed or slow answer must not block the
+  /// actual recognition request.
   @visibleForTesting
   Future<String> resolveLocaleId(String requestedLocale) async {
     try {
-      final available = await _speech.locales();
+      final available = await _speech.locales().timeout(
+            const Duration(seconds: 2),
+          );
       if (available.isEmpty) return requestedLocale;
       final req = requestedLocale.replaceAll('_', '-').toLowerCase();
-      // 1. Exact match (case-insensitive)
       for (final loc in available) {
         final id = loc.localeId.replaceAll('_', '-').toLowerCase();
         if (id == req) return loc.localeId;
       }
-      // 2. Region-tagged match for base language (e.g. 'tr' -> 'tr_TR' or 'tr-TR')
       for (final loc in available) {
         final id = loc.localeId.replaceAll('_', '-').toLowerCase();
         if (id.startsWith('$req-')) return loc.localeId;
       }
-      // 3. Fallback: match base code if requested has region (e.g. 'tr-TR' -> 'tr')
       final dash = req.indexOf('-');
       if (dash > 0) {
         final base = req.substring(0, dash);
@@ -160,9 +212,9 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
           if (id == base || id.startsWith('$base-')) return loc.localeId;
         }
       }
-    } catch (_) {
-      // Best-effort: fall back to the raw requestedLocale when locales() fails
-      // or in tests with partial mocks.
+    } catch (e) {
+      logger
+          .w('read-aloud: locale discovery failed, using $requestedLocale: $e');
     }
     return requestedLocale;
   }
@@ -172,10 +224,21 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
     await _speech.stop();
   }
 
+  void _reportFailure(ReadAloudFailure failure) {
+    _lastFailure = failure;
+    _errorListener?.call(failure);
+  }
+
+  static ReadAloudFailure _platformFailure(String code) {
+    if (code == 'recognizerNotAvailable') {
+      return ReadAloudFailure.serviceUnavailable;
+    }
+    return _categorize(code);
+  }
+
   /// Maps `speech_to_text` error messages onto the coarse categories the UI
-  /// needs. The messages come from the plugin's platform docs (see
-  /// `SpeechErrorListener`); unknown ones degrade to a retry-able failure
-  /// rather than claiming the whole feature is broken.
+  /// needs. Unknown ones degrade to a retry-able failure rather than claiming
+  /// the whole feature is broken.
   @visibleForTesting
   static ReadAloudFailure categorizeFailure(String errorMsg) {
     return _categorize(errorMsg);
@@ -186,8 +249,14 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
       return ReadAloudFailure.permissionDenied;
     }
     if (errorMsg.contains('language_not_supported') ||
-        errorMsg.contains('language_unavailable')) {
+        errorMsg.contains('language_unavailable') ||
+        errorMsg.contains('recognizerNotAvailable')) {
       return ReadAloudFailure.serviceUnavailable;
+    }
+    if (errorMsg.contains('network') ||
+        errorMsg.contains('server') ||
+        errorMsg.contains('too_many_requests')) {
+      return ReadAloudFailure.networkUnavailable;
     }
     return ReadAloudFailure.recognitionFailed;
   }
@@ -203,6 +272,9 @@ class UnavailableReadAloudBackend implements ReadAloudBackend {
 
   @override
   bool get isSupported => false;
+
+  @override
+  ReadAloudFailure? get lastFailure => ReadAloudFailure.serviceUnavailable;
 
   @override
   Future<bool> ensureReady() async => false;

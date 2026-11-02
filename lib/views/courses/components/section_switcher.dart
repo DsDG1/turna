@@ -110,12 +110,6 @@ class _SectionHeaderCard extends StatelessWidget {
     final radius = _lerp(TurnaTheme.radiusLarge, 18);
     final fontSize = _lerp(18, 15.5);
     final borderRadius = BorderRadius.circular(radius);
-    // ADR 0062：章节头是**导航容器**，不是焦点 —— 用最淡的一档（L1Subtle）
-    // 配主色相 teal。若改用 section 自身色，黄色/紫色章节会把整页染成那个
-    // 色系；若用纯中性灰，在白纸上又读作「脏白」。teal 最淡档两头都避开，
-    // 焦点仍由「下一课」行的 L2 承担。
-    const accent = TurnaTheme.glassFocus;
-
     final progress = context.select<ProgressProvider?, double>((p) {
       if (p == null || section.units.isEmpty) return 0.0;
       var total = 0;
@@ -135,10 +129,8 @@ class _SectionHeaderCard extends StatelessWidget {
       onTap: onTap,
       excludeSemantics: true,
       child: DecoratedBox(
-        decoration: TurnaTheme.glassDecoration(
+        decoration: TurnaTheme.flatPaperDecoration(
           context,
-          accent,
-          level: GlassLevel.l1Subtle,
           borderRadius: borderRadius,
         ),
         child: Material(

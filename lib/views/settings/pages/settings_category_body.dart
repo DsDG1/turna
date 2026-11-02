@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Shared scroll body for every routed Settings category page.
 ///
@@ -28,7 +29,7 @@ class SettingsCategoryBody extends StatelessWidget {
         0,
         16 + MediaQuery.paddingOf(context).bottom,
       ),
-      child: child,
+      child: TurnaPageContent(maxWidth: 840, child: child),
     );
   }
 }

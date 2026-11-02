@@ -14,6 +14,9 @@
 // actually sounds like cannot, which is why the Android mapping is left exactly
 // as the plugin defines it and only the new one is stated as a guess.
 
+// Dart imports:
+import 'dart:async';
+
 // Package imports:
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
@@ -46,25 +49,64 @@ abstract class SpeechBackend {
 
   /// Speaks [text] with the bound locale and rate.
   ///
-  /// Returns false when the platform refused the request. It cannot report a
-  /// later playback failure: the engine is asynchronous on both platforms, so
-  /// "accepted" is the strongest answer available here.
+  /// Returns false when the platform refuses the request or playback fails
+  /// after the request has been accepted.
   Future<bool> speak(String text);
 
   /// Stops any in-flight utterance. Best-effort by contract.
   Future<void> stop();
 }
 
-/// Android / iOS: `flutter_tts`, with the same calls the app always made.
+enum TtsPlaybackErrorKind { synthesis, timeout }
+
+class TtsPlaybackException implements Exception {
+  const TtsPlaybackException(this.kind, [this.message]);
+
+  final TtsPlaybackErrorKind kind;
+  final Object? message;
+
+  @override
+  String toString() => 'TtsPlaybackException($kind, $message)';
+}
+
+class _FlutterTtsPlaybackFailure {
+  const _FlutterTtsPlaybackFailure(this.message);
+
+  final Object? message;
+}
+
+class _FlutterTtsPlaybackStopped {
+  const _FlutterTtsPlaybackStopped();
+}
+
+class _FlutterTtsPlaybackTimeout {
+  const _FlutterTtsPlaybackTimeout();
+}
+
+/// Android / iOS: `flutter_tts`, waiting for native playback to finish so
+/// asynchronous synthesis failures reach the caller.
 class FlutterTtsSpeechBackend implements SpeechBackend {
-  FlutterTtsSpeechBackend(this._tts);
+  FlutterTtsSpeechBackend(
+    this._tts, {
+    @visibleForTesting Duration playbackTimeout = const Duration(seconds: 60),
+  }) : _playbackTimeout = playbackTimeout;
 
   final FlutterTts _tts;
+  final Duration _playbackTimeout;
+  bool _initialized = false;
+  Completer<Object?>? _playbackFailure;
 
   @override
   Future<void> init({String? language}) async {
-    // Nothing to do: `flutter_tts` has no explicit init, and the engine is
-    // selected by `TtsAvailabilityChecker` through `setEngine`.
+    if (_initialized) return;
+    await _tts.awaitSpeakCompletion(true);
+    _tts.setErrorHandler((message) {
+      final failure = _playbackFailure;
+      if (failure != null && !failure.isCompleted) {
+        failure.complete(_FlutterTtsPlaybackFailure(message));
+      }
+    });
+    _initialized = true;
   }
 
   @override
@@ -88,16 +130,42 @@ class FlutterTtsSpeechBackend implements SpeechBackend {
 
   @override
   Future<bool> speak(String text) async {
-    final result = await _tts.speak(text);
-    return result is bool
-        ? result
-        : result is num
-            ? result != 0
-            : true;
+    await init();
+    final failure = Completer<Object?>();
+    _playbackFailure = failure;
+    try {
+      final result = await Future.any<dynamic>([
+        _tts.speak(text, focus: true),
+        failure.future,
+      ]).timeout(
+        _playbackTimeout,
+        onTimeout: () => const _FlutterTtsPlaybackTimeout(),
+      );
+      if (result is _FlutterTtsPlaybackStopped) return false;
+      if (result is _FlutterTtsPlaybackFailure) {
+        logger.w('Flutter TTS playback failed: ${result.message}');
+        throw TtsPlaybackException(
+          TtsPlaybackErrorKind.synthesis,
+          result.message,
+        );
+      }
+      if (result is _FlutterTtsPlaybackTimeout) {
+        logger.w('Flutter TTS playback timed out');
+        await stop();
+        throw const TtsPlaybackException(TtsPlaybackErrorKind.timeout);
+      }
+      return _isTruthy(result);
+    } finally {
+      if (identical(_playbackFailure, failure)) _playbackFailure = null;
+    }
   }
 
   @override
   Future<void> stop() async {
+    final failure = _playbackFailure;
+    if (failure != null && !failure.isCompleted) {
+      failure.complete(const _FlutterTtsPlaybackStopped());
+    }
     await _tts.stop();
   }
 

@@ -89,7 +89,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 1. **属性折叠条**：ID / 名称 / 描述 / 同层前置依赖 (`prerequisiteLessonIds`) / 关联语法点收进可折叠「属性」横条；课时默认收起让版面给内容编辑，Section/Unit 默认展开；手动选择按节点类别记忆，F2 重命名自动展开并聚焦名称框。
 2. **模板类型切换**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery` 间切换，系统自动纠正数据规范。
 3. **可视化蓝图 (Blueprint Editor)**：针对 `listening`、`reading`、`mastery` 等复杂功能课时提供流程蓝图，可拖拽或点击调整听力阶段 (`ListeningPhase`) 或阅读文章 (`ReadingPassage`) 段落顺序。
-4. **14 种互动题型列表与表单**（清单真源 `backend/lesson_content.py` 的 `INTERACTION_TYPES`）：动态增删题型卡片并拖拽排序；每种题型按 Schema 展现专用输入框（词汇下拉关联、多选选项定义、填空文本匹配、音频路径挂载等）。
+4. **15 种互动题型列表与表单**（清单真源 `backend/lesson_content.py` 的 `INTERACTION_TYPES`）：动态增删题型卡片并拖拽排序；每种题型按 Schema 展现专用输入框（词汇下拉关联、多选选项定义、填空文本匹配、音频路径挂载等，含跟读与记忆卡片）。
 
 蓝图与「高级编辑」经一对分段按钮切换（选中态高亮）；功能课时默认蓝图、其余默认高级编辑。
 

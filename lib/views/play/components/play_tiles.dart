@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/widgets/glass_surface.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
 
 // ────────────────────────────────────────────────────────────────────
 // Soft-tinted card surfaces — shared building blocks
@@ -321,7 +321,7 @@ class ReviewTile extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: accent,
                         ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -415,55 +415,6 @@ class ToolsTile extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────
-// Building blocks
-// ────────────────────────────────────────────────────────────────────
-
-/// 着色实体卡底座（2026-08 重画）：accent 着色底 + 中性细描边 + 圆角 24 +
-/// 中性双层投影（远悬浮 + 近贴合）。
-///
-/// 与旧版「着色玻璃」的区别：去掉白色羽化光晕与内侧顶部霜面高光，描边从
-/// 白色高光改为中性细边，投影从 accent 单色弱阴影改为中性双层。
-///
-/// 投影层一律「纯垂直 offset + spreadRadius 0」：非零 spread 会改变阴影的
-/// 圆角半径，与卡片圆角错位后会在圆角外侧露出一圈尖角状痕迹。
-/// 暗色模式由 [TurnaTheme.softTint] 自动转为不透明罩染。
-/// `onLongPress` 非空时附加长按语义（无障碍「长按查看数据详情」）。
-class SoftCard extends StatelessWidget {
-  final Color accentColor;
-  final Widget child;
-  final VoidCallback? onTap;
-  final GestureLongPressCallback? onLongPress;
-
-  /// Blend alpha for [TurnaTheme.softTint] (default 0.10).
-  final double tintAlpha;
-
-  const SoftCard({
-    required this.accentColor,
-    required this.child,
-    this.onTap,
-    this.onLongPress,
-    this.tintAlpha = 0.10,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // ADR 0062：从「着色实体面」改为「白纸上的彩色玻璃」。
-    // tintAlpha 语义保留（0.10 = 1.0 倍），映射到 glassFill 的 scale。
-    return GlassSurface(
-      accent: accentColor,
-      level: GlassLevel.l1,
-      radius: const BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge)),
-      scale: tintAlpha / 0.10,
-      onTap: onTap,
-      onLongPress: onLongPress,
-      semanticsHint: onLongPress == null ? null : AppStrings.playLongPressHint,
-      child: child,
-    );
-  }
-}
-
 /// 「练习工具」紧凑格：icon chip + 标题 + 可选副标题，用于三列一行布局。
 class CompactToolTile extends StatelessWidget {
   final String title;
@@ -491,8 +442,6 @@ class CompactToolTile extends StatelessWidget {
       accentColor: accentColor,
       onTap: onTap,
       onLongPress: onLongPress,
-      // 高度基线由外层 AdaptiveCardGrid 的 minChildHeight 给出（旧版是
-      // `SizedBox(height: 104)`），字体放大时随内容长高。
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -502,8 +451,6 @@ class CompactToolTile extends StatelessWidget {
               children: [
                 AccentIconChip(icon: icon, color: accent, size: 20, padding: 8),
                 const SizedBox(width: 8),
-                // 同 ReviewTile：文字徽标在字体放大后靠 FittedBox 缩字，
-                // 三列窄格子也不会溢出。
                 Expanded(
                   child: Align(
                     alignment: AlignmentDirectional.centerEnd,
@@ -525,7 +472,7 @@ class CompactToolTile extends StatelessWidget {
             const Spacer(),
             Text(
               title,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -534,117 +481,6 @@ class CompactToolTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// accent icon chip：L3 平涂层（ADR 0062）—— 淡彩平涂 + accent 图标，
-/// 无描边无投影；贴在卡面上不悬浮。
-/// `size` / `padding` / `radius` 可调，复用于 ReviewTile / ToolsTile。
-class AccentIconChip extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final double size;
-  final double padding;
-  final double radius;
-
-  const AccentIconChip({
-    required this.icon,
-    required this.color,
-    this.size = 26,
-    this.padding = 10,
-    this.radius = 12,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // ADR 0062：图标块走 L3 平涂层 —— 无描边无投影，只发淡彩。
-    return Container(
-      padding: EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        gradient: TurnaTheme.glassFill(
-          context,
-          color,
-          level: GlassLevel.badge,
-        ),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      child: Icon(icon, color: color, size: size),
-    );
-  }
-}
-
-/// 小号实心 chip：accent 实色 + 轻阴影，无白色高光边。
-/// 默认 pill 形态；[circular] 时切换为小圆角（用于复习宫格小格子）。
-class CountBadge extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool circular;
-
-  const CountBadge({
-    required this.label,
-    required this.color,
-    this.circular = false,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = circular
-        ? const BorderRadius.all(Radius.circular(TurnaTheme.radiusMedium))
-        : const BorderRadius.all(Radius.circular(TurnaTheme.radiusMedium));
-
-    return Container(
-      padding: circular
-          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
-          : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: radius,
-        border: Border.all(
-          // 实色徽章在浅色卡面上不需要描边；深色下补一层极淡白边维持边缘可辨。
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.10)
-              : Colors.transparent,
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.30),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: TurnaTheme.textOnPrimary,
-          fontWeight: FontWeight.w800,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-}
-
-class SectionTitle extends StatelessWidget {
-  final String title;
-
-  const SectionTitle({required this.title, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: TurnaTheme.textPrimaryColor(context),
-            ),
       ),
     );
   }

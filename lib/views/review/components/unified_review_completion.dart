@@ -3,6 +3,8 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Unified review completion summary screen.
 class UnifiedReviewCompletion extends StatelessWidget {
@@ -37,16 +39,21 @@ class UnifiedReviewCompletion extends StatelessWidget {
         totalCount > 0 ? ((rememberedCount / totalCount) * 100).round() : 0;
     final showRewards = totalCount > 0 && (xpEarned > 0 || gemsEarned > 0);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      child: TurnaPageContent(
+        maxWidth: 560,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const CosmeticCompletionBadge(
-              fallbackIcon: Icons.check_circle_rounded,
-              fallbackColor: TurnaTheme.brandTeal,
-              iconSize: 48,
+            const TurnaGeometry(
+              kind: TurnaGeometryKind.achievement,
+              size: 132,
+              child: CosmeticCompletionBadge(
+                fallbackIcon: Icons.check_circle_rounded,
+                fallbackColor: TurnaTheme.brandTeal,
+                iconSize: 48,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -135,36 +142,41 @@ class UnifiedReviewCompletion extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: onFinish,
-                // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TurnaTheme.brandTeal,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 52),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onFinish,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TurnaTheme.brandTeal,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ).copyWith(
+                    elevation: const WidgetStatePropertyAll<double>(0),
                   ),
-                ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-                child: Text(
-                  AppStrings.commonDone,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+                  child: Text(
+                    AppStrings.commonDone,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
             ),
             if (remainingDue > 0 && onReviewMore != null) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton(
-                  onPressed: onReviewMore,
-                  child: Text(AppStrings.reviewContinueBatch),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 52),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: onReviewMore,
+                    child: Text(AppStrings.reviewContinueBatch),
+                  ),
                 ),
               ),
             ],

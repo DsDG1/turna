@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 // Project imports:
 import 'package:turna/core/logger.dart';
 import 'package:turna/domain/ai/ai_course.dart' show kAiCourseDraftTtl;
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 
 part 'course_database.g.dart';
 
@@ -67,6 +68,12 @@ class Lessons extends Table {
   TextColumn get prerequisiteLessonIds =>
       text().withDefault(const Constant('[]'))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// v34: L1 sub-lesson metadata (`SubLessonSummariesCodec` wire format) so
+  /// the course tree can render one node per sub-lesson without loading
+  /// bodies. `[]` for flat / single-sub-lesson lessons (one tree node).
+  TextColumn get subLessonSummaries =>
+      text().withDefault(const Constant('[]'))();
 
   @override
   Set<Column> get primaryKey => {languageCode, id};
@@ -368,7 +375,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 33;
+  static const int kSchemaVersion = 34;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -722,6 +729,23 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 33) {
             await _migrateToAiCourseLibrary(m.database);
           }
+          if (from < 34) {
+            // v34: sub-lesson summaries on the lessons index rows. Existing
+            // rows backfill from their content blobs (the assets are only
+            // re-read on a content-version bump, so upgrading alone must
+            // populate the column). The PRAGMA guard mirrors v28: a fixture
+            // backdated to this step may already carry the column.
+            final info = await m.database
+                .customSelect('PRAGMA table_info(lessons)')
+                .get();
+            final hasSummaries = info.isNotEmpty &&
+                info.any((row) =>
+                    row.read<String>('name') == 'sub_lesson_summaries');
+            if (info.isNotEmpty && !hasSummaries) {
+              await m.addColumn(lessons, lessons.subLessonSummaries);
+            }
+            await _backfillSubLessonSummaries(m.database);
+          }
         },
       );
 
@@ -823,6 +847,36 @@ class CourseDatabase extends _$CourseDatabase {
       );
     }
     await db.customStatement('DROP TABLE IF EXISTS ai_practice_sets');
+  }
+
+  /// v34: populate `lessons.sub_lesson_summaries` from the stored content
+  /// blobs. One-time Dart-side backfill (same shape as
+  /// [_migrateToAiCourseLibrary]): rows without subLessons encode to `'[]'`
+  /// and skip the UPDATE, so only segmented lessons are touched.
+  static Future<void> _backfillSubLessonSummaries(
+    GeneratedDatabase database,
+  ) async {
+    final rows = await database
+        .customSelect(
+          'SELECT lesson_id, language_code, content_json FROM lesson_contents',
+        )
+        .get()
+        .catchError((Object _) => const <QueryRow>[]);
+    for (final row in rows) {
+      final encoded = SubLessonSummariesCodec.encodeFromContentJson(
+        row.read<String>('content_json'),
+      );
+      if (encoded == '[]') continue;
+      await database.customStatement(
+        'UPDATE lessons SET sub_lesson_summaries = ? '
+        'WHERE id = ? AND language_code = ?',
+        [
+          encoded,
+          row.read<String>('lesson_id'),
+          row.read<String>('language_code'),
+        ],
+      );
+    }
   }
 
   /// v25: language dimension on content + practice tables, composite PKs

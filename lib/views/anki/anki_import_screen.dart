@@ -21,6 +21,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/core/theme.dart';
 
@@ -92,17 +93,20 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         ),
         body: AnimatedBuilder(
           animation: controller,
-          builder: (context, _) => Column(
-            children: [
-              // The stepper must listen to the same controller as the body.
-              // It used to sit outside this AnimatedBuilder, so it rendered
-              // the initial step once and stayed frozen on 选择文件 while the
-              // body advanced underneath it.
-              WizardStepper(currentStep: controller.state.step),
-              Expanded(
-                child: _buildBody(context, controller),
-              ),
-            ],
+          builder: (context, _) => TurnaPageContent(
+            maxWidth: 840,
+            child: Column(
+              children: [
+                // The stepper must listen to the same controller as the body.
+                // It used to sit outside this AnimatedBuilder, so it rendered
+                // the initial step once and stayed frozen on 选择文件 while the
+                // body advanced underneath it.
+                WizardStepper(currentStep: controller.state.step),
+                Expanded(
+                  child: _buildBody(context, controller),
+                ),
+              ],
+            ),
           ),
         ),
       ),

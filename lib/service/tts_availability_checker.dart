@@ -108,8 +108,19 @@ class TtsAvailabilityChecker {
   /// instead of issuing a second [FlutterTts.setEngine], which races the
   /// flutter_tts Android plugin and crashes with "Reply already submitted".
   Future<void>? _configureInFlight;
+  List<String>? _engineNamesCache;
+  final Map<String, String> _resolvedLanguageCache = <String, String>{};
+  final Map<String, Future<String?>> _languageInFlight =
+      <String, Future<String?>>{};
 
   bool get isEngineConfigured => _engineConfigured;
+
+  /// Drops successful probes after the user changes system voice settings or
+  /// an engine fails. Failed probes are never cached.
+  void invalidateDiagnostics() {
+    _engineNamesCache = null;
+    _resolvedLanguageCache.clear();
+  }
 
   /// Locale candidates for a base BCP-47 language code (e.g. `tr`).
   ///
@@ -145,10 +156,14 @@ class TtsAvailabilityChecker {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return const [];
     }
+    final cached = _engineNamesCache;
+    if (cached != null) return cached;
     try {
       final engines = await _tts.getEngines;
       if (engines is! List) return const [];
-      return engines.map(_engineName).toList(growable: false);
+      final names = engines.map(_engineName).toList(growable: false);
+      if (names.isNotEmpty) _engineNamesCache = names;
+      return names;
     } catch (e, st) {
       logger.w('TtsAvailabilityChecker: listEngineNames failed: $e\n$st');
       return const [];
@@ -171,10 +186,29 @@ class TtsAvailabilityChecker {
   /// On Android this prefers the Google TTS engine first via
   /// [configureSystemEngine]. When possible, prefers a locale whose voice
   /// **data is installed** (not merely advertised as available).
-  Future<String?> resolveLanguageCode(String languageCode) async {
-    if (kIsWeb) return null;
+  Future<String?> resolveLanguageCode(String languageCode) {
+    if (kIsWeb) return Future<String?>.value();
     if (isHarmonyOsTarget) return _resolveHarmonyOsLanguage(languageCode);
 
+    final key = languageCode.trim().replaceAll('_', '-').toLowerCase();
+    final cached = _resolvedLanguageCache[key];
+    if (cached != null) return Future<String?>.value(cached);
+    final active = _languageInFlight[key];
+    if (active != null) return active;
+
+    final future = _resolveLanguageCode(languageCode);
+    _languageInFlight[key] = future;
+    return future.then((resolved) {
+      if (resolved != null) _resolvedLanguageCache[key] = resolved;
+      return resolved;
+    }).whenComplete(() {
+      if (identical(_languageInFlight[key], future)) {
+        _languageInFlight.remove(key);
+      }
+    });
+  }
+
+  Future<String?> _resolveLanguageCode(String languageCode) async {
     try {
       await configureSystemEngine();
 
@@ -407,17 +441,15 @@ class TtsAvailabilityChecker {
   /// Collects engine / locale status for settings UI and troubleshooting.
   Future<TtsDiagnostics> diagnose(String languageCode) async {
     final engines = await listEngineNames();
-    final hasGoogle = await hasGoogleTtsEngine();
+    final android = defaultTargetPlatform == TargetPlatform.android && !kIsWeb;
+    final hasGoogle = android ? engines.contains(googleEngineId) : !kIsWeb;
     final resolved = await resolveLanguageCode(languageCode);
     var installed = false;
     if (resolved != null) {
-      if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
-        installed = await _isLanguageInstalledSafe(resolved) ?? true;
-      } else {
-        installed = true;
-      }
+      installed =
+          android ? await _isLanguageInstalledSafe(resolved) ?? true : true;
     }
-    final preferred = await isPreferredSystemTtsAvailable(languageCode);
+    final preferred = resolved != null && installed && hasGoogle;
     return TtsDiagnostics(
       engines: engines,
       hasGoogleEngine: hasGoogle,
@@ -460,6 +492,10 @@ class TtsAvailabilityChecker {
       _engineConfigured = true;
       return;
     }
+    if (force) {
+      _engineConfigured = false;
+      invalidateDiagnostics();
+    }
 
     // Loop so force-reconfigure after joining an in-flight run is safe, and so
     // we never issue overlapping FlutterTts.setEngine calls.
@@ -495,18 +531,7 @@ class TtsAvailabilityChecker {
 
   Future<void> _configureSystemEngineBody() async {
     try {
-      final engines = await _tts.getEngines;
-      if (engines is! List) {
-        logger.d(
-          'TtsAvailabilityChecker: getEngines returned non-list ($engines). '
-          'If Google TTS is installed, ensure AndroidManifest declares '
-          '<queries> for android.intent.action.TTS_SERVICE.',
-        );
-        _engineConfigured = true;
-        return;
-      }
-
-      final engineNames = engines.map(_engineName).toList(growable: false);
+      final engineNames = await listEngineNames();
       logger.d('TtsAvailabilityChecker: engines=$engineNames');
 
       if (engineNames.isEmpty) {
@@ -514,6 +539,8 @@ class TtsAvailabilityChecker {
           'TtsAvailabilityChecker: empty engine list. On Android 11+ this '
           'often means missing <queries> for TTS_SERVICE in AndroidManifest.',
         );
+        _engineConfigured = false;
+        return;
       }
 
       final hasGoogle = engineNames.contains(googleEngineId);
@@ -526,11 +553,12 @@ class TtsAvailabilityChecker {
           'TtsAvailabilityChecker: Google TTS not installed; using device default engine',
         );
       }
+      _engineNamesCache = engineNames;
       _engineConfigured = true;
     } catch (e, st) {
       logger.w('TtsAvailabilityChecker: failed to set engine: $e\n$st');
-      // Still mark configured to avoid retry thrashing; caller can force.
-      _engineConfigured = true;
+      _engineConfigured = false;
+      invalidateDiagnostics();
     }
   }
 

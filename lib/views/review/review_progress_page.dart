@@ -12,6 +12,7 @@ import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Review-overview home (Plan 3 §15.1): a fast, actionable "today" dashboard.
 ///
@@ -102,48 +103,51 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
           ),
         ],
       ),
-      body: _error != null && snap == null
-          ? _ErrorState(
-              message: '$_error', onRetry: () => _reload(forceRefresh: true))
-          : snap == null
-              ? const _DashboardSkeleton()
-              : RefreshIndicator(
-                  color: TurnaTheme.brandTeal,
-                  onRefresh: _refresh,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                    children: [
-                      if (_error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _InlineErrorBanner(
-                            onRetry: () => _reload(forceRefresh: true),
+      body: TurnaPageContent(
+        maxWidth: 840,
+        child: _error != null && snap == null
+            ? _ErrorState(
+                message: '$_error', onRetry: () => _reload(forceRefresh: true))
+            : snap == null
+                ? const _DashboardSkeleton()
+                : RefreshIndicator(
+                    color: TurnaTheme.brandTeal,
+                    onRefresh: _refresh,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                      children: [
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _InlineErrorBanner(
+                              onRetry: () => _reload(forceRefresh: true),
+                            ),
                           ),
-                        ),
-                      _TodayHero(snapshot: snap),
-                      const SizedBox(height: 12),
-                      _DueRow(snapshot: snap),
-                      const SizedBox(height: 12),
-                      if (!focusMode) ...[
-                        _StreakCard(snapshot: snap),
+                        _TodayHero(snapshot: snap),
                         const SizedBox(height: 12),
-                        _TodayQualityCard(snapshot: snap),
+                        _DueRow(snapshot: snap),
                         const SizedBox(height: 12),
-                        _SourceList(snapshot: snap),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: () => context.router
-                              .push(const LearningInsightsRoute()),
-                          icon: const Icon(Icons.insights_rounded, size: 18),
-                          label: Text(AppStrings.reviewOpenInsights),
-                        ),
+                        if (!focusMode) ...[
+                          _StreakCard(snapshot: snap),
+                          const SizedBox(height: 12),
+                          _TodayQualityCard(snapshot: snap),
+                          const SizedBox(height: 12),
+                          _SourceList(snapshot: snap),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => context.router
+                                .push(const LearningInsightsRoute()),
+                            icon: const Icon(Icons.insights_rounded, size: 18),
+                            label: Text(AppStrings.reviewOpenInsights),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
+      ),
     );
   }
 }
@@ -206,10 +210,8 @@ class _TodayHero extends StatelessWidget {
     );
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -325,10 +327,8 @@ class _DueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -366,10 +366,8 @@ class _StreakCard extends StatelessWidget {
     final streak = snapshot.streak;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -531,10 +529,8 @@ class _TodayQualityCard extends StatelessWidget {
         : AppStrings.reviewAccuracyPct((q.firstAnswerAccuracy! * 100).round());
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Row(
@@ -580,10 +576,8 @@ class _SourceList extends StatelessWidget {
     final sources = snapshot.sources;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
@@ -680,10 +674,8 @@ class _DashboardSkeleton extends StatelessWidget {
     Widget block({double height = 80}) => Container(
           height: height,
           margin: const EdgeInsets.only(bottom: 12),
-          decoration: TurnaTheme.glassDecoration(
+          decoration: TurnaTheme.flatPaperDecoration(
             context,
-            TurnaTheme.glassNeutral,
-            level: GlassLevel.l1Subtle,
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           ),
         );

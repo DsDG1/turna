@@ -153,6 +153,11 @@ class LocalStateKeys {
   // first unfinished sub-lesson after an exit; the lesson-level set above
   // still decides when the lesson itself counts as done.
   static const String completedSubLessonIds = 'progress.completedSubLessonIds';
+
+  // Sub-lessons finished with zero mistakes, same `lessonId::subLessonId`
+  // keys. The tree marks per-node perfect stars from this; the lesson-level
+  // perfect set records "every sub-lesson perfect".
+  static const String perfectSubLessonIds = 'progress.perfectSubLessonIds';
   static const String streakWasBroken = 'game.streakWasBroken';
   static const String streakProtectedDays = 'streak.protectedDays';
   static const String streakAutoUseVoucher = 'streak.autoUseVoucher';

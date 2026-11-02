@@ -27,17 +27,29 @@ import 'package:turna/service/tts_availability_checker.dart';
 enum TtsSpeakSource {
   system,
   failed,
+  cancelled,
+}
+
+enum TtsFailureReason {
+  voiceMissing,
+  engineUnavailable,
+  synthesisFailed,
+  timeout,
+  emptyText,
+  unknown,
 }
 
 /// Result of [AudioController.speakWithResult] for settings UI / debugging.
 class TtsSpeakResult {
   const TtsSpeakResult({
     required this.source,
+    this.failureReason,
     this.error,
     this.usedFallback = false,
   });
 
   final TtsSpeakSource source;
+  final TtsFailureReason? failureReason;
   final String? error;
 
   /// True when the preferred engine failed and a secondary engine spoke.
@@ -50,6 +62,8 @@ class TtsSpeakResult {
         return 'Google / system TTS';
       case TtsSpeakSource.failed:
         return 'No voice played';
+      case TtsSpeakSource.cancelled:
+        return 'Playback cancelled';
     }
   }
 }
@@ -72,6 +86,8 @@ class AudioController {
   double get ttsSpeed => _ttsSpeed;
   String? _lastTtsLanguage;
   double? _lastTtsRate;
+  Future<void> _ttsQueue = Future<void>.value();
+  int _ttsRequestId = 0;
 
   TtsSpeakResult? _lastSpeakResult;
   TtsSpeakResult? get lastSpeakResult => _lastSpeakResult;
@@ -250,8 +266,13 @@ class AudioController {
     await _ttsChecker?.configureSystemEngine(force: true);
   }
 
-  /// Stop any in-progress system TTS.
+  /// Stop any in-progress system TTS and invalidate queued utterances.
   Future<void> stopSystemTts() async {
+    _ttsRequestId++;
+    await _stopTts();
+  }
+
+  Future<void> _stopTts() async {
     try {
       await _tts.stop();
     } catch (e) {
@@ -273,6 +294,7 @@ class AudioController {
   }
 
   Future<void> _speakWithSystemTts(
+    int requestId,
     String text,
     double effectiveSpeed, {
     String? languageCode,
@@ -288,7 +310,7 @@ class AudioController {
     // it here rather than at startup keeps a device with no usable voice from
     // paying for an engine it will never use.
     await _tts.init(language: _lastTtsLanguage);
-    await _tts.stop();
+    if (requestId != _ttsRequestId) return;
     logger.d(
       'TTS route: system (lang=$_lastTtsLanguage, '
       'uiSpeed=$effectiveSpeed, flutterRate=$rate)',
@@ -313,52 +335,102 @@ class AudioController {
   }
 
   /// Like [speak], but returns which backend produced audio.
-  ///
-  /// This build routes through the device/Google system TTS only. If it
-  /// fails, [TtsSpeakSource.failed] is returned with the error — there is no
-  /// offline fallback in this build.
   Future<TtsSpeakResult> speakWithResult(
     String text, {
     double? speed,
     String? languageCode,
-  }) async {
-    return _trackSpeaking(
-        () => _speakWithResult(text, speed: speed, languageCode: languageCode));
-  }
-
-  Future<TtsSpeakResult> _speakWithResult(
-    String text, {
-    double? speed,
-    String? languageCode,
-  }) async {
+  }) {
     final cleanText = stripHtml(text).trim();
     if (cleanText.isEmpty) {
       const empty = TtsSpeakResult(
         source: TtsSpeakSource.failed,
+        failureReason: TtsFailureReason.emptyText,
         error: 'empty text',
       );
       _lastSpeakResult = empty;
-      return empty;
+      return Future<TtsSpeakResult>.value(empty);
     }
 
-    final effectiveSpeed = speed ?? _ttsSpeed;
+    final requestId = ++_ttsRequestId;
+    final stopPrevious = _stopTts();
+    final operation = _ttsQueue.then((_) => stopPrevious).then(
+          (_) => _speakWithResult(
+            requestId,
+            cleanText,
+            speed: speed,
+            languageCode: languageCode,
+          ),
+        );
+    _ttsQueue = operation.then((_) {}, onError: (Object e, StackTrace st) {
+      logger.w('AudioController: queued TTS failed: $e', stackTrace: st);
+    });
+    return _trackSpeaking(() => operation);
+  }
 
+  Future<TtsSpeakResult> _speakWithResult(
+    int requestId,
+    String text, {
+    double? speed,
+    String? languageCode,
+  }) async {
+    if (requestId != _ttsRequestId) {
+      return const TtsSpeakResult(source: TtsSpeakSource.cancelled);
+    }
+    final effectiveSpeed = speed ?? _ttsSpeed;
     try {
-      await _speakWithSystemTts(cleanText, effectiveSpeed,
-          languageCode: languageCode);
+      await _speakWithSystemTts(
+        requestId,
+        text,
+        effectiveSpeed,
+        languageCode: languageCode,
+      );
+      if (requestId != _ttsRequestId) {
+        return const TtsSpeakResult(source: TtsSpeakSource.cancelled);
+      }
       const ok = TtsSpeakResult(source: TtsSpeakSource.system);
       _lastSpeakResult = ok;
       logger.d('TTS route: system OK');
       return ok;
-    } catch (e) {
-      logger.w('TTS route: system failed: $e');
-      final fail = TtsSpeakResult(
-        source: TtsSpeakSource.failed,
-        error: 'system: $e',
+    } on TtsPlaybackException catch (e) {
+      return _speakFailed(
+        requestId,
+        e.kind == TtsPlaybackErrorKind.timeout
+            ? TtsFailureReason.timeout
+            : TtsFailureReason.synthesisFailed,
+        e,
       );
-      _lastSpeakResult = fail;
-      return fail;
+    } catch (e) {
+      final message = e.toString();
+      final reason = _ttsChecker?.isEngineConfigured == false
+          ? TtsFailureReason.engineUnavailable
+          : message.contains('no system TTS locale') ||
+                  message.contains('setLanguage')
+              ? TtsFailureReason.voiceMissing
+              : TtsFailureReason.unknown;
+      if (reason == TtsFailureReason.voiceMissing ||
+          reason == TtsFailureReason.engineUnavailable) {
+        await rebindSystemTts();
+      }
+      return _speakFailed(requestId, reason, e);
     }
+  }
+
+  TtsSpeakResult _speakFailed(
+    int requestId,
+    TtsFailureReason reason,
+    Object error,
+  ) {
+    if (requestId != _ttsRequestId) {
+      return const TtsSpeakResult(source: TtsSpeakSource.cancelled);
+    }
+    logger.w('TTS route: system failed (${reason.name}): $error');
+    final fail = TtsSpeakResult(
+      source: TtsSpeakSource.failed,
+      failureReason: reason,
+      error: '$error',
+    );
+    _lastSpeakResult = fail;
+    return fail;
   }
 
   /// Whether [ref] looks like a bundled asset path rather than a logical id.
@@ -410,29 +482,49 @@ class AudioController {
     await _trackSpeaking(() => _speakWord(wordId));
   }
 
+  Future<TtsSpeakResult> speakWordWithResult(String wordId) async {
+    return _trackSpeaking(() => _speakWordWithResult(wordId));
+  }
+
   Future<void> _speakWord(String wordId) async {
+    await _speakWordWithResult(wordId);
+  }
+
+  Future<TtsSpeakResult> _speakWordWithResult(String wordId) async {
     if (AnkiAudioResolver.isAnkiAsset(wordId)) {
-      await playAnkiMedia(wordId);
-      return;
+      return _mediaSpeakResult(await playAnkiMedia(wordId));
     }
     if (CoursePackMedia.isPackAsset(wordId)) {
-      await playCoursePackMedia(wordId);
-      return;
+      return _mediaSpeakResult(await playCoursePackMedia(wordId));
     }
     final resolved = _vocabAudioResolver.resolve(wordId);
     final asset = resolved.audioAsset;
     if (asset != null && asset.isNotEmpty) {
       if (CoursePackMedia.isPackAsset(asset)) {
-        if (await playCoursePackMedia(asset)) return;
+        if (await playCoursePackMedia(asset)) {
+          return const TtsSpeakResult(source: TtsSpeakSource.system);
+        }
         // Extracted media missing (e.g. backup restored without the
         // imported_courses tree) — fall through to TTS on the term.
       } else {
         await speakFromAsset(asset);
-        return;
+        return const TtsSpeakResult(source: TtsSpeakSource.system);
       }
     }
-    if (await playOfficialMediaFile(wordId)) return;
-    await speak(resolved.speakText);
+    if (await playOfficialMediaFile(wordId)) {
+      return const TtsSpeakResult(source: TtsSpeakSource.system);
+    }
+    return speakWithResult(resolved.speakText);
+  }
+
+  TtsSpeakResult _mediaSpeakResult(bool played) {
+    return played
+        ? const TtsSpeakResult(source: TtsSpeakSource.system)
+        : const TtsSpeakResult(
+            source: TtsSpeakSource.failed,
+            failureReason: TtsFailureReason.unknown,
+            error: 'media playback failed',
+          );
   }
 
   /// P5F-23: official-collection media reaches projected interactions as a
@@ -505,15 +597,25 @@ class AudioController {
     String? audioAsset,
     String transcript = '',
   }) async {
-    await _trackSpeaking(
-      () => _speakListenContent(
+    await speakListenContentWithResult(
+      audioAsset: audioAsset,
+      transcript: transcript,
+    );
+  }
+
+  Future<TtsSpeakResult> speakListenContentWithResult({
+    String? audioAsset,
+    String transcript = '',
+  }) async {
+    return _trackSpeaking(
+      () => _speakListenContentWithResult(
         audioAsset: audioAsset,
         transcript: transcript,
       ),
     );
   }
 
-  Future<void> _speakListenContent({
+  Future<TtsSpeakResult> _speakListenContentWithResult({
     String? audioAsset,
     String transcript = '',
   }) async {
@@ -522,28 +624,31 @@ class AudioController {
 
     if (asset != null && asset.isNotEmpty) {
       if (AnkiAudioResolver.isAnkiAsset(asset)) {
-        await playAnkiMedia(asset);
+        return _mediaSpeakResult(await playAnkiMedia(asset));
       } else if (CoursePackMedia.isPackAsset(asset)) {
-        if (await playCoursePackMedia(asset)) return;
-        if (text.isNotEmpty) {
-          // Pack media file missing — speak the transcript rather than
-          // staying silent.
-          await speak(text);
+        if (await playCoursePackMedia(asset)) {
+          return const TtsSpeakResult(source: TtsSpeakSource.system);
         }
+        if (text.isNotEmpty) return speakWithResult(text);
+        return _mediaSpeakResult(false);
       } else if (isAssetPath(asset)) {
         await speakFromAsset(asset);
+        return const TtsSpeakResult(source: TtsSpeakSource.system);
       } else if (await playOfficialMediaFile(asset)) {
-        // P5F-23: bare official-collection media filename — played above.
+        return const TtsSpeakResult(source: TtsSpeakSource.system);
       } else if (text.isNotEmpty) {
-        // Prefer readable transcript for TTS when asset is a logical id
-        // without an offline path.
-        await speak(text);
+        return speakWithResult(text);
       } else {
-        await speakWord(asset);
+        return speakWordWithResult(asset);
       }
     } else if (text.isNotEmpty) {
-      await speak(text);
+      return speakWithResult(text);
     }
+    return const TtsSpeakResult(
+      source: TtsSpeakSource.failed,
+      failureReason: TtsFailureReason.emptyText,
+      error: 'empty text',
+    );
   }
 
   /// Set the global TTS speed. Clamped to [0.5, 2.0].

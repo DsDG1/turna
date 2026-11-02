@@ -70,7 +70,7 @@ class TurnaSnackBar {
           TextButton(
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size.zero,
+              minimumSize: const Size(48, 48),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             onPressed: action.onPressed,

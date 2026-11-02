@@ -6,6 +6,7 @@ import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
 
 /// A brand-styled progress poster designed to be captured and shared.
 ///
@@ -83,32 +84,13 @@ class ShareProgressCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Sparkles
-            Positioned(
-              top: 90,
-              left: 28,
-              child: Icon(
-                Icons.auto_awesome,
-                size: 14,
-                color: TurnaTheme.textOnPrimary.withValues(alpha: 0.45),
-              ),
-            ),
-            Positioned(
-              top: 64,
-              right: 36,
-              child: Icon(
-                Icons.star_rounded,
-                size: 16,
-                color: TurnaTheme.textOnPrimary.withValues(alpha: 0.5),
-              ),
-            ),
-            Positioned(
-              top: 210,
-              right: 24,
-              child: Icon(
-                Icons.auto_awesome,
-                size: 12,
-                color: TurnaTheme.textOnPrimary.withValues(alpha: 0.35),
+            const Positioned(
+              top: 42,
+              right: -18,
+              child: TurnaGeometry(
+                kind: TurnaGeometryKind.ripples,
+                accent: TurnaTheme.brandReed,
+                size: 148,
               ),
             ),
             Padding(

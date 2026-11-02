@@ -15,6 +15,7 @@ import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/progress_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -23,8 +24,10 @@ import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/views/courses/components/lesson_tile.dart';
 import 'package:turna/views/courses/components/section_switcher.dart';
 import 'package:turna/views/courses/course_tree.dart';
 
@@ -185,6 +188,7 @@ void main() {
     _FakeGameProvider? gameProvider,
     SrsProvider? srsProvider,
     MistakeProvider? mistakeProvider,
+    LessonProgressProvider? lessonProgress,
     bool disableAnimations = false,
     TextScaler? textScaler,
   }) {
@@ -204,7 +208,8 @@ void main() {
             value: accessibility,
           ),
           ChangeNotifierProvider<ProgressProvider>(
-            create: (_) => ProgressProvider(game),
+            create: (_) =>
+                ProgressProvider(game, lessonProgress: lessonProgress),
           ),
           if (srsProvider != null)
             ChangeNotifierProvider<SrsProvider>.value(value: srsProvider),
@@ -930,6 +935,161 @@ void main() {
 
       expect(find.text('下一课'), findsOneWidget);
       expect(find.text('Lesson Next Up'), findsOneWidget);
+    });
+
+    group('sub-lesson nodes (ADR 0063)', () {
+      Lesson groupedLesson(String id, List<(String, String)> subs) => Lesson(
+            id: id,
+            name: 'Grouped Lesson $id',
+            type: LessonType.normal,
+            template: LessonTemplate.intro,
+            prerequisiteLessonIds: const [],
+            content: const LessonContent(),
+            subLessonSummaries: [
+              for (var i = 0; i < subs.length; i++)
+                SubLessonSummary(
+                  id: subs[i].$1,
+                  name: subs[i].$2,
+                  sortOrder: i,
+                ),
+            ],
+          );
+
+      Future<void> pumpExpanded(
+        WidgetTester tester, {
+        required Section section,
+        _FakeGameProvider? game,
+        LessonProgressProvider? lessonProgress,
+      }) async {
+        final provider = _FakeCourseProvider(
+          currentSection: section,
+          loadState: SectionLoadState.loaded,
+        );
+        await tester.pumpWidget(pumpTree(
+          provider,
+          gameProvider: game,
+          lessonProgress: lessonProgress,
+        ));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(section.units.first.name));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('renders a group header and one tile per sub-lesson',
+          (tester) async {
+        final lesson = groupedLesson('l-group', [
+          ('l-group-sl1', '第一小课'),
+          ('l-group-sl2', '第二小课'),
+        ]);
+        final section = _testSection(
+          id: 's-group',
+          unitName: 'Group Unit',
+          lessons: [lesson],
+        );
+
+        await pumpExpanded(tester, section: section);
+
+        // Group header keeps the lesson name and a zero-progress chip.
+        expect(find.text('Grouped Lesson l-group'), findsOneWidget);
+        expect(
+          tester
+              .widget<SubLessonGroupHeader>(
+                find.byType(SubLessonGroupHeader),
+              )
+              .completedCount,
+          0,
+        );
+        // Each sub-lesson is its own tile with its own index chip.
+        expect(find.text('第一小课'), findsOneWidget);
+        expect(find.text('第二小课'), findsOneWidget);
+        expect(find.text('小课 1/2'), findsOneWidget);
+        expect(find.text('小课 2/2'), findsOneWidget);
+      });
+
+      testWidgets('next-up lands on the first uncompleted sub-lesson node',
+          (tester) async {
+        final lesson = groupedLesson('l-next-sub', [
+          ('l-next-sub-sl1', '甲'),
+          ('l-next-sub-sl2', '乙'),
+        ]);
+        final section = _testSection(
+          id: 's-next-sub',
+          unitName: 'Next Sub Unit',
+          lessons: [lesson],
+        );
+
+        await pumpExpanded(tester, section: section);
+
+        // Exactly one next-up affordance in the whole tree: sub-lesson 1.
+        expect(find.text('下一课'), findsOneWidget);
+        expect(find.text('甲'), findsOneWidget);
+      });
+
+      testWidgets('sub-lesson records advance the header chip and next-up',
+          (tester) async {
+        final lesson = groupedLesson('l-progress-sub', [
+          ('l-progress-sub-sl1', '丙'),
+          ('l-progress-sub-sl2', '丁'),
+        ]);
+        final section = _testSection(
+          id: 's-progress-sub',
+          unitName: 'Progress Sub Unit',
+          lessons: [lesson],
+        );
+        final progress = LessonProgressProvider(appPrefs);
+        await progress.recordSubLessonCompletion(
+          lessonId: lesson.id,
+          subLessonId: 'l-progress-sub-sl1',
+        );
+
+        await pumpExpanded(tester, section: section, lessonProgress: progress);
+
+        expect(
+          tester
+              .widget<SubLessonGroupHeader>(
+                find.byType(SubLessonGroupHeader),
+              )
+              .completedCount,
+          1,
+        );
+        // Next-up moved to the second sub-lesson node.
+        expect(find.text('下一课'), findsOneWidget);
+        expect(find.text('丁'), findsOneWidget);
+      });
+
+      testWidgets(
+          'a completed parent lesson (legacy record) completes every node',
+          (tester) async {
+        final grouped = groupedLesson('l-legacy', [
+          ('l-legacy-sl1', '戊'),
+          ('l-legacy-sl2', '己'),
+        ]);
+        final section = _testSection(
+          id: 's-legacy',
+          unitName: 'Legacy Unit',
+          lessons: [
+            grouped,
+            _testLesson('l-after', 'Lesson After'),
+          ],
+        );
+        // Pre-sub-lesson-era record: lesson completed, no node records.
+        final game = _FakeGameProvider()..complete('l-legacy');
+
+        await pumpExpanded(tester, section: section, game: game);
+
+        // Header chip counts every node complete via the legacy override.
+        expect(
+          tester
+              .widget<SubLessonGroupHeader>(
+                find.byType(SubLessonGroupHeader),
+              )
+              .completedCount,
+          2,
+        );
+        // Next-up skips the whole group and lands on the following lesson.
+        expect(find.text('下一课'), findsOneWidget);
+        expect(find.text('Lesson After'), findsOneWidget);
+      });
     });
 
     testWidgets(

@@ -34,6 +34,13 @@ class LessonCompletionCoordinator {
 
   /// Run completion side-effects. Each step is independent: one failure does
   /// not abort the others.
+  ///
+  /// A sub-lesson session ([subLessonId] != null) pays out every time (the
+  /// session IS the reward unit); the lesson-level completion record only
+  /// lands when this session finishes the last remaining sub-lesson
+  /// ([settlesLesson]), recorded with [settlesLessonPerfect] ("every
+  /// sub-lesson perfect"). Flat lessons always settle and reuse [wasPerfect]
+  /// for the record.
   Future<void> complete({
     required String lessonId,
     required bool wasPerfect,
@@ -41,6 +48,9 @@ class LessonCompletionCoordinator {
     required int incorrectAnswers,
     required DateTime? lessonStartTime,
     List<String> wordIds = const [],
+    String? subLessonId,
+    bool settlesLesson = true,
+    bool settlesLessonPerfect = false,
   }) async {
     final completedAt = DateTime.now();
     await Future.wait([
@@ -52,7 +62,11 @@ class LessonCompletionCoordinator {
         'earn lesson-complete gems',
         () => _gemsProvider.earnGems(
           GemEvent.lessonComplete,
-          eventId: GemRewardEventIds.lesson(lessonId, completedAt),
+          eventId: GemRewardEventIds.lesson(
+            lessonId,
+            completedAt,
+            subLessonId: subLessonId,
+          ),
         ),
       ),
     ]);
@@ -67,19 +81,25 @@ class LessonCompletionCoordinator {
           'earn perfect-lesson gems',
           () => _gemsProvider.earnGems(
             GemEvent.perfectLesson,
-            eventId: GemRewardEventIds.perfectLesson(lessonId, completedAt),
+            eventId: GemRewardEventIds.perfectLesson(
+              lessonId,
+              completedAt,
+              subLessonId: subLessonId,
+            ),
           ),
         ),
       ]);
     }
 
-    await _runSideEffect(
-      'record lesson completion',
-      () => _gameProvider.recordLessonCompletion(
-        lessonId: lessonId,
-        wasPerfect: wasPerfect,
-      ),
-    );
+    if (settlesLesson) {
+      await _runSideEffect(
+        'record lesson completion',
+        () => _gameProvider.recordLessonCompletion(
+          lessonId: lessonId,
+          wasPerfect: subLessonId == null ? wasPerfect : settlesLessonPerfect,
+        ),
+      );
+    }
 
     await _runSideEffect('record study stats', () async {
       final duration = lessonStartTime != null

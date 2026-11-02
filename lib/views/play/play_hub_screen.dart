@@ -29,6 +29,7 @@ import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/turna_cards.dart';
 import 'package:turna/views/widgets/adaptive_card_grid.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';

@@ -168,8 +168,8 @@ _DARK_PALETTE: dict[str, str] = {
     "bg_chrome": "#000000",
     # Text
     "text": "#E8EAF0",
-    "text_secondary": "#B9CCC0",
-    "text_disabled": "#84998C",
+    "text_secondary": "#A7B2B8",
+    "text_disabled": "#79858C",
     # Borders
     "border": "#2A2A2A",
     "border_hover": BRAND_REED,

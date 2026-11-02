@@ -5,15 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/lesson_tile.dart';
-import 'package:turna/views/home/motion/turna_motion.dart';
+import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
 
 /// 单元卡（Plan「湿地晨光」§3.3）：抬升的内容卡头部。
 ///
-/// 折叠态是一张完整圆角的静置卡；展开时底边圆角归零、下缘投影撤去——
-/// 课程行（[LessonTile] 行壳）在其下方逐行拼合为「卡身 + 内嵌课程旅程
-/// 面」，视觉上是一整张卡，实际上保持 Sliver 列表的懒加载（百课单元
-/// 不全量构建）。头部沿用进度环 / 角标 / chevron 的信息结构。
+/// 折叠态是一张完整圆角的纸面；展开时底边圆角归零——课程行
+/// （[LessonTile] 行壳）在其下方逐行拼合，视觉上是一整张卡，实际上保持
+/// Sliver 列表的懒加载（百课单元不全量构建）。头部沿用进度环 / 角标 /
+/// chevron 的信息结构。
 class UnitCard extends StatelessWidget {
   final Unit unit;
   final int completedCount;
@@ -78,14 +78,10 @@ class UnitCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: duration,
         curve: TurnaMotion.easeOut,
-        // ADR 0062：单元卡是「容器」角色 → sand 色相的 L1 玻璃。
-        // 展开时撤去投影：下缘由课程行壳收尾，投影归末行承担。
-        decoration: TurnaTheme.glassDecoration(
+        // 单元头是旅程纸面的上沿，与课行同一实色、同一中性描边，展开后接缝不断。
+        decoration: TurnaTheme.flatPaperDecoration(
           context,
-          TurnaTheme.glassContainer,
-          level: GlassLevel.l1,
           borderRadius: borderRadius,
-          boxShadow: expanded ? const <BoxShadow>[] : null,
         ),
         child: Material(
           color: Colors.transparent,

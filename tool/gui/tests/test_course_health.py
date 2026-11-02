@@ -189,6 +189,41 @@ class RepairPlanTest(unittest.TestCase):
         steps = build_repair_plan(findings)
         self.assertNotIn("grammar_uncovered", [s.action_id for s in steps])
 
+    def test_read_aloud_empty_target_is_flagged(self) -> None:
+        sec = {
+            "id": "s1",
+            "name": "Sec1",
+            "units": [
+                {
+                    "id": "u1",
+                    "lessons": [
+                        {
+                            "id": "l-ra",
+                            "name": "跟读课",
+                            "content": {
+                                "stages": [
+                                    {
+                                        "id": "st-1",
+                                        "items": [
+                                            {
+                                                "id": "item-ra-empty",
+                                                "runtimeType": "readAloud",
+                                                "targetText": "   ",
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        findings = audit_course([sec], default_level="A1")
+        ra_findings = [f for f in findings if f.kind == "read_aloud_empty_target"]
+        self.assertEqual(len(ra_findings), 1)
+        self.assertIn("跟读缺目标句", ra_findings[0].title)
+
 
 class CourseHealthServiceTest(unittest.TestCase):
     def test_report_shape_and_action_titles(self) -> None:

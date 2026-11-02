@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async' show unawaited;
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -13,6 +16,7 @@ import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 class SettingsToggleTile extends StatelessWidget {
@@ -55,7 +59,8 @@ class SettingsTtsEngineTile extends StatefulWidget {
   State<SettingsTtsEngineTile> createState() => _SettingsTtsEngineTileState();
 }
 
-class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
+class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
+    with WidgetsBindingObserver {
   TtsDiagnostics? _diagnostics;
   bool _loading = true;
   bool _previewing = false;
@@ -68,7 +73,26 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refreshDiagnostics();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_rebindAndRefresh());
+    }
+  }
+
+  Future<void> _rebindAndRefresh() async {
+    await getIt<AudioController>().rebindSystemTts();
+    await _refreshDiagnostics();
   }
 
   Future<void> _refreshDiagnostics() async {
@@ -177,8 +201,9 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
           SimpleDialogOption(
             onPressed: () async {
               Navigator.of(context).pop();
-              await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
-              await _refreshDiagnostics();
+              final opened =
+                  await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
+              if (!opened) await _refreshDiagnostics();
             },
             child: Text(AppStrings.settingsOpenSystemTts),
           ),
@@ -190,9 +215,9 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             SimpleDialogOption(
               onPressed: () async {
                 Navigator.of(context).pop();
-                await getIt<TtsAvailabilityChecker>()
+                final opened = await getIt<TtsAvailabilityChecker>()
                     .openGoogleTtsInstallPage();
-                await _refreshDiagnostics();
+                if (!opened) await _refreshDiagnostics();
               },
               child: Text(AppStrings.settingsInstallGoogleTts),
             ),
@@ -222,15 +247,11 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       );
       if (!mounted) return;
 
-      String message;
-      if (result.source == TtsSpeakSource.failed) {
-        message = result.error != null
-            ? AppStrings.settingsTtsNoVoicePlayed(result.error!)
-            : AppStrings.settingsTtsNoVoicePlayedFallback;
+      if (result.source == TtsSpeakSource.system) {
+        _showMessage(AppStrings.settingsTtsPlaying(result.userLabel));
       } else {
-        message = AppStrings.settingsTtsPlaying(result.userLabel);
+        showTtsFailureFeedback(context, result);
       }
-      _showMessage(message.trim());
     } finally {
       if (mounted) {
         setState(() => _previewing = false);

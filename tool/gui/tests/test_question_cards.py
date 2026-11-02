@@ -278,5 +278,26 @@ class DeleteOptionTest(unittest.TestCase):
         self.assertEqual(card.item["correctIndices"], [0])
 
 
+class ReadAloudBuildTest(unittest.TestCase):
+    """Ensure readAloud items render dedicated editors without fallback."""
+
+    def test_read_aloud_card_builds_and_syncs(self) -> None:
+        _TestApp.get()
+        item = default_interaction("readAloud")
+        item["prompt"] = "跟读下面的句子"
+        item["targetText"] = "Merhaba dünya"
+        card = QuestionCard(CourseAdapter(), item)
+
+        line_edits = list(card.findChildren(QLineEdit))
+        texts = [e.text() for e in line_edits]
+        self.assertIn("跟读下面的句子", texts)
+        self.assertIn("Merhaba dünya", texts)
+
+        # 验证编辑 targetText 能双向同步到 item
+        target_edit = next(e for e in line_edits if e.text() == "Merhaba dünya")
+        target_edit.setText("Günaydın")
+        self.assertEqual(card.item["targetText"], "Günaydın")
+
+
 if __name__ == "__main__":
     unittest.main()

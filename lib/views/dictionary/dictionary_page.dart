@@ -20,11 +20,14 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/smart_speech.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 @RoutePage()
 class DictionaryPage extends StatefulWidget {
@@ -61,15 +64,19 @@ class _DictionaryPageState extends State<DictionaryPage> {
   Future<void> _speak(DictionaryHit hit) async {
     final audio = getIt<AudioController>();
     final wordId = hit.speakAsWordId;
+    final TtsSpeakResult result;
     if (wordId != null && wordId.isNotEmpty) {
-      await audio.speakWord(wordId);
-      return;
-    }
-    final text = hit.speakText ?? hit.title;
-    if (text.isNotEmpty) {
+      result = await audio.speakWordWithResult(wordId);
+    } else {
+      final text = hit.speakText ?? hit.title;
+      if (text.isEmpty) return;
       // Auto-detect the language so translations are read in their own voice.
-      await audio.speak(text, languageCode: detectSpeakLanguage(text));
+      result = await audio.speakWithResult(
+        text,
+        languageCode: detectSpeakLanguage(text),
+      );
     }
+    if (mounted) showTtsFailureFeedback(context, result);
   }
 
   @override
@@ -84,52 +91,54 @@ class _DictionaryPageState extends State<DictionaryPage> {
               ),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: TextField(
-              controller: _controller,
-              onChanged: _onQueryChanged,
-              decoration: InputDecoration(
-                hintText: AppStrings.dictionarySearchHint,
-                prefixIcon: const Icon(Icons.search_rounded),
-                filled: true,
-                fillColor: TurnaTheme.inputFillColor(context),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                  borderSide: BorderSide.none,
+      body: TurnaPageContent(
+        maxWidth: 840,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: TextField(
+                controller: _controller,
+                onChanged: _onQueryChanged,
+                decoration: InputDecoration(
+                  hintText: AppStrings.dictionarySearchHint,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  filled: true,
+                  fillColor: TurnaTheme.inputFillColor(context),
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(TurnaTheme.radiusMedium),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: _hits.isEmpty
-                ? Center(
-                    child: Text(
-                      _controller.text.trim().isEmpty
+            Expanded(
+              child: _hits.isEmpty
+                  ? PracticeEmptyState(
+                      icon: _controller.text.trim().isEmpty
+                          ? Icons.menu_book_rounded
+                          : Icons.search_off_rounded,
+                      accentColor: TurnaTheme.brandSky,
+                      title: _controller.text.trim().isEmpty
                           ? AppStrings.dictionarySearchEmpty
                           : AppStrings.dictionaryNoMatches,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
-                      textAlign: TextAlign.center,
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      itemCount: _hits.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final hit = _hits[index];
+                        return DictionaryHitTile(
+                          hit: hit,
+                          onSpeak: () => _speak(hit),
+                        );
+                      },
                     ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    itemCount: _hits.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final hit = _hits[index];
-                      return DictionaryHitTile(
-                        hit: hit,
-                        onSpeak: () => _speak(hit),
-                      );
-                    },
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

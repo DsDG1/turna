@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/accessibility_capabilities.dart';
+import 'package:turna/core/motion.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
@@ -280,14 +282,6 @@ class LessonCheckButton extends StatefulWidget {
 }
 
 class _LessonCheckButtonState extends State<LessonCheckButton> {
-  /// 与 [TurnaTheme.buttonGradient] 同一对品牌色, 但改为竖向 ——
-  /// 从上到下由亮到暗才读作"受光的实体键", 对角渐变在按钮高度上几乎看不出.
-  static const LinearGradient _ctaGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [TurnaTheme.brandTealLight, TurnaTheme.brandTeal],
-  );
-
   bool _pressed = false;
 
   @override
@@ -295,26 +289,27 @@ class _LessonCheckButtonState extends State<LessonCheckButton> {
     final radius = BorderRadius.circular(TurnaTheme.radiusOption);
     final enabled = widget.enabled;
     final lifted = enabled && !_pressed;
+    final a11y = accessibilityOf(context);
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) || a11y.reduceMotion;
 
     return AnimatedScale(
-      scale: _pressed ? 0.985 : 1.0,
-      duration: const Duration(milliseconds: 110),
+      scale: _pressed && !reduceMotion ? 0.985 : 1.0,
+      duration: TurnaMotion.scaled(TurnaMotion.fast, reduceMotion),
       curve: Curves.easeOutCubic,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
         curve: Curves.easeOutCubic,
-        height: 52,
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         width: double.infinity,
         decoration: enabled
-            ? BoxDecoration(
-                gradient: _ctaGradient,
+            // 竖向渐变 + 品牌光晕由 theme 统一持有（ADR 0033 的主 CTA 色对，
+            // 绝不混入 clay）—— 页面不再自己写渐变字面量。
+            ? TurnaTheme.primaryCtaDecoration(
                 borderRadius: radius,
-                boxShadow: lifted
-                    ? [
-                        ...TurnaTheme.buttonShadow,
-                        ...TurnaTheme.stateGlow(TurnaTheme.brandTeal),
-                      ]
-                    : null,
+                elevated: lifted,
+                vertical: true,
               )
             : BoxDecoration(
                 color: TurnaTheme.dividerBg(context),
@@ -326,7 +321,9 @@ class _LessonCheckButtonState extends State<LessonCheckButton> {
           child: InkWell(
             onTap: enabled
                 ? () {
-                    unawaited(HapticFeedback.mediumImpact());
+                    if (!a11y.quietFeedback) {
+                      unawaited(HapticFeedback.mediumImpact());
+                    }
                     widget.onPressed?.call();
                   }
                 : null,
@@ -417,8 +414,11 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
     super.didUpdateWidget(old);
     final wasJudged = old.isCorrect || old.isWrong;
     if ((widget.isCorrect || widget.isWrong) && !wasJudged) {
-      _verdict.forward(from: 0);
-      unawaited(HapticFeedback.mediumImpact());
+      final a11y = accessibilityOf(context);
+      final reduceMotion =
+          MediaQuery.disableAnimationsOf(context) || a11y.reduceMotion;
+      if (!reduceMotion) _verdict.forward(from: 0);
+      if (!a11y.quietFeedback) unawaited(HapticFeedback.mediumImpact());
     }
   }
 
@@ -464,17 +464,20 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
 
     final radius = BorderRadius.circular(TurnaTheme.radiusOption);
     final labelColor = TurnaTheme.textPrimaryColor(context);
+    final a11y = accessibilityOf(context);
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) || a11y.reduceMotion;
 
     return Semantics(
       button: true,
       label: widget.label,
       selected: widget.isSelected,
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 120),
+        scale: _pressed && !reduceMotion ? 0.97 : 1.0,
+        duration: TurnaMotion.scaled(TurnaMotion.fast, reduceMotion),
         curve: Curves.easeOutCubic,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
           curve: Curves.easeOutCubic,
           // 单层 gradient（白高光已预混进 stop）—— 所以 180ms 状态切换
           // 能平滑插值。拆成两层 fill 会让这里的过渡直接跳变。
@@ -499,7 +502,9 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
               onTap: widget.onTap == null
                   ? null
                   : () {
-                      unawaited(HapticFeedback.selectionClick());
+                      if (!a11y.quietFeedback) {
+                        unawaited(HapticFeedback.selectionClick());
+                      }
                       widget.onTap!();
                     },
               onHighlightChanged: (v) {
@@ -549,6 +554,64 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Word chip for word-bank style interactions — 拼句题的词库/句中芯片、
+/// 选择填空的候选词块共用这一视觉语汇。Neutral card look by default;
+/// [selected] fills with the brand teal (placed-in-sentence state).
+/// `onTap == null` renders an inert chip (no ripple, semantics disabled) —
+/// used for already-placed pool chips and post-submit locks.
+class WordChip extends StatelessWidget {
+  const WordChip({
+    super.key,
+    required this.label,
+    this.onTap,
+    this.selected = false,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected ? TurnaTheme.brandTeal : TurnaTheme.cardBg(context);
+    final fg = selected
+        ? TurnaTheme.textOnPrimary
+        : TurnaTheme.textPrimaryColor(context);
+    final border = selected
+        ? TurnaTheme.brandTeal
+        : TurnaTheme.textHint.withValues(alpha: 0.3);
+
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      selected: selected,
+      child: Material(
+        color: bg,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: border, width: 1.5),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: fg,
               ),
             ),
           ),

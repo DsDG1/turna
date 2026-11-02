@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async' show unawaited;
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +11,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/providers.dart';
 import 'package:turna/application/theme_provider.dart';
@@ -38,8 +42,30 @@ class _AppShell extends StatefulWidget {
   State<_AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<_AppShell> {
+class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   late final _routeConfig = router.config();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(getIt<AudioController>().stopSystemTts());
+      unawaited(getIt<AudioController>().stopSpeechPlayer());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

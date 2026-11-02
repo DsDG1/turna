@@ -871,6 +871,14 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _subLessonSummariesMeta =
+      const VerificationMeta('subLessonSummaries');
+  @override
+  late final GeneratedColumn<String> subLessonSummaries =
+      GeneratedColumn<String>('sub_lesson_summaries', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('[]'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -881,7 +889,8 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
         type,
         template,
         prerequisiteLessonIds,
-        sortOrder
+        sortOrder,
+        subLessonSummaries
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -940,6 +949,12 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
+    if (data.containsKey('sub_lesson_summaries')) {
+      context.handle(
+          _subLessonSummariesMeta,
+          subLessonSummaries.isAcceptableOrUnknown(
+              data['sub_lesson_summaries']!, _subLessonSummariesMeta));
+    }
     return context;
   }
 
@@ -968,6 +983,8 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
           data['${effectivePrefix}prerequisite_lesson_ids'])!,
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      subLessonSummaries: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}sub_lesson_summaries'])!,
     );
   }
 
@@ -987,6 +1004,11 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   final String template;
   final String prerequisiteLessonIds;
   final int sortOrder;
+
+  /// v34: L1 sub-lesson metadata (`SubLessonSummariesCodec` wire format) so
+  /// the course tree can render one node per sub-lesson without loading
+  /// bodies. `[]` for flat / single-sub-lesson lessons (one tree node).
+  final String subLessonSummaries;
   const Lesson(
       {required this.id,
       required this.languageCode,
@@ -996,7 +1018,8 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       required this.type,
       required this.template,
       required this.prerequisiteLessonIds,
-      required this.sortOrder});
+      required this.sortOrder,
+      required this.subLessonSummaries});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1009,6 +1032,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     map['template'] = Variable<String>(template);
     map['prerequisite_lesson_ids'] = Variable<String>(prerequisiteLessonIds);
     map['sort_order'] = Variable<int>(sortOrder);
+    map['sub_lesson_summaries'] = Variable<String>(subLessonSummaries);
     return map;
   }
 
@@ -1023,6 +1047,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       template: Value(template),
       prerequisiteLessonIds: Value(prerequisiteLessonIds),
       sortOrder: Value(sortOrder),
+      subLessonSummaries: Value(subLessonSummaries),
     );
   }
 
@@ -1040,6 +1065,8 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       prerequisiteLessonIds:
           serializer.fromJson<String>(json['prerequisiteLessonIds']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      subLessonSummaries:
+          serializer.fromJson<String>(json['subLessonSummaries']),
     );
   }
   @override
@@ -1055,6 +1082,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       'template': serializer.toJson<String>(template),
       'prerequisiteLessonIds': serializer.toJson<String>(prerequisiteLessonIds),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'subLessonSummaries': serializer.toJson<String>(subLessonSummaries),
     };
   }
 
@@ -1067,7 +1095,8 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           String? type,
           String? template,
           String? prerequisiteLessonIds,
-          int? sortOrder}) =>
+          int? sortOrder,
+          String? subLessonSummaries}) =>
       Lesson(
         id: id ?? this.id,
         languageCode: languageCode ?? this.languageCode,
@@ -1079,6 +1108,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
         prerequisiteLessonIds:
             prerequisiteLessonIds ?? this.prerequisiteLessonIds,
         sortOrder: sortOrder ?? this.sortOrder,
+        subLessonSummaries: subLessonSummaries ?? this.subLessonSummaries,
       );
   Lesson copyWithCompanion(LessonsCompanion data) {
     return Lesson(
@@ -1096,6 +1126,9 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           ? data.prerequisiteLessonIds.value
           : this.prerequisiteLessonIds,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      subLessonSummaries: data.subLessonSummaries.present
+          ? data.subLessonSummaries.value
+          : this.subLessonSummaries,
     );
   }
 
@@ -1110,14 +1143,15 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           ..write('type: $type, ')
           ..write('template: $template, ')
           ..write('prerequisiteLessonIds: $prerequisiteLessonIds, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('subLessonSummaries: $subLessonSummaries')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, languageCode, unitId, name, description,
-      type, template, prerequisiteLessonIds, sortOrder);
+      type, template, prerequisiteLessonIds, sortOrder, subLessonSummaries);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1130,7 +1164,8 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           other.type == this.type &&
           other.template == this.template &&
           other.prerequisiteLessonIds == this.prerequisiteLessonIds &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.subLessonSummaries == this.subLessonSummaries);
 }
 
 class LessonsCompanion extends UpdateCompanion<Lesson> {
@@ -1143,6 +1178,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
   final Value<String> template;
   final Value<String> prerequisiteLessonIds;
   final Value<int> sortOrder;
+  final Value<String> subLessonSummaries;
   final Value<int> rowid;
   const LessonsCompanion({
     this.id = const Value.absent(),
@@ -1154,6 +1190,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     this.template = const Value.absent(),
     this.prerequisiteLessonIds = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.subLessonSummaries = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LessonsCompanion.insert({
@@ -1166,6 +1203,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     this.template = const Value.absent(),
     this.prerequisiteLessonIds = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.subLessonSummaries = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         unitId = Value(unitId),
@@ -1180,6 +1218,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     Expression<String>? template,
     Expression<String>? prerequisiteLessonIds,
     Expression<int>? sortOrder,
+    Expression<String>? subLessonSummaries,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1193,6 +1232,8 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
       if (prerequisiteLessonIds != null)
         'prerequisite_lesson_ids': prerequisiteLessonIds,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (subLessonSummaries != null)
+        'sub_lesson_summaries': subLessonSummaries,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1207,6 +1248,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
       Value<String>? template,
       Value<String>? prerequisiteLessonIds,
       Value<int>? sortOrder,
+      Value<String>? subLessonSummaries,
       Value<int>? rowid}) {
     return LessonsCompanion(
       id: id ?? this.id,
@@ -1219,6 +1261,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
       prerequisiteLessonIds:
           prerequisiteLessonIds ?? this.prerequisiteLessonIds,
       sortOrder: sortOrder ?? this.sortOrder,
+      subLessonSummaries: subLessonSummaries ?? this.subLessonSummaries,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1254,6 +1297,9 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (subLessonSummaries.present) {
+      map['sub_lesson_summaries'] = Variable<String>(subLessonSummaries.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1272,6 +1318,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
           ..write('template: $template, ')
           ..write('prerequisiteLessonIds: $prerequisiteLessonIds, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('subLessonSummaries: $subLessonSummaries, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7829,6 +7876,7 @@ typedef $$LessonsTableCreateCompanionBuilder = LessonsCompanion Function({
   Value<String> template,
   Value<String> prerequisiteLessonIds,
   Value<int> sortOrder,
+  Value<String> subLessonSummaries,
   Value<int> rowid,
 });
 typedef $$LessonsTableUpdateCompanionBuilder = LessonsCompanion Function({
@@ -7841,6 +7889,7 @@ typedef $$LessonsTableUpdateCompanionBuilder = LessonsCompanion Function({
   Value<String> template,
   Value<String> prerequisiteLessonIds,
   Value<int> sortOrder,
+  Value<String> subLessonSummaries,
   Value<int> rowid,
 });
 
@@ -7880,6 +7929,10 @@ class $$LessonsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subLessonSummaries => $composableBuilder(
+      column: $table.subLessonSummaries,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$LessonsTableOrderingComposer
@@ -7919,6 +7972,10 @@ class $$LessonsTableOrderingComposer
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subLessonSummaries => $composableBuilder(
+      column: $table.subLessonSummaries,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$LessonsTableAnnotationComposer
@@ -7956,6 +8013,9 @@ class $$LessonsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get subLessonSummaries => $composableBuilder(
+      column: $table.subLessonSummaries, builder: (column) => column);
 }
 
 class $$LessonsTableTableManager extends RootTableManager<
@@ -7990,6 +8050,7 @@ class $$LessonsTableTableManager extends RootTableManager<
             Value<String> template = const Value.absent(),
             Value<String> prerequisiteLessonIds = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String> subLessonSummaries = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LessonsCompanion(
@@ -8002,6 +8063,7 @@ class $$LessonsTableTableManager extends RootTableManager<
             template: template,
             prerequisiteLessonIds: prerequisiteLessonIds,
             sortOrder: sortOrder,
+            subLessonSummaries: subLessonSummaries,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -8014,6 +8076,7 @@ class $$LessonsTableTableManager extends RootTableManager<
             Value<String> template = const Value.absent(),
             Value<String> prerequisiteLessonIds = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String> subLessonSummaries = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LessonsCompanion.insert(
@@ -8026,6 +8089,7 @@ class $$LessonsTableTableManager extends RootTableManager<
             template: template,
             prerequisiteLessonIds: prerequisiteLessonIds,
             sortOrder: sortOrder,
+            subLessonSummaries: subLessonSummaries,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

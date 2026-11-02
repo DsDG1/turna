@@ -36,6 +36,7 @@ import 'package:turna/domain/course/lesson_segment.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/sub_lesson.dart';
 
 /// Describes the UI state after an answer is submitted.
 enum AnswerState {
@@ -117,8 +118,8 @@ class LessonViewModel extends ChangeNotifier {
     this._grammarReviewProvider,
     this._completionCoordinator, {
     LessonProgressProvider? progressProvider,
-  }) : _progressProvider = progressProvider,
-       _srsUndoStack = LessonSrsUndoLog(
+  })  : _progressProvider = progressProvider,
+        _srsUndoStack = LessonSrsUndoLog(
           srs: _srsProvider,
           grammar: _grammarReviewProvider,
         );
@@ -143,6 +144,19 @@ class LessonViewModel extends ChangeNotifier {
   // numbers by subtraction, with no second set of counters to keep in step.
   List<LessonSegment> _segments = const [];
   int _currentSegmentIndex = 0;
+
+  /// Set when [loadLesson] was given a `subLessonId` that targets one
+  /// sub-lesson of a multi-sub-lesson lesson: the walker then plays a
+  /// synthesized single-sub-lesson instance (one session = one sub-lesson,
+  /// ADR 0063). Null on every other load — flat lessons, the legacy chained
+  /// walk, synthetic instances. `parentWasComplete` is captured at load so
+  /// the settlement gate cannot be flipped mid-session by its own writes.
+  ({
+    String lessonId,
+    String subLessonId,
+    List<String> allSubIds,
+    bool parentWasComplete
+  })? _subLessonSession;
 
   /// Set when the current segment just finished but the lesson has more.
   /// The page answers by showing the sub-lesson result dialog, then calling
@@ -218,8 +232,8 @@ class LessonViewModel extends ChangeNotifier {
   /// Null on single-segment lessons too: the lesson name already says it.
   String? get currentSegmentName => isSegmented
       ? _segments.isEmpty
-            ? null
-            : _segments[_currentSegmentIndex].name
+          ? null
+          : _segments[_currentSegmentIndex].name
       : null;
 
   /// True right after a non-final segment finished, waiting for the player
@@ -232,9 +246,9 @@ class LessonViewModel extends ChangeNotifier {
   int get segmentItemCount {
     if (_segments.isEmpty) return 0;
     return _segments[_currentSegmentIndex].stages.fold<int>(
-      0,
-      (sum, stage) => sum + stage.items.length,
-    );
+          0,
+          (sum, stage) => sum + stage.items.length,
+        );
   }
 
   /// Correct answers within the current segment only.
@@ -375,8 +389,11 @@ class LessonViewModel extends ChangeNotifier {
   /// v2 supply (Official Anki v2 lessons derive content from cards) and
   /// then to [CourseLoader.loadLessonById] (L2).
   ///
-  /// Returns `true` if the lesson was found and loaded.
-  Future<bool> loadLesson(String lessonId) async {
+  /// [subLessonId] targets one sub-lesson of a multi-sub-lesson lesson: the
+  /// session then plays a synthesized instance holding just that sub-lesson
+  /// (see [_targetedSubLessonSession]). Returns `true` if the lesson was
+  /// found and loaded.
+  Future<bool> loadLesson(String lessonId, {String? subLessonId}) async {
     Lesson? lesson = _courseProvider.findLessonById(lessonId);
     if (lesson != null && !_lessonHasBody(lesson)) {
       lesson = null;
@@ -410,6 +427,7 @@ class LessonViewModel extends ChangeNotifier {
       _cachedTotalItemCount = 0;
       _currentSegmentIndex = 0;
       _awaitingSegmentContinue = false;
+      _subLessonSession = null;
       _questionResults.clear();
       notifyListeners();
       return false;
@@ -419,10 +437,52 @@ class LessonViewModel extends ChangeNotifier {
     _lesson = fresh;
     _recordsMistakes = true; // real lessons always record wrong answers
     await _ankiKeyResolver.ensureOfficialCardIndex(fresh.id);
-    _resetToLesson(fresh);
+    _resetToLesson(_targetedSubLessonSession(fresh, subLessonId));
 
     notifyListeners();
     return true;
+  }
+
+  /// Apply the sub-lesson session targeting for [subLessonId]: when it names
+  /// one sub-lesson of a multi-sub-lesson lesson, record the parent context
+  /// ([_subLessonSession]) and return a synthesized 1-sub-lesson copy of
+  /// [lesson] — the walker's single-segment machinery then plays exactly
+  /// that sub-lesson (counters, progress bar, undo and the completion dialog
+  /// all become session-scoped for free, and the copy's single segment keeps
+  /// its `subLessonId` so the completion sweep records the node). Any other
+  /// input returns [lesson] unchanged with the session context cleared.
+  Lesson _targetedSubLessonSession(Lesson lesson, String? subLessonId) {
+    _subLessonSession = null;
+    if (subLessonId == null) return lesson;
+    final subs = lesson.content.subLessons;
+    if (subs.length < 2) {
+      logger.w(
+        'sub-lesson session requested for ${lesson.id} but it plays as one '
+        'segment; loading the whole lesson',
+      );
+      return lesson;
+    }
+    SubLesson? target;
+    for (final sub in subs) {
+      if (sub.id == subLessonId) target = sub;
+    }
+    if (target == null) {
+      logger.w(
+        'sub-lesson $subLessonId not found in ${lesson.id}; '
+        'loading the whole lesson',
+      );
+      return lesson;
+    }
+    final progress = _progressProvider;
+    _subLessonSession = (
+      lessonId: lesson.id,
+      subLessonId: target.id,
+      allSubIds: [for (final sub in subs) sub.id],
+      parentWasComplete: progress?.isLessonCompleted(lesson.id) ?? false,
+    );
+    return lesson.copyWith(
+      content: lesson.content.copyWith(subLessons: [target]),
+    );
   }
 
   /// True when [lesson] carries playable content (not L1 tree metadata).
@@ -447,6 +507,7 @@ class LessonViewModel extends ChangeNotifier {
   void loadLessonInstance(Lesson lesson, {bool recordMistakes = true}) {
     _lesson = lesson;
     _recordsMistakes = recordMistakes;
+    _subLessonSession = null;
     // Synthetic lessons never hold Official projection rows; the resolve is
     // a cheap indexed lookup that keeps the cache correct for the rare
     // case where the instance actually is a projected lesson.
@@ -506,8 +567,7 @@ class LessonViewModel extends ChangeNotifier {
     if (progress.isLessonCompleted(lesson.id)) return 0;
     for (var i = 0; i < _segments.length; i++) {
       final subId = _segments[i].subLessonId;
-      if (subId == null ||
-          !progress.isSubLessonCompleted(lesson.id, subId)) {
+      if (subId == null || !progress.isSubLessonCompleted(lesson.id, subId)) {
         return i;
       }
     }
@@ -924,17 +984,17 @@ class LessonViewModel extends ChangeNotifier {
       unawaited(
         progress
             .recordSubLessonCompletion(
-              lessonId: lesson.id,
-              subLessonId: subId,
-            )
+          lessonId: lesson.id,
+          subLessonId: subId,
+        )
             .catchError((Object e, StackTrace st) {
-              logger.w(
-                'sub-lesson completion record failed '
-                '(${lesson.id}::$subId): $e',
-                error: e,
-                stackTrace: st,
-              );
-            }),
+          logger.w(
+            'sub-lesson completion record failed '
+            '(${lesson.id}::$subId): $e',
+            error: e,
+            stackTrace: st,
+          );
+        }),
       );
     }
     notifyListeners();
@@ -1216,7 +1276,8 @@ class LessonViewModel extends ChangeNotifier {
         if (subId == null) continue;
         unawaited(
           progress
-              .recordSubLessonCompletion(lessonId: lesson.id, subLessonId: subId)
+              .recordSubLessonCompletion(
+                  lessonId: lesson.id, subLessonId: subId)
               .catchError((Object e, StackTrace st) {
             logger.w(
               'sub-lesson completion record failed (${lesson.id}::$subId): $e',
@@ -1244,16 +1305,65 @@ class LessonViewModel extends ChangeNotifier {
     } catch (e, st) {
       logger.w('Official Anki lesson complete side-effect failed: $e\n$st');
     }
+
+    // Sub-lesson session settlement (ADR 0063): XP/gems pay out for every
+    // session (the session is the reward unit); the lesson-level completion
+    // record only lands when this session finishes the last remaining
+    // sub-lesson of a not-yet-complete parent, and "perfect lesson" then
+    // means every sub-lesson was perfect. The sweep above already recorded
+    // this sub-lesson's completion; record its perfect here.
+    final session = _subLessonSession;
+    final sessionPerfect = _totalMistakes == 0;
+    var settlesLesson = true;
+    var settlesLessonPerfect = false;
+    if (session != null) {
+      settlesLesson = false;
+      if (!session.parentWasComplete) {
+        settlesLesson = session.allSubIds.every(
+          (id) =>
+              id == session.subLessonId ||
+              (progress?.isSubLessonCompleted(session.lessonId, id) ?? false),
+        );
+        if (settlesLesson) {
+          settlesLessonPerfect = session.allSubIds.every(
+            (id) => id == session.subLessonId
+                ? sessionPerfect
+                : (progress?.isSubLessonPerfect(session.lessonId, id) ?? false),
+          );
+        }
+      }
+      if (sessionPerfect && progress != null) {
+        unawaited(
+          progress
+              .recordSubLessonPerfect(
+            lessonId: session.lessonId,
+            subLessonId: session.subLessonId,
+          )
+              .catchError((Object e, StackTrace st) {
+            logger.w(
+              'sub-lesson perfect record failed '
+              '(${session.lessonId}::${session.subLessonId}): $e',
+              error: e,
+              stackTrace: st,
+            );
+          }),
+        );
+      }
+    }
+
     _isComplete = true;
     notifyListeners();
     try {
       await _completionCoordinator.complete(
         lessonId: lesson.id,
-        wasPerfect: _totalMistakes == 0,
+        wasPerfect: sessionPerfect,
         correctAnswers: _correctAnswers,
         incorrectAnswers: _incorrectAnswers,
         lessonStartTime: _lessonStartTime,
         wordIds: lessonWordIds(),
+        subLessonId: session?.subLessonId,
+        settlesLesson: session == null || settlesLesson,
+        settlesLessonPerfect: settlesLessonPerfect,
       );
     } catch (e, st) {
       // Fire-and-forget: an unhandled exception here would surface as a

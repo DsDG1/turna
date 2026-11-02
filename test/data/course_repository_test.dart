@@ -313,6 +313,54 @@ void main() {
       expect(body.content.stages, isEmpty); // seed used {"stages":[]}
     });
 
+    test('section() carries sub-lesson summaries without loading bodies',
+        () async {
+      await seedMinimalCourse();
+      await database.into(database.lessons).insert(
+            const db.LessonsCompanion(
+              id: Value('l-seg'),
+              unitId: Value('u-1'),
+              name: Value('Segmented'),
+              subLessonSummaries: Value(
+                '[{"id":"l-seg-sl1","name":"Sub 1","sortOrder":0},'
+                '{"id":"l-seg-sl2","name":"Sub 2","sortOrder":1}]',
+              ),
+            ),
+          );
+      await database.into(database.lessonContents).insert(
+            const db.LessonContentsCompanion(
+              lessonId: Value('l-seg'),
+              contentJson: Value(
+                '{"subLessons":[{"id":"l-seg-sl1","name":"Sub 1",'
+                '"stages":[{"id":"st","name":"S","items":[]}]},'
+                '{"id":"l-seg-sl2","name":"Sub 2","stages":[]}]}',
+              ),
+            ),
+          );
+
+      final section = await repo.section('s-1');
+      final lesson =
+          section.units.first.lessons.firstWhere((l) => l.id == 'l-seg');
+      // L1 discipline (ADR 0063): summaries ride along for the tree…
+      expect(lesson.subLessonSummaries.map((s) => s.id).toList(),
+          ['l-seg-sl1', 'l-seg-sl2']);
+      expect(lesson.subLessonSummaries.first.name, 'Sub 1');
+      // …but the body must stay un-hydrated — a populated content would
+      // make LessonViewModel treat the L1 row as playable.
+      expect(lesson.content.subLessons, isEmpty);
+      expect(lesson.hasSubLessons, isFalse);
+      // Corrupted column value degrades to "no nodes", never throws.
+      await (database.update(database.lessons)
+            ..where((t) => t.id.equals('l-seg')))
+          .write(const db.LessonsCompanion(
+        subLessonSummaries: Value('not-json'),
+      ));
+      final reloaded = await repo.section('s-1');
+      final degraded =
+          reloaded.units.first.lessons.firstWhere((l) => l.id == 'l-seg');
+      expect(degraded.subLessonSummaries, isEmpty);
+    });
+
     test('section() scales past SQLite ~999 IN limit (no content isIn)',
         () async {
       // 2 units × 600 lessons = 1200 lessons — would break lessonId.isIn.

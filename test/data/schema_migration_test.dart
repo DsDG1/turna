@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_db_backup.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -164,6 +165,27 @@ class _CourseDatabaseV26 extends db.CourseDatabase {
 
   @override
   int get schemaVersion => db.CourseDatabase.kSchemaVersion + 1;
+}
+
+/// v33 is the last schema before the lessons sub-lesson summaries column
+/// (v34). onCreate builds current shapes then drops that one column so the
+/// fixture matches a real pre-v34 database; the v34 step must re-add it and
+/// backfill every segmented lesson from its content blob.
+class _CourseDatabaseV33 extends db.CourseDatabase {
+  _CourseDatabaseV33(super.e);
+
+  @override
+  int get schemaVersion => 33;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+          await m.database.customStatement(
+            'ALTER TABLE lessons DROP COLUMN sub_lesson_summaries',
+          );
+        },
+      );
 }
 
 /// v15 is the last schema before the official Anki derived projection index.
@@ -675,6 +697,79 @@ void main() {
         tables,
         isEmpty,
         reason: 'v31 drops the Fun Lab checkpoint tables',
+      );
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test(
+        'v33 -> v34 adds the summaries column and backfills from content blobs',
+        () async {
+      final path = await _tempDbPath();
+      final oldDb = _CourseDatabaseV33(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await oldDb.into(oldDb.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-v33'),
+              name: Value('Section V33'),
+            ),
+          );
+      await oldDb.into(oldDb.units).insert(
+            const db.UnitsCompanion(
+              id: Value('u-v33'),
+              sectionId: Value('s-v33'),
+              name: Value('Unit V33'),
+            ),
+          );
+      await oldDb.into(oldDb.lessons).insert(
+            const db.LessonsCompanion(
+              id: Value('l-seg'),
+              unitId: Value('u-v33'),
+              name: Value('Segmented'),
+            ),
+          );
+      await oldDb.into(oldDb.lessons).insert(
+            const db.LessonsCompanion(
+              id: Value('l-flat'),
+              unitId: Value('u-v33'),
+              name: Value('Flat'),
+            ),
+          );
+      await oldDb.into(oldDb.lessonContents).insert(
+            db.LessonContentsCompanion(
+              lessonId: const Value('l-seg'),
+              contentJson: Value(
+                '{"subLessons":['
+                '{"id":"l-seg-sl1","name":"Sub 1"},'
+                '{"id":"l-seg-sl2","name":"Sub 2"}]}',
+              ),
+            ),
+          );
+      await oldDb.into(oldDb.lessonContents).insert(
+            const db.LessonContentsCompanion(
+              lessonId: Value('l-flat'),
+              contentJson: Value('{"stages":[]}'),
+            ),
+          );
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      final lessons = await migrated.select(migrated.lessons).get();
+      final byId = {for (final row in lessons) row.id: row};
+      final summaries =
+          SubLessonSummariesCodec.decode(byId['l-seg']!.subLessonSummaries);
+      expect(
+        summaries.map((s) => (s.id, s.name, s.sortOrder)),
+        [('l-seg-sl1', 'Sub 1', 0), ('l-seg-sl2', 'Sub 2', 1)],
+        reason: 'segmented lesson backfilled from its content blob',
+      );
+      expect(
+        byId['l-flat']!.subLessonSummaries,
+        '[]',
+        reason: 'flat lesson has no sub-lessons to summarize',
       );
 
       await migrated.close();

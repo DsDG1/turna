@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/home/motion/turna_motion.dart';
+import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
 
 /// Floating rounded frosted-glass tab bar.

@@ -21,6 +21,7 @@ import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Manual WebDAV remote backup / restore. Everything is user-triggered:
@@ -422,37 +423,40 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   Widget build(BuildContext context) {
     return SettingsScaffold(
       title: AppStrings.settingsRemoteBackupTitle,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          if (!_supported) ...[
-            SettingsEmptyCard(
-              icon: Icons.cloud_off_outlined,
-              message: AppStrings.remoteBackupUnsupportedPlatform,
-            ),
-            const SizedBox(height: 20),
-          ] else ...[
-            if (_blockedNotice != null) ...[
-              SettingsInfoCard(
-                tone: SettingsInfoTone.warning,
-                icon: Icons.warning_amber_rounded,
-                text: _blockedNotice!,
+      body: TurnaPageContent(
+        maxWidth: 840,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            if (!_supported) ...[
+              SettingsEmptyCard(
+                icon: Icons.cloud_off_outlined,
+                message: AppStrings.remoteBackupUnsupportedPlatform,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
+            ] else ...[
+              if (_blockedNotice != null) ...[
+                SettingsInfoCard(
+                  tone: SettingsInfoTone.warning,
+                  icon: Icons.warning_amber_rounded,
+                  text: _blockedNotice!,
+                ),
+                const SizedBox(height: 12),
+              ],
+              _serverSection(context),
+              const SizedBox(height: 20),
+              _backupSection(context),
+              const SizedBox(height: 20),
+              _restoreSection(context),
+              const SizedBox(height: 20),
+              SettingsInfoCard(
+                tone: SettingsInfoTone.neutral,
+                icon: Icons.info_outline,
+                text: AppStrings.remoteBackupHint,
+              ),
             ],
-            _serverSection(context),
-            const SizedBox(height: 20),
-            _backupSection(context),
-            const SizedBox(height: 20),
-            _restoreSection(context),
-            const SizedBox(height: 20),
-            SettingsInfoCard(
-              tone: SettingsInfoTone.neutral,
-              icon: Icons.info_outline,
-              text: AppStrings.remoteBackupHint,
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

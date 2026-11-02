@@ -437,7 +437,10 @@ class _DestinationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ADR 0063：一级落地页显式保留 l1Subtle —— 它是设置域的视觉锚点，
+    // 分类页与更深的下钻页才降到 l1Quiet 让位给表单控件。
     return SettingsCard(
+      level: GlassLevel.l1Subtle,
       children: [
         for (int index = 0; index < destinations.length; index++) ...[
           if (index > 0) settingsTileDivider(context),
@@ -476,7 +479,9 @@ class _AboutLandingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const destination = SettingsDestination.about;
     final showVersion = MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+    // ADR 0063：一级落地页显式保留 l1Subtle（见 _DestinationCard 的说明）。
     return SettingsCard(
+      level: GlassLevel.l1Subtle,
       children: [
         SettingsTile(
           key: ValueKey(destination.name),

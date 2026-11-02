@@ -119,11 +119,23 @@
 
 **当前内置课程**：`tr` 由 [`assets/courses/manifest.json`](../assets/courses/manifest.json) 指向 `assets/courses/nouveau-turkish/`（NouveauTurkish），它就是 app 运行时加载的主线课程。旧样板房 `assets/courses/turkish/` 已不在 manifest 中，只作为打包资产保留（部分测试经 rootBundle 读它的真实文件），不参与运行时选源。NouveauTurkish 目前只有第 1 章有内容，第 2–8 章是 `units: []` 空壳——课程树会显示对应的占位章节名，点进去是空状态页；实际内容规模以 [`content_inventory_current.md`](./content_inventory_current.md) 为准。
 
+**子课播放粒度**：多子课的课在课程树上按子课拆为独立节点，每节点一次独立会话、独立发奖（课级完成走结算门）；数据格式不变，`lessons` 表 v34 起携带 L1 子课摘要列。见 [ADR 0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md)。
+
 本地内容读取接缝已接线：`CourseContentSource`、`DatabaseSeeder` 和 `CourseProvider.refreshBuiltinContent` 支持整套选源、版本比较、损坏更新回落、事务重播种与缓存刷新；决策见 [ADR 0058](./decisions/0058-builtin-course-content-source.md)。`tool/publish_course.py` 已实现本地快照校验、升版、zip 与 feed 生成、SHA-256 和历史清单，并已实际生成首包；`check_builtin_version` 拒绝低于内置的版本、对同版包给 stderr 警告（接缝同版选内置 assets），发布契约见 [ADR 0059](./decisions/0059-course-release-feed.md)。`CourseOtaService` 已实现 feed/zip 下载、相对 URL 解析、传输策略、SHA-256/大小校验、JSON-only zip-slip 防护、整包课程校验、版本拒绝及可恢复的原子目录切换；服务层测试覆盖失败保留旧内容与中断恢复。学习设置页的 `SettingsCourseUpdateTile` 已接入手动 URL 更新、进度/错误反馈和 `CourseProvider.refreshBuiltinContent`；下载成功但应用被学习／备份门控拦截时可免重下重试。`SettingsCourseRestoreTile` 通过 `CourseOtaService.clearInstalledContent` 删除已下载目录（含 backup 与 tmp）并重播种回内置内容，随后写 `contentVersionAcknowledged`，避免降级重弹 ADR 0002 提示。内存 DB 全链路已验证 HTTP 安装 → 重播种 → 课程树显示新内容，以及清除后回落内置内容。**尚未完成云端热更新日常闭环**：远端托管发布与真机验收仍待实现；本地覆盖、恢复入口与进度提示也尚无真机验收证据。
 
 ---
 
-## 8. 维护规则
+## 8. 设计翻新
+
+「湿地雾光」的公共色彩、纸面/玻璃材质、间距圆角、跨域卡片、静态几何图形、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
+
+**已取得的运行证据**：Pixel 6 / Android 15 模拟器的 debug 构建已走通启动、四个主 Tab、词典输入与无结果、深色、高对比、200% 字号，以及课程树展开 → 13/13 子课作答（含文本键盘输入）→ 完成 → 返回并显示真实进度。截图与覆盖记录位于 `dist/design-refresh/`。
+
+**验收边界**：设计源码覆盖和上述模拟器路径不等于全平台视觉验收。宽屏、屏幕阅读器、性能对比及 Android/iOS/鸿蒙真机矩阵仍需各自的真实运行证据；未连接设备的平台不写成已验证。
+
+---
+
+## 9. 维护规则
 
 1. 本文件**只增结论，不增流水**。一轮施工做完，把结论改写成一两行状态，不要追加一段施工经过。
 2. 状态变了就**改写**对应条目，不要在旁边加一句「其实……」——那正是本文件要消灭的写法。

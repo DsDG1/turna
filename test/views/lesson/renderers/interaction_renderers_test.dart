@@ -10,10 +10,10 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/domain/course/word_entry.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_only_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/read_aloud_renderer.dart';
@@ -32,6 +32,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/service/read_aloud_backend.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 import 'fake_audio_controller.dart';
@@ -131,6 +132,74 @@ void main() {
       await tester.pump();
 
       expect(isCheckEnabled(tester), isTrue);
+    });
+
+    testWidgets('choices mode: CHECK disabled until a chip is tapped',
+        (tester) async {
+      final renderer = FillBlankRenderer();
+      const interaction = Interaction.fillBlank(
+        id: 'fb-choices-idle',
+        sentence: '「谢谢」= _____',
+        answer: 'Teşekkürler',
+        choices: ['Teşekkürler', 'Merhaba', 'Türkçe'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+
+      // 选择填空 has no text field at all.
+      expect(find.byType(TextField), findsNothing);
+      expect(isCheckEnabled(tester), isFalse);
+
+      await tapOption(tester, 'Teşekkürler');
+      expect(isCheckEnabled(tester), isTrue);
+    });
+
+    testWidgets('choices mode: restores the picked chip when submitted',
+        (tester) async {
+      final renderer = FillBlankRenderer();
+      const interaction = Interaction.fillBlank(
+        id: 'fb-choices-submit',
+        sentence: '— Merhaba!\n— _____',
+        answer: 'Merhaba!',
+        choices: ['Teşekkürler!', 'Merhaba!', 'Türkçe!'],
+      );
+
+      // Harness 不推进 submitted（页面级状态由外部持有），锁死行为按既有
+      // 'hides CHECK after submit' 模式直接以 submitted 状态构建来验证。
+      await tester.pumpWidget(
+        harness.build(
+          renderer,
+          interaction,
+          state: const InteractionState(
+            submitted: true,
+            correct: true,
+            userAnswerText: 'Merhaba!',
+          ),
+        ),
+      );
+      expect(find.text('核对'), findsNothing);
+      // 已选项回填进挖空（空白处一份）+ 词块本身一份，同文本各在原位.
+      expect(find.text('Merhaba!'), findsNWidgets(2));
+      // 词块渲染为不可点（onTap null），再点不炸也不再产生选择.
+      await tester.tap(find.byKey(const ValueKey(2)));
+      await tester.pumpAndSettle();
+      expect(find.text('Merhaba!'), findsNWidgets(2));
+    });
+
+    testWidgets('choices mode: submits false for wrong chip', (tester) async {
+      final renderer = FillBlankRenderer();
+      const interaction = Interaction.fillBlank(
+        id: 'fb-choices-wrong',
+        sentence: '「谢谢」= _____',
+        answer: 'Teşekkürler',
+        choices: ['Teşekkürler', 'Merhaba', 'Türkçe'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tapOption(tester, 'Merhaba');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(false, 'Merhaba')]);
     });
   });
 
@@ -414,17 +483,19 @@ void main() {
   });
 
   group('ReorderSentenceRenderer', () {
+    // 词库芯片放进句子后不消失（原位变暗锁定），按文本找会同时命中词库和句中
+    // 两枚芯片 —— 全组统一用稳定 pool id（ValueKey('pool-<scrambled 下标>')）点词。
     testWidgets('submits true for correct order', (tester) async {
       final renderer = ReorderSentenceRenderer();
       const interaction = Interaction.reorderSentence(
         id: 'rs-1',
-        scrambled: ['world', 'hello'],
+        scrambled: ['world', 'hello'], // pool: 0='world', 1='hello'
         correct: ['hello', 'world'],
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tapOption(tester, 'hello');
-      await tapOption(tester, 'world');
+      await tapPoolChip(tester, 1);
+      await tapPoolChip(tester, 0);
       await tapCheck(tester);
 
       expect(harness.submissions, [(true, 'hello world')]);
@@ -439,11 +510,116 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tapOption(tester, 'world');
-      await tapOption(tester, 'hello');
+      await tapPoolChip(tester, 0);
+      await tapPoolChip(tester, 1);
       await tapCheck(tester);
 
       expect(harness.submissions, [(false, 'world hello')]);
+    });
+
+    testWidgets('renders the source prompt above the word bank', (tester) async {
+      final renderer = ReorderSentenceRenderer();
+      const interaction = Interaction.reorderSentence(
+        id: 'rs-prompt',
+        prompt: '「我要一杯咖啡」（istiyorum=我要，bir=一，kahve=咖啡）',
+        scrambled: ['kahve', 'istiyorum', 'bir'], // pool: 0/1/2
+        correct: ['bir', 'kahve', 'istiyorum'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      expect(
+        find.text('「我要一杯咖啡」（istiyorum=我要，bir=一，kahve=咖啡）'),
+        findsOneWidget,
+      );
+
+      // 翻译拼句 still builds from the word bank — tapping a token both
+      // moves it and (outside tests, where no AudioController is registered)
+      // speaks it.
+      await tapPoolChip(tester, 2);
+      await tapPoolChip(tester, 0);
+      await tapPoolChip(tester, 1);
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'bir kahve istiyorum')]);
+    });
+
+    testWidgets('placed pool chip cannot be picked twice', (tester) async {
+      final renderer = ReorderSentenceRenderer();
+      const interaction = Interaction.reorderSentence(
+        id: 'rs-repeat',
+        scrambled: ['a', 'b'], // pool: 0='a', 1='b'
+        correct: ['a', 'b'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tapPoolChip(tester, 0);
+      // 已放置的词库芯片 onTap 为 null —— 第二次点击必须是 no-op.
+      await tapPoolChip(tester, 0);
+
+      expect(find.byKey(const ValueKey('picked-0')), findsOneWidget);
+      // 词库芯片仍在原位（变暗），不消失.
+      expect(find.byKey(const ValueKey('pool-0')), findsOneWidget);
+
+      await tapPoolChip(tester, 1);
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'a b')]);
+    });
+
+    testWidgets('tap answer chip returns it to the pool, then back in',
+        (tester) async {
+      final renderer = ReorderSentenceRenderer();
+      const interaction = Interaction.reorderSentence(
+        id: 'rs-return',
+        scrambled: ['world', 'hello'],
+        correct: ['hello', 'world'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tapPoolChip(tester, 1);
+      expect(find.byKey(const ValueKey('picked-1')), findsOneWidget);
+
+      await tapAnswerChip(tester, 1);
+      expect(find.byKey(const ValueKey('picked-1')), findsNothing);
+
+      // 词库芯片重新可用: 再次放入, 换个顺序拼对.
+      await tapPoolChip(tester, 1);
+      await tapPoolChip(tester, 0);
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'hello world')]);
+    });
+
+    testWidgets('long-press drag reorders within the answer row',
+        (tester) async {
+      final renderer = ReorderSentenceRenderer();
+      const interaction = Interaction.reorderSentence(
+        id: 'rs-drag',
+        scrambled: ['b', 'a'], // pool: 0='b', 1='a'
+        correct: ['a', 'b'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tapPoolChip(tester, 0); // b 先入句
+      await tapPoolChip(tester, 1); // a 后入句 → "b a"（错序）
+
+      // 长按句首 'b'（picked-0），越过 kLongPressTimeout 后拖到 'a'（picked-1）
+      // 芯片中心上放手 —— 瞄准目标芯片中心而不是固定像素, 免受芯片宽度影响.
+      final start = tester.getCenter(find.byKey(const ValueKey('picked-0')));
+      final target = tester.getCenter(find.byKey(const ValueKey('picked-1')));
+      final gesture = await tester.startGesture(start);
+      await tester.pump(const Duration(milliseconds: 600));
+      // 分两步移动, 模拟真实拖拽路径, 给 DragTarget 一帧处理 hover.
+      final half = (target - start) * 0.6;
+      await gesture.moveBy(half);
+      await tester.pump();
+      await gesture.moveBy(target - start - half);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tapCheck(tester);
+      expect(harness.submissions, [(true, 'a b')]);
     });
   });
 
@@ -814,7 +990,8 @@ void main() {
       );
     });
 
-    testWidgets('active readAloud card displays speaker button to model pronunciation',
+    testWidgets(
+        'active readAloud card displays speaker button to model pronunciation',
         (tester) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
@@ -886,6 +1063,54 @@ void main() {
 
       expect(find.byIcon(Icons.mic_rounded), findsNothing);
       expect(find.text('麦克风权限被拒绝——请在系统设置中允许后重试'), findsOneWidget);
+    });
+
+    testWidgets('missing recognition service degrades with service guidance',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend(
+        ready: false,
+        readyFailure: ReadAloudFailure.serviceUnavailable,
+      );
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-service',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(
+        find.text('系统没有可用的语音识别服务，请安装或启用后重试'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('network failure stays retryable and explains the real cause',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-network',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+      backend.emitError(ReadAloudFailure.networkUnavailable);
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, isEmpty);
+      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+      expect(
+        find.text('识别服务连接失败，请检查网络或下载该语言的离线识别资源后重试'),
+        findsOneWidget,
+      );
     });
   });
 }

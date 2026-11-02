@@ -73,15 +73,27 @@ class SettingsSectionTitle extends StatelessWidget {
 class SettingsCard extends StatelessWidget {
   final List<Widget> children;
 
-  const SettingsCard({super.key, required this.children});
+  /// 玻璃档位。默认 [GlassLevel.l1Quiet] —— 设置域深层页（分类页与更深的
+  /// 下钻页）的表单卡要「让位给控件」：淡彩不变，只削顶部白高光与双层浮起
+  /// 投影，卡面退成纸面（ADR 0063）。
+  ///
+  /// 一级落地页要保留既有强度，显式传 [GlassLevel.l1Subtle]。
+  final GlassLevel level;
+
+  const SettingsCard({
+    super.key,
+    required this.children,
+    this.level = GlassLevel.l1Quiet,
+  });
 
   @override
   Widget build(BuildContext context) {
     // ADR 0062：表单卡走 L1Subtle（比内容卡淡一档）+ 中性灰。
     // 设置页是长列表，每段都带明显色相会让整屏发花，可读性优先。
+    // ADR 0063：默认再降到 l1Quiet —— 淡彩同档，只削高光与投影。
     return GlassSurface(
       accent: TurnaTheme.glassNeutral,
-      level: GlassLevel.l1Subtle,
+      level: level,
       radius: BorderRadius.circular(TurnaTheme.radiusLarge),
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(

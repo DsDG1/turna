@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:flutter/widgets.dart';
+import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
@@ -104,4 +105,28 @@ void maybeAutoSpeak(VoidCallback speak) {
     speak();
   });
   WidgetsBinding.instance.scheduleFrame();
+}
+
+/// Speaks a target-language word chip on tap — word-bank tokens in sentence
+/// building, 选择填空 choice chips. Unlike MCQ options (where the tap means
+/// "this is my answer" and the re-read follows the auto-read toggle), tapping
+/// one of these chips is the learner directly handling language material, so
+/// the read-aloud is part of the action itself — the same stance as the
+/// ShowWord card's word tap. Chips are always target-language text, so no
+/// language inference is needed.
+///
+/// Returns `null` when the controller is not registered (tests without a
+/// full DI graph); callers stay silent — the pick/fill action must not
+/// depend on audio being available.
+Future<TtsSpeakResult?> speakTargetChip(String text) async {
+  try {
+    final controller = getIt<AudioController>();
+    return await controller.speakWithResult(
+      text,
+      languageCode: currentSpeechLanguages().target,
+    );
+  } catch (_) {
+    // Best-effort audio: no controller means no sound, not a failed action.
+    return null;
+  }
 }

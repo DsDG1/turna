@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/sub_lesson_summary.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/progress_spine.dart';
 import 'package:turna/core/theme.dart';
@@ -32,13 +33,23 @@ String lessonTypeLabel(LessonType type) => switch (type) {
       LessonType.challenge => AppStrings.coursesLessonTypeChallenge,
     };
 
+/// 下一课行：扁平纸面 + 青绿描边。色相留在描边和文案上，卡面不再发淡彩。
+BoxDecoration _nextUpDecoration(BuildContext context, BorderRadius radius) {
+  return TurnaTheme.flatPaperDecoration(
+    context,
+    borderRadius: radius,
+    border: Border.all(color: TurnaTheme.brandTeal),
+  );
+}
+
 /// 课程行壳（Plan「湿地晨光」§3.3）：与 [UnitCard] 头部逐行拼成一张卡。
 ///
-/// 外层延续卡面的白底与左右描边（末行收底圆角与投影），内层是下沉的
-/// 「课程旅程面」（着色内嵌区），首行开面、末行收面。多行在视觉上连成
-/// 一整块内嵌面，而每行仍是独立的 Sliver 列表子项——懒加载得以保留。
+/// 外层延续单元头的纸面与左右描边（末行收底圆角），首行开面、末行收面。
+/// 多行在视觉上连成一整张扁平纸面，而每行仍是独立的 Sliver 列表子项——
+/// 懒加载得以保留。
 class LessonRowShell extends StatelessWidget {
-  final LessonTile tile;
+  /// 行内容：平面课瓦片、子课瓦片或子课组头（同一旅程面内的三种行）。
+  final Widget tile;
   final bool isFirst;
   final bool isLast;
 
@@ -51,43 +62,24 @@ class LessonRowShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accent = TurnaTheme.glassContainer;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final edge = TurnaTheme.dividerBg(context);
 
-    // 与 UnitCard 的 L1 渐变同源：用淡彩最深端的实色接住，否则上下两段
-    // 各自重新起渐变，接缝处会出现一道横断。
-    final body = TurnaTheme.glassSolid(context, accent, level: GlassLevel.l1);
-    final stroke =
-        TurnaTheme.glassStroke(context, accent, level: GlassLevel.l1);
-
+    // 与 UnitCard 同一张纸：实色接实色，左右描边连续，末行才收底边。
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: body,
+        color: TurnaTheme.cardBg(context),
         border: Border(
-          left: BorderSide(color: stroke),
-          right: BorderSide(color: stroke),
-          bottom: isLast ? BorderSide(color: stroke) : BorderSide.none,
+          left: BorderSide(color: edge),
+          right: BorderSide(color: edge),
+          bottom: isLast ? BorderSide(color: edge) : BorderSide.none,
         ),
         borderRadius: BorderRadius.vertical(
           bottom: Radius.circular(isLast ? TurnaTheme.radiusLarge : 0),
         ),
-        boxShadow: isLast
-            ? TurnaTheme.glassShadow(context, accent, level: GlassLevel.l1)
-            : null,
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(10, isFirst ? 10 : 0, 10, isLast ? 10 : 0),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            // 磨砂内衬：一层白霜压低彩度，让课程行从卡面里「沉」下去。
-            color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.45),
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(isFirst ? TurnaTheme.radiusMedium : 0),
-              bottom: Radius.circular(isLast ? TurnaTheme.radiusMedium : 0),
-            ),
-          ),
-          child: tile,
-        ),
+        child: tile,
       ),
     );
   }
@@ -170,6 +162,340 @@ class LessonTile extends StatelessWidget {
   }
 }
 
+/// 子课瓦片（ADR 0063）：多子课的课在课程树上拆为一组节点，每节子课
+/// 一个瓦片、一次独立会话。解剖结构与 [LessonTile] 一致（旅程线格 +
+/// 行），仅前导标识换成序号徽标——课型图标与课名归组头行，层级即归属。
+class SubLessonTile extends StatelessWidget {
+  final SubLessonSummary sub;
+  final int subIndex;
+  final int subCount;
+  final LessonType parentType;
+  final bool isCompleted;
+  final bool isPerfect;
+  final bool isNextUp;
+  final bool isFirst;
+  final bool isLast;
+  final bool previousCompleted;
+
+  /// 点按回调，进入这节子课的独立会话（携带 subLessonId）。
+  final void Function(BuildContext tileContext) onTap;
+
+  const SubLessonTile({
+    required this.sub,
+    required this.subIndex,
+    required this.subCount,
+    required this.parentType,
+    required this.isCompleted,
+    required this.isPerfect,
+    this.isNextUp = false,
+    required this.isFirst,
+    required this.isLast,
+    this.previousCompleted = false,
+    required this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final semanticsParts = <String>[
+      sub.name,
+      AppStrings.lessonSubLessonIndex(subIndex + 1, subCount),
+      if (isPerfect)
+        AppStrings.coursesPerfect
+      else if (isCompleted)
+        AppStrings.commonDone,
+    ];
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProgressSpine(
+            isFirst: isFirst,
+            isLast: isLast,
+            status: isCompleted
+                ? SpineStatus.completed
+                : isNextUp
+                    ? SpineStatus.nextUp
+                    : SpineStatus.upcoming,
+            previousCompleted: previousCompleted,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _SubLessonRow(
+              sub: sub,
+              subIndex: subIndex,
+              subCount: subCount,
+              parentType: parentType,
+              isCompleted: isCompleted,
+              isPerfect: isPerfect,
+              isNextUp: isNextUp,
+              semanticsLabel: semanticsParts.join('，'),
+              onTap: () => onTap(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubLessonRow extends StatelessWidget {
+  final SubLessonSummary sub;
+  final int subIndex;
+  final int subCount;
+  final LessonType parentType;
+  final bool isCompleted;
+  final bool isPerfect;
+  final bool isNextUp;
+  final String semanticsLabel;
+  final VoidCallback onTap;
+
+  const _SubLessonRow({
+    required this.sub,
+    required this.subIndex,
+    required this.subCount,
+    required this.parentType,
+    required this.isCompleted,
+    required this.isPerfect,
+    required this.isNextUp,
+    required this.semanticsLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget row = Row(
+      children: [
+        LessonTypeIcon(
+          type: parentType,
+          completed: isCompleted,
+          perfect: isPerfect,
+          isNextUp: isNextUp,
+          indexLabel: '${subIndex + 1}',
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            sub.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isNextUp ? FontWeight.w700 : FontWeight.w600,
+              color: isCompleted
+                  ? TurnaTheme.textSecondaryColor(context)
+                  : TurnaTheme.textPrimaryColor(context),
+            ),
+          ),
+        ),
+        if (isNextUp) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+            decoration: BoxDecoration(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+            ),
+            child: Text(
+              AppStrings.coursesNextLesson,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: TurnaTheme.brandTeal,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(width: 6),
+        Text(
+          AppStrings.lessonSubLessonIndex(subIndex + 1, subCount),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: TurnaTheme.textHintColor(context),
+          ),
+        ),
+        const SizedBox(width: 2),
+        Icon(
+          Icons.chevron_right_rounded,
+          size: 18,
+          color: isNextUp
+              ? TurnaTheme.brandTeal
+              : TurnaTheme.textHintColor(context),
+        ),
+      ],
+    );
+
+    if (isNextUp) {
+      final radius = BorderRadius.circular(TurnaTheme.radiusMedium);
+      return Semantics(
+        button: true,
+        label: semanticsLabel,
+        onTap: onTap,
+        excludeSemantics: true,
+        child: DecoratedBox(
+          decoration: _nextUpDecoration(context, radius),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: radius,
+              onTap: onTap,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: row,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: row,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 子课组头行（ADR 0063）：多子课的课在旅程面上的归属标识——课型图标 +
+/// 课名 + 「小课 k/n」进度 + 待复习角标。非按钮：进入与重玩都点子课
+/// 瓦片，组头只回答「这一组是什么、走到哪了」。旅程线以普通节点穿过，
+/// 保持跨组连续。
+class SubLessonGroupHeader extends StatelessWidget {
+  final Lesson lesson;
+  final int completedCount;
+  final int subCount;
+  final bool isLessonCompleted;
+  final bool isLessonPerfect;
+  final LessonAttention attention;
+  final bool isFirst;
+  final bool isLast;
+  final bool previousCompleted;
+
+  const SubLessonGroupHeader({
+    required this.lesson,
+    required this.completedCount,
+    required this.subCount,
+    required this.isLessonCompleted,
+    required this.isLessonPerfect,
+    required this.attention,
+    required this.isFirst,
+    required this.isLast,
+    this.previousCompleted = false,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final attentionText = lessonAttentionText(attention, 1);
+    final semanticsParts = <String>[
+      lesson.name,
+      lessonTypeLabel(lesson.type),
+      AppStrings.lessonSubLessonIndex(completedCount, subCount),
+      if (attentionText != null) attentionText,
+    ];
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProgressSpine(
+            isFirst: isFirst,
+            isLast: isLast,
+            status: isLessonCompleted
+                ? SpineStatus.completed
+                : SpineStatus.upcoming,
+            previousCompleted: previousCompleted,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Semantics(
+              header: true,
+              label: semanticsParts.join('，'),
+              excludeSemantics: true,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                child: Row(
+                  children: [
+                    LessonTypeIcon(
+                      type: lesson.type,
+                      completed: isLessonCompleted,
+                      perfect: isLessonPerfect,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        lesson.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isLessonCompleted
+                              ? TurnaTheme.textSecondaryColor(context)
+                              : TurnaTheme.textPrimaryColor(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (isLessonCompleted
+                                ? TurnaTheme.brandTeal
+                                : TurnaTheme.textHintColor(context))
+                            .withValues(alpha: 0.12),
+                        borderRadius:
+                            BorderRadius.circular(TurnaTheme.radiusRound),
+                      ),
+                      child: Text(
+                        AppStrings.lessonSubLessonIndex(
+                          completedCount,
+                          subCount,
+                        ),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: isLessonCompleted
+                              ? TurnaTheme.brandTeal
+                              : TurnaTheme.textHintColor(context),
+                        ),
+                      ),
+                    ),
+                    if (attention != LessonAttention.none) ...[
+                      const SizedBox(width: 6),
+                      AttentionChip(attention: attention, count: 1),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LessonRow extends StatelessWidget {
   final Lesson lesson;
   final bool isCompleted;
@@ -192,7 +518,7 @@ class _LessonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isNextUp) {
-      // 下一课：浮起的白底小卡，从内嵌面里「弹」出来的优先级。
+      // 下一课：纸面上的焦点行，青绿描边，没有渐变和高光。
       final radius = BorderRadius.circular(TurnaTheme.radiusMedium);
       return Semantics(
         button: true,
@@ -200,13 +526,7 @@ class _LessonRow extends StatelessWidget {
         onTap: onTap,
         excludeSemantics: true,
         child: DecoratedBox(
-          // ADR 0062：「下一课」是全页唯一浮起面 → teal 色相的 L2 玻璃。
-          decoration: TurnaTheme.glassDecoration(
-            context,
-            TurnaTheme.glassFocus,
-            level: GlassLevel.l2,
-            borderRadius: radius,
-          ),
+          decoration: _nextUpDecoration(context, radius),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -330,18 +650,23 @@ class _LessonRowContent extends StatelessWidget {
   }
 }
 
-/// 课程类型彩色图标芯片 + 完成态角标。
+/// 课程类型彩色图标芯片 + 完成态角标。[indexLabel] 非空时渲染序号文字
+/// 而非类型图标（子课瓦片用：课型归组头，节点用序号）。
 class LessonTypeIcon extends StatelessWidget {
   final LessonType type;
   final bool completed;
   final bool perfect;
   final bool isNextUp;
 
+  /// 序号徽标文字（如 "1"）；null 渲染 [lessonTypeIcon] 的类型图标。
+  final String? indexLabel;
+
   const LessonTypeIcon({
     required this.type,
     required this.completed,
     required this.perfect,
     this.isNextUp = false,
+    this.indexLabel,
     super.key,
   });
 
@@ -377,11 +702,24 @@ class LessonTypeIcon extends StatelessWidget {
                           )
                         : null,
               ),
-              child: Icon(
-                lessonTypeIcon(type),
-                size: 18,
-                color: isNextUp ? TurnaTheme.brandTeal : iconColor,
-              ),
+              child: indexLabel != null
+                  ? Center(
+                      child: Text(
+                        indexLabel!,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: isNextUp
+                              ? TurnaTheme.brandTeal
+                              : TurnaTheme.textPrimaryColor(context),
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      lessonTypeIcon(type),
+                      size: 18,
+                      color: isNextUp ? TurnaTheme.brandTeal : iconColor,
+                    ),
             ),
           ),
           if (completed)
