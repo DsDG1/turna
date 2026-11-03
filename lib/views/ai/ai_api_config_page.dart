@@ -1,6 +1,7 @@
-// Flutter imports:
+// Dart imports:
 import 'dart:async';
 
+// Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,20 +14,26 @@ import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// AI connection settings page (高级 → AI 连接, Plan 2 §6.2).
 ///
-/// Scope is *connection only*: provider, API key, models, custom Base URL,
-/// test connection, clear credentials. Explain-style preferences live on the
-/// AI Hub; strict-schema / cache diagnostics moved to 旧版与兼容性 and
-/// 存储与性能.
+/// R14 口径：偏好目录**深页**模式 —— 分区标题 + 连续表单行（值右对齐，
+/// [DirectoryValueRow]），保存 / 测试操作收进底部动作带
+/// （[SessionActionBand]）。Scope is *connection only*: provider, API key,
+/// models, custom Base URL, test connection, clear credentials. Explain-style
+/// preferences live on the AI Hub.
 ///
 /// Editing model (Plan 2 §4.10 / §6.2): text edits update a local draft and
 /// are committed via a ≥500 ms debounce plus an explicit 保存 button — never
@@ -36,6 +43,8 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// secure store (see [AiEngineConfigHolder]); on platforms without one the
 /// page explains the session-only limitation instead of silently falling back
 /// to plaintext prefs.
+///
+/// Base URL 校验口径不变：[EndpointUrlPolicy.normalize] 是唯一真源。
 @RoutePage()
 class AiApiConfigPage extends StatefulWidget {
   const AiApiConfigPage({super.key});
@@ -219,22 +228,12 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   }
 
   Future<void> _clearCredentials() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(AppStrings.aiConfigClearKeyTitle),
-        content: Text(AppStrings.aiConfigClearKeyMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(AppStrings.aiConfigClearKeyConfirm),
-          ),
-        ],
-      ),
+      title: AppStrings.aiConfigClearKeyTitle,
+      message: AppStrings.aiConfigClearKeyMessage,
+      confirmLabel: AppStrings.aiConfigClearKeyConfirm,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     await getIt<AiEngineConfigHolder>().clearApiKey();
@@ -248,22 +247,12 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   }
 
   Future<void> _restoreDefaults() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(AppStrings.aiConfigRestoreDefaultsTitle),
-        content: Text(AppStrings.aiConfigRestoreDefaultsMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(AppStrings.aiConfigRestoreDefaultsConfirm),
-          ),
-        ],
-      ),
+      title: AppStrings.aiConfigRestoreDefaultsTitle,
+      message: AppStrings.aiConfigRestoreDefaultsMessage,
+      confirmLabel: AppStrings.aiConfigRestoreDefaultsConfirm,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     await getIt<AiEngineConfigHolder>()
@@ -284,7 +273,6 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
     // Intercept back so any pending debounced edit is flushed *before* the
     // route pops — while the widget is still mounted and the framework is not
     // locked. Flushing in dispose() would call notifyListeners during unmount
@@ -320,152 +308,193 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             ],
           ),
         ),
+        // 键盘让位由 Scaffold 的 resize + 底部动作带承担；正文不再叠加
+        // viewInsets 内边距（否则键盘弹出时出现双倍空档）。
         body: SafeArea(
           top: false,
           child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 16,
-              bottom: media.viewInsets.bottom + 28,
+            padding: const EdgeInsets.only(
+              left: AppSpacing.pageMargin,
+              right: AppSpacing.pageMargin,
+              top: AppSpacing.md,
+              bottom: AppSpacing.xl,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _StatusHero(
+                _StatusLine(
                   isComplete: _effectiveDraft.isComplete,
                   presetLabel: _draft.preset.label,
                   modelChatText: _modelChatCtrl.text.trim(),
-                  maskedKey: _maskKey(_draft.apiKey),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 const _CredentialSafetyNotice(),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 // 接口类型 + 数据流向 + 责任归属：用户按实填了第三方 Key，
                 // 就必须在填写现场说清「请求发给谁、谁负责」。
                 const _EndpointScopeNotice(),
-                const SizedBox(height: 16),
-                AiGroupCard(
-                  icon: Icons.hub_rounded,
-                  title: AppStrings.aiConfigGroupConnection,
-                  children: [
-                    _fieldLabel(
-                        context, AppStrings.aiConfigProviderSectionHint),
-                    const SizedBox(height: 10),
-                    _ProviderGrid(
-                      selected: _draft.preset.id,
-                      onChanged: _onPresetChanged,
-                    ),
-                    const SizedBox(height: 14),
-                    _BaseUrlBlock(
-                      isCustom: _draft.preset.id == AiProvider.custom,
-                      controller: _baseUrlCtrl,
-                      errorText: _baseUrlError,
-                      presetBaseUrl: _draft.preset.baseUrl,
-                      onChanged: (_) => _scheduleCommit(),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppStrings.aiConfigOpenAiCompatHint,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                            height: 1.35,
-                          ),
-                    ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // ── 分区：连接 ──
+                _SectionHeading(AppStrings.aiConfigGroupConnection),
+                Text(
+                  AppStrings.aiConfigProviderSectionHint,
+                  style: AppTextStyles.captionSm(context).copyWith(
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm + 2),
+                TurnaSegmented<AiProvider>(
+                  selected: _draft.preset.id,
+                  onChanged: _onPresetChanged,
+                  segments: [
+                    for (final p in providerOrder())
+                      ButtonSegment(value: p, label: Text(presetFor(p).label)),
                   ],
                 ),
-                const SizedBox(height: 12),
-                AiGroupCard(
-                  icon: Icons.key_rounded,
-                  title: AppStrings.aiConfigGroupModels,
-                  children: [
-                    _fieldLabel(context, AppStrings.settingsApiKeyLabel),
-                    const SizedBox(height: 6),
-                    _ApiKeyField(
-                      controller: _apiKeyCtrl,
-                      hint: _draft.apiKey.isEmpty
-                          ? AppStrings.settingsApiKeyHint
-                          : AppStrings.aiConfigKeyStoredHint(
-                              _maskKey(_draft.apiKey)),
-                      onChanged: (_) => _scheduleCommit(),
-                    ),
-                    const SizedBox(height: 12),
-                    _fieldLabel(context, AppStrings.aiHubFieldModelChat),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _modelChatCtrl,
-                      decoration: aiSheetInputDecoration(
-                        context,
-                        hint: AppStrings.settingsModelHint,
-                      ),
-                      onChanged: (_) => _scheduleCommit(),
-                    ),
-                    if (_draft.preset.supportedModels.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _ModelQuickPick(
-                        models: _draft.preset.supportedModels,
-                        selectedModel: _modelChatCtrl.text.trim(),
-                        onSelected: (model) {
-                          _modelChatCtrl.text = model;
-                          _scheduleCommit();
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    _fieldLabel(context, AppStrings.aiHubFieldModelJson),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _modelJsonCtrl,
-                      decoration: aiSheetInputDecoration(
-                        context,
-                        // 留空 = 跟聊天模型一样。不写清楚的话，`custom` 预设下
-                        // 空着会被当成「没配」——服务端只回 unknown model。
-                        hint: AppStrings.aiHubFieldModelJsonHint,
-                      ),
-                      onChanged: (_) => _scheduleCommit(),
-                    ),
-                    if (_draft.preset.supportedModels.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _ModelQuickPick(
-                        models: _draft.preset.supportedModels,
-                        selectedModel: _modelJsonCtrl.text.trim(),
-                        onSelected: (model) {
-                          _modelJsonCtrl.text = model;
-                          _scheduleCommit();
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    _ReasoningToggle(
-                      enabled: _draft.reasoningEnabled,
-                      supported: _draft.preset.supportsReasoning,
-                      onChanged: (value) {
-                        setState(() {
-                          _draft =
-                              _draft.copyWith(supportsReasoningOverride: value);
-                        });
-                        _scheduleCommit();
-                      },
-                    ),
-                  ],
+                const SizedBox(height: AppSpacing.md),
+                _BaseUrlBlock(
+                  isCustom: _draft.preset.id == AiProvider.custom,
+                  controller: _baseUrlCtrl,
+                  errorText: _baseUrlError,
+                  presetBaseUrl: _draft.preset.baseUrl,
+                  onChanged: (_) => _scheduleCommit(),
                 ),
-                const SizedBox(height: 16),
-                _ConnectionTestSection(
-                  key: _probeKey,
-                  configGetter: () => _effectiveDraft,
-                  onSave: _saveNow,
+                const SizedBox(height: AppSpacing.sm + 2),
+                Text(
+                  AppStrings.aiConfigOpenAiCompatHint,
+                  style: AppTextStyles.captionSm(context).copyWith(
+                        color: TurnaTheme.textHintColor(context),
+                        height: 1.35,
+                      ),
                 ),
-                const SizedBox(height: 10),
-                _DangerRow(
-                  onClear: _clearCredentials,
-                  onRestore: _restoreDefaults,
+                const SizedBox(height: AppSpacing.xl),
+
+                // ── 分区：密钥与模型 ──
+                _SectionHeading(AppStrings.aiConfigGroupModels),
+                _textEntry(
+                  context,
+                  label: AppStrings.settingsApiKeyLabel,
+                  child: _ApiKeyField(
+                    controller: _apiKeyCtrl,
+                    hint: _draft.apiKey.isEmpty
+                        ? AppStrings.settingsApiKeyHint
+                        : AppStrings.aiConfigKeyStoredHint(
+                            _maskKey(_draft.apiKey)),
+                    onChanged: (_) => _scheduleCommit(),
+                  ),
                 ),
-                const SizedBox(height: 14),
+                _textEntry(
+                  context,
+                  label: AppStrings.aiHubFieldModelChat,
+                  child: TextField(
+                    controller: _modelChatCtrl,
+                    decoration: aiSheetInputDecoration(
+                      context,
+                      hint: AppStrings.settingsModelHint,
+                    ),
+                    onChanged: (_) => _scheduleCommit(),
+                  ),
+                ),
+                if (_draft.preset.supportedModels.isNotEmpty)
+                  _ModelQuickPick(
+                    models: _draft.preset.supportedModels,
+                    selectedModel: _modelChatCtrl.text.trim(),
+                    onSelected: (model) {
+                      _modelChatCtrl.text = model;
+                      _scheduleCommit();
+                    },
+                  ),
+                _textEntry(
+                  context,
+                  label: AppStrings.aiHubFieldModelJson,
+                  child: TextField(
+                    controller: _modelJsonCtrl,
+                    decoration: aiSheetInputDecoration(
+                      context,
+                      // 留空 = 跟聊天模型一样。不写清楚的话，`custom` 预设下
+                      // 空着会被当成「没配」——服务端只回 unknown model。
+                      hint: AppStrings.aiHubFieldModelJsonHint,
+                    ),
+                    onChanged: (_) => _scheduleCommit(),
+                  ),
+                ),
+                if (_draft.preset.supportedModels.isNotEmpty)
+                  _ModelQuickPick(
+                    models: _draft.preset.supportedModels,
+                    selectedModel: _modelJsonCtrl.text.trim(),
+                    onSelected: (model) {
+                      _modelJsonCtrl.text = model;
+                      _scheduleCommit();
+                    },
+                  ),
+                // 深度思考：开关行（label 左、控件右）+ 说明小字。
+                DirectoryValueRow(
+                  label: AppStrings.aiConfigReasoningToggle,
+                  control: Switch(
+                    value: _draft.reasoningEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _draft =
+                            _draft.copyWith(supportsReasoningOverride: value);
+                      });
+                      _scheduleCommit();
+                    },
+                  ),
+                  showDivider: false,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    _draft.preset.supportsReasoning
+                        ? AppStrings.aiConfigReasoningSupportedHint
+                        : AppStrings.aiConfigReasoningUnsupportedHint,
+                    style: AppTextStyles.captionSm(context).copyWith(
+                          color: TurnaTheme.textHintColor(context),
+                          height: 1.4,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // ── 危险操作 ──
+                _DangerRow(onClear: _clearCredentials, onRestore: _restoreDefaults),
+                const SizedBox(height: AppSpacing.md),
                 const _FooterHint(),
               ],
             ),
           ),
         ),
+        // 保存 / 测试收进底部动作带：位置稳定，键盘弹出时仍可见。
+        bottomNavigationBar: _ConnectionTestSection(
+          key: _probeKey,
+          configGetter: () => _effectiveDraft,
+          onSave: _saveNow,
+        ),
+      ),
+    );
+  }
+
+  /// 文本输入行：label 在上、输入域占整行（秘密与模型名无法右对齐展示）。
+  Widget _textEntry(
+    BuildContext context, {
+    required String label,
+    required Widget child,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md + 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.captionSm(context).copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm - 2),
+          child,
+        ],
       ),
     );
   }
@@ -480,230 +509,77 @@ String _maskKey(String key) {
   return '${trimmed.substring(0, 3)}…${trimmed.substring(trimmed.length - 4)}';
 }
 
-({IconData icon, Color color}) _providerVisual(AiProvider p) {
-  switch (p) {
-    case AiProvider.deepseek:
-      return (icon: Icons.bolt_rounded, color: TurnaTheme.brandSky);
-    case AiProvider.mimo:
-      return (icon: Icons.memory_rounded, color: TurnaTheme.anatolianClay);
-    case AiProvider.custom:
-      return (icon: Icons.tune_rounded, color: TurnaTheme.brandReed);
+// ─── Section widgets ────────────────────────────────────────────────────
+
+/// 偏好目录深页的分区标题。
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm + 2),
+      child: Text(title, style: AppTextStyles.sectionTitle(context)),
+    );
   }
 }
 
-Widget _fieldLabel(BuildContext context, String label) {
-  return Text(
-    label,
-    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: TurnaTheme.textSecondaryColor(context),
-          fontWeight: FontWeight.w600,
-        ),
-  );
-}
-
-// ─── Section widgets ────────────────────────────────────────────────────
-
-/// Configured/not-configured summary card at the top of the page.
-class _StatusHero extends StatelessWidget {
-  const _StatusHero({
+/// 连接状态一行（R14：状态点 + 一句文案，不再是玻璃大卡）。
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({
     required this.isComplete,
     required this.presetLabel,
     required this.modelChatText,
-    required this.maskedKey,
   });
 
   final bool isComplete;
   final String presetLabel;
   final String modelChatText;
 
-  /// Masked stored key; empty when no key is stored (badge hidden then).
-  final String maskedKey;
-
   @override
   Widget build(BuildContext context) {
     final accent = isComplete ? TurnaTheme.brandTeal : TurnaTheme.warning;
+    // 合成单条文案：预设与模型作为整体展示，不逐字重复分区控件的取值。
     final subtitle = isComplete
         ? '$presetLabel · $modelChatText'
         : AppStrings.aiConfigStatusHintIncomplete;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      // ADR 0063：一代白描边（浮起 chrome 用法）换成二代弱玻璃 —— 面板
-      // 吃到同色相淡彩渐变 + 同色相描边 + 弱投影。
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        accent,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isComplete ? Icons.check_rounded : Icons.error_outline_rounded,
-              color: accent,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  isComplete
-                      ? AppStrings.aiConfigStatusConfigured
-                      : AppStrings.aiConfigStatusNotConfigured,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if (maskedKey.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-              ),
-              child: Text(
-                maskedKey,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 2-column grid of provider preset cards.
-class _ProviderGrid extends StatelessWidget {
-  const _ProviderGrid({required this.selected, required this.onChanged});
-
-  final AiProvider selected;
-  final ValueChanged<AiProvider> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      padding: EdgeInsets.zero,
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 2.7,
+    return Row(
       children: [
-        for (final p in providerOrder())
-          _ProviderCard(
-            provider: p,
-            selected: p == selected,
-            onChanged: onChanged,
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isComplete ? accent : null,
+            border: isComplete ? null : Border.all(color: accent, width: 2),
           ),
+        ),
+        const SizedBox(width: AppSpacing.sm + 2),
+        Text(
+          isComplete
+              ? AppStrings.aiConfigStatusConfigured
+              : AppStrings.aiConfigStatusNotConfigured,
+          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({
-    required this.provider,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final AiProvider provider;
-  final bool selected;
-  final ValueChanged<AiProvider> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final preset = presetFor(provider);
-    final v = _providerVisual(provider);
-    final accent = v.color;
-
-    return Material(
-      color: selected
-          ? TurnaTheme.softTint(context, accent)
-          : TurnaTheme.tintLight,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      child: InkWell(
-        onTap: () => onChanged(provider),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-            // ADR 0063：未选中态的一代白描边换成二代同色相描边（网格控件
-            // 不加投影，40px 高的元素加投影只会变成噪点）。
-            border: Border.all(
-              color: selected
-                  ? accent
-                  : TurnaTheme.glassStroke(
-                      context,
-                      accent,
-                      level: GlassLevel.l1Quiet,
-                    ),
-              width: selected ? 1.6 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-                ),
-                child: Icon(v.icon, color: accent, size: 17),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  preset.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
-                ),
-              ),
-              if (selected)
-                Icon(Icons.check_circle_rounded, color: accent, size: 18),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Editable Base URL for the custom preset; read-only chip for presets.
+/// Editable Base URL for the custom preset; read-only value row for presets.
 class _BaseUrlBlock extends StatelessWidget {
   const _BaseUrlBlock({
     required this.isCustom,
@@ -726,8 +602,6 @@ class _BaseUrlBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _fieldLabel(context, AppStrings.settingsBaseUrlLabel),
-          const SizedBox(height: 6),
           TextField(
             controller: controller,
             decoration: aiSheetInputDecoration(
@@ -737,44 +611,39 @@ class _BaseUrlBlock extends StatelessWidget {
             onChanged: onChanged,
           ),
           if (errorText != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs + 2),
             Text(
               errorText!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: TurnaTheme.error),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.error),
             ),
           ],
         ],
       );
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: TurnaTheme.tintLight,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.link_rounded,
-            size: 16,
-            color: TurnaTheme.textHintColor(context),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              presetBaseUrl,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+    // 预设地址：label 左、值右（长地址省略），不可编辑也不带 chevron。
+    return Row(
+      children: [
+        Text(
+          AppStrings.settingsBaseUrlLabel,
+          style: AppTextStyles.bodyText(context)
+              .copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Text(
+            presetBaseUrl,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: AppTextStyles.bodyText(context).copyWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: TurnaTheme.brandTeal,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -842,88 +711,25 @@ class _ModelQuickPick extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final model in models)
-          TurnaFilterChip(
-            label: model,
-            selected: selectedModel == model,
-            onSelected: (_) => onSelected(model),
-          ),
-      ],
-    );
-  }
-}
-
-/// Always-visible reasoning toggle. Defaults to off; the user opts in per
-/// provider. The preset's `supportsReasoning` only shapes the hint text.
-class _ReasoningToggle extends StatelessWidget {
-  const _ReasoningToggle({
-    required this.enabled,
-    required this.supported,
-    required this.onChanged,
-  });
-
-  final bool enabled;
-  final bool supported;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final hint = supported
-        ? AppStrings.aiConfigReasoningSupportedHint
-        : AppStrings.aiConfigReasoningUnsupportedHint;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: TurnaTheme.tintLight,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
         children: [
-          Icon(
-            Icons.psychology_rounded,
-            size: 18,
-            color: enabled
-                ? TurnaTheme.brandTeal
-                : TurnaTheme.textHintColor(context),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  AppStrings.aiConfigReasoningToggle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  hint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                ),
-              ],
+          for (final model in models)
+            TurnaFilterChip(
+              label: model,
+              selected: selectedModel == model,
+              onSelected: (_) => onSelected(model),
             ),
-          ),
-          Switch(
-            value: enabled,
-            onChanged: onChanged,
-          ),
         ],
       ),
     );
   }
 }
 
-/// Test-connection + save action row with the probe status readout. Owns the
+/// Test-connection + save action band with the probe status readout. Owns the
 /// probing/result state so the spinner only rebuilds this section.
 class _ConnectionTestSection extends StatefulWidget {
   const _ConnectionTestSection({
@@ -1018,43 +824,54 @@ class _ConnectionTestSectionState extends State<_ConnectionTestSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                style: aiSheetSecondaryButtonStyle(),
-                onPressed: _probing || !widget.configGetter().isComplete
-                    ? null
-                    : _testConnection,
-                icon: _probing
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.wifi_tethering_rounded, size: 18),
-                label: Text(AppStrings.aiHubToolsTestConnection),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: widget.onSave,
-                icon: const Icon(Icons.save_outlined, size: 18),
-                label: Text(AppStrings.aiConfigSave),
-              ),
-            ),
+    return SessionActionBand(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.md,
+        AppSpacing.pageMargin,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_probeResult != null) ...[
+            _probeStatusRow(context),
+            const SizedBox(height: AppSpacing.md),
           ],
-        ),
-        if (_probeResult != null) ...[
-          const SizedBox(height: 10),
-          _probeStatusRow(context),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    style: aiSheetSecondaryButtonStyle(),
+                    onPressed: _probing || !widget.configGetter().isComplete
+                        ? null
+                        : _testConnection,
+                    icon: _probing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.wifi_tethering_rounded, size: 18),
+                    label: Text(AppStrings.aiHubToolsTestConnection),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: SessionPrimaryAction(
+                  label: AppStrings.aiConfigSave,
+                  onPressed: widget.onSave,
+                  trailingIcon: Icons.save_outlined,
+                ),
+              ),
+            ],
+          ),
         ],
-      ],
+      ),
     );
   }
 
@@ -1064,59 +881,44 @@ class _ConnectionTestSectionState extends State<_ConnectionTestSection> {
     final text = ok
         ? AppStrings.aiHubToolsTestConnectionOk(_probeResult!.latencyMs)
         : '${AppStrings.aiHubToolsTestConnectionFail}（${_probeResult!.errorCategory}）';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: TurnaTheme.softTint(context, accent),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        // ADR 0063：一代白描边换成二代同色相描边（行内小条不加投影）。
-        border: Border.all(
-          color: TurnaTheme.glassStroke(
-            context,
-            accent,
-            level: GlassLevel.l1Quiet,
+    return Row(
+      children: [
+        Icon(
+          ok
+              ? Icons.check_circle_outline_rounded
+              : Icons.error_outline_rounded,
+          size: 18,
+          color: accent,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            text,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: accent,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            ok
-                ? Icons.check_circle_outline_rounded
-                : Icons.error_outline_rounded,
-            size: 18,
-            color: accent,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w600,
-                  ),
+        if (!ok)
+          // Copy the (sanitized) endpoint so the user can debug externally.
+          IconButton(
+            iconSize: 16,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: AppStrings.aiConfigCopyEndpoint,
+            icon: Icon(
+              Icons.copy_rounded,
+              size: 16,
+              color: TurnaTheme.textHintColor(context),
             ),
+            onPressed: () {
+              Clipboard.setData(
+                ClipboardData(text: widget.configGetter().chatCompletionsUrl),
+              );
+            },
           ),
-          if (!ok)
-            // Copy the (sanitized) endpoint so the user can debug externally.
-            IconButton(
-              iconSize: 16,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: AppStrings.aiConfigCopyEndpoint,
-              icon: Icon(
-                Icons.copy_rounded,
-                size: 16,
-                color: TurnaTheme.textHintColor(context),
-              ),
-              onPressed: () {
-                Clipboard.setData(
-                  ClipboardData(text: widget.configGetter().chatCompletionsUrl),
-                );
-              },
-            ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -1131,23 +933,20 @@ class _DangerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            style: aiSheetSecondaryButtonStyle(),
-            onPressed: onClear,
-            icon: const Icon(Icons.key_off_outlined, size: 18),
-            label: Text(AppStrings.aiConfigClearKeyButton),
+        TextButton.icon(
+          onPressed: onClear,
+          style: TextButton.styleFrom(
+            foregroundColor: TurnaTheme.error,
           ),
+          icon: const Icon(Icons.key_off_outlined, size: 18),
+          label: Text(AppStrings.aiConfigClearKeyButton),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            style: aiSheetSecondaryButtonStyle(),
-            onPressed: onRestore,
-            icon: const Icon(Icons.restore_rounded, size: 18),
-            label: Text(AppStrings.aiConfigRestoreDefaultsButton),
-          ),
+        TextButton.icon(
+          onPressed: onRestore,
+          icon: const Icon(Icons.restore_rounded, size: 18),
+          label: Text(AppStrings.aiConfigRestoreDefaultsButton),
         ),
       ],
     );
@@ -1172,9 +971,10 @@ class _FooterHint extends StatelessWidget {
         Flexible(
           child: Text(
             AppStrings.settingsAiApiConfigNotSaved,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context).copyWith(
+              fontSize: 12,
+              color: TurnaTheme.textHintColor(context),
+            ),
           ),
         ),
       ],
@@ -1223,42 +1023,31 @@ class _CredentialSafetyNotice extends StatelessWidget {
           accent = TurnaTheme.brandSky;
           message = AppStrings.aiConfigKeyPersistedNotice;
         }
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: TurnaTheme.softTint(context, accent),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-            // ADR 0063：一代白描边换成二代同色相描边（行内小条不加投影）。
-            border: Border.all(
-              color: TurnaTheme.glassStroke(
-                context,
-                accent,
-                level: GlassLevel.l1Quiet,
-              ),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(icon, size: 16, color: accent),
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: accent),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                        height: 1.35,
-                      ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: AppTextStyles.captionSm(context).copyWith(
+                  color: TurnaTheme.textSecondaryColor(context),
+                  height: 1.4,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-/// 接口与责任边界说明卡。
+/// 接口与责任边界说明（分区标题 + 三行说明，不包卡）。
 ///
 /// 三句话缺一不可：① 这个页面只接 OpenAI 兼容协议，别的协议填进来必然失败；
 /// ② 请求从本机直达用户自己填的服务商，应用不做中转；③ 内容由服务商生成与
@@ -1269,21 +1058,20 @@ class _EndpointScopeNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AiGroupCard(
-      icon: Icons.info_outline_rounded,
-      accent: TurnaTheme.brandSky,
-      title: AppStrings.aiConfigScopeTitle,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _SectionHeading(AppStrings.aiConfigScopeTitle),
         _ScopeLine(
           icon: Icons.terminal_rounded,
           text: AppStrings.aiConfigScopeProtocol,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _ScopeLine(
           icon: Icons.cloud_upload_outlined,
           text: AppStrings.aiConfigScopeDataFlow,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _ScopeLine(
           icon: Icons.gavel_rounded,
           text: AppStrings.aiConfigScopeLiability,
@@ -1312,14 +1100,12 @@ class _ScopeLine extends StatelessWidget {
             color: TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             text,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                  height: 1.45,
-                ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(height: 1.45, fontSize: 12.5),
           ),
         ),
       ],

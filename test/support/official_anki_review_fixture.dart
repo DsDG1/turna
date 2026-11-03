@@ -15,8 +15,8 @@ import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 import 'official_anki_practice_review_surface_fixture.dart';
 
@@ -255,20 +255,27 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
         automaticallyImplyLeading: false,
         toolbarHeight: 60,
         titleSpacing: 0,
-        title: ReviewProgressHeader(
+        // 会话顶带（SessionProgressBand）取代退役的 ReviewProgressHeader；
+        // AI 讲解折进 actions，与生产侧统一复习页同一装配形状。
+        title: SessionProgressBand(
           includeSafeArea: false,
-          progress: total == 0 ? 0 : answered / total,
+          style: SessionProgressStyle.bar,
           currentIndex: current,
           totalCount: total,
-          onBack: () => Navigator.of(context).maybePop(),
-          onAiExplain: () {
-            showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => const AiDepthTutorSheet(),
-            );
-          },
+          onExit: () => Navigator.of(context).maybePop(),
+          exitTooltip: AppStrings.commonClose,
           actions: [
+            IconButton(
+              tooltip: AppStrings.aiExplainCard,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              onPressed: () {
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => const AiDepthTutorSheet(),
+                );
+              },
+            ),
             IconButton(
               key: const Key('official-review-undo'),
               tooltip: AppStrings.commonUndo,

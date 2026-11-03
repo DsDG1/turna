@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/widgets/glass_surface.dart';
 
 Widget settingsTileDivider(BuildContext context) => Divider(
       height: 1,
@@ -49,6 +49,8 @@ class SettingsSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 湿地雾光 R16 深页：分区标题走 sectionTitle 版面角色（19/600），
+    // 图标保留为一档弱标记。
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -58,10 +60,7 @@ class SettingsSectionTitle extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+              style: AppTextStyles.sectionTitle(context),
             ),
           ),
         ],
@@ -73,11 +72,9 @@ class SettingsSectionTitle extends StatelessWidget {
 class SettingsCard extends StatelessWidget {
   final List<Widget> children;
 
-  /// 玻璃档位。默认 [GlassLevel.l1Quiet] —— 设置域深层页（分类页与更深的
-  /// 下钻页）的表单卡要「让位给控件」：淡彩不变，只削顶部白高光与双层浮起
-  /// 投影，卡面退成纸面（ADR 0063）。
-  ///
-  /// 一级落地页要保留既有强度，显式传 [GlassLevel.l1Subtle]。
+  /// 玻璃档位（历史参数）。湿地雾光后深页表单行族走**纸面**（ADR 0065：
+  /// 实色 + 中性细边）——「一页通常只有一个玻璃对象，长列表不铺玻璃」，
+  /// 参数保留只为既有调用点编译通过，不再影响渲染。
   final GlassLevel level;
 
   const SettingsCard({
@@ -88,14 +85,10 @@ class SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ADR 0062：表单卡走 L1Subtle（比内容卡淡一档）+ 中性灰。
-    // 设置页是长列表，每段都带明显色相会让整屏发花，可读性优先。
-    // ADR 0063：默认再降到 l1Quiet —— 淡彩同档，只削高光与投影。
-    return GlassSurface(
-      accent: TurnaTheme.glassNeutral,
-      level: level,
-      radius: BorderRadius.circular(TurnaTheme.radiusLarge),
+    // 纸面容器（R16）：行族的外框是排版 + 发丝线，不是玻璃卡。
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: children,
@@ -136,22 +129,24 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = iconColor ?? TurnaTheme.brandTeal;
-    final bg = iconBackground ?? TurnaTheme.brandTeal.withValues(alpha: 0.08);
+    // R16 深页行族：图标井 38×38 淡彩井（与 DirectoryLinkRow 同构），
+    // 标题 cardTitle、副题 captionSm。
+    final bg = iconBackground ?? TurnaTheme.softTint(context, fg, alpha: 0.10);
     final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Icon(
               icon,
-              color: fg,
-              size: 20,
+              color: TurnaTheme.accentOnCard(context, fg),
+              size: 19,
             ),
           ),
           const SizedBox(width: 12),
@@ -161,16 +156,13 @@ class SettingsTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: AppTextStyles.cardTitle(context),
                 ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: AppTextStyles.captionSm(context)
+                        .copyWith(fontSize: 12.5),
                   ),
               ],
             ),

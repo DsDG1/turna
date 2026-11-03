@@ -55,11 +55,12 @@ void main() {
       MaterialApp(
         theme: TurnaTheme.lightTheme,
         home: Scaffold(
-          body: DictionaryHitTile(hit: hit, onSpeak: () {}),
+          body: DictionaryHitRow(hit: hit),
         ),
       ),
     );
-    expect(find.text('名词'), findsOneWidget);
+    // R11 阅读目录行：词性与释义合为 14sp 次级色一行。
+    expect(find.text('名词 · house'), findsOneWidget);
     expect(find.text('ev'), findsOneWidget);
   });
 

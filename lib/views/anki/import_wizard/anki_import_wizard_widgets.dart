@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/theme.dart';
 
 /// Shared wizard widgets (maintainability plan §10.5): pure view
@@ -302,7 +303,9 @@ class StatChip extends StatelessWidget {
   }
 }
 
-/// Bottom-anchored primary action bar on the preview step.
+/// Bottom-anchored primary action bar on the preview step —「湿地雾光」
+/// 步骤流程的底部固定阶段操作（[SessionActionBand] + [SessionPrimaryAction]
+/// 换壳，行为与禁用提示原样）。
 class StickyImportBar extends StatelessWidget {
   final VoidCallback? onPressed;
   final String? disabledHint;
@@ -311,58 +314,27 @@ class StickyImportBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        border: Border(
-          top: BorderSide(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (disabledHint != null) ...[
-                Text(
-                  disabledHint!,
-                  style: const TextStyle(
-                    color: TurnaTheme.error,
-                    fontSize: 12,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-              ],
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onPressed,
-                  icon: const Icon(Icons.cloud_download_rounded, size: 20),
-                  label: Text(
-                    AppStrings.ankiPreviewStartImport,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: TurnaTheme.brandTeal,
-                    foregroundColor: TurnaTheme.textOnPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
+    return SessionActionBand(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (disabledHint != null) ...[
+            Text(
+              disabledHint!,
+              style: const TextStyle(
+                color: TurnaTheme.error,
+                fontSize: 12,
               ),
-            ],
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+          ],
+          SessionPrimaryAction(
+            label: AppStrings.ankiPreviewStartImport,
+            trailingIcon: Icons.cloud_download_rounded,
+            onPressed: onPressed,
           ),
-        ),
+        ],
       ),
     );
   }

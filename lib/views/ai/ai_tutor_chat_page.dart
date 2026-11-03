@@ -13,13 +13,17 @@ import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
 import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 String _tutorModeLabel(String modeName) {
   return switch (modeName) {
@@ -114,46 +118,45 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
 
   Future<void> _openSessionList(BuildContext context) async {
     final sessions = _provider.savedSessions;
-    await showModalBottomSheet<void>(
+    await showTurnaSheet<void>(
       context: context,
-      backgroundColor: TurnaTheme.cardBg(context),
-      showDragHandle: true,
-      builder: (sheetContext) {
-        if (sessions.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-            child: Text(AppStrings.aiTutorSessionEmpty),
-          );
-        }
-        return SafeArea(
-          child: ListView.builder(
-            itemCount: sessions.length,
-            itemBuilder: (context, index) {
-              final session = sessions[index];
-              final title = session.title.isEmpty
-                  ? AppStrings.aiTutorChatTitle
-                  : session.title;
-              return ListTile(
-                title:
-                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(_tutorModeLabel(session.modeName)),
-                onTap: () {
-                  _provider.openSavedSession(session.id);
-                  Navigator.of(sheetContext).pop();
+      title: AppStrings.aiTutorSessionList,
+      body: sessions.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+              child: Text(AppStrings.aiTutorSessionEmpty),
+            )
+          : SafeArea(
+              top: false,
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 16),
+                itemCount: sessions.length,
+                itemBuilder: (context, index) {
+                  final session = sessions[index];
+                  final title = session.title.isEmpty
+                      ? AppStrings.aiTutorChatTitle
+                      : session.title;
+                  return DirectoryEntryRow(
+                    title: title,
+                    subtitle: _tutorModeLabel(session.modeName),
+                    showDivider: index < sessions.length - 1,
+                    onTap: () {
+                      _provider.openSavedSession(session.id);
+                      Navigator.of(context).pop();
+                    },
+                    trailing: IconButton(
+                      tooltip: AppStrings.aiTutorDeleteSession,
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        await _provider.deleteSavedSession(session.id);
+                        if (context.mounted) Navigator.of(context).pop();
+                      },
+                    ),
+                  );
                 },
-                trailing: IconButton(
-                  tooltip: AppStrings.aiTutorDeleteSession,
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    await _provider.deleteSavedSession(session.id);
-                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                  },
-                ),
-              );
-            },
-          ),
-        );
-      },
+              ),
+            ),
     );
   }
 
@@ -211,16 +214,34 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
                   Expanded(
                       child: _MessageList(
                           scrollCtrl: _scrollCtrl, autoScroll: _autoScroll)),
-                  const _ErrorBanner(),
-                  const _ActivityIndicator(),
-                  _Composer(onSend: _onSend, inputCtrl: _inputCtrl),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      AppStrings.aiDisclaimer,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
+                  // 底部独立输入区（R14）：错误重试、进度、输入行与免责声明
+                  // 收进同一条动作带，位置跨聊天页稳定。
+                  SessionActionBand(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pageMarginCompact,
+                      AppSpacing.sm,
+                      AppSpacing.pageMarginCompact,
+                      AppSpacing.sm + 2,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _ErrorBanner(),
+                        const _ActivityIndicator(),
+                        _Composer(onSend: _onSend, inputCtrl: _inputCtrl),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            AppStrings.aiDisclaimer,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                              color: TurnaTheme.textHintColor(context),
+                            ),
                           ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -359,7 +380,10 @@ class _MessageList extends StatelessWidget {
           },
           child: ListView.builder(
             controller: scrollCtrl,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageMarginCompact,
+              vertical: AppSpacing.sm,
+            ),
             itemCount: count,
             itemBuilder: (context, i) {
               final m = provider.messages[i];
@@ -438,35 +462,32 @@ class _Composer extends StatelessWidget {
     return Selector<AiTutorChatProvider, bool>(
       selector: (_, p) => p.state == AiTutorChatState.loading,
       builder: (context, busy, _) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: inputCtrl,
-                  decoration: aiSheetInputDecoration(
-                    context,
-                    hint: AppStrings.aiTutorChatHint,
-                  ),
-                  onSubmitted: busy ? null : (_) => onSend(),
+        return Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: inputCtrl,
+                decoration: aiSheetInputDecoration(
+                  context,
+                  hint: AppStrings.aiTutorChatHint,
                 ),
+                onSubmitted: busy ? null : (_) => onSend(),
               ),
-              const SizedBox(width: 8),
-              if (busy)
-                IconButton.filled(
-                  onPressed: context.read<AiTutorChatProvider>().cancel,
-                  icon: const Icon(Icons.stop_rounded),
-                  tooltip: AppStrings.aiStopGenerating,
-                )
-              else
-                IconButton.filled(
-                  onPressed: onSend,
-                  icon: const Icon(Icons.send_rounded),
-                  tooltip: AppStrings.commonSend,
-                ),
-            ],
-          ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            if (busy)
+              IconButton.filled(
+                onPressed: context.read<AiTutorChatProvider>().cancel,
+                icon: const Icon(Icons.stop_rounded),
+                tooltip: AppStrings.aiStopGenerating,
+              )
+            else
+              IconButton.filled(
+                onPressed: onSend,
+                icon: const Icon(Icons.send_rounded),
+                tooltip: AppStrings.commonSend,
+              ),
+          ],
         );
       },
     );

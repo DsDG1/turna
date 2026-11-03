@@ -20,6 +20,7 @@ import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_learning_section.dart';
 import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Learning category page (formal route: `/settings/learning`).
@@ -27,9 +28,10 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// The reset-learning-defaults action runs through
 /// [ResetLearningSettingsCommand]; its [ResetLearningSettingsCommand.notResetScopes]
 /// list is rendered in the confirmation dialog so the UI promise and the
-/// implementation cannot drift apart. A local epoch rebuilds the Anki limit
-/// sliders after a reset (those values are owned by AnkiDeckManager, not
-/// SettingsProvider).
+/// implementation cannot drift apart.
+///
+/// Anki 每日上限（新卡 / 复习 / 每日挑战并入）已按 ADR 0066 迁往记忆卡域，
+/// 不再出现在语言课程的设置页。
 @RoutePage()
 class LearningSettingsPage extends StatefulWidget {
   const LearningSettingsPage({super.key});
@@ -39,26 +41,19 @@ class LearningSettingsPage extends StatefulWidget {
 }
 
 class _LearningSettingsPageState extends State<LearningSettingsPage> {
-  int _ankiEpoch = 0;
-
   Future<void> _confirmResetLearningDefaults(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsResetLearningDefaultsDialogTitle,
-        message: '${AppStrings.settingsResetLearningDefaultsDialogMessage}\n\n'
-            '${AppStrings.settingsResetLearningKeptScopes(ResetLearningSettingsCommand.notResetScopes)}',
-        confirmText: AppStrings.settingsResetLearningDefaultsConfirm,
-      ),
+      title: AppStrings.settingsResetLearningDefaultsDialogTitle,
+      message: '${AppStrings.settingsResetLearningDefaultsDialogMessage}\n\n'
+          '${AppStrings.settingsResetLearningKeptScopes(ResetLearningSettingsCommand.notResetScopes)}',
+      confirmLabel: AppStrings.settingsResetLearningDefaultsConfirm,
+      destructive: true,
     );
     if (confirmed != true || !context.mounted) return;
 
     final result = await getIt<ResetLearningSettingsCommand>().execute();
     if (!context.mounted) return;
-    // Rebuild the Anki limit card in every outcome: a partial reset may have
-    // landed the Anki defaults even when another step failed, and the sliders
-    // read their values from AnkiDeckManager rather than SettingsProvider.
-    setState(() => _ankiEpoch++);
     switch (result) {
       case SettingsOperationSuccess():
         TurnaSnackBar.show(
@@ -113,22 +108,6 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
               ],
             ),
             const SizedBox(height: 20),
-            SettingsSectionTitle(
-              icon: Icons.style_rounded,
-              title: AppStrings.settingsAnkiSectionTitle,
-            ),
-            const SizedBox(height: 8),
-            SettingsCard(
-              key: ValueKey('anki-prefs-$_ankiEpoch'),
-              children: [
-                const SettingsAnkiNewLimitTile(),
-                settingsTileDivider(context),
-                const SettingsAnkiReviewLimitTile(),
-                settingsTileDivider(context),
-                const SettingsDailyChallengeAnkiTile(),
-              ],
-            ),
-            const SizedBox(height: 12),
             SettingsCard(
               children: [
                 SettingsActionTile(

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 // Project imports:
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
@@ -77,31 +78,31 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      // Tap the close button.
+      // Tap the close button (global sheet header).
       await tester.tap(find.byIcon(Icons.close_rounded).first);
       await tester.pumpAndSettle();
 
       expect(find.text('小狐狸').hitTestable(), findsNothing);
     });
 
-    testWidgets('header exposes a reset button that dismisses the sheet',
+    testWidgets('footer exposes a reset action that dismisses the sheet',
         (tester) async {
       await tester.pumpWidget(_TestHost(user: LocalUser.local));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      // The reset icon must be present in the header (left of close).
+      // 湿地雾光 R15：reset 从头部图标迁到弹层操作区的主操作。
       expect(
-        find.byIcon(Icons.restart_alt_rounded),
+        find.text(AppStrings.accountAvatarReset),
         findsOneWidget,
-        reason: 'reset button should be in the picker header',
+        reason: 'reset action should be in the sheet footer',
       );
 
       // Tapping it should dismiss the sheet. The picker pops with a sentinel
       // and the caller flips it to a copyWith(clearAvatarId: true) — the
       // sentinel behaviour is asserted by the model test; here we just
       // verify the UI affordance exists and dismisses cleanly.
-      await tester.tap(find.byIcon(Icons.restart_alt_rounded));
+      await tester.tap(find.text(AppStrings.accountAvatarReset));
       await tester.pumpAndSettle();
 
       // The grid contents are gone (sheet popped).

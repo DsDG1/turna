@@ -180,9 +180,11 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
     for (var idx = 0; idx < widget.options.length; idx++) {
       widgets.add(InteractionOptionTile(
         label: widget.options[idx],
+        index: idx + 1,
         isSelected: _picked == idx,
         isCorrect: submitted && idx == widget.correctIndex,
         isWrong: submitted && correct == false && _picked == idx,
+        showDivider: idx < widget.options.length - 1,
         onTap: submitted
             ? null
             : () {
@@ -190,9 +192,6 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
                 _maybeSpeakOption(idx);
               },
       ));
-      if (idx < widget.options.length - 1) {
-        widgets.add(const SizedBox(height: 10));
-      }
     }
     return widgets;
   }

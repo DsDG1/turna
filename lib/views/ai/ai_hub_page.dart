@@ -10,10 +10,12 @@ import 'package:turna/application/ai/ai_tutor_chat_session.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
@@ -24,19 +26,16 @@ import 'package:turna/core/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
 ///
-/// Redesigned to share the Play Hub's soft-tinted card language
-/// ([SoftCard] / [AccentIconChip] / [ReviewTile] / [ToolsTile]). Reached from
-/// the Play Hub 复习队列's 「智能练习」tile (2026-10-20：原「AI 助手」横幅撤销，
-/// 入口并进练习队列), so it owns its own Scaffold + back AppBar.
+/// 「湿地雾光」R14 口径：AI 大厅 = **任务目录**，不再是大卡堆叠——
+///   1. **引擎状态一行**：状态点 + 一句文案（[AiEngineConfigHolder] 快照），
+///      点按进连接页；未配置时首屏给「连接 AI」主行动（[SessionPrimaryAction]）。
+///   2. **继续** —— 最近三件可续 AI 任务，行式（发丝线）。
+///   3. **生成练习 / 伴学** —— 每个 AI 能力是 [DirectoryLinkRow] 式入口
+///      （图标井 + 标题 + 一句说明）。
+///   4. **讲解偏好 / 系统提示词** —— 偏好目录表单与链接入口。
 ///
-/// Three sections in a single scroll view:
-///   1. **Hero** - teal gradient card with engine config (preset,
-///      chat model, masked key). Taps open the API config sheet.
-///   2. **Continue** - the most recent three AI tasks from
-///      [AiRecentTasksProvider], each tappable if a route is recorded.
-///   3. **Start** - tile grid that opens the major AI features (wish chat,
-///      textbook import, by-mistakes tutor, by-weak-words tutor) + a
-///      full-width depth-tutor row (gated on an active question).
+/// 生成物不直接写课程树：它们先进入「我的练习」（[AiPracticeLibrarySection]），
+/// 生成任务由 app 级队列承载，切页不中断。
 @RoutePage()
 class AiHubPage extends StatelessWidget {
   const AiHubPage({super.key});
@@ -75,53 +74,61 @@ class AiHubPage extends StatelessWidget {
       body: SafeArea(
         top: false,
         child: TurnaPageContent(
-          maxWidth: 840,
+          maxWidth: AppSpacing.formColumnMaxWidth,
           child: CustomScrollView(
             slivers: [
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              const SliverToBoxAdapter(child: _HeroSection()),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              // 引擎状态一行化：状态点 + 文案 + chevron，点按进连接页。
+              // 未配置时的页面级主行动紧随其后。
+              const SliverToBoxAdapter(child: _EngineStatusLine()),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.pageMargin,
+                  AppSpacing.md,
+                  AppSpacing.pageMargin,
+                  0,
+                ),
+                sliver: SliverToBoxAdapter(child: _ConnectCta()),
+              ),
               // AI 助手入口的**页面级**显式标识：用户在产生第一轮输出之前
               // 就知道这里的内容是模型生成的。单条输出的角标另由
               // AiMarkdownBody 承担。
               const SliverPadding(
-                padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.pageMargin,
+                  AppSpacing.md,
+                  AppSpacing.pageMargin,
+                  0,
+                ),
                 sliver: SliverToBoxAdapter(child: AiGeneratedBanner()),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-              // 生成物不再直接写课程树：它们先进入「我的练习」，在这里看进度、
-              // 开工、存放或删除。生成任务由 app 级队列承载，切页不中断。
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
               SliverToBoxAdapter(
                 child: AiPracticeLibrarySection(
                   onGenerate: () => showAiPracticeGenerateSheet(context),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+              const SliverToBoxAdapter(child: _GenerateSection()),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
               const SliverToBoxAdapter(child: _ContinueSection()),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              const SliverToBoxAdapter(child: _StartSection()),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              // AI 助手偏好（回复语言/解释深度/揭示与上下文注入）——偏好属于
-              // 助手而不是连接配置，从 AI 连接页迁移至此（Plan 2 §6.2）。
-              const SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverToBoxAdapter(child: AiExplainPrefsCard()),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+              const SliverToBoxAdapter(child: _CompanionSection()),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+              const SliverToBoxAdapter(child: AiExplainPrefsCard()),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
               // 系统提示词：把「AI 到底被交代了什么」摊开给用户看，并允许在
               // 默认文本之后追加自己的要求（默认部分不可替换）。
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverToBoxAdapter(
-                  child: ToolsTile(
-                    title: AppStrings.aiHubOpenPromptSheet,
-                    subtitle: AppStrings.aiHubOpenPromptSheetSubtitle,
-                    icon: Icons.code_rounded,
-                    accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
-                    onTap: () => showAiPromptSheet(context),
-                  ),
+              SliverToBoxAdapter(
+                child: DirectoryLinkRow(
+                  icon: Icons.code_rounded,
+                  iconTone: TurnaTheme.brandReed,
+                  title: AppStrings.aiHubOpenPromptSheet,
+                  description: AppStrings.aiHubOpenPromptSheetSubtitle,
+                  onTap: () => showAiPromptSheet(context),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
           ),
         ),
@@ -130,259 +137,201 @@ class AiHubPage extends StatelessWidget {
   }
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────
+// ─── Engine status（一行，不再是渐变大卡）─────────────────────────────────
 
-class _HeroSection extends StatelessWidget {
-  const _HeroSection();
+/// 引擎状态快照：只有这一行消费 holder，未配置态还驱动首屏主行动。
+class _EngineStatusSnapshot {
+  const _EngineStatusSnapshot({
+    required this.complete,
+    required this.statusText,
+  });
+
+  final bool complete;
+  final String statusText;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _EngineStatusSnapshot &&
+      other.complete == complete &&
+      other.statusText == statusText;
+
+  @override
+  int get hashCode => Object.hash(complete, statusText);
+}
+
+class _EngineStatusLine extends StatelessWidget {
+  const _EngineStatusLine();
 
   @override
   Widget build(BuildContext context) {
-    return Selector<AiEngineConfigHolder, _HeroSnapshot>(
-      selector: (_, holder) => _HeroSnapshot(
-        preset: holder.config.preset.label,
-        modelChat: holder.config.modelChat,
-        apiKeyMasked: _maskKey(holder.config.apiKey),
+    return Selector<AiEngineConfigHolder, _EngineStatusSnapshot>(
+      selector: (_, holder) => _EngineStatusSnapshot(
         complete: holder.config.isComplete,
+        statusText: holder.config.isComplete
+            ? AppStrings.aiHubEngineReady(
+                holder.config.preset.label,
+                holder.config.modelChat,
+              )
+            : AppStrings.playAiEngineNotConfigured,
       ),
       builder: (context, snap, _) {
-        const radius =
-            BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _openConfig(context),
-              borderRadius: radius,
-              child: Ink(
-                decoration: BoxDecoration(
-                  // 青碧渐变（tealDark → tealLight）。此前是 amethyst → teal，
-                  // 读起来是「蓝紫」，与全应用湿地/陶土调性不一致；改用同色系
-                  // 两档保证渐变中间的过渡不发灰，且白字对比始终达标。
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      TurnaTheme.brandTealDark,
-                      TurnaTheme.brandTealLight,
-                    ],
-                  ),
-                  borderRadius: radius,
-                  boxShadow: [
-                    BoxShadow(
-                      color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.22),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.auto_awesome_rounded,
-                              color: Colors.white,
-                              size: 30,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  AppStrings.aiHubTitle,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.white,
-                                        letterSpacing: -0.3,
-                                      ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  snap.complete
-                                      ? '${snap.preset} · ${snap.modelChat}'
-                                      : AppStrings.aiHubHeroIncomplete,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.85),
-                                      ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _HeroChip(label: snap.preset),
-                          _HeroChip(label: snap.apiKeyMasked),
-                          if (!snap.complete)
-                            _HeroChip(
-                              label: AppStrings.playAiEngineNotConfigured,
-                              warning: true,
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+        return InkWell(
+          onTap: () => _openConfig(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageMargin,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
               ),
+            ),
+            child: Row(
+              children: [
+                // 状态点：实心 teal = 已连接；空心环 = 未配置（轮廓表达，不靠色盲可辨的色相）。
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: snap.complete ? TurnaTheme.brandTeal : null,
+                    border: snap.complete
+                        ? null
+                        : Border.all(
+                            color: TurnaTheme.warning,
+                            width: 2,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm + 2),
+                Expanded(
+                  child: Text(
+                    '${AppStrings.aiHubEngineStatusLabel} · ${snap.statusText}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.captionSm(context).copyWith(
+                      color: snap.complete
+                          ? TurnaTheme.textSecondaryColor(context)
+                          : TurnaTheme.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ],
             ),
           ),
         );
       },
     );
   }
-
-  static String _maskKey(String key) {
-    final trimmed = key.trim();
-    if (trimmed.isEmpty) return '(no key)';
-    if (trimmed.length <= 8) return '${trimmed[0]}…(${trimmed.length})';
-    return '${trimmed.substring(0, 3)}…${trimmed.substring(trimmed.length - 4)}';
-  }
 }
 
-class _HeroSnapshot {
-  const _HeroSnapshot({
-    required this.preset,
-    required this.modelChat,
-    required this.apiKeyMasked,
-    required this.complete,
-  });
-  final String preset;
-  final String modelChat;
-  final String apiKeyMasked;
-  final bool complete;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _HeroSnapshot &&
-      other.preset == preset &&
-      other.modelChat == modelChat &&
-      other.apiKeyMasked == apiKeyMasked &&
-      other.complete == complete;
-
-  @override
-  int get hashCode => Object.hash(preset, modelChat, apiKeyMasked, complete);
-}
-
-/// Small frosted chip rendered on the gradient hero. Warning variant swaps to
-/// a solid warning fill so an incomplete config can't be missed.
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.label, this.warning = false});
-  final String label;
-  final bool warning;
+/// 未配置时的首屏主行动；已配置时不渲染（大厅不再放「去配置」卡）。
+class _ConnectCta extends StatelessWidget {
+  const _ConnectCta();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color:
-            warning ? TurnaTheme.warning : Colors.white.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: warning ? 0.0 : 0.35),
-          width: 0.5,
-        ),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
+    return Selector<AiEngineConfigHolder, bool>(
+      selector: (_, holder) => holder.config.isComplete,
+      builder: (context, complete, _) {
+        if (complete) return const SizedBox.shrink();
+        return SessionPrimaryAction(
+          label: AppStrings.aiHubConnectCta,
+          onPressed: () => _openConfig(context),
+          trailingIcon: Icons.arrow_forward_rounded,
+        );
+      },
     );
   }
 }
 
-// ─── Continue ─────────────────────────────────────────────────────────────
+// ─── 生成练习（目录入口）──────────────────────────────────────────────────
+
+class _GenerateSection extends StatelessWidget {
+  const _GenerateSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(AppStrings.aiHubNew),
+        // Primary: 用学习数据或自定义主题生成一份练习/课程草稿。生成在
+        // app 级后台队列里跑，关掉面板后仍继续；结果进入「我的练习」。
+        DirectoryLinkRow(
+          icon: Icons.history_toggle_off_rounded,
+          iconTone: TurnaTheme.brandTeal,
+          title: AppStrings.aiPracticeEntryDataTitle,
+          description: AppStrings.aiPracticeEntryDataSubtitle,
+          onTap: () => showAiPracticeGenerateSheet(context),
+        ),
+        DirectoryLinkRow(
+          icon: Icons.school_rounded,
+          iconTone: TurnaTheme.anatolianClay,
+          title: AppStrings.aiPracticeModeCustom,
+          description: AppStrings.aiPracticeEntryCustomSubtitle,
+          onTap: () => showAiPracticeGenerateSheet(context, customMode: true),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── 继续（最近任务，行式）────────────────────────────────────────────────
 
 class _ContinueSection extends StatelessWidget {
   const _ContinueSection();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionTitle(title: AppStrings.aiHubContinue),
-          Selector<AiRecentTasksProvider, List<AiRecentTask>>(
-            selector: (_, p) => p.items,
-            builder: (context, items, _) {
-              // Newest-first snapshot; slice here instead of in the selector
-              // so the selected value keeps a stable identity between
-              // mutations (a slicing selector would allocate on every
-              // evaluation and rebuild on every notify).
-              final top =
-                  items.where(_isResumable).take(3).toList(growable: false);
-              if (top.isEmpty) {
-                return SoftCard(
-                  accentColor: TurnaTheme.brandTeal,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      AppStrings.aiHubContinueEmpty,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(AppStrings.aiHubContinue),
+        Selector<AiRecentTasksProvider, List<AiRecentTask>>(
+          selector: (_, p) => p.items,
+          builder: (context, items, _) {
+            // Newest-first snapshot; slice here instead of in the selector
+            // so the selected value keeps a stable identity between
+            // mutations (a slicing selector would allocate on every
+            // evaluation and rebuild on every notify).
+            final top =
+                items.where(_isResumable).take(3).toList(growable: false);
+            if (top.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                child: Text(
+                  AppStrings.aiHubContinueEmpty,
+                  style: AppTextStyles.captionSm(context).copyWith(
+                    color: TurnaTheme.textHintColor(context),
                   ),
-                );
-              }
-              return Column(
-                children: [
-                  for (final t in top) ...[
-                    _RecentRow(
-                      task: t,
-                      onTap: t.route == null
-                          ? null
-                          : () => _navigateByRoute(context, t.route!),
-                    ),
-                    if (t != top.last) const SizedBox(height: 10),
-                  ],
-                ],
+                ),
               );
-            },
-          ),
-        ],
-      ),
+            }
+            return Column(
+              children: [
+                for (var i = 0; i < top.length; i++) ...[
+                  _RecentRow(
+                    task: top[i],
+                    showDivider: i < top.length - 1,
+                    onTap: top[i].route == null
+                        ? null
+                        : () => _navigateByRoute(context, top[i].route!),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -395,89 +344,20 @@ class _ContinueSection extends StatelessWidget {
 }
 
 class _RecentRow extends StatelessWidget {
-  const _RecentRow({required this.task, this.onTap});
+  const _RecentRow({required this.task, this.onTap, this.showDivider = true});
+
   final AiRecentTask task;
   final VoidCallback? onTap;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal);
-
-    return SoftCard(
-      accentColor: TurnaTheme.brandTeal,
+    return DirectoryEntryRow(
+      title: task.summary,
+      subtitle: _labelFor(task.kind),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            AccentIconChip(
-              icon: _iconFor(task.kind),
-              color: accent,
-              size: 20,
-              padding: 8,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.summary,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _labelFor(task.kind),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            if (onTap != null)
-              Icon(
-                Icons.chevron_right_rounded,
-                color: accent,
-                size: 20,
-              ),
-          ],
-        ),
-      ),
+      showDivider: showDivider,
     );
-  }
-
-  static IconData _iconFor(String kind) {
-    switch (kind) {
-      case AiTaskKind.wish:
-        return Icons.auto_awesome_rounded;
-      case AiTaskKind.textbook:
-        return Icons.menu_book_rounded;
-      case AiTaskKind.tutorMistakes:
-      case AiTaskKind.tutorWeakWords:
-        return Icons.history_edu_rounded;
-      case AiTaskKind.hintChat:
-        return Icons.chat_bubble_outline_rounded;
-      case AiTaskKind.hintDepth:
-        return Icons.menu_book_outlined;
-      case AiTaskKind.lessonHelper:
-        return Icons.build_circle_outlined;
-      case AiTaskKind.courseGenerate:
-        return Icons.school_rounded;
-      case AiTaskKind.tutorChat:
-        return Icons.forum_outlined;
-      case AiTaskKind.diagnosis:
-        return Icons.analytics_outlined;
-      case AiTaskKind.dictionary:
-        return Icons.menu_book_rounded;
-      default:
-        return Icons.bolt_rounded;
-    }
   }
 
   static String _labelFor(String kind) {
@@ -510,89 +390,74 @@ class _RecentRow extends StatelessWidget {
   }
 }
 
-// ─── Start (companion first; authoring demoted) ─────────────────────────────
+// ─── 伴学（目录入口）──────────────────────────────────────────────────────
 
-class _StartSection extends StatelessWidget {
-  const _StartSection();
+class _CompanionSection extends StatelessWidget {
+  const _CompanionSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(AppStrings.aiHubCompanionSection),
+        DirectoryLinkRow(
+          icon: Icons.chat_bubble_outline_rounded,
+          iconTone: TurnaTheme.brandTeal,
+          title: AppStrings.aiHubStartTutorChat,
+          description: AppStrings.aiHubFreeChatDesc,
+          onTap: () => context.router.push(AiTutorChatRoute()),
+        ),
+        DirectoryLinkRow(
+          icon: Icons.analytics_outlined,
+          iconTone: TurnaTheme.brandSky,
+          title: AppStrings.aiHubStartDiagnosis,
+          description: AppStrings.aiHubDiagnosisDesc,
+          onTap: () => context.router.push(const AiDiagnosisRoute()),
+        ),
+        DirectoryLinkRow(
+          icon: Icons.bookmark_outline_rounded,
+          iconTone: TurnaTheme.anatolianClay,
+          title: AppStrings.aiHubStartSaved,
+          description: AppStrings.aiHubSavedDesc,
+          onTap: () => context.router.push(const AiSavedListRoute()),
+        ),
+        DirectoryLinkRow(
+          icon: Icons.account_tree_outlined,
+          iconTone: TurnaTheme.brandReed,
+          title: AppStrings.aiHubStartDepthTutor,
+          description: AppStrings.aiHubDepthTutorDesc,
+          onTap: () => _openSheet(context, const AiDepthTutorSheet()),
+        ),
+      ],
+    );
+  }
+}
+
+/// 区块标题：目录页的分组名（排版 + 发丝线组织，不包卡）。
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.title);
+
+  final String title;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 不在「生成练习」标题下再放一张「去配置」卡：连接配置的唯一页面级
-          // 入口是页首引擎卡（以及 设置 → 高级 → AI 连接），未配置时的说明
-          // 由生成面板内的纯文案承担（AppStrings.aiPracticeNotConfigured）。
-          SectionTitle(title: AppStrings.aiHubNew),
-          const SizedBox(height: 12),
-          // Primary: 用学习数据或自定义主题生成一份练习/课程草稿。生成在
-          // app 级后台队列里跑，关掉面板后仍继续；结果进入「我的练习」。
-          ToolsTile(
-            title: AppStrings.aiPracticeEntryDataTitle,
-            subtitle: AppStrings.aiPracticeEntryDataSubtitle,
-            icon: Icons.history_toggle_off_rounded,
-            accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
-            onTap: () => showAiPracticeGenerateSheet(context),
-          ),
-          const SizedBox(height: 8),
-          ToolsTile(
-            title: AppStrings.aiPracticeSourceCustom,
-            subtitle: AppStrings.aiPracticeEntryCustomSubtitle,
-            icon: Icons.school_rounded,
-            accentColor: TurnaTheme.brandReed.withValues(alpha: 0.85),
-            onTap: () => showAiPracticeGenerateSheet(
-              context,
-              customMode: true,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SectionTitle(title: AppStrings.aiHubCompanionSection),
-          GridView.count(
-            padding: EdgeInsets.zero,
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
-            children: [
-              ReviewTile(
-                title: AppStrings.aiHubStartTutorChat,
-                icon: Icons.chat_bubble_outline_rounded,
-                accentColor: TurnaTheme.brandTeal,
-                onTap: () => context.router.push(AiTutorChatRoute()),
-              ),
-              ReviewTile(
-                title: AppStrings.aiHubStartDiagnosis,
-                icon: Icons.analytics_outlined,
-                accentColor: TurnaTheme.brandSky,
-                onTap: () => context.router.push(const AiDiagnosisRoute()),
-              ),
-              ReviewTile(
-                title: AppStrings.aiHubStartSaved,
-                icon: Icons.bookmark_outline_rounded,
-                accentColor: TurnaTheme.anatolianClay,
-                onTap: () => context.router.push(const AiSavedListRoute()),
-              ),
-              ReviewTile(
-                title: AppStrings.aiHubStartDepthTutor,
-                icon: Icons.account_tree_outlined,
-                accentColor: TurnaTheme.brandReed,
-                onTap: () => _openSheet(context, const AiDepthTutorSheet()),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
+      padding: const EdgeInsets.only(
+        left: AppSpacing.pageMargin,
+        right: AppSpacing.pageMargin,
+        bottom: AppSpacing.xs + 2,
       ),
+      child: Text(title, style: AppTextStyles.sectionTitle(context)),
     );
   }
 }
 
 // ─── Shared helpers ───────────────────────────────────────────────────────
 
+/// 深度讲解 sheet 属课时域（`views/lesson/components/`），自带标题行与键盘
+/// 让位；这里维持原容器（它的弹层迁移随课时域 P3 批次走），只保证入口行
+/// 本身是目录式。
 void _openSheet(BuildContext context, Widget sheet) {
   showModalBottomSheet<void>(
     context: context,

@@ -39,6 +39,7 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 | [`design-refresh/p0-assets.md`](./design-refresh/p0-assets.md) | 资产清单：栅格资产、代码品牌系统、教学与记忆卡资产的重绘边界 |
 | [`design-refresh/p0-issues.md`](./design-refresh/p0-issues.md) | 问题列表（按是否阻断设计分级）与截图场景采集口径 |
 | [`design-refresh/p1-language-and-wireframes.md`](./design-refresh/p1-language-and-wireframes.md) | P1 定型：品牌规则要点、全局版面模式、R01–R18 逐族线框决定与 P2 组件输入 |
+| [`design-refresh/p2-components.md`](./design-refresh/p2-components.md) | P2 产物：版面 token 增量与五组公共组件（会话骨架 / 报告套件 / 目录行族 / 全局弹层 / 搜索基元 / 外壳）的文件地图、接缝与接线状态 |
 
 ## 构建与发布
 

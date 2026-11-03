@@ -121,21 +121,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('landing shows personal summary, quick states and destinations',
+  testWidgets('landing shows quick capsules and destination directory',
       (tester) async {
     await tester.pumpWidget(wrap(const SettingsPage()));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('settings-personal-summary')), findsOneWidget);
-    expect(find.text(AppStrings.settingsLandingQuickTitle), findsOneWidget);
-    expect(find.text(AppStrings.settingsGroupLearning), findsOneWidget);
-    expect(find.text(AppStrings.settingsGroupDataSystem), findsOneWidget);
+    // 湿地雾光 R16 落地页：三条高频偏好胶囊（语言 / 主题 / 字号）直接
+    // 开篇，个人摘要卡已退役（身份归个人页的学习档案）。
+    expect(find.byKey(const Key('settings-personal-summary')), findsNothing);
 
     // Lightweight current values; no destination page needs to be opened.
     expect(find.text('Turkish'), findsOneWidget);
     expect(find.text(AppStrings.settingsThemeSystem), findsOneWidget);
-    expect(find.text(AppStrings.settingsLandingReminderOff), findsOneWidget);
     expect(find.text(AppStrings.settingsTextSizeValue(100)), findsOneWidget);
+
+    // The two directory groups.
+    expect(find.text(AppStrings.settingsGroupLearning), findsOneWidget);
+    expect(find.text(AppStrings.settingsGroupDataSystem), findsOneWidget);
 
     // The seven formal destinations.
     expect(find.text(AppStrings.settingsCategoryAccount), findsOneWidget);
@@ -166,7 +168,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text(AppStrings.settingsLandingQuickTitle), findsOneWidget);
+    expect(find.text(AppStrings.settingsGroupLearning), findsOneWidget);
   });
 
   testWidgets('landing list has a stable PageStorageKey for scroll restore',

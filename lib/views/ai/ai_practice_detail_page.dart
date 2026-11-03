@@ -11,17 +11,21 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/application/ai/practice/ai_practice_quality.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_practice_actions.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Course detail: the generated outline (unit → lesson → item count), the
 /// content-verification report, and the generation history.
 ///
-/// This is the page the library's "收纳结构" rests on: the card answers "what is
-/// this", the detail page answers "what is inside it, was it checked, and how
-/// many times was it generated".
+/// This is the page the library's "收纳结构" rests on: the row answers "what
+/// is this", the detail page answers "what is inside it, was it checked, and
+/// how many times was it generated". R14：阅读页纸面化（分区标题 + 纸面信息块），
+/// 开始 / 重新生成收进底部动作带。
 @RoutePage()
 class AiPracticeDetailPage extends StatelessWidget {
   const AiPracticeDetailPage({super.key, required this.courseId});
@@ -36,7 +40,10 @@ class AiPracticeDetailPage extends StatelessWidget {
       backgroundColor: TurnaTheme.surfaceColor(context),
       appBar: AppBar(
         centerTitle: true,
-        title: Text(AppStrings.aiPracticeDetailTitle),
+        title: Text(
+          AppStrings.aiPracticeDetailTitle,
+          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 17),
+        ),
         actions: [
           if (course != null && course.isPlayable)
             IconButton(
@@ -58,37 +65,71 @@ class AiPracticeDetailPage extends StatelessWidget {
           ? Center(
               child: Text(
                 AppStrings.aiPracticeRunnerEmpty,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
+                style: AppTextStyles.bodyText(context).copyWith(
+                  fontSize: 15,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              children: [
-                _Header(course: course),
-                const SizedBox(height: 18),
-                _QualitySection(course: course),
-                const SizedBox(height: 18),
-                _OutlineSection(course: course),
-                if (course.versions.length > 1) ...[
-                  const SizedBox(height: 18),
-                  _HistorySection(course: course),
-                ],
-                const SizedBox(height: 24),
-                if (course.isPlayable)
-                  FilledButton.icon(
-                    onPressed: () => openAiPractice(context, course),
-                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                    label: Text(AppStrings.aiPracticeStart),
+          : SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pageMargin,
+                        AppSpacing.lg,
+                        AppSpacing.pageMargin,
+                        AppSpacing.lg,
+                      ),
+                      children: [
+                        _Header(course: course),
+                        const SizedBox(height: AppSpacing.xl),
+                        _QualitySection(course: course),
+                        const SizedBox(height: AppSpacing.xl),
+                        _OutlineSection(course: course),
+                        if (course.versions.length > 1) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _HistorySection(course: course),
+                        ],
+                      ],
+                    ),
                   ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => retryAiPractice(context, course),
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: Text(AppStrings.aiPracticeRegenerate),
-                ),
-              ],
+                  SessionActionBand(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pageMargin,
+                      AppSpacing.md,
+                      AppSpacing.pageMargin,
+                      AppSpacing.lg,
+                    ),
+                    child: course.isPlayable
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TextButton(
+                                onPressed: () =>
+                                    retryAiPractice(context, course),
+                                child:
+                                    Text(AppStrings.aiPracticeRegenerate),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              SessionPrimaryAction(
+                                label: AppStrings.aiPracticeStart,
+                                onPressed: () => openAiPractice(context, course),
+                                trailingIcon: Icons.play_arrow_rounded,
+                              ),
+                            ],
+                          )
+                        : SessionPrimaryAction(
+                            label: AppStrings.aiPracticeRegenerate,
+                            onPressed: () => retryAiPractice(context, course),
+                            trailingIcon: Icons.refresh_rounded,
+                          ),
+                  ),
+                ],
+              ),
             ),
     );
   }
@@ -391,13 +432,11 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      // ADR 0062：练习详情是单张信息卡 → 走完整玻璃（渐变 + 彩影）。
-      decoration: TurnaTheme.glassDecoration(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      // R14：阅读页信息块走纸面（实色 + 发丝边），不再叠玻璃。
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,17 +451,14 @@ class _Card extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: TurnaTheme.textPrimaryColor(context),
-                    ),
+                style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm + 2),
           ...children,
         ],
       ),
@@ -433,9 +469,6 @@ class _Card extends StatelessWidget {
 Widget _muted(BuildContext context, String text) {
   return Text(
     text,
-    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: TurnaTheme.textSecondaryColor(context),
-          height: 1.5,
-        ),
+    style: AppTextStyles.captionSm(context).copyWith(height: 1.5),
   );
 }

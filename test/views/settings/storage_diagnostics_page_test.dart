@@ -130,12 +130,14 @@ void main() {
     expect(find.text('总占用'), findsOneWidget);
     // 4096 + 2048 + 512 + 256 = 6912 bytes ≈ 6.8 KB.
     expect(find.text('6.8 KB'), findsOneWidget);
-    expect(find.text('学习数据'), findsOneWidget);
-    expect(find.text('媒体文件'), findsOneWidget);
-    expect(find.text('记忆卡收藏'), findsOneWidget);
-    expect(find.text('缓存与日志'), findsOneWidget);
-    // The orphan media directory surfaces as a plain leftover-file warning.
-    expect(find.textContaining('发现 1 个残留文件夹'), findsOneWidget);
+    // 构成条图例与分类行同名并存（R17 报告版式），按至少一处断言。
+    expect(find.text('学习数据'), findsWidgets);
+    expect(find.text('媒体文件'), findsWidgets);
+    expect(find.text('记忆卡收藏'), findsWidgets);
+    expect(find.text('缓存与日志'), findsWidgets);
+    // R17 报告版式：残留媒体目录不再占页首横幅，收进「媒体文件」分类的
+    // 明细列表（storage_category_items），页首只保留可一键安全回收的
+    // 清理按钮。
     // 512 + 256 = 768 bytes safely reclaimable.
     expect(find.textContaining('清理缓存，可释放 768 B'), findsOneWidget);
     // Rescan moved to the app bar.

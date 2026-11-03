@@ -125,7 +125,7 @@ void main() {
     expect(find.text('问候'), findsOneWidget);
   });
 
-  testWidgets('real DictionaryHitTile shows AI enrich when term present',
+  testWidgets('real DictionaryHitRow shows AI enrich when term present',
       (tester) async {
     final hit = DictionaryHit(
       kind: DictionaryHitKind.vocab,
@@ -137,10 +137,7 @@ void main() {
       MaterialApp(
         theme: TurnaTheme.lightTheme,
         home: Scaffold(
-          body: DictionaryHitTile(
-            hit: hit,
-            onSpeak: () {},
-          ),
+          body: DictionaryHitRow(hit: hit),
         ),
       ),
     );

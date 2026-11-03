@@ -19,8 +19,13 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/search_field.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
+/// 卡牌浏览器 ——「湿地雾光」阅读目录版式：正面摘要 + 元信息的
+/// [DirectoryEntryRow] 行（发丝线，不是卡）；搜索与标签走 [TurnaSearchField]
+/// （防抖内建，页内不再手写输入防抖 Timer）。
 @RoutePage()
 class AnkiCardBrowserPage extends StatefulWidget {
   final String importId;
@@ -41,7 +46,11 @@ class AnkiCardBrowserPage extends StatefulWidget {
 class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   final _searchController = TextEditingController();
   final _tagController = TextEditingController();
-  Timer? _debounce;
+
+  /// Doc 38 P4-A: filter chips / deck dropdown share a short burst debounce
+  /// so a quick sequence of taps does not fire one full search per tap. 文本
+  /// 输入的防抖已由 TurnaSearchField 内建，这里只承载非文本控件的连击。
+  Timer? _burstDebounce;
   List<SourceAwareBrowserCard> _officialRows = const [];
   bool _loading = true;
   int? _flag;
@@ -55,6 +64,11 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   final OfficialAnkiPreviewCache _previewCache = OfficialAnkiPreviewCache();
   OfficialAnkiSourceAwareBrowser? _browser;
 
+  /// Doc 38 P4-A: 懒加载正面摘要的内存态（cardId → front/back）。浏览器
+  /// 自带 LRU，这里只记「已取回的终值」让行随 setState 升级。
+  final Map<int, (String front, String back)> _loadedPreviews = {};
+  final Set<int> _previewsInFlight = {};
+
   @override
   void initState() {
     super.initState();
@@ -63,18 +77,15 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _burstDebounce?.cancel();
     _searchController.dispose();
     _tagController.dispose();
     super.dispose();
   }
 
-  /// Doc 38 P4-A: filter chips / deck dropdown / tag field share the search
-  /// box's 250ms debounce so a quick sequence of taps does not fire one full
-  /// search per tap.
   void _scheduleLoad() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), _load);
+    _burstDebounce?.cancel();
+    _burstDebounce = Timer(const Duration(milliseconds: 250), _load);
   }
 
   Future<void> _load() async {
@@ -151,9 +162,26 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     });
   }
 
-  void _onSearchChanged(String _) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), _load);
+  /// 懒取一张卡的正面摘要（单次 renderCard FFI，浏览器侧 LRU 缓存）。
+  Future<void> _ensurePreview(SourceAwareBrowserCard row) async {
+    final browser = _browser;
+    if (browser == null || _previewsInFlight.contains(row.cardId)) return;
+    _previewsInFlight.add(row.cardId);
+    try {
+      final preview = await browser.previewFor(row.cardId);
+      if (!mounted) return;
+      final cached = _loadedPreviews[row.cardId];
+      if (cached != null &&
+          cached.$1 == preview.front &&
+          cached.$2 == preview.back) {
+        return;
+      }
+      setState(() {
+        _loadedPreviews[row.cardId] = (preview.front, preview.back);
+      });
+    } finally {
+      _previewsInFlight.remove(row.cardId);
+    }
   }
 
   Future<void> _toggleOfficial(SourceAwareBrowserCard row) async {
@@ -202,24 +230,11 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
+            child: TurnaSearchField(
               controller: _searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: AppStrings.ankiBrowserSearchHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: AppStrings.commonClear,
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          unawaited(_load());
-                        },
-                      ),
-                border: const OutlineInputBorder(),
-              ),
+              hint: AppStrings.ankiBrowserSearchHint,
+              searching: _loading,
+              onDebouncedChanged: (_) => unawaited(_load()),
             ),
           ),
           SingleChildScrollView(
@@ -307,157 +322,119 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
+                    child: TurnaSearchField(
                       controller: _tagController,
-                      onChanged: _onSearchChanged,
-                      decoration: InputDecoration(
-                        labelText: AppStrings.ankiBrowserTagsLabel,
-                        isDense: true,
-                      ),
+                      hint: AppStrings.ankiBrowserTagsLabel,
+                      onDebouncedChanged: (_) => unawaited(_load()),
                     ),
                   ),
                 ],
               ),
             ),
           Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _loadError != null
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                  AppStrings.ankiBrowserLoadFailed(_loadError!),
-                                  textAlign: TextAlign.center),
-                              const SizedBox(height: 12),
-                              FilledButton(
-                                onPressed: _load,
-                                child: Text(AppStrings.commonRetry),
-                              ),
-                            ],
-                          ),
-                        )
-                      : _officialUnavailableReason != null
-                          ? Center(
-                              child: Text(
-                                AppStrings.ankiBrowserOfficialUnavailable(
-                                    _officialUnavailableReason!),
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          : (_officialRows.isEmpty
-                              ? Center(
-                                  child: Text(AppStrings.ankiBrowserNoMatches))
-                              : ListView.builder(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(12, 0, 12, 20),
-                                  itemCount: _officialRows.length,
-                                  itemBuilder: (context, index) {
-                                    final row = _officialRows[index];
-                                    return Card(
-                                      child: ListTile(
-                                        leading: _FlagIcon(flag: row.flag),
-                                        title: _OfficialPreviewText(
-                                          browser: _browser,
-                                          row: row,
-                                        ),
-                                        subtitle: Text(
-                                          'Official #${row.cardId} · note #${row.noteId}'
-                                          '${row.suspended ? ' · ${AppStrings.ankiBrowserSuspended}' : ''}'
-                                          '${row.buried ? ' · ${AppStrings.ankiBrowserBuried}' : ''}'
-                                          '${row.marked ? ' · ${AppStrings.ankiBrowserMarked}' : ''}',
-                                          style: TextStyle(
-                                            color: TurnaTheme.textHintColor(
-                                                context),
-                                          ),
-                                        ),
-                                        trailing: PopupMenuButton<String>(
-                                          onSelected: (value) {
-                                            if (value == 'review') {
-                                              _openFormalReview(context);
-                                            } else if (value == 'suspend') {
-                                              unawaited(_toggleOfficial(row));
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                            PopupMenuItem(
-                                              value: 'review',
-                                              child: Text(AppStrings
-                                                  .ankiBrowserGoReview),
-                                            ),
-                                            PopupMenuItem(
-                                              value: 'suspend',
-                                              child: Text(
-                                                row.suspended
-                                                    ? AppStrings
-                                                        .ankiBrowserUnsuspend
-                                                    : AppStrings
-                                                        .ankiCardSuspend,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ))),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              AppStrings.ankiBrowserLoadFailed(_loadError!),
+                              textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: _load,
+                              child: Text(AppStrings.commonRetry),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _officialUnavailableReason != null
+                        ? Center(
+                            child: Text(
+                              AppStrings.ankiBrowserOfficialUnavailable(
+                                  _officialUnavailableReason!),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : (_officialRows.isEmpty
+                            ? Center(
+                                child: Text(AppStrings.ankiBrowserNoMatches))
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 4,
+                                ),
+                                itemCount: _officialRows.length,
+                                itemBuilder: (context, index) {
+                                  final row = _officialRows[index];
+                                  return _buildEntryRow(context, row);
+                                },
+                              )),
+          ),
         ],
       ),
     );
   }
-}
 
-/// Doc 38 P4-A: the list row renders lazily — an empty preview triggers one
-/// `previewFor` load (single renderCard FFI per card, LRU-cached); cached
-/// rows paint with zero FFI. Detail/flip views keep full renderCard.
-class _OfficialPreviewText extends StatefulWidget {
-  const _OfficialPreviewText({required this.browser, required this.row});
-
-  final OfficialAnkiSourceAwareBrowser? browser;
-  final SourceAwareBrowserCard row;
-
-  @override
-  State<_OfficialPreviewText> createState() => _OfficialPreviewTextState();
-}
-
-class _OfficialPreviewTextState extends State<_OfficialPreviewText> {
-  String _front = '';
-  String _back = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _front = widget.row.frontPreview;
-    _back = widget.row.backPreview;
-    if (_front.isEmpty) {
-      unawaited(_load());
+  /// 阅读目录行：正面摘要（懒加载）+ 卡片元信息，发丝线分隔。
+  Widget _buildEntryRow(BuildContext context, SourceAwareBrowserCard row) {
+    final lazy = _loadedPreviews[row.cardId];
+    final front = row.frontPreview.isNotEmpty
+        ? row.frontPreview
+        : lazy?.$1 ?? '';
+    final back = row.backPreview.isNotEmpty
+        ? row.backPreview
+        : lazy?.$2 ?? '';
+    if (front.isEmpty && _browser != null) {
+      // 空 preview → 一次 renderCard FFI（Doc 38 P4-A），取回后行升级。
+      unawaited(_ensurePreview(row));
     }
-  }
-
-  Future<void> _load() async {
-    final browser = widget.browser;
-    if (browser == null) return;
-    final preview = await browser.previewFor(widget.row.cardId);
-    if (!mounted) return;
-    if (preview.front == _front && preview.back == _back) return;
-    setState(() {
-      _front = preview.front;
-      _back = preview.back;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_front.isEmpty) {
-      return Text('card #${widget.row.cardId}',
-          maxLines: 2, overflow: TextOverflow.ellipsis);
+    final states = [
+      if (row.suspended) AppStrings.ankiBrowserSuspended,
+      if (row.buried) AppStrings.ankiBrowserBuried,
+      if (row.marked) AppStrings.ankiBrowserMarked,
+    ];
+    final meta = StringBuffer('Official #${row.cardId} · note #${row.noteId}');
+    for (final state in states) {
+      meta.write(' · $state');
     }
-    final back = _back.isEmpty ? '' : '  ·  $_back';
-    return Text(
-      '$_front$back',
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+
+    return DirectoryEntryRow(
+      key: ValueKey('browser-card-${row.cardId}'),
+      title: front.isEmpty ? 'card #${row.cardId}' : front,
+      subtitle: back.isEmpty ? null : back,
+      meta: meta.toString(),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FlagIcon(flag: row.flag),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'review') {
+                _openFormalReview(context);
+              } else if (value == 'suspend') {
+                unawaited(_toggleOfficial(row));
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'review',
+                child: Text(AppStrings.ankiBrowserGoReview),
+              ),
+              PopupMenuItem(
+                value: 'suspend',
+                child: Text(
+                  row.suspended
+                      ? AppStrings.ankiBrowserUnsuspend
+                      : AppStrings.ankiCardSuspend,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

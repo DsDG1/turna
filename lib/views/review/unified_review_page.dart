@@ -22,10 +22,9 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
-import 'package:turna/views/review/components/binary_recall_bar.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/domain/anki/objective_outcome.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
-import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:turna/core/ohos_target.dart';
@@ -324,51 +323,73 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
       },
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: ReviewProgressHeader(
-          progress: _controller.progress,
+        // 会话顶带（R08）：bar 风格——复习队列是长队列，不逐题占位；
+        // AI 讲解与撤销是上下文动作键，排在计数之后。
+        appBar: SessionProgressBand(
           currentIndex: _controller.currentIndex + 1,
           totalCount: _controller.totalCount,
-          onBack: _confirmExit,
-          // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056）：
-          // 传 null 即不渲染讲解按钮。
-          onAiExplain:
-              isDegraded(OhosDegradation.aiGeneration) ? null : _openAiTutor,
-          onUndo: () async {
-            final ok = await _controller.undoLast();
-            if (!ok || !context.mounted) return;
-            TurnaSnackBar.show(
-              context,
-              AppStrings.reviewUndoRatingDone,
-              duration: const Duration(seconds: 2),
-            );
-          },
-          canUndo: _controller.lastReceipt != null &&
-              !_controller.isSubmitting &&
-              !_controller.isPersisting &&
-              _controller.writeError == null,
+          style: SessionProgressStyle.bar,
+          onExit: _confirmExit,
+          exitTooltip: AppStrings.commonClose,
+          actions: [
+            // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056）：
+            // 降级时整键不渲染。
+            if (!isDegraded(OhosDegradation.aiGeneration))
+              IconButton(
+                tooltip: AppStrings.aiExplainCard,
+                icon: const Icon(Icons.auto_awesome_rounded),
+                onPressed: _openAiTutor,
+              ),
+            IconButton(
+              tooltip: AppStrings.commonUndoLastCard,
+              icon: const Icon(Icons.undo_rounded),
+              onPressed:
+                  (_controller.lastReceipt != null &&
+                          !_controller.isSubmitting &&
+                          !_controller.isPersisting &&
+                          _controller.writeError == null)
+                      ? () async {
+                          final ok = await _controller.undoLast();
+                          if (!ok || !context.mounted) return;
+                          TurnaSnackBar.show(
+                            context,
+                            AppStrings.reviewUndoRatingDone,
+                            duration: const Duration(seconds: 2),
+                          );
+                        }
+                      : null,
+            ),
+          ],
         ),
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Responsive page chrome: padding and the card/action gap shrink
-              // on short screens and center within 760dp on tablets
-              // (WEBVIEW-UX-2026-08 §6.2).
-              final mq = MediaQuery.of(context);
-              final sizing = resolveAnkiWebViewSizing(
-                AnkiWebViewSizingInput(
-                  viewport: Size(constraints.maxWidth, constraints.maxHeight),
-                  orientation: mq.orientation,
-                  scene: AnkiWebViewScene.review,
-                ),
-              );
-              return Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: sizing.horizontalPadding,
-                  vertical: 16,
-                ),
-                child: Column(
-                  children: [
-                    Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 来源行：三相位会话唯一的上下文差异位。
+              SessionSourceLine(
+                icon: _sourceLineIcon(item),
+                label: _sourceLineLabel(item),
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Responsive page chrome: padding and the card/action gap
+                    // shrink on short screens and center within 760dp on
+                    // tablets (WEBVIEW-UX-2026-08 §6.2).
+                    final mq = MediaQuery.of(context);
+                    final sizing = resolveAnkiWebViewSizing(
+                      AnkiWebViewSizingInput(
+                        viewport:
+                            Size(constraints.maxWidth, constraints.maxHeight),
+                        orientation: mq.orientation,
+                        scene: AnkiWebViewScene.review,
+                      ),
+                    );
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: sizing.horizontalPadding,
+                        vertical: 8,
+                      ),
                       child: StudyCardSurface(
                         content: content,
                         isRevealed: _controller.isRevealed,
@@ -387,93 +408,114 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                             : null,
                         generation: _controller.currentIndex,
                       ),
-                    ),
-                    SizedBox(height: sizing.bottomGap),
-                    if (_controller.writeError != null) ...[
-                      Text(
-                        AppStrings.reviewWriteFailed,
-                        key: const Key('unified-review-error'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: TurnaTheme.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      TextButton.icon(
-                        key: const Key('unified-review-retry'),
-                        onPressed: _controller.isPersisting
-                            ? null
-                            : _controller.retryWrite,
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: Text(AppStrings.reviewRetry),
-                      ),
-                      const SizedBox(height: 12),
-                    ] else if (_controller.previewError != null) ...[
-                      TextButton.icon(
-                        key: const Key('unified-review-retry'),
-                        onPressed: _controller.isSubmitting
-                            ? null
-                            : _controller.retryPreviews,
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: Text(AppStrings.reviewRetry),
-                      ),
-                      const SizedBox(height: 12),
-                    ] else if (_controller.sideEffectWarning != null) ...[
-                      Text(
-                        AppStrings.reviewSavedStatsPending,
-                        key: const Key('unified-review-side-effect-warning'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (structured)
-                      const SizedBox.shrink()
-                    else if (!_controller.isRevealed)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _controller.isSubmitting
-                              ? null
-                              : _controller.reveal,
-                          // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: TurnaTheme.brandTeal,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ).copyWith(
-                              elevation:
-                                  const WidgetStatePropertyAll<double>(0)),
-                          child: Text(
-                            AppStrings.lessonShowAnswer,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      BinaryRecallBar(
-                        onOutcome: _controller.answer,
-                        forgottenPreview: _controller.forgottenPreview,
-                        rememberedPreview: _controller.rememberedPreview,
-                        enabled: !_controller.isSubmitting &&
-                            !_controller.isPersisting &&
-                            _controller.writeError == null,
-                      ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
+          ),
+        ),
+        // 动作带（R08）：位置跨阶段稳定；写入失败 / 预览失败的状态行在主
+        // 操作之上，与旧版相同的信息顺序。
+        bottomNavigationBar: SessionActionBand(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_controller.writeError != null) ...[
+                Text(
+                  AppStrings.reviewWriteFailed,
+                  key: const Key('unified-review-error'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: TurnaTheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextButton.icon(
+                  key: const Key('unified-review-retry'),
+                  onPressed: _controller.isPersisting
+                      ? null
+                      : _controller.retryWrite,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(AppStrings.reviewRetry),
+                ),
+              ] else if (_controller.previewError != null) ...[
+                TextButton.icon(
+                  key: const Key('unified-review-retry'),
+                  onPressed: _controller.isSubmitting
+                      ? null
+                      : _controller.retryPreviews,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(AppStrings.reviewRetry),
+                ),
+              ] else if (_controller.sideEffectWarning != null) ...[
+                Text(
+                  AppStrings.reviewSavedStatsPending,
+                  key: const Key('unified-review-side-effect-warning'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+              ],
+              if (_controller.writeError != null ||
+                  _controller.previewError != null ||
+                  _controller.sideEffectWarning != null)
+                const SizedBox(height: 12),
+              if (structured)
+                const SizedBox.shrink()
+              else if (!_controller.isRevealed)
+                SessionPrimaryAction(
+                  label: AppStrings.lessonShowAnswer,
+                  onPressed:
+                      _controller.isSubmitting ? null : _controller.reveal,
+                )
+              else
+                SessionRatingBand(
+                  actions: [
+                    SessionRatingAction(
+                      label: AppStrings.reviewBinaryForgotten,
+                      tone: SessionRatingTone.outline,
+                      interval:
+                          _controller.forgottenPreview?.intervalLabel,
+                      onPressed: () => _controller
+                          .answer(RecallOutcome.forgotten),
+                    ),
+                    SessionRatingAction(
+                      label: AppStrings.reviewBinaryRemembered,
+                      tone: SessionRatingTone.primary,
+                      interval:
+                          _controller.rememberedPreview?.intervalLabel,
+                      onPressed: () => _controller
+                          .answer(RecallOutcome.remembered),
+                    ),
+                  ],
+                  enabled: !_controller.isSubmitting &&
+                      !_controller.isPersisting &&
+                      _controller.writeError == null,
+                ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  /// 来源行的图标：课程卡 / 记忆卡两类宿主。
+  IconData _sourceLineIcon(ReviewItem item) => switch (item.source) {
+        TurnaCourseSource() => Icons.school_rounded,
+        LegacyAnkiSource() || OfficialAnkiSource() => Icons.style_rounded,
+      };
+
+  /// 来源行文案：课程卡用课时名，记忆卡不猜牌组语言。
+  String _sourceLineLabel(ReviewItem item) {
+    final content = item.content;
+    if (content is StandardCourseCardContent) {
+      final lesson = content.lessonName;
+      if (lesson != null && lesson.isNotEmpty) return lesson;
+      return AppStrings.reviewSourceCourseLabel;
+    }
+    return AppStrings.reviewSourceAnkiLabel;
   }
 }

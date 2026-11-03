@@ -16,6 +16,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/app_startup.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
@@ -280,12 +281,7 @@ class _SplashPageState extends State<SplashPage> {
                           return Text(
                             label,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: TurnaTheme.textSecondaryColor(context),
-                                ),
+                            style: AppTextStyles.captionSm(context),
                           );
                         },
                       ),

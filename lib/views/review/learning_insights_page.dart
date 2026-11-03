@@ -15,7 +15,8 @@ import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/profile/widgets/learning_stats.dart';
-import 'package:turna/views/review/components/retention_curve_chart.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_select.dart';
@@ -254,7 +255,7 @@ class _FilterPanel extends StatelessWidget {
   }
 }
 
-// ── KPI ──────────────────────────────────────────────────────────────────
+// ── KPI（核心指标开篇 + 辅助指标定义列表） ────────────────────────────────
 
 class _KpiCard extends StatelessWidget {
   final ReviewProgressSnapshot snapshot;
@@ -268,71 +269,49 @@ class _KpiCard extends StatelessWidget {
     // the mathematically-default 100% (Plan 3 §14.5).
     final hasTracked = a.trackedCards > 0;
     final ret = hasTracked ? '${(a.currentRetention * 100).round()}%' : '—';
-    final mas = hasTracked ? '${(a.meanMastery * 100).round()}%' : '—';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _kpi(context, ret, AppStrings.reviewProgressKpiRetention,
-                  TurnaTheme.brandTeal),
-              _kpi(context, mas, AppStrings.reviewProgressKpiMastery,
-                  TurnaTheme.primaryLight),
-              _kpi(
-                  context,
-                  '${a.totalCards}',
-                  AppStrings.reviewProgressKpiCards,
-                  TurnaTheme.textSecondaryColor(context)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _kpi(context, '${a.forecast.dueToday}',
-                  AppStrings.profileDueToday, TurnaTheme.error),
-              _kpi(context, '${a.forecast.due7Days}',
-                  AppStrings.profileDue7Days, TurnaTheme.warning),
-              _kpi(context, '${a.totalReviews}',
-                  AppStrings.reviewProgressKpiReviews, TurnaTheme.brandSky),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportMetricHeader(
+          label: AppStrings.reviewProgressKpiRetention,
+          value: ret,
+          caption:
+              '${AppStrings.reviewProgressKpiCards} ${a.totalCards} · '
+              '${AppStrings.reviewProgressKpiReviews} ${a.totalReviews}',
+        ),
+        if (hasTracked) ...[
+          const SizedBox(height: AppSpacing.xl),
+          ReportDefinitionList(
+            rows: [
+              ReportDefinitionRow(
+                label: AppStrings.reviewProgressKpiMastery,
+                value: '${(a.meanMastery * 100).round()}%',
+              ),
+              ReportDefinitionRow(
+                label: AppStrings.profileDueToday,
+                value: '${a.forecast.dueToday}',
+                valueColor: a.forecast.dueToday > 0
+                    ? TurnaTheme.error
+                    : null,
+              ),
+              ReportDefinitionRow(
+                label: AppStrings.profileDue7Days,
+                value: '${a.forecast.due7Days}',
+              ),
+              ReportDefinitionRow(
+                label: AppStrings.reviewProgressKpiReviews,
+                value: '${a.totalReviews}',
+              ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _kpi(BuildContext context, String value, String label, Color accent) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-// ── Curve ────────────────────────────────────────────────────────────────
+// ── Curve（主图 · 折线） ──────────────────────────────────────────────────
 
 class _CurveCard extends StatelessWidget {
   final ReviewProgressSnapshot snapshot;
@@ -348,75 +327,64 @@ class _CurveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final curve = snapshot.aggregate.retentionByInterval;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.show_chart_rounded,
-                      color: TurnaTheme.brandTeal, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppStrings.profileMemoryCurveTitle,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(
+          title: AppStrings.profileMemoryCurveTitle,
+          trailing: Text(
+            AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+          ),
+        ),
+        TurnaSegmented<EventRange>(
+          selected: eventRange,
+          onChanged: onRangeChanged,
+          segments: [
+            for (final r in EventRange.values)
+              ButtonSegment(
+                value: r,
+                label: Text(
+                  _rangeLabel(r),
+                  maxLines: 1,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
-              Text(
-                AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (curve.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: Center(
+              child: Text(
+                snapshot.aggregate.totalCards == 0
+                    ? AppStrings.reviewProgressEmpty
+                    : AppStrings.profileMemoryCurveEmpty,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: TurnaTheme.textHintColor(context),
                     ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TurnaSegmented<EventRange>(
-            selected: eventRange,
-            onChanged: onRangeChanged,
-            segments: [
-              for (final r in EventRange.values)
-                ButtonSegment(
-                  value: r,
-                  label: Text(
-                    _rangeLabel(r),
-                    maxLines: 1,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+            ),
+          )
+        else
+          ReportLineChart(
+            semanticsLabel: AppStrings.reviewMemoryCurveSemantics(
+                snapshot.aggregate.totalReviews),
+            height: 160,
+            maxValue: 1,
+            points: [
+              for (final point in curve)
+                ReportPoint(
+                  label: '${point.intervalBucketDays}天',
+                  value: point.retention,
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (curve.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: Text(
-                  snapshot.aggregate.totalCards == 0
-                      ? AppStrings.reviewProgressEmpty
-                      : AppStrings.profileMemoryCurveEmpty,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                ),
-              ),
-            )
-          else
-            RetentionCurveChart(curve: curve, height: 160),
-        ],
-      ),
+      ],
     );
   }
 
@@ -441,73 +409,44 @@ class ReviewActivityHeatmap extends StatelessWidget {
 
   final List<ActivityBucketRow> rows;
 
+  /// 复习次数 → 0–4 档（[ReportHeatmap] 的稳定色阶）；分箱由数据侧负责。
+  static int _levelFor(int count) {
+    if (count <= 0) return 0;
+    if (count < 4) return 1;
+    if (count < 10) return 2;
+    if (count < 20) return 3;
+    return 4;
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeDays = rows.where((row) => row.reviewedCount > 0).length;
     final reviews = rows.fold<int>(0, (sum, row) => sum + row.reviewedCount);
-    final maxCount = rows.fold<int>(
-      1,
-      (largest, row) =>
-          row.reviewedCount > largest ? row.reviewedCount : largest,
-    );
     final summary = AppStrings.insightsHeatmapSummary(activeDays, reviews);
     return Semantics(
       container: true,
       explicitChildNodes: true,
-      label: summary,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: TurnaTheme.flatPaperDecoration(
-          context,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppStrings.insightsHeatmapTitle,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(summary, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 3,
-              runSpacing: 3,
-              children: [
-                for (final row in rows)
-                  Semantics(
-                    label: '${row.bucket}：${row.reviewedCount} 次复习',
-                    child: Tooltip(
-                      message: '${row.bucket} · ${row.reviewedCount}',
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: row.reviewedCount == 0
-                              ? TurnaTheme.dividerBg(context)
-                              : TurnaTheme.brandTeal.withValues(
-                                  alpha:
-                                      0.3 + 0.7 * row.reviewedCount / maxCount,
-                                ),
-                          border: Border.all(
-                            color: row.reviewedCount == 0
-                                ? TurnaTheme.textHintColor(context)
-                                : TurnaTheme.textPrimaryColor(context),
-                            width: row.reviewedCount == 0 ? 0.5 : 1,
-                          ),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
+      label: AppStrings.reviewHeatmapChartSemantics(activeDays, reviews),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ReportSectionHeading(title: AppStrings.insightsHeatmapTitle),
+          Text(summary, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          ReportHeatmap(
+            semanticsLabel:
+                AppStrings.reviewHeatmapChartSemantics(activeDays, reviews),
+            // 逐格语义保留「day-N：k 次复习」粒度（屏幕阅读器逐日可读）。
+            cellLabel: (index, _) => index < rows.length
+                ? '${rows[index].bucket}：${rows[index].reviewedCount} 次复习'
+                : '',
+            // 每行 18 格：365 天 ≈ 20 行，窄屏也能放下。
+            columns: 18,
+            levels: [
+              for (final row in rows) _levelFor(row.reviewedCount),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -530,44 +469,31 @@ class _SourceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.reviewProgressSourcesTitle,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 8),
-          if (rows.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                AppStrings.reviewProgressEmptyFiltered,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
-              ),
-            )
-          else
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) Divider(color: TurnaTheme.dividerBg(context)),
-              _SourceTile(
-                row: rows[i],
-                selected: selected.id == rows[i].source.id,
-                onTap: () => onSelect(rows[i].source),
-                onOpen: () => onOpen(rows[i].source),
-              ),
-            ],
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(title: AppStrings.reviewProgressSourcesTitle),
+        if (rows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              AppStrings.reviewProgressEmptyFiltered,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+            ),
+          )
+        else
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(color: TurnaTheme.dividerBg(context)),
+            _SourceTile(
+              row: rows[i],
+              selected: selected.id == rows[i].source.id,
+              onTap: () => onSelect(rows[i].source),
+              onOpen: () => onOpen(rows[i].source),
+            ),
+          ],
+      ],
     );
   }
 }

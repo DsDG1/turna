@@ -107,17 +107,17 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
           SectionCaption(AppStrings.lessonReadingComprehensionCaption),
           Text(widget.prompt, style: AppTextStyles.promptMd(context)),
           const SizedBox(height: 20),
-          for (var idx = 0; idx < widget.options.length; idx++) ...[
+          for (var idx = 0; idx < widget.options.length; idx++)
             InteractionOptionTile(
               label: widget.options[idx],
+              index: idx + 1,
               isSelected: _selectedIndex == idx,
               isCorrect: submitted && idx == widget.correctIndex,
               isWrong: submitted && correct == false && _selectedIndex == idx,
+              showDivider: idx < widget.options.length - 1,
               onTap:
                   submitted ? null : () => setState(() => _selectedIndex = idx),
             ),
-            if (idx < widget.options.length - 1) const SizedBox(height: 10),
-          ],
           if (submitted && correct == false)
             LessonCorrectAnswerBanner(
               label: AppStrings.lessonCorrectAnswer,

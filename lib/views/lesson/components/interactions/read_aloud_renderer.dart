@@ -429,7 +429,7 @@ class _MicButton extends StatelessWidget {
 }
 
 /// Listen-only fallback card (the [ListenOnlyRenderer] shape): model audio +
-/// continue, always-correct submission. Offers the in-card enable toggle when
+/// band CTA, always-correct submission. Offers the in-card enable toggle when
 /// the only obstacle is the master switch.
 class _DegradedBody extends StatelessWidget {
   const _DegradedBody({
@@ -454,6 +454,13 @@ class _DegradedBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 「继续」CTA 交给页面底栏（P1：主操作跨题型位置稳定），提交语义不变。
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: !submitted,
+      submit: onSubmit,
+      label: AppStrings.lessonContinueUpper,
+    );
+
     return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -493,14 +500,6 @@ class _DegradedBody extends StatelessWidget {
               label: Text(AppStrings.readAloudEnableAction),
             ),
           ],
-          const SizedBox(height: 28),
-          LessonCheckButton(
-            label: submitted
-                ? AppStrings.commonDone
-                : AppStrings.lessonContinueUpper,
-            enabled: !submitted,
-            onPressed: submitted ? null : onSubmit,
-          ),
         ],
       ),
     );

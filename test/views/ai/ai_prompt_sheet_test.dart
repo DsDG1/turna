@@ -16,8 +16,11 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/ai/ai_prompt_sheet.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// 系统提示词面板：默认文本可见、可复制，自定义只追加。
+/// R14 起面板正文（AiPromptSheet）由全局弹层容器承载——标题 / 一句说明 /
+/// 关闭键在 [TurnaSheetPanel]，测试同路径装配。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -46,8 +49,15 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider<LanguageProvider>(
         create: (_) => LanguageProvider(prefs),
-        child: const MaterialApp(
-          home: Scaffold(body: AiPromptSheet()),
+        child: MaterialApp(
+          home: Scaffold(
+            body: TurnaSheetPanel(
+              title: AppStrings.aiPromptSheetTitle,
+              subtitle: AppStrings.aiPromptSheetSubtitle,
+              expanded: true,
+              body: const AiPromptSheet(),
+            ),
+          ),
         ),
       ),
     );

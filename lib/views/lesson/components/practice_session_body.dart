@@ -1,5 +1,9 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
@@ -8,6 +12,7 @@ import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Shared lesson-practice chrome: stage banner, optional header (reading
@@ -202,6 +207,18 @@ class _ActionBarState extends State<_ActionBar> {
     if (mounted) setState(() {});
   }
 
+  /// 主操作：触感沿旧 [LessonCheckButton] 的约定（非静音反馈时中击），
+  /// 提交前走草稿、提交后推进。
+  void _handlePrimary() {
+    final a11y = accessibilityOf(context);
+    if (!a11y.quietFeedback) unawaited(HapticFeedback.mediumImpact());
+    if (widget.submitted) {
+      widget.onAdvance?.call();
+    } else {
+      widget.draft.submit();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 提交后永远有底栏 (继续/知道了); 提交前只有托管了 CTA 的题型才有.
@@ -210,23 +227,15 @@ class _ActionBarState extends State<_ActionBar> {
 
     final submitted = widget.submitted;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        border: Border(
-          top: BorderSide(color: TurnaTheme.statCardBorder(context)),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: LessonCheckButton(
-          label: submitted
-              ? (widget.continueLabel ?? AppStrings.lessonContinueUpper)
-              : AppStrings.lessonCheck,
-          enabled: submitted || widget.draft.canSubmit,
-          onPressed: submitted ? widget.onAdvance : widget.draft.submit,
-        ),
+    // 「湿地雾光」R04：纸面动作带（顶部发丝线 + 底部安全区）+ 52 高 teal
+    // 主键。位置跨题型恒定（P1），文案随作答阶段换（核对/题型自定 → 继续）。
+    return SessionActionBand(
+      child: SessionPrimaryAction(
+        label: submitted
+            ? (widget.continueLabel ?? AppStrings.lessonContinueUpper)
+            : (widget.draft.label ?? AppStrings.lessonCheck),
+        onPressed:
+            (submitted || widget.draft.canSubmit) ? _handlePrimary : null,
       ),
     );
   }

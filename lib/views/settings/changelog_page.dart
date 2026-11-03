@@ -2,9 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// Package imports:
-import 'package:auto_route/auto_route.dart';
-
 // Project imports:
 import 'package:turna/application/settings/changelog_entries.dart';
 import 'package:turna/application/settings/release_manifest.dart';
@@ -17,14 +14,11 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 export 'package:turna/application/settings/changelog_entries.dart'
     show ChangelogRelease, JourneyStep;
 
-/// Offline changelog of major milestones and feature batches.
+/// Changelog 机制 holder：历程步骤、后援版本与剪贴板拼接。
 ///
-/// Renders [ChangelogFromAsset] (read from `assets/changelog.md`) and
-/// falls back to a hard-coded list of milestones when the asset cannot be
-/// loaded (e.g. test environment without asset bundle).
-@RoutePage()
-class ChangelogPage extends StatelessWidget {
-  const ChangelogPage({super.key});
+/// 独立路由壳已删除（原路由无生产入口）；唯一入口是关于页
+/// 「更新日志」Tab 直接嵌入 [ChangelogFromAsset]。
+abstract final class ChangelogPage {
 
   /// 顶部"更新历程"卡内容 —— 唯一事实来源在 [ReleaseManifest.journeySteps]
   /// （Plan 2 §4.8：changelog 后备列表不再手写第二份编号）。
@@ -67,9 +61,9 @@ class ChangelogPage extends StatelessWidget {
     return buf.toString();
   }
 
-  /// 复制文本到剪贴板并弹出确认提示；正文「一键复制」按钮与独立页
-  /// 共用。复制的内容始终是当前实际展示的版本（asset 原文优先，加载
-  /// 失败时为内置后援拼接）。
+  /// 复制文本到剪贴板并弹出确认提示；正文「一键复制」按钮与
+  /// 关于页 Tab 共用。复制的内容始终是当前实际展示的版本（asset 原文
+  /// 优先，加载失败时为内置后援拼接）。
   static Future<void> copyTextToClipboard(
     BuildContext context,
     String text,
@@ -80,22 +74,6 @@ class ChangelogPage extends StatelessWidget {
       context,
       AppStrings.changelogCopied,
       duration: const Duration(seconds: 2),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(
-          AppStrings.changelogTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      ),
-      body: const ChangelogFromAsset(showFallbackBanner: true),
     );
   }
 }
@@ -174,10 +152,9 @@ const String kDefaultChangelogAssetPath = 'assets/changelog.md';
 
 /// 从 `assets/changelog.md` 读取并渲染 changelog;失败时使用 fallback。
 ///
-/// 切换到 About 页"更新日志"Tab 时,由 [AboutTurnaPage] 直接嵌入,
-/// 不再走独立路由;`ChangelogPage` 独立路由仍保留,以兼容设置页入口与
-/// 测试。两种入口的「一键复制」按钮都在 [_ReleaseList] 正文里,复制的
-/// 始终是当前实际展示的内容。
+/// 关于页「更新日志」Tab 由 [AboutTurnaPage] 直接嵌入,不走独立路由
+/// （原 ChangelogPage 路由无生产入口,已随死入口清理删除）。「一键复制」
+/// 按钮在 [_ReleaseList] 正文里,复制的始终是当前实际展示的内容。
 class ChangelogFromAsset extends StatelessWidget {
   /// 加载的资源路径,默认 `assets/changelog.md`。
   final String assetPath;

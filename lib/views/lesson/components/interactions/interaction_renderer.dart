@@ -18,6 +18,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 // Re-exported for the ~22 files that historically imported the state types
 // from this file; the definitions live in the domain layer now.
@@ -89,6 +90,7 @@ class LessonActionScope extends InheritedWidget {
 class LessonActionDraft {
   bool _canSubmit = false;
   bool _hasCta = false;
+  String? _label;
   VoidCallback? _submit;
   VoidCallback? _onChanged;
   bool _notifyScheduled = false;
@@ -100,6 +102,9 @@ class LessonActionDraft {
   /// 页面此时不显示底栏.
   bool get hasCta => _hasCta;
 
+  /// 题型自定的底栏文案 (如"继续"); `null` 用页面默认「核对」.
+  String? get label => _label;
+
   /// 底栏订阅变化.
   void attach(VoidCallback onChanged) => _onChanged = onChanged;
 
@@ -108,9 +113,14 @@ class LessonActionDraft {
   }
 
   /// renderer 在 build 里调用一次.
-  void report({required bool canSubmit, VoidCallback? submit}) {
+  void report({
+    required bool canSubmit,
+    VoidCallback? submit,
+    String? label,
+  }) {
     _hasCta = true;
     _submit = submit;
+    _label = label;
     if (_canSubmit == canSubmit) return;
     _canSubmit = canSubmit;
     _scheduleNotify();
@@ -181,6 +191,9 @@ Type _handlesTypeFor(Interaction interaction) {
 ///
 /// Shared by every self-graded presentation (flip card, image recall) so the
 /// two do not drift into two different-looking verdict rows.
+///
+/// 「湿地雾光」R05：视觉语言收编进 [SessionRatingBand]——负档按评审稿走
+/// 天光蓝描边而非错误红（评分不是错误），正档 teal 实底；API 与回调不变。
 class BinaryGradeRow extends StatelessWidget {
   const BinaryGradeRow({
     super.key,
@@ -193,78 +206,29 @@ class BinaryGradeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _BinaryGradeButton(
-            label: AppStrings.reviewBinaryForgotten,
-            color: TurnaTheme.error,
-            onPressed: onForgotten,
-          ),
+    return SessionRatingBand(
+      actions: [
+        SessionRatingAction(
+          label: AppStrings.reviewBinaryForgotten,
+          tone: SessionRatingTone.outline,
+          onPressed: onForgotten,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _BinaryGradeButton(
-            label: AppStrings.reviewBinaryRemembered,
-            color: TurnaTheme.brandTeal,
-            onPressed: onRemembered,
-          ),
+        SessionRatingAction(
+          label: AppStrings.reviewBinaryRemembered,
+          tone: SessionRatingTone.primary,
+          onPressed: onRemembered,
         ),
       ],
     );
   }
 }
 
-class _BinaryGradeButton extends StatelessWidget {
-  const _BinaryGradeButton({
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final String label;
-  final Color color;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color.withValues(alpha: 0.12),
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        // Height floor instead of a fixed SizedBox height: labels wrap to two
-        // lines under large text scaling and must grow the button instead of
-        // overflowing it.
-        minimumSize: const Size(0, 48),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-        ),
-      ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-        ),
-      ),
-    );
-  }
-}
-
-/// Bottom action button shared by all graders (MCQ, FillBlank, Translate,
-/// ListenAndPick, TypeTheWord, ReorderSentence). ShowWord has no button — it
-/// auto-advances on card tap.
+/// In-card reveal CTA ("显示答案"): 52 高 teal 主操作，与页面底栏的
+/// [SessionPrimaryAction] 同一质感。
 ///
-/// 质感要点: 竖向渐变 (亮在上) + 品牌阴影 + 同色外发光. 之前传
-/// `elevated: false` 把阴影整个关掉了, 按钮在画布上是一片纯色块, 这也是
-/// "点不动"的心理暗示来源之一.
-///
-/// 按下时缩放 0.985 且阴影收到零 —— 光靠水波纹不足以让拇指相信"按到了".
+/// 「湿地雾光」R04/R05 之后，核对型 renderer 的提交键由页面底栏统一承担；
+/// 本组件只服务**揭示型** renderer（Anki 翻面、图像回忆、旧版记忆卡占位）
+/// 与复习域仍在用的手写按钮位——它们的按钮语义是"揭示"，不是"核对"。
 class LessonCheckButton extends StatefulWidget {
   final String label;
   final bool enabled;
@@ -377,20 +341,34 @@ class InteractionBody extends StatelessWidget {
 // Shared widgets used by interaction renderers
 // ──────────────────────────────────────────────────────────────
 
-/// Selectable option tile for MCQ / pick-from-list interactions.
+/// 编号行选项（「湿地雾光」R05）：单选 / 多选 / 听选 / 阅读选择共用。
+///
+/// 行式语言（P1「选项为编号行」）：26px 圆形编号圈（1.5 发丝边，未选 hint
+/// 色、选中 teal 实底白字）+ 16/500 选项文本；行间由 [showDivider] 画
+/// `TurnaTheme.dividerBg` 发丝线（最后一行传 `false`）。选中态整行 teal 6%
+/// 底（radius 12、左右外扩 8）。判分后按语义色收敛——正确 success 实圈 +
+/// 对钩、错误 error 实圈 + 叉，形状与图标保证不是纯颜色信号（高对比可辨）。
 class InteractionOptionTile extends StatefulWidget {
   final String label;
+
+  /// 1 起的显示编号（圈里的数字）。
+  final int index;
   final bool isSelected;
   final bool isCorrect;
   final bool isWrong;
+
+  /// 是否在行尾画发丝分隔线；列表里除最后一行外都传 `true`。
+  final bool showDivider;
   final VoidCallback? onTap;
 
   const InteractionOptionTile({
     super.key,
     required this.label,
+    required this.index,
     required this.isSelected,
     required this.isCorrect,
     required this.isWrong,
+    this.showDivider = false,
     required this.onTap,
   });
 
@@ -428,9 +406,9 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
     super.dispose();
   }
 
-  /// 状态 → 强调色. `null` 表示未选中的常态 (走 L1 中性卡).
+  /// 状态 → 强调色. `null` 表示未选中的常态（无底色行）.
   Color? _accent() {
-    if (widget.isCorrect) return TurnaTheme.leagueEmerald;
+    if (widget.isCorrect) return TurnaTheme.success;
     if (widget.isWrong) return TurnaTheme.error;
     if (widget.isSelected) return TurnaTheme.brandTeal;
     return null;
@@ -440,7 +418,7 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _verdict,
-      child: _buildTile(context),
+      child: _buildRow(context),
       builder: (context, child) {
         final t = _verdict.value;
         if (t == 0.0) return child!;
@@ -456,109 +434,139 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
     );
   }
 
-  Widget _buildTile(BuildContext context) {
+  Widget _buildRow(BuildContext context) {
     final stateAccent = _accent();
-    // ADR 0062：未判定时走中性灰玻璃（表单级浓度），判定后按结果色相上彩。
-    final accent = stateAccent ?? TurnaTheme.glassNeutral;
-    final level = stateAccent == null ? GlassLevel.l1Subtle : GlassLevel.l1;
-
-    final radius = BorderRadius.circular(TurnaTheme.radiusOption);
-    final labelColor = TurnaTheme.textPrimaryColor(context);
     final a11y = accessibilityOf(context);
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) || a11y.reduceMotion;
+    // 选中 teal 6%；判分用语义色淡底（与圈、图标同一色相）。
+    final rowColor = switch (stateAccent) {
+      null => Colors.transparent,
+      final accent => accent.withValues(alpha: accent == TurnaTheme.brandTeal ? 0.06 : 0.10),
+    };
+    final radius = BorderRadius.circular(TurnaTheme.radiusMedium);
 
-    return Semantics(
-      button: true,
-      label: widget.label,
-      selected: widget.isSelected,
-      child: AnimatedScale(
-        scale: _pressed && !reduceMotion ? 0.97 : 1.0,
-        duration: TurnaMotion.scaled(TurnaMotion.fast, reduceMotion),
-        curve: Curves.easeOutCubic,
-        child: AnimatedContainer(
-          duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
-          curve: Curves.easeOutCubic,
-          // 单层 gradient（白高光已预混进 stop）—— 所以 180ms 状态切换
-          // 能平滑插值。拆成两层 fill 会让这里的过渡直接跳变。
-          decoration: TurnaTheme.glassDecoration(
-            context,
-            accent,
-            level: level,
-            borderRadius: radius,
-            // 按下时阴影收到零: 视觉上"被按进去", 而不是只有一个缩放.
-            boxShadow: _pressed
-                ? const <BoxShadow>[]
-                : [
-                    ...TurnaTheme.glassShadow(context, accent, level: level),
-                    if (stateAccent != null)
-                      ...TurnaTheme.stateGlow(stateAccent),
-                  ],
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              borderRadius: radius,
-              onTap: widget.onTap == null
-                  ? null
-                  : () {
-                      if (!a11y.quietFeedback) {
-                        unawaited(HapticFeedback.selectionClick());
-                      }
-                      widget.onTap!();
+    return Padding(
+      // 高亮底左右外扩 8：比题干/文本列宽出一圈，选中行一眼成块。
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: true,
+            label: widget.label,
+            selected: widget.isSelected,
+            child: AnimatedScale(
+              scale: _pressed && !reduceMotion ? 0.98 : 1.0,
+              duration: TurnaMotion.scaled(TurnaMotion.fast, reduceMotion),
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
+                curve: Curves.easeOutCubic,
+                decoration: BoxDecoration(color: rowColor, borderRadius: radius),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: radius,
+                    onTap: widget.onTap == null
+                        ? null
+                        : () {
+                            if (!a11y.quietFeedback) {
+                              unawaited(HapticFeedback.selectionClick());
+                            }
+                            widget.onTap!();
+                          },
+                    onHighlightChanged: (v) {
+                      if (widget.onTap == null) return;
+                      setState(() => _pressed = v);
                     },
-              onHighlightChanged: (v) {
-                if (widget.onTap == null) return;
-                setState(() => _pressed = v);
-              },
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                child: Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOutCubic,
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: stateAccent ?? Colors.transparent,
-                        border: Border.all(
-                          color:
-                              stateAccent ?? TurnaTheme.textHintColor(context),
-                          width: 1.5,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
                       ),
-                      child: stateAccent == null
-                          ? null
-                          : Icon(
-                              widget.isWrong ? Icons.close : Icons.check,
-                              size: 12,
-                              color: Colors.white,
+                      child: Row(
+                        children: [
+                          _NumberRing(
+                            index: widget.index,
+                            accent: stateAccent,
+                            isWrong: widget.isWrong,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              widget.label,
+                              style: TextStyle(
+                                fontSize: 16,
+                                height: 1.4,
+                                fontWeight: stateAccent == null
+                                    ? FontWeight.w500
+                                    : FontWeight.w600,
+                                color: TurnaTheme.textPrimaryColor(context),
+                              ),
                             ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        widget.label,
-                        style: TextStyle(
-                          fontSize: 16,
-                          height: 1.4,
-                          fontWeight: stateAccent == null
-                              ? FontWeight.w500
-                              : FontWeight.w600,
-                          color: labelColor,
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          if (widget.showDivider)
+            Container(
+              height: 1,
+              color: TurnaTheme.dividerBg(context),
+            ),
+        ],
       ),
+    );
+  }
+}
+
+/// 26px 圆形编号圈：常态 hint 发丝边 + hint 数字；选中 teal 实底白字；
+/// 判分后语义色实底 + 对钩 / 叉（形状信号，不依赖颜色）。
+class _NumberRing extends StatelessWidget {
+  const _NumberRing({
+    required this.index,
+    required this.accent,
+    required this.isWrong,
+  });
+
+  final int index;
+  final Color? accent;
+  final bool isWrong;
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = TurnaTheme.textHintColor(context);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      width: 26,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: accent ?? Colors.transparent,
+        border: accent == null ? Border.all(color: hint, width: 1.5) : null,
+      ),
+      child: accent == null
+          ? Text(
+              '$index',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: hint,
+                height: 1,
+              ),
+            )
+          : Icon(
+              isWrong ? Icons.close : Icons.check,
+              size: 15,
+              color: TurnaTheme.textOnPrimary,
+            ),
     );
   }
 }
@@ -673,6 +681,10 @@ class LessonCorrectAnswerBanner extends StatelessWidget {
 }
 
 /// Circular speaker button that plays audio via TTS.
+///
+/// 「湿地雾光」R05：44px 圆形 teal 描边键（transparent 底 + 1.5 teal 边 +
+/// teal 图标）——题面去装饰后音频键是唯一的圆形控件，描边档让它不再从
+/// 纸面题干里"浮"出来。朗读中图标切换为声纹并禁点。
 class SpeakerButton extends StatelessWidget {
   final VoidCallback onPressed;
 
@@ -706,22 +718,23 @@ class SpeakerButton extends StatelessWidget {
       label: AppStrings.lessonPlayAudioLabel,
       child: Tooltip(
         message: AppStrings.lessonPlayAudioLabel,
-        child: Material(
-          color: speaking
-              ? TurnaTheme.brandTeal.withValues(alpha: 0.72)
-              : TurnaTheme.brandTeal,
-          shape: const CircleBorder(),
-          elevation: 4,
-          shadowColor: TurnaTheme.brandTeal.withValues(alpha: 0.4),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: speaking ? null : onPressed,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Material(
+            color: speaking
+                ? TurnaTheme.brandTeal.withValues(alpha: 0.12)
+                : Colors.transparent,
+            shape: const CircleBorder(
+              side: BorderSide(color: TurnaTheme.brandTeal, width: 1.5),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: speaking ? null : onPressed,
               child: Icon(
                 speaking ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
-                color: TurnaTheme.textOnPrimary,
-                size: 36,
+                color: TurnaTheme.brandTeal,
+                size: 22,
               ),
             ),
           ),

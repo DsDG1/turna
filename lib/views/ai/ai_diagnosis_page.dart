@@ -15,14 +15,27 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
-import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
+/// 学习诊断 —— 纵向报告构图（R14）：**结论 → 依据 → 建议 → 行动**。
+///
+/// * 结论：[ReportMetricHeader]（薄弱点数量开篇）；
+/// * 依据：薄弱点行（标题 + 程度短值在右、证据小字在下，发丝线分隔）；
+/// * 建议：优先建议与可练想法的编号行；
+/// * 行动：目录入口（生成练习 / 收藏 / 复制）。
+///
+/// 生成 / 停止在底部动作带（位置跨页稳定），流式中断与失败重试保持。
 @RoutePage()
 class AiDiagnosisPage extends StatefulWidget {
   const AiDiagnosisPage({super.key});
@@ -120,120 +133,46 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
               if (!holder.config.isComplete) {
                 return const Center(child: AiNotConfiguredPanel());
               }
-              return ListView(
-                padding: const EdgeInsets.all(20),
+              return Column(
                 children: [
-                  Text(
-                    AppStrings.aiDisclaimer,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                  Expanded(
+                    child: p.report == null
+                        ? _IdleBody(provider: p)
+                        : _ReportBody(provider: p),
                   ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: p.state == AiDiagnosisState.loading
-                        ? () => p.cancel()
-                        : () => _generate(),
-                    icon: p.state == AiDiagnosisState.loading
-                        ? const Icon(Icons.stop_rounded)
-                        : const Icon(Icons.analytics_outlined),
-                    label: Text(
-                      p.state == AiDiagnosisState.loading
-                          ? AppStrings.aiStopGenerating
-                          : AppStrings.aiDiagnosisGenerate,
+                  // 底部动作带：生成 / 停止位置稳定；失败重试就近。
+                  SessionActionBand(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pageMargin,
+                      AppSpacing.md,
+                      AppSpacing.pageMargin,
+                      AppSpacing.lg,
                     ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: TurnaTheme.brandTeal,
-                    ),
-                  ),
-                  if (p.errorMapping != null) ...[
-                    const SizedBox(height: 12),
-                    AiErrorBanner(mapping: p.errorMapping!),
-                  ],
-                  if (p.report != null) ...[
-                    const SizedBox(height: 24),
-                    _section(
-                      context,
-                      AppStrings.aiDiagnosisWeakAreas,
-                      [
-                        for (final a in p.report!.weakAreas)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text('[${a.severity}] ${a.title}'),
-                            subtitle: a.evidence.isEmpty
-                                ? null
-                                : Text(a.evidence.join(' · ')),
-                          ),
-                      ],
-                    ),
-                    _section(
-                      context,
-                      AppStrings.aiDiagnosisTips,
-                      [
-                        for (final t in p.report!.priorityTips)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.lightbulb_outline),
-                            title: Text(t),
-                          ),
-                      ],
-                    ),
-                    _section(
-                      context,
-                      AppStrings.aiDiagnosisDrills,
-                      [
-                        for (final t in p.report!.exampleDrillIdeas)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.fitness_center),
-                            title: Text(t),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextButton.icon(
-                          onPressed: () {
-                            final text = p.report!.toPlainText();
-                            Clipboard.setData(ClipboardData(text: text));
-                            TurnaSnackBar.maybeShow(
-                                context, AppStrings.aiDepthCopied);
-                          },
-                          icon: const Icon(Icons.copy_rounded),
-                          label: Text(AppStrings.aiDepthCopy),
-                        ),
-                        TextButton.icon(
-                          onPressed: () async {
-                            final store =
-                                context.read<AiSavedExplanationsStore>();
-                            await store.save(SavedExplanation(
-                              id: AiSavedExplanationsStore.newId(),
-                              title: AppStrings.aiDiagnosisTitle,
-                              body: p.report!.toPlainText(),
-                              source: 'diagnosis',
-                              createdAt: DateTime.now(),
-                            ));
-                            if (context.mounted) {
-                              TurnaSnackBar.maybeShow(
-                                  context, AppStrings.aiExplanationSaved);
-                            }
-                          },
-                          icon: const Icon(Icons.bookmark_add_outlined),
-                          label: Text(AppStrings.aiSaveExplanation),
+                        if (p.errorMapping != null) ...[
+                          AiErrorBanner(
+                            mapping: p.errorMapping!,
+                            onRetry: () => _generate(force: true),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                        SessionPrimaryAction(
+                          label: p.state == AiDiagnosisState.loading
+                              ? AppStrings.aiStopGenerating
+                              : AppStrings.aiDiagnosisGenerate,
+                          onPressed: p.state == AiDiagnosisState.loading
+                              ? p.cancel
+                              : () => _generate(),
+                          trailingIcon: p.state == AiDiagnosisState.loading
+                              ? Icons.stop_rounded
+                              : Icons.analytics_outlined,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => showAiPracticeGenerateSheet(
-                        context,
-                        source: AiPracticeSource.difficult,
-                      ),
-                      icon: const Icon(Icons.school_outlined),
-                      label: Text(AppStrings.aiDiagnosisSecondaryCta),
-                    ),
-                  ],
+                  ),
                 ],
               );
             },
@@ -242,21 +181,195 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
       ),
     );
   }
+}
 
-  Widget _section(BuildContext context, String title, List<Widget> children) {
-    if (children.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+/// 尚无报告时的等待态：一句结论预告 + 免责声明。
+class _IdleBody extends StatelessWidget {
+  const _IdleBody({required this.provider});
+
+  final AiDiagnosisProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.pageMargin),
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+        ReportMetricHeader(
+          label: AppStrings.aiDiagnosisSectionConclusion,
+          value: provider.state == AiDiagnosisState.loading ? '…' : '—',
+          unit: AppStrings.aiDiagnosisWeakAreaUnit,
+          caption: AppStrings.aiDisclaimer,
         ),
-        const SizedBox(height: 8),
-        ...children,
-        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+/// 四段式报告正文。
+class _ReportBody extends StatelessWidget {
+  const _ReportBody({required this.provider});
+
+  final AiDiagnosisProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final report = provider.report!;
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.pageMargin),
+      children: [
+        // ── 结论 ──
+        ReportMetricHeader(
+          label: AppStrings.aiDiagnosisSectionConclusion,
+          value: '${report.weakAreas.length}',
+          unit: AppStrings.aiDiagnosisWeakAreaUnit,
+          caption: AppStrings.aiDisclaimer,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        // ── 依据：薄弱点行（标题 + 程度 + 证据）──
+        if (report.weakAreas.isNotEmpty) ...[
+          ReportSectionHeading(
+              title: AppStrings.aiDiagnosisSectionEvidence),
+          ReportDefinitionList(
+            rows: [
+              for (final a in report.weakAreas)
+                ReportDefinitionRow(
+                  label: a.title,
+                  value: _severityLabel(a.severity),
+                  valueColor: _severityColor(a.severity),
+                ),
+            ],
+          ),
+          for (final a in report.weakAreas)
+            if (a.evidence.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: AppSpacing.xs + 2,
+                  bottom: AppSpacing.sm,
+                ),
+                child: Text(
+                  '${a.title}：${a.evidence.join('；')}',
+                  style: AppTextStyles.captionSm(context).copyWith(
+                    color: TurnaTheme.textHintColor(context),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+          const SizedBox(height: AppSpacing.xl),
+        ],
+
+        // ── 建议：优先建议（编号行）+ 可练想法 ──
+        if (report.priorityTips.isNotEmpty) ...[
+          ReportSectionHeading(title: AppStrings.aiDiagnosisSectionAdvice),
+          _NumberedLines(lines: report.priorityTips),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (report.exampleDrillIdeas.isNotEmpty) ...[
+          Text(
+            AppStrings.aiDiagnosisDrills,
+            style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _NumberedLines(lines: report.exampleDrillIdeas),
+          const SizedBox(height: AppSpacing.xl),
+        ],
+
+        // ── 行动：目录入口 ──
+        ReportSectionHeading(title: AppStrings.aiDiagnosisSectionAction),
+        DirectoryLinkRow(
+          icon: Icons.school_outlined,
+          iconTone: TurnaTheme.brandTeal,
+          title: AppStrings.aiDiagnosisSecondaryCta,
+          onTap: () => showAiPracticeGenerateSheet(
+            context,
+            source: AiPracticeSource.difficult,
+          ),
+        ),
+        DirectoryLinkRow(
+          icon: Icons.bookmark_add_outlined,
+          iconTone: TurnaTheme.anatolianClay,
+          title: AppStrings.aiSaveExplanation,
+          onTap: () async {
+            final store = context.read<AiSavedExplanationsStore>();
+            await store.save(SavedExplanation(
+              id: AiSavedExplanationsStore.newId(),
+              title: AppStrings.aiDiagnosisTitle,
+              body: report.toPlainText(),
+              source: 'diagnosis',
+              createdAt: DateTime.now(),
+            ));
+            if (context.mounted) {
+              TurnaSnackBar.maybeShow(context, AppStrings.aiExplanationSaved);
+            }
+          },
+        ),
+        DirectoryLinkRow(
+          icon: Icons.copy_rounded,
+          iconTone: TurnaTheme.brandSky,
+          title: AppStrings.aiDepthCopy,
+          showDivider: false,
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: report.toPlainText()));
+            TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
+          },
+        ),
+        const SizedBox(height: AppSpacing.sm),
+      ],
+    );
+  }
+
+  static String _severityLabel(String severity) => switch (severity) {
+        'high' => AppStrings.aiDiagnosisSeverityHigh,
+        'medium' => AppStrings.aiDiagnosisSeverityMedium,
+        'low' => AppStrings.aiDiagnosisSeverityLow,
+        _ => severity,
+      };
+
+  static Color? _severityColor(String severity) => switch (severity) {
+        'high' => TurnaTheme.error,
+        'medium' => TurnaTheme.warning,
+        _ => null,
+      };
+}
+
+/// 编号行：报告建议段的排版（序号淡色左、正文右，无卡无泡）。
+class _NumberedLines extends StatelessWidget {
+  const _NumberedLines({required this.lines});
+
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < lines.length; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 1),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: AppSpacing.xl,
+                  child: Text(
+                    '${i + 1}.',
+                    style: AppTextStyles.captionSm(context).copyWith(
+                      color: TurnaTheme.textHintColor(context),
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    lines[i],
+                    style: AppTextStyles.bodyText(context)
+                        .copyWith(fontSize: 15, height: 1.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

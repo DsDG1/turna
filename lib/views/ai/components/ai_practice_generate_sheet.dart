@@ -7,20 +7,26 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
-/// Bottom sheet that starts a background practice/course generation job.
+/// 生成练习面板（R14：偏好目录表单模式 —— label 左、值右；全局弹层容器）。
 ///
 /// Two modes:
 ///   * 按学习数据 — mistakes / weak words / difficult points, always one
 ///     one-lesson mastery drill;
 ///   * 自定义课程 — topic + units × lessons + template + design brief.
 ///
-/// The sheet only enqueues; progress lives in the AI Hub library so the learner
-/// can close this sheet and keep using the app.
+/// The sheet only enqueues; progress lives in the AI Hub library（一行化进度行）
+/// so the learner can close this sheet and keep using the app.
 class AiPracticeGenerateSheet extends StatefulWidget {
   const AiPracticeGenerateSheet({
     super.key,
@@ -38,12 +44,6 @@ class AiPracticeGenerateSheet extends StatefulWidget {
 
 class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
   static const _levels = ['A1', 'A2', 'B1', 'B2'];
-  static const _templates = <String, String>{
-    'mastery': '综合测验',
-    'practice': '巩固练习',
-    'review': '复习',
-    'mixed': '混合',
-  };
 
   late bool _customMode;
   late AiPracticeSource _source;
@@ -71,160 +71,117 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
     super.dispose();
   }
 
+  String get _templateLabel => switch (_template) {
+        'mastery' => AppStrings.aiPracticeTemplateMastery,
+        'practice' => AppStrings.aiPracticeTemplatePractice,
+        'review' => AppStrings.aiPracticeTemplateReview,
+        _ => AppStrings.aiPracticeTemplateMixed,
+      };
+
+  String get _sourceLabel => switch (_source) {
+        AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
+        AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
+        AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
+        AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
+      };
+
   @override
   Widget build(BuildContext context) {
     final complete =
         context.select((AiEngineConfigHolder h) => h.config.isComplete);
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          12,
-          16,
-          16 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _header(context),
-              const SizedBox(height: 12),
-              if (!complete) ...[
-                _configWarning(context),
-                const SizedBox(height: 12),
-              ],
-              TurnaSegmented<bool>(
-                selected: _customMode,
-                onChanged: (value) => setState(() => _customMode = value),
-                segments: [
-                  ButtonSegment(
-                    value: false,
-                    label: Text(AppStrings.aiPracticeModeData),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    label: Text(AppStrings.aiPracticeModeCustom),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (_customMode) _customForm(context) else _practiceForm(context),
-              const SizedBox(height: 12),
-              Text(
-                AppStrings.aiPracticeBackgroundHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                      height: 1.4,
-                    ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: TurnaTheme.error, height: 1.4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.pageMargin,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!complete) ...[
+              const _ConfigWarning(),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            TurnaSegmented<bool>(
+              selected: _customMode,
+              onChanged: (value) => setState(() => _customMode = value),
+              segments: [
+                ButtonSegment(
+                  value: false,
+                  label: Text(AppStrings.aiPracticeModeData),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text(AppStrings.aiPracticeModeCustom),
                 ),
               ],
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: complete && !_busy ? _start : null,
-                icon: _busy
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: Text(AppStrings.aiPracticeStartGeneration),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (_customMode) _customForm(context) else _practiceForm(context),
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _error!,
+                style: const TextStyle(
+                    color: TurnaTheme.error, height: 1.4),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.auto_awesome_rounded,
-            color: TurnaTheme.brandTeal, size: 22),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            AppStrings.aiPracticeGenerateTitle,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ),
-        IconButton(
-          tooltip: AppStrings.commonClose,
-          icon: const Icon(Icons.close, size: 22),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ],
-    );
-  }
-
-  Widget _configWarning(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: TurnaTheme.warning.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      ),
-      child: Text(
-        AppStrings.aiPracticeNotConfigured,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: TurnaTheme.textPrimaryColor(context),
+            const SizedBox(height: AppSpacing.lg),
+            SessionPrimaryAction(
+              label: _busy
+                  ? AppStrings.aiPracticeGenerating
+                  : AppStrings.aiPracticeStartGeneration,
+              onPressed: complete && !_busy ? _start : null,
+              trailingIcon: Icons.auto_awesome_rounded,
             ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+        ),
       ),
     );
   }
+
+  /// 未配置的一行提示（不占卡）：连接入口由 AI 大厅首屏主行动承担。
 
   Widget _practiceForm(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _label(context, AppStrings.aiPracticeSourceLabel),
-        const SizedBox(height: 8),
-        TurnaChoiceGrid<AiPracticeSource>(
-          selected: _source,
-          onSelected: (value) => setState(() => _source = value),
-          items: [
-            (
-              AiPracticeSource.mistakes,
-              AppStrings.aiPracticeSourceMistakes,
-              Icons.history_toggle_off_rounded
-            ),
-            (
-              AiPracticeSource.weakWords,
-              AppStrings.aiPracticeSourceWeakWords,
-              Icons.quiz_rounded
-            ),
-            (
-              AiPracticeSource.difficult,
-              AppStrings.aiPracticeSourceDifficult,
-              Icons.account_tree_outlined
-            ),
-          ],
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeSourceLabel,
+          value: _sourceLabel,
+          onTap: () => _pick(
+            title: AppStrings.aiPracticeSourceLabel,
+            options: [
+              (
+                AiPracticeSource.mistakes,
+                AppStrings.aiPracticeSourceMistakes
+              ),
+              (
+                AiPracticeSource.weakWords,
+                AppStrings.aiPracticeSourceWeakWords
+              ),
+              (
+                AiPracticeSource.difficult,
+                AppStrings.aiPracticeSourceDifficult
+              ),
+            ],
+            current: _source,
+            onSelected: (value) => setState(() => _source = value),
+          ),
         ),
-        const SizedBox(height: 16),
-        _label(context, AppStrings.aiPracticeLevelLabel),
-        const SizedBox(height: 8),
-        TurnaSegmented<String>(
-          selected: _level,
-          onChanged: (value) => setState(() => _level = value),
-          segments: [
-            for (final level in _levels)
-              ButtonSegment(value: level, label: Text(level)),
-          ],
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeLevelLabel,
+          value: _level,
+          showDivider: false,
+          onTap: () => _pick(
+            title: AppStrings.aiPracticeLevelLabel,
+            options: [for (final level in _levels) (level, level)],
+            current: _level,
+            onSelected: (value) => setState(() => _level = value),
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm),
         _estimate(context, 1 + 1),
       ],
     );
@@ -232,118 +189,147 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
 
   Widget _customForm(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _label(context, AppStrings.aiPracticeCustomTopic),
-        const SizedBox(height: 6),
-        TextField(
+        _textEntry(
+          label: AppStrings.aiPracticeCustomTopic,
           controller: _topicCtrl,
-          maxLines: 2,
-          decoration: InputDecoration(
-            hintText: AppStrings.aiPracticeCustomTopicHint,
-            border: const OutlineInputBorder(),
-            isDense: true,
+          hint: AppStrings.aiPracticeCustomTopicHint,
+        ),
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeLevelLabel,
+          value: _level,
+          onTap: () => _pick(
+            title: AppStrings.aiPracticeLevelLabel,
+            options: [for (final level in _levels) (level, level)],
+            current: _level,
+            onSelected: (value) => setState(() => _level = value),
           ),
         ),
-        const SizedBox(height: 12),
-        _label(context, AppStrings.aiPracticeLevelLabel),
-        const SizedBox(height: 8),
-        TurnaSegmented<String>(
-          selected: _level,
-          onChanged: (value) => setState(() => _level = value),
-          segments: [
-            for (final level in _levels)
-              ButtonSegment(value: level, label: Text(level)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: _units,
-                isDense: true,
-                decoration: InputDecoration(
-                  labelText: AppStrings.aiPracticeCustomUnits,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                ),
-                items: [
-                  for (var i = 1; i <= 4; i++)
-                    DropdownMenuItem(value: i, child: Text('$i')),
-                ],
-                onChanged: (value) => setState(() => _units = value ?? 1),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: _lessons,
-                isDense: true,
-                decoration: InputDecoration(
-                  labelText: AppStrings.aiPracticeCustomLessons,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                ),
-                items: [
-                  for (var i = 1; i <= 4; i++)
-                    DropdownMenuItem(value: i, child: Text('$i')),
-                ],
-                onChanged: (value) => setState(() => _lessons = value ?? 1),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: _template,
-          isDense: true,
-          decoration: InputDecoration(
-            labelText: AppStrings.aiPracticeCustomTemplate,
-            border: const OutlineInputBorder(),
-            isDense: true,
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeCustomUnits,
+          value: '$_units',
+          onTap: () => _pick(
+            title: AppStrings.aiPracticeCustomUnits,
+            options: [
+              for (var i = 1; i <= 4; i++) ('$i', '$i'),
+            ],
+            current: '$_units',
+            onSelected: (value) =>
+                setState(() => _units = int.parse(value)),
           ),
-          items: [
-            for (final entry in _templates.entries)
-              DropdownMenuItem(value: entry.key, child: Text(entry.value)),
-          ],
-          onChanged: (value) => setState(() => _template = value ?? 'mastery'),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeCustomLessons,
+          value: '$_lessons',
+          onTap: () => _pick(
+            title: AppStrings.aiPracticeCustomLessons,
+            options: [
+              for (var i = 1; i <= 4; i++) ('$i', '$i'),
+            ],
+            current: '$_lessons',
+            onSelected: (value) =>
+                setState(() => _lessons = int.parse(value)),
+          ),
+        ),
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeCustomTemplate,
+          value: _templateLabel,
+          onTap: () => _pick(
+            title: AppStrings.aiPracticeCustomTemplate,
+            options: [
+              ('mastery', AppStrings.aiPracticeTemplateMastery),
+              ('practice', AppStrings.aiPracticeTemplatePractice),
+              ('review', AppStrings.aiPracticeTemplateReview),
+              ('mixed', AppStrings.aiPracticeTemplateMixed),
+            ],
+            current: _template,
+            onSelected: (value) => setState(() => _template = value),
+          ),
+        ),
+        _textEntry(
+          label: AppStrings.aiPracticeCustomDesignBrief,
           controller: _briefCtrl,
-          maxLines: 2,
-          decoration: InputDecoration(
-            labelText: AppStrings.aiPracticeCustomDesignBrief,
-            border: const OutlineInputBorder(),
-            isDense: true,
+        ),
+        DirectoryValueRow(
+          label: AppStrings.aiPracticeCustomGrounded,
+          control: Switch(
+            value: _grounded,
+            onChanged: (value) => setState(() => _grounded = value),
           ),
+          showDivider: false,
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(AppStrings.aiPracticeCustomGrounded),
-          value: _grounded,
-          onChanged: (value) => setState(() => _grounded = value),
-        ),
+        const SizedBox(height: AppSpacing.sm),
         _estimate(context, 1 + _units * _lessons + 1),
       ],
     );
   }
 
-  Widget _label(BuildContext context, String text) => Text(
-        text,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
+  /// 文本输入行：label 在上、输入域占整行（文本域无法右置）。
+  Widget _textEntry({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.captionSm(context).copyWith(
+              fontWeight: FontWeight.w600,
             ),
-      );
+          ),
+          const SizedBox(height: AppSpacing.sm - 2),
+          TextField(
+            controller: controller,
+            maxLines: 2,
+            decoration: aiSheetInputDecoration(context, hint: hint),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _estimate(BuildContext context, int calls) => Text(
         '${AppStrings.aiPracticeEstimatedCalls(calls)} · '
         '${AppStrings.aiPracticeLessonPlan(_customMode ? _units * _lessons : 1)}',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+        style: AppTextStyles.captionSm(context).copyWith(
+          color: TurnaTheme.textHintColor(context),
+        ),
       );
+
+  /// 偏好目录深页式的取值：值行 → 选项弹层（全局弹层容器），点选即回填。
+  Future<void> _pick<T>({
+    required String title,
+    required List<(T, String)> options,
+    required T current,
+    required ValueChanged<T> onSelected,
+  }) {
+    return showTurnaSheet<T>(
+      context: context,
+      title: title,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < options.length; i++)
+              _PickOptionRow(
+                label: options[i].$2,
+                selected: options[i].$1 == current,
+                showDivider: i < options.length - 1,
+                onTap: () => Navigator.of(context).pop(options[i].$1),
+              ),
+          ],
+        ),
+      ),
+    ).then((value) {
+      if (value != null) onSelected(value);
+    });
+  }
 
   Future<void> _start() async {
     setState(() {
@@ -384,22 +370,103 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
   }
 }
 
+/// 未配置的一行提示：警告色小字，不占卡。
+class _ConfigWarning extends StatelessWidget {
+  const _ConfigWarning();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.warning_amber_rounded,
+          size: 16,
+          color: TurnaTheme.warning,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            AppStrings.aiPracticeNotConfigured,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textSecondaryColor(context),
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 选项弹层里的一行：标签 + 选中打勾（轮廓表达，不靠颜色）。
+class _PickOptionRow extends StatelessWidget {
+  const _PickOptionRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.showDivider = true,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.pageMargin,
+          vertical: AppSpacing.md + 2,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.bodyText(context).copyWith(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (selected)
+              const Icon(
+                Icons.check_rounded,
+                size: 18,
+                color: TurnaTheme.brandTeal,
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!showDivider) return row;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
+        ),
+      ),
+      child: row,
+    );
+  }
+}
+
 /// Opens the generation sheet from the Hub, the library page, or the guide.
 Future<void> showAiPracticeGenerateSheet(
   BuildContext context, {
   AiPracticeSource source = AiPracticeSource.mistakes,
   bool customMode = false,
 }) {
-  return showModalBottomSheet<void>(
+  return showTurnaSheet<void>(
     context: context,
+    title: AppStrings.aiPracticeGenerateTitle,
+    subtitle: AppStrings.aiPracticeBackgroundHint,
     isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) => AiPracticeGenerateSheet(
+    body: AiPracticeGenerateSheet(
       initialSource: source,
       initialCustomMode: customMode,
     ),

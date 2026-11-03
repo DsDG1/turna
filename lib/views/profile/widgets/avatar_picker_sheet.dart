@@ -8,6 +8,7 @@ import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -16,8 +17,11 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// dismissed without a choice" and should NOT touch prefs.
 const String _kResetSentinel = '__avatar_reset__';
 
-/// Opens a modal bottom sheet letting the user pick a preset avatar from
+/// Opens the global bottom sheet letting the user pick a preset avatar from
 /// [AvatarCatalog] and persists the choice onto [LocalUser.avatarId].
+///
+/// 湿地雾光 R15：容器迁至 [showTurnaSheet]（拖手 + 标题 + 一句说明），
+/// 「重置默认」是弹层操作区的主操作。
 ///
 /// Safe to call from any context that has access to the navigator + app
 /// prefs. Returns the newly selected [Avatar] id, `null` if the user picked
@@ -31,14 +35,19 @@ Future<String?> showAvatarPickerSheet(
   BuildContext context, {
   required LocalUser user,
 }) async {
-  final selected = await showModalBottomSheet<String>(
+  final selected = await showTurnaSheet<String>(
     context: context,
+    title: AppStrings.accountAvatarChangeTitle,
+    subtitle: AppStrings.accountAvatarChangeHint,
     isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (_) => _AvatarPickerSheet(currentId: user.avatarId),
+    body: _AvatarPickerSheet(currentId: user.avatarId),
+    actions: [
+      TurnaSheetAction(
+        label: AppStrings.accountAvatarReset,
+        primary: true,
+        onPressed: () => Navigator.of(context).pop(_kResetSentinel),
+      ),
+    ],
   );
   if (selected == null) return null;
 
@@ -86,99 +95,20 @@ class _AvatarPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: ConstrainedBox(
-          // Cap the sheet height so the grid scrolls when the catalog grows
-          // past ~20 entries.
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.72,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Header(
-                title: AppStrings.accountAvatarChangeTitle,
-                hint: AppStrings.accountAvatarChangeHint,
-                onReset: () => Navigator.of(context).pop(_kResetSentinel),
-                onClose: () => Navigator.of(context).pop(),
-              ),
-              const SizedBox(height: 4),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                  child: _AvatarGrid(
-                    currentId: currentId,
-                    isDark: isDark,
-                    onPick: (id) => Navigator.of(context).pop(id),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return ConstrainedBox(
+      // Cap the sheet height so the grid scrolls when the catalog grows
+      // past ~20 entries.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
       ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.title,
-    required this.hint,
-    required this.onReset,
-    required this.onClose,
-  });
-
-  final String title;
-  final String hint;
-  final VoidCallback onReset;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 4, 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  hint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.restart_alt_rounded),
-            tooltip: AppStrings.accountAvatarResetTooltip,
-            color: TurnaTheme.textHintColor(context),
-            onPressed: onReset,
-          ),
-          IconButton(
-            icon: const Icon(Icons.close_rounded),
-            tooltip: AppStrings.commonClose,
-            color: TurnaTheme.textHintColor(context),
-            onPressed: onClose,
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        child: _AvatarGrid(
+          currentId: currentId,
+          isDark: isDark,
+          onPick: (id) => Navigator.of(context).pop(id),
+        ),
       ),
     );
   }

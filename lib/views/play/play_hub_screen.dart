@@ -28,28 +28,30 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_cards.dart';
-import 'package:turna/views/widgets/adaptive_card_grid.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 
-/// 练习页主页（2026-08 焕新版）。
+/// 练习页主页（「湿地雾光」R07 · 今日任务台版式）。
 ///
-/// 信息架构（自上而下）：
-/// 1. 今日复习主 CTA——大数字总待复习 + 四队列速览 chips，短按智能进入
-///    最高优先级队列，长按看全队列浮窗
-/// 2. 复习队列 2×2（错题 / 单词 / 语法 / 智能练习；Anki 课为 Anki / 智能练习）
-///    ——每格长按弹出数据浮窗
-/// 3. 练习工具三列（薄弱单词 / 词典 / 复习进度）——薄弱单词与复习进度
-///    支持长按浮窗，词典无（「部分按钮生效」）
+/// 信息架构（P1「今日任务台」模式，自上而下）：
+/// 1. 页内页头：「练习」pageTitle + 日期 captionSm（PlayAppBar 退化为透明
+///    占位，标题在正文里）
+/// 2. 今日复习玻璃对象（全页唯一玻璃）：「今日复习」小标签 + 特大数字
+///    （46）+ 单位 + 预计分钟，下方全宽「开始复习」主行动；长按弹全队列
+///    浮窗。短按智能进入最高优先级队列
+/// 3. 有顺序的队列行（DirectoryTaskRow，顺序即优先级：错题重练 clay 置顶
+///    emphasized、单词 SRS teal、语法 sky、智能练习 reed；Anki 课为独立的
+///    Anki 队列行）——行长按弹数据浮窗
+/// 4. 文字工具索引（每日挑战 / 薄弱单词 / 词典 / 复习进度）：teal 文字链
+///    + 间隔点，不再四张卡；薄弱单词与复习进度长按浮窗挂在文字链上
 ///
-/// 2026-10-20：原先「AI 助手」是队列下方一条独立横幅，与练习主线并列，
-/// 读起来像另一个专区。改为队列里的「智能练习」一格：AI 只是练习的来源之一，
-/// 入口落在练习入口所在的位置。
-///
-/// 非语言课程（Anki 牌组）没有内置词表可查：复习队列只留 Anki 复习，
-/// 练习工具只留复习进度，单词/词典入口整体隐藏。
+/// 非语言课程（Anki 牌组）没有内置词表可查：队列只留 Anki 复习 + 智能练习
+/// ，工具索引只留复习进度（ADR 0066：记忆卡域独立，不并入语言队列逻辑）。
 ///
 /// 交互契约：短按一律直接进入页面；长按仅在有数据可看的入口上生效，
 /// 浮窗实现见 `info_popup.dart`。
@@ -99,7 +101,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
     super.dispose();
   }
 
-  /// 每次切回练习页重取一次，否则 Hero 大数字/Anki 队列计数永远停在
+  /// 每次切回练习页重取一次，否则大数字/Anki 队列计数永远停在
   /// 首次挂载时读到的值（复习结果只写调度器，快照要有人刷新）。
   void _onTabChanged() {
     if (_tabRouter?.index.value != TabDestination.play) return;
@@ -137,7 +139,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
           OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );
     // 复习会话只改调度器，仓库的 schedulerDue 要等下一次 refresh 才更新；
-    // 返回 Play 页立即重取（force：防抖不能吞掉这一次），Hero 数字才跟得上。
+    // 返回 Play 页立即重取（force：防抖不能吞掉这一次），大数字才跟得上。
     await _refreshOfficialDue(force: true);
   }
 
@@ -201,7 +203,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
     );
   }
 
-  // ── 智能路由（Hero 短按） ───────────────────────────────────────
+  // ── 智能路由（玻璃对象短按） ─────────────────────────────────────
 
   /// 语言课：错题 → 单词 → 语法；Anki 课：只进 Anki 复习。
   void _startToday(BuildContext context, PlayQueueSnapshot snapshot) {
@@ -220,35 +222,10 @@ class _PlayHubScreenState extends State<PlayHubScreen>
     }
   }
 
-  String _heroSubtitle(PlayQueueSnapshot snapshot) {
-    if (snapshot.ankiCourse) {
-      if (snapshot.ankiUnavailable) {
-        return AppStrings.ankiDueUnavailable;
-      }
-      if (snapshot.ankiDueCount > 0) {
-        return AppStrings.playTodayHeroNext(AppStrings.playAnkiReviewTitle);
-      }
-      return AppStrings.playTodayHeroAllClear;
-    }
-    if (snapshot.mistakeCount > 0) {
-      return AppStrings.playTodayHeroNext(
-          '${AppStrings.playMistakeReviewTitle} · ${snapshot.mistakeCount}');
-    }
-    if (snapshot.srsDue > 0) {
-      return AppStrings.playTodayHeroNext(
-          '${AppStrings.playReviewTitle} · ${snapshot.srsDue}');
-    }
-    if (snapshot.grammarDue > 0) {
-      return AppStrings.playTodayHeroNext(
-          '${AppStrings.playGrammarReviewTitle} · ${snapshot.grammarDue}');
-    }
-    return AppStrings.playTodayHeroAllClear;
-  }
-
   @override
   Widget build(BuildContext context) {
     // Official due 快照仓库是 ChangeNotifier 单例：commit / mutation 只发通知。
-    // 本页挂在 IndexedStack 里整个进程只 mount 一次，不订阅的话 Hero 大数字
+    // 本页挂在 IndexedStack 里整个进程只 mount 一次，不订阅的话大数字
     // 永远冻结在 initState 那次刷新读到的值上（启动竞态失败时一直是 0）。
     return ListenableBuilder(
       listenable: OfficialFormalDueRepository.instance,
@@ -273,45 +250,44 @@ class _PlayHubScreenState extends State<PlayHubScreen>
       // Optional dependency: widget tests pump the hub without the queue.
     }
     final ankiCourse = snapshot.ankiCourse;
+    final now = DateTime.now();
 
     return RepaintBoundary(
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-          // ── 今日复习主 CTA ────────────────────────────────────
+          // ── 页内页头（「练习」pageTitle + 日期 captionSm） ──────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageMargin,
+                AppSpacing.lg,
+                AppSpacing.pageMargin,
+                0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(AppStrings.playTitle,
+                      style: AppTextStyles.pageTitle(context)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    AppStrings.playHeaderDate(now.month, now.day),
+                    style: AppTextStyles.captionSm(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+
+          // ── 今日复习玻璃对象（全页唯一玻璃） ────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: AppSpacing.pageGutterMist,
               child: Builder(
-                builder: (heroContext) => TodayHeroCard(
-                  subtitle: _heroSubtitle(snapshot),
+                builder: (heroContext) => _TodayGlassPanel(
                   totalDue: totalDue,
-                  chips: [
-                    if (!ankiCourse) ...[
-                      QueueChipData(
-                        label: AppStrings.playQueueChipMistake,
-                        color: TurnaTheme.errorLight,
-                        count: snapshot.mistakeCount,
-                      ),
-                      QueueChipData(
-                        label: AppStrings.playQueueChipWords,
-                        color: TurnaTheme.success,
-                        count: snapshot.srsDue,
-                      ),
-                      QueueChipData(
-                        label: AppStrings.playQueueChipGrammar,
-                        color: TurnaTheme.warmSand,
-                        count: snapshot.grammarDue,
-                      ),
-                    ] else
-                      QueueChipData(
-                        label: AppStrings.playQueueChipAnki,
-                        color: Colors.white,
-                        count: ankiChipCount,
-                      ),
-                  ],
                   onTap: () => _startToday(context, snapshot),
                   onLongPress: () => _showTodayPopup(heroContext, snapshot),
                 ),
@@ -323,168 +299,206 @@ class _PlayHubScreenState extends State<PlayHubScreen>
           if (ankiCourse && snapshot.ankiUnavailable)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pageMargin,
+                  AppSpacing.md,
+                  AppSpacing.pageMargin,
+                  0,
+                ),
                 child: _AnkiDueRetryBar(
                   onRetry: () => unawaited(_refreshOfficialDue(force: true)),
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
 
-          // ── 复习队列（2×2，每格长按数据浮窗） ──────────────────
+          // ── 复习队列（顺序即优先级，长按数据浮窗） ──────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SectionTitle(title: AppStrings.playQueueSectionTitle),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageMargin,
+                0,
+                AppSpacing.pageMargin,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                AppStrings.playQueueSectionTitle,
+                style: AppTextStyles.sectionTitle(context),
+              ),
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              // 固定 1.6 宽高比在系统字体放大后挤掉标题行
-              // （真机收据 `BOTTOM OVERFLOWED BY 11 PIXELS`）。改行高自适应，
-              // 1.6 作为常规字号下的高度基线。
-              child: AdaptiveCardGrid(
-                columns: 2,
-                spacing: 12,
-                minChildAspectRatio: 1.6,
+              padding: AppSpacing.pageGutterMist,
+              child: Column(
                 children: [
                   if (!ankiCourse) ...[
                     Builder(
-                      builder: (tileContext) => ReviewTile(
-                        title: AppStrings.playMistakeReviewTitle,
-                        icon: Icons.priority_high_rounded,
-                        accentColor: TurnaTheme.errorLight,
-                        badge: snapshot.mistakeCount > 0
-                            ? '${snapshot.mistakeCount}'
-                            : null,
-                        onTap: () =>
-                            context.router.push(const MistakeReviewRoute()),
+                      builder: (rowContext) => _PopupAnchor(
+                        semanticsLabel: AppStrings.playMistakeReviewTitle,
                         onLongPress: () =>
-                            _showMistakePopup(tileContext, snapshot),
+                            _showMistakePopup(rowContext, snapshot),
+                        child: DirectoryTaskRow(
+                          icon: Icons.priority_high_rounded,
+                          accent: TurnaTheme.anatolianClay,
+                          title: AppStrings.playMistakeReviewTitle,
+                          countLabel: snapshot.mistakeCount > 0
+                              ? '${snapshot.mistakeCount}'
+                              : null,
+                          emphasized: true,
+                          onTap: () =>
+                              context.router.push(const MistakeReviewRoute()),
+                        ),
                       ),
                     ),
                     Builder(
-                      builder: (tileContext) => ReviewTile(
-                        title: AppStrings.playReviewTitle,
-                        icon: Icons.repeat_rounded,
-                        accentColor: TurnaTheme.success,
-                        badge:
-                            snapshot.srsDue > 0 ? '${snapshot.srsDue}' : null,
-                        onTap: () =>
-                            context.router.push(const SrsReviewRoute()),
-                        onLongPress: () => _showSrsPopup(tileContext, snapshot),
+                      builder: (rowContext) => _PopupAnchor(
+                        semanticsLabel: AppStrings.playReviewTitle,
+                        onLongPress: () => _showSrsPopup(rowContext, snapshot),
+                        child: DirectoryTaskRow(
+                          icon: Icons.repeat_rounded,
+                          accent: TurnaTheme.brandTeal,
+                          title: AppStrings.playReviewTitle,
+                          countLabel: snapshot.srsDue > 0
+                              ? '${snapshot.srsDue}'
+                              : null,
+                          onTap: () =>
+                              context.router.push(const SrsReviewRoute()),
+                        ),
                       ),
                     ),
                     Builder(
-                      builder: (tileContext) => ReviewTile(
-                        title: AppStrings.playGrammarReviewTitle,
-                        icon: Icons.menu_book_rounded,
-                        // 语法原先用 brandTeal；「智能练习」按 AI 语义占用 teal，
-                        // 同格两卡同色会被读成同一个入口，语法改用 sky（冷色档，
-                        // Anki 卡只在 Anki 课程出现，不会与之同屏）。
-                        accentColor: TurnaTheme.brandSky,
-                        badge: snapshot.grammarDue > 0
-                            ? '${snapshot.grammarDue}'
-                            : null,
-                        onTap: () =>
-                            context.router.push(const GrammarReviewRoute()),
+                      builder: (rowContext) => _PopupAnchor(
+                        semanticsLabel: AppStrings.playGrammarReviewTitle,
                         onLongPress: () =>
-                            _showGrammarPopup(tileContext, snapshot),
+                            _showGrammarPopup(rowContext, snapshot),
+                        child: DirectoryTaskRow(
+                          icon: Icons.menu_book_rounded,
+                          accent: TurnaTheme.brandSky,
+                          title: AppStrings.playGrammarReviewTitle,
+                          countLabel: snapshot.grammarDue > 0
+                              ? '${snapshot.grammarDue}'
+                              : null,
+                          onTap: () =>
+                              context.router.push(const GrammarReviewRoute()),
+                        ),
                       ),
                     ),
                   ] else
                     Builder(
-                      builder: (tileContext) => ReviewTile(
-                        title: AppStrings.playAnkiReviewTitle,
-                        icon: Icons.style_rounded,
-                        accentColor: TurnaTheme.brandSky,
-                        badge: snapshot.ankiUnavailable
-                            ? '—'
-                            : (ankiChipCount! > 0 ? '$ankiChipCount' : null),
-                        onTap: () => _openAnkiReview(context),
+                      builder: (rowContext) => _PopupAnchor(
+                        semanticsLabel: AppStrings.playAnkiReviewTitle,
                         onLongPress: () =>
-                            _showAnkiPopup(tileContext, snapshot),
+                            _showAnkiPopup(rowContext, snapshot),
+                        child: DirectoryTaskRow(
+                          icon: Icons.style_rounded,
+                          accent: TurnaTheme.brandSky,
+                          title: AppStrings.playAnkiReviewTitle,
+                          countLabel: snapshot.ankiUnavailable
+                              ? '—'
+                              : (ankiChipCount != null && ankiChipCount > 0
+                                  ? '$ankiChipCount'
+                                  : null),
+                          onTap: () => _openAnkiReview(context),
+                        ),
                       ),
                     ),
                   // 智能练习：按错题/弱词生成定制练习（AI 伴学的入排位置）。
                   // 两种课程都保留——Anki 课同样能按错题生成；但鸿蒙伴生版
-                  // 不随包 AI 模块（华为审核合规，ADR 0056），整个磁贴不渲染。
+                  // 不随包 AI 模块（华为审核合规，ADR 0056），整行不渲染。
                   if (!isDegraded(OhosDegradation.aiGeneration))
                     Builder(
-                      builder: (tileContext) => ReviewTile(
-                        title: AppStrings.playSmartPracticeTitle,
-                        icon: Icons.auto_awesome_rounded,
-                        accentColor: TurnaTheme.brandTeal,
-                        badge: engineReady
-                            ? (practiceStatus.active
-                                ? '…'
-                                : practiceStatus.ready > 0
-                                    ? '${practiceStatus.ready}'
-                                    : null)
-                            : AppStrings.playAiEngineNotConfigured,
-                        badgeColor: TurnaTheme.warning,
-                        onTap: () => context.router.push(const AiHubRoute()),
-                        onLongPress: () => _showAiPopup(tileContext),
+                      builder: (rowContext) => _PopupAnchor(
+                        semanticsLabel: AppStrings.playSmartPracticeTitle,
+                        onLongPress: () => _showAiPopup(rowContext),
+                        child: DirectoryTaskRow(
+                          icon: Icons.auto_awesome_rounded,
+                          // teal 已归 SRS 队列（P2 任务行色规），智能练习
+                          // 按湿地色轴取芦苇青，与错题 clay、语法 sky 分开。
+                          accent: TurnaTheme.brandReed,
+                          title: AppStrings.playSmartPracticeTitle,
+                          countLabel: engineReady
+                              ? (practiceStatus.active
+                                  ? '…'
+                                  : practiceStatus.ready > 0
+                                      ? '${practiceStatus.ready}'
+                                      : null)
+                              : AppStrings.playAiEngineNotConfigured,
+                          onTap: () => context.router.push(const AiHubRoute()),
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
 
-          // ── 练习工具（语言课三列；Anki 课只留复习进度） ──────────
+          // ── 工具索引（teal 文字链 + 间隔点，长按浮窗挂在文字链上） ──
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SectionTitle(title: AppStrings.playPracticeToolsTitle),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageMargin,
+                0,
+                AppSpacing.pageMargin,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                AppStrings.playPracticeToolsTitle,
+                style: AppTextStyles.sectionTitle(context),
+              ),
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              // 原来是 `SizedBox(height: 104)` + Row：字体放大后标题行会被
-              // 104 掐住。改行高自适应网格，104 作为常规字号下的高度基线。
-              child: AdaptiveCardGrid(
-                columns: ankiCourse ? 1 : 3,
-                spacing: 12,
-                minChildHeight: 104,
+              padding: AppSpacing.pageGutterMist,
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (!ankiCourse) ...[
+                    // 每日挑战原是孤儿路由（功能在、入口丢），在此恢复
+                    // 练习台入口；Anki 牌组课不出现（题目取自已学课时）。
+                    _ToolIndexLink(
+                      label: AppStrings.playDailyTitle,
+                      onTap: () =>
+                          context.router.push(const DailyChallengeRoute()),
+                    ),
+                    const _ToolIndexDot(),
                     Builder(
-                      builder: (tileContext) => CompactToolTile(
-                        title: AppStrings.playWeakWordsTitle,
-                        icon: Icons.fitness_center_rounded,
-                        // Single Play Hub secondary warm soft-tint
-                        // (ADR 0033); slightly stronger alpha so clay is
-                        // readable at a glance.
-                        accentColor: TurnaTheme.anatolianClay,
-                        badge: snapshot.weakWords.isNotEmpty
-                            ? '${snapshot.weakWords.length}'
-                            : null,
+                      builder: (linkContext) => _ToolIndexLink(
+                        label: AppStrings.playWeakWordsTitle,
                         onTap: () =>
                             context.router.push(const WeakWordsRoute()),
                         onLongPress: () =>
-                            _showWeakWordsPopup(tileContext, snapshot),
+                            _showWeakWordsPopup(linkContext, snapshot),
                       ),
                     ),
-                    CompactToolTile(
-                      title: AppStrings.playDictionaryTitle,
-                      icon: Icons.menu_book_outlined,
-                      accentColor: TurnaTheme.brandSky,
-                      onTap: () => context.router.push(const DictionaryRoute()),
+                    const _ToolIndexDot(),
+                    _ToolIndexLink(
+                      label: AppStrings.playDictionaryTitle,
+                      onTap: () =>
+                          context.router.push(const DictionaryRoute()),
                     ),
+                    const _ToolIndexDot(),
                   ],
                   Builder(
-                    builder: (tileContext) => CompactToolTile(
-                      title: AppStrings.playReviewProgressTitle,
-                      icon: Icons.show_chart_rounded,
-                      accentColor: TurnaTheme.brandTeal,
+                    builder: (linkContext) => _ToolIndexLink(
+                      label: AppStrings.playReviewProgressTitle,
                       onTap: () =>
                           context.router.push(const ReviewProgressRoute()),
-                      onLongPress: () => _showReviewProgressPopup(tileContext),
+                      onLongPress: () =>
+                          _showReviewProgressPopup(linkContext),
                     ),
+                  ),
+                  // ADR 0066 §3：记忆卡域独立入口——语言课程用户也能直达
+                  // 记忆卡中枢（牌组管理 / 导入 / 修复都在那边）。
+                  const _ToolIndexDot(),
+                  _ToolIndexLink(
+                    label: AppStrings.memoryCardHubTitle,
+                    onTap: () =>
+                        context.router.push(const MemoryCardHubRoute()),
                   ),
                 ],
               ),
@@ -501,13 +515,13 @@ class _PlayHubScreenState extends State<PlayHubScreen>
   }
 
   // ── 各入口浮窗装配 ─────────────────────────────────────────────
-  // `anchor` 是被长按卡片的 BuildContext（Builder 提供），用于浮窗锚定；
+  // `anchor` 是被长按元素的 BuildContext（Builder 提供），用于浮窗锚定；
   // 导航统一走 State 自己的 context。
 
   void _showTodayPopup(BuildContext anchor, PlayQueueSnapshot snapshot) {
     _showInfoPopup(
       anchor: anchor,
-      semanticsLabel: AppStrings.playTodayHeroTitle,
+      semanticsLabel: AppStrings.reviewTodayTitle,
       onEnter: () => _startToday(context, snapshot),
       builder: (enter) => TodayOverviewPanelBody(
         snapshot: snapshot,
@@ -515,6 +529,32 @@ class _PlayHubScreenState extends State<PlayHubScreen>
         onEnter: enter,
       ),
     );
+  }
+
+  /// 长按浮窗里「下一个」行的文案（短按智能路由的镜像）。
+  String _heroSubtitle(PlayQueueSnapshot snapshot) {
+    if (snapshot.ankiCourse) {
+      if (snapshot.ankiUnavailable) {
+        return AppStrings.ankiDueUnavailable;
+      }
+      if (snapshot.ankiDueCount > 0) {
+        return AppStrings.playTodayHeroNext(AppStrings.playAnkiReviewTitle);
+      }
+      return AppStrings.playTodayHeroAllClear;
+    }
+    if (snapshot.mistakeCount > 0) {
+      return AppStrings.playTodayHeroNext(
+          '${AppStrings.playMistakeReviewTitle} · ${snapshot.mistakeCount}');
+    }
+    if (snapshot.srsDue > 0) {
+      return AppStrings.playTodayHeroNext(
+          '${AppStrings.playReviewTitle} · ${snapshot.srsDue}');
+    }
+    if (snapshot.grammarDue > 0) {
+      return AppStrings.playTodayHeroNext(
+          '${AppStrings.playGrammarReviewTitle} · ${snapshot.grammarDue}');
+    }
+    return AppStrings.playTodayHeroAllClear;
   }
 
   void _showMistakePopup(BuildContext anchor, PlayQueueSnapshot snapshot) {
@@ -588,9 +628,179 @@ class _PlayHubScreenState extends State<PlayHubScreen>
   }
 }
 
+/// 今日复习玻璃对象：「今日复习」小标签 + 特大数字（46）+ 单位 + 预计分钟，
+/// 下方全宽「开始复习」主行动。
+///
+/// 它是本页**唯一**的玻璃对象（P1 用量规则）；长按弹全队列浮窗。
+class _TodayGlassPanel extends StatelessWidget {
+  const _TodayGlassPanel({
+    required this.totalDue,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  final int totalDue;
+  final VoidCallback onTap;
+  final GestureLongPressCallback? onLongPress;
+
+  /// 每张卡的估计用时（秒）——纯展示层换算，不落任何仓储。
+  static const _secondsPerItem = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final estimateMinutes =
+        totalDue > 0 ? (totalDue * _secondsPerItem / 60).ceil() : 0;
+
+    return Semantics(
+      container: true,
+      onLongPress: onLongPress,
+      hint: onLongPress == null ? null : AppStrings.playLongPressHint,
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        behavior: HitTestBehavior.deferToChild,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.pageMargin),
+          decoration: TurnaTheme.glassDecoration(
+            context,
+            TurnaTheme.glassFocus,
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppStrings.reviewTodayTitle,
+                style: AppTextStyles.caption(context),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '$totalDue',
+                    key: const Key('play-today-hero-number'),
+                    style: AppTextStyles.metricHero(
+                      context,
+                      color: TurnaTheme.brandTealDark,
+                    ).copyWith(
+                      fontSize: 46,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs + 2),
+                  Text(
+                    AppStrings.playTodayHeroTotalLabel,
+                    style: AppTextStyles.captionSm(context)
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              if (estimateMinutes > 0) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  AppStrings.playTodayEstimateMinutes(estimateMinutes),
+                  style: AppTextStyles.captionSm(context),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.xl),
+              SessionPrimaryAction(
+                label: AppStrings.playTodayStartReview,
+                onPressed: onTap,
+                trailingIcon: Icons.play_arrow_rounded,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 长按浮窗锚：包在队列行 / 文字链外，把长按手势与语义名转给浮窗。
+///
+/// 点击仍由内部的 InkWell 处理（长按与单击是不同手势，不竞争）。
+class _PopupAnchor extends StatelessWidget {
+  const _PopupAnchor({
+    required this.semanticsLabel,
+    required this.onLongPress,
+    required this.child,
+  });
+
+  final String semanticsLabel;
+  final GestureLongPressCallback? onLongPress;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (onLongPress == null) return child;
+    return Semantics(
+      onLongPress: onLongPress,
+      hint: AppStrings.playLongPressHint,
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        behavior: HitTestBehavior.deferToChild,
+        child: child,
+      ),
+    );
+  }
+}
+
+/// 工具索引文字链：teal 文字，短按进页、长按弹数据浮窗（可选）。
+class _ToolIndexLink extends StatelessWidget {
+  const _ToolIndexLink({
+    required this.label,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final GestureLongPressCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs + 2,
+          vertical: AppSpacing.sm - 2,
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.captionSm(context).copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: TurnaTheme.brandTeal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 工具索引的间隔点。
+class _ToolIndexDot extends StatelessWidget {
+  const _ToolIndexDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '·',
+      style: AppTextStyles.captionSm(context).copyWith(
+        color: TurnaTheme.textHintColor(context),
+      ),
+    );
+  }
+}
+
 /// Anki due 同步失败的重试条（仅 Anki 课显示）。
 ///
-/// 数字冻结时用户没有别的自救手段：Hero 短按会直接进复习，长按浮窗只把
+/// 数字冻结时用户没有别的自救手段：玻璃对象短按会直接进复习，长按浮窗只把
 /// Anki 行显示成「—」。这里对齐 Anki hub 的 `_AnkiDueUnavailableBanner`，
 /// 但用练习页自己的卡片语言。
 class _AnkiDueRetryBar extends StatelessWidget {

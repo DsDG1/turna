@@ -7,6 +7,47 @@
 
 ---
 
+### 2026-11-03 P3+P4 湿地雾光接线：外壳 / 学习闭环 / 六域逐页重构主体落地
+
+- **性质**：设计翻新 P3 + P4 主体批次（P2 组件全量接线 + 记忆卡中枢新建）；**测试数净 0**（删 `bottom_navigator_test` 8 条与答题明细断言若干，新增 / 改写相当——含课程树契约迁移、练习台任务台断言、报告页 KPI 断言、热图逐日语义探针等；全量计数 2596）。全量非 golden **2596 passed / 0 failed**。
+- **改动**（121 文件，+8215 / −13681）：
+  1. 外壳：`LearnTopBar`（课程名 + 切换 + 连胜）替 StatAppBar，积分 / 宝石 / 待复习胶囊退役回所属页；`TextTabBar`（文字导航 + 受光短条）替 BottomNavigator 镜片胶囊；AnimatedCounter 迁 `views/widgets/`。
+  2. 课程树（R02 紧凑稿）：紧凑章节头（点击开切换弹层）+ 吸顶单元条 + 46/40 目录行（P2 行族）+ 底部常驻继续条；手风琴 / 帘式揭示 / 投影缓存状态机保留；`lesson_tile` / `unit_card` / `section_switcher` / `progress_spine` 退役删除。
+  3. R03 / ADR 0066：课程管理只列语言课程（官方 + 旧版两类 anki scope 过滤），Anki 导入卡 / 待处理横幅 / 修复中心入口迁出；新建 `memory_card_hub_page`（今日待复习大数字 + 牌组目录 + 导入 / 修复入口，路由已注册）承接；练习台工具索引给中枢直达链。
+  4. 课时域（R04–R06）：`new_lesson_screen` 接 SessionProgressBand（dots）；`practice_session_body` 接动作带 + 主操作；`InteractionOptionTile` 编号行化（26px 编号圈 + 发丝线）；判分二元行委托 SessionRatingBand；完成弹层收敛为 TurnaSheetPanel（几何标记 + 结果一行 + 收获纵向 + 单一下一步）。
+  5. 练习 / 复习 / 报告（R07–R10）：练习台任务台化（玻璃今日对象 + DirectoryTaskRow 队列 + 文字工具索引）；每日挑战接骨架；统一 / 语法 / 记忆卡会话接评分带与来源行；`binary_recall_bar` / `review_progress_header` 删除；错题 / 弱词学习笔记式；进度 / 洞察 / 仪表盘 / 来源详情接报告套件；`ReportHeatmap` 补逐格语义（`cellLabel`，365 节点）。
+  6. 词典 / 记忆卡（R11–R13）：词典阅读目录 + TurnaSearchField；卡牌浏览器搜索基元化；牌组统计接报告套件。
+  7. AI（R14）：大厅任务目录、练习库目录化、聊天纸面气泡 + 独立输入区、诊断报告版式、API 配置偏好目录表单、弹层迁移。
+  8. 个人 / 设置（R15–R17 主体）：个人学习档案（状态数字归位）；设置落地页新目录；系统健康 / 存储诊断报告版式；成就 / 头像 / 分享弹层迁移。
+  9. `wetland_palette_contract_test` clay 契约锚点随新表面迁移（任务条 clay 优先标记、CTA 渐变判 SessionPrimaryAction 源头）。
+- **验证**：`flutter analyze` **No issues found**；`flutter test --exclude-tags golden` **2596 / 0**。**未验**：golden 快照（版面全变，需整批重录）；真机 / 模拟器观感（含练习台、课程树、会话、中枢全流程）；深色与高对比的逐页人工核对；设置六个深页、远程备份页、关于 / 隐私长文与章节弹层容器**未翻新**（P4 尾项，见 status.md §8）。
+
+---
+
+### 2026-11-03 P2 新版主题与组件系统（湿地雾光 · 建成未接线）
+
+- **性质**：设计翻新 P2 批次（新增公共组件，不接线、不改页面）；**测试数 +39**（`session_shell_test` 8：计数渲染、圆点 >16 落细条、退出回调、点数、评分双档回调与间隔小字、评分禁用、主操作禁用、画布与动作带渲染；`report_kit_test` 10：指标头四件、构成条只画正值、全零让位、柱图空让位 / 语义名、折线 <2 点让位 / 语义名、热图补格、空数据无格、定义列表行与 n-1 发丝线；`directory_rows_test` 9：完成勾 / 当前环、可点与锁定不触发、子课行、任务行计数、词条行、链接行、值行点按、control 行事件归控件、组头；`turna_sheet_test` 4：结构五件、主操作返回值与关闭返回 null、确认弹层文案、取消路径；`search_field_test` 5：防抖终值、连续输入只投末次、清除立即回调、searching 尾标、外部 controller；`mist_shell_test`（home/components）4：顶栏课程名连胜与切换、连胜空不渲染、导航回报索引、选中语义标签与文字加重）。非 golden 全量未重跑；计数相对上一条（A2 批 -13）记 +39 增量。
+- **改动**：
+  1. token：`core/spacing.dart` 增栅格节奏（`xxxl`、`pageMargin` / `pageMarginCompact`、`pageGutterMist`、`studyColumnMaxWidth` 720 / `formColumnMaxWidth` 840）；`core/text_styles.dart` 增版面文字角色（`pageTitle` / `sectionTitle` / `cardTitle` / `bodyText` / `captionSm` / `metricHero`）。品牌 hex、玻璃档与三表面角色未动。
+  2. 组件五组 + 外壳两件：`views/widgets/session_shell.dart`（SessionProgressBand / SessionSegmentedDots / SessionThinProgressBar / SessionSourceLine / SessionRecallCanvas / SessionActionBand / SessionPrimaryAction / SessionRatingBand）、`report_kit.dart`（指标头 / 构成条 / 柱状 / 折线 / 热图 / 定义列表，CustomPaint 自绘）、`directory_rows.dart`（课时 / 子课 / 组头 / 任务 / 词条 / 链接 / 值七行）、`turna_sheet.dart`（showTurnaSheet / TurnaSheetPanel / showTurnaConfirmDialog）、`search_field.dart`（TurnaSearchField 内建 250ms 防抖）、`views/home/components/light_top_bar.dart` 与 `text_tab_bar.dart`。每个文件尾带 light+dark `@Preview`。
+  3. 全部**未接线**：review 域三套平行件、21 处手写 sheet、两份 Timer 防抖、StatAppBar 胶囊行与 BottomNavigator 原样保留，P3 / P4 迁移时逐处替换。清单见 `docs/design-refresh/p2-components.md`。
+- **验证**：`flutter analyze` **No issues found**；六个新测试文件 **39 passed / 0 failed**。**未验**：非 golden 全量、组件在真实页面的观感（接线发生在 P3 / P4）、@Preview 的 IDE 渲染（无编辑器环境）。
+
+---
+
+### 2026-11-03 A2 死入口处置：三个死路由与死组件删除，每日挑战恢复练习台入口
+
+- **性质**：清理批次（设计翻新 P0 问题清单 A2 销项）；**测试数 -13**（删除死页面直接泵测的两个文件：`content_update_dialog_test` 4 条、`official_anki_mapping_page_test` 9 条。两者只测已无生产入口的页面本体，无迁移价值——映射建议投影的领域逻辑由 `official_anki_projection_payloads` / `official_anki_v2_lesson_content` 等测试继续覆盖；changelog 渲染机制保留并仍被 `changelog_page_test` 覆盖）。
+- **改动**：
+  1. `routing.dart`：删除 `SectionPickerRoute`（被章节底部弹层完全取代）、`ChangelogRoute`（主入口是关于页「更新日志」Tab）、`OfficialAnkiMappingRoute`（被 quick/mcq 两个内联 sheet 取代）三项注册；`UnifiedReviewRoute` 保留并标注「仅深链兜底，生产路径由 SrsReviewPage 以 widget 嵌入」；清理 developer lab 过期注释（`routing.dart` 设置段与 `settings_advanced_section.dart` 尾注）。
+  2. `changelog_page.dart`：`ChangelogPage` 从路由页壳改为 `abstract final class` 机制 holder（历程步骤 / 后援版本 / 剪贴板拼接原位保留，静态成员名不变）。
+  3. 删除文件：`section_picker_page.dart`、`official_anki_mapping_page.dart`、`content_update/content_update_dialog.dart`（目录一并移除）及上述两个测试。
+  4. `play_hub_screen.dart`：练习工具区新增「每日挑战」入口（`shuffle` 图标 + `brandReed`，Anki 牌组课不渲染——题目取自已学课时），恢复孤儿路由的生产入口。
+  5. 用 OHOS fork SDK 跑 build_runner 重生成 `routing.gr.dart`（三个死路由的生成类已消失）；随后官方 SDK `pub get` 复位 package_config。
+- **验证**：`flutter analyze` **No issues found**；定向 `flutter test`（`test/routing` + `test/architecture` + `play_hub_screen_test` + `changelog_page_test`，含 `--exclude-tags golden`）**75 passed / 0 failed**。**未验**：非 golden 全量重跑、真机上练习台四入口布局与每日挑战完整会话。
+
+---
+
 ### 2026-11-02 玻璃降彩度，并分开玻璃对象与扁平纸面（ADR 0065）
 
 - **性质**：视觉批次；**测试数 +1**（`glass_tokens_test` 新增「彩度系数 glassChroma」1 条：`warning` / `glassFocus` 的玻璃底比未降彩的同浓度罩染更灰、描边同步降彩、投影冷却比例锁在 `glassShadowCooling`、`l1Quiet` 与 `l1Subtle` 浓度仍相等）。非 golden 全量未重跑，计数相对上一条的 2570 只记这一条增量。

@@ -4,8 +4,11 @@ import 'package:flutter/services.dart';
 
 // Project imports:
 import 'package:turna/application/settings/external_link_registry.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 内容创作退场 tombstone（Plan 3 §19.4）。
@@ -26,51 +29,45 @@ class ContentAuthoringMovedBody extends StatelessWidget {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.move_up_rounded,
                 size: 44, color: TurnaTheme.brandTeal),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.md + 2),
             Text(
               AppStrings.authoringMovedTitle,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: AppTextStyles.sectionTitle(context),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               AppStrings.authoringMovedBody,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.5,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+              style: AppTextStyles.bodyText(context).copyWith(
+                fontSize: 15,
+                height: 1.5,
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: gui.enabled
-                        ? () => openExternalLink(
-                            context, ExternalLinkId.guiPlatform)
-                        : null,
-                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                    label: Text(AppStrings.authoringMovedOpenGui),
-                  ),
-                ),
-              ],
+            const SizedBox(height: AppSpacing.xl),
+            SessionPrimaryAction(
+              label: AppStrings.authoringMovedOpenGui,
+              onPressed: gui.enabled
+                  ? () =>
+                      openExternalLink(context, ExternalLinkId.guiPlatform)
+                  : null,
+              trailingIcon: Icons.open_in_new_rounded,
             ),
             if (!gui.enabled) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 AppStrings.authoringMovedGuiUnconfigured,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                      height: 1.4,
-                    ),
+                style: AppTextStyles.captionSm(context).copyWith(
+                  fontSize: 12,
+                  color: TurnaTheme.textHintColor(context),
+                  height: 1.4,
+                ),
               ),
             ] else
               TextButton.icon(
@@ -84,12 +81,13 @@ class ContentAuthoringMovedBody extends StatelessWidget {
                 icon: const Icon(Icons.copy_rounded, size: 14),
                 label: Text(AppStrings.externalLinkCopyAddress),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               AppStrings.authoringMovedDraftsKept,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+              style: AppTextStyles.captionSm(context).copyWith(
+                fontSize: 12,
+                color: TurnaTheme.textHintColor(context),
+              ),
             ),
           ],
         ),

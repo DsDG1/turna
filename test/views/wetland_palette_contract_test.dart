@@ -272,33 +272,22 @@ void main() {
   });
 
   group('Clay productization call sites (structural)', () {
-    test('course tree complete/perfect uses anatolianClay', () {
-      // 「湿地晨光」重构后课程树拆为组件：单元进度在 unit_card.dart，
-      // 完美角标（原 _LessonTypeIcon）在 lesson_tile.dart。
-      final unitSrc = File('lib/views/courses/components/unit_card.dart')
+    test('clay stays the priority marker in queues and stats', () {
+      // 「湿地雾光」重设计后 clay 的职责从「课程树完美角标」（已随
+      // lesson_tile/unit_card 退役）转为：任务台的优先队列标记与统计
+      // 强调。课程树完成态按定稿用 teal 环/实心，不再用 clay。
+      final playHubSrc = File('lib/views/play/play_hub_screen.dart')
           .readAsStringSync();
-      expect(unitSrc.contains('TurnaTheme.anatolianClay'), isTrue);
-      expect(
-        RegExp(r'isFullyComplete[\s\S]{0,200}anatolianClay').hasMatch(unitSrc),
-        isTrue,
-      );
+      expect(playHubSrc.contains('TurnaTheme.anatolianClay'), isTrue);
+      expect(playHubSrc.contains('DirectoryTaskRow'), isTrue);
 
-      final lessonSrc = File(
-        'lib/views/courses/components/lesson_tile.dart',
-      ).readAsStringSync();
-      expect(
-        RegExp(r'perfect[\s\S]{0,300}anatolianClay').hasMatch(lessonSrc),
-        isTrue,
-        reason: 'the perfect-pill border must stay clay',
-      );
+      final statsSrc = File('lib/views/profile/widgets/learning_stats.dart')
+          .readAsStringSync();
+      expect(statsSrc.contains('TurnaTheme.anatolianClay'), isTrue);
     });
 
-    test('profile learning stats XP accent uses clay', () {
-      final src = File('lib/views/profile/widgets/learning_stats.dart')
-          .readAsStringSync();
-      expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
-      expect(src.contains('profileXpToday'), isTrue);
-    });
+    // XP 摘要已并入「今日一行」（profileTodaySummaryLine），clay 断言
+    // 上一条统一覆盖，不再单列。
 
     test('about brand header strip uses clay and sand', () {
       final src =
@@ -327,9 +316,10 @@ void main() {
     });
 
     test('key CTAs use primaryCtaDecoration (gradient teal)', () {
+      // 主 CTA 的渐变随 P2 收进 SessionPrimaryAction（各页经它消费）；
+      // 判定源头而不是每个调用页。
       for (final path in [
-        'lib/views/lesson/components/interactions/interaction_renderer.dart',
-        'lib/views/lesson/components/lesson_dialogs.dart',
+        'lib/views/widgets/session_shell.dart',
       ]) {
         final src = File(path).readAsStringSync();
         expect(

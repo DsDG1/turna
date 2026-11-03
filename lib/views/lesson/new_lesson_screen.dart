@@ -33,6 +33,7 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
@@ -147,7 +148,7 @@ class _NewLessonPageState extends State<NewLessonPage>
           child: Scaffold(
             // 画布比白卡低一档: 页面与卡面都是纯白时, 阴影是唯一分离线索.
             backgroundColor: TurnaTheme.lessonCanvasBg(context),
-            appBar: _LessonAppBar(
+            appBar: _LessonTopBand(
               vm: _vm,
               onClose: () => _onClosePressed(context),
               onAiHint: () => _openAiHint(context, _vm),
@@ -382,7 +383,6 @@ class _NewLessonPageState extends State<NewLessonPage>
       xpEarned: xpEarned,
       gemsEarned: gemsEarned,
       wasPerfect: wasPerfect,
-      questionResults: _vm.questionResults,
       random: _random,
       footnote: _vm.officialRedoFlushFailed
           ? AppStrings.lessonAnkiRedoFlushFailed
@@ -428,88 +428,41 @@ class _NewLessonPageState extends State<NewLessonPage>
   }
 }
 
-/// Lesson AppBar, rebuilt only when the fields it actually shows change
-/// (lesson name, stage name, completion flag for the close button, progress,
-/// AI-hint eligibility). The rest of the page (body) no longer drags the AppBar
-/// into a rebuild on every answer submission.
-class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
+/// Lesson top band, rebuilt only when the fields it actually shows change
+/// (current question index, total, AI-hint eligibility). The rest of the page
+/// (body) no longer drags the band into a rebuild on every answer submission.
+///
+/// 「湿地雾光」R04：进度表达换成会话骨架的 [SessionProgressBand]（退出 +
+/// 分段圆点 + n/m 计数 + AI 动作键）；阶段名 / 小课序号仍是数据接缝，由
+/// 正文的阶段条承载（见 [_LessonBody]）。
+class _LessonTopBand extends StatelessWidget implements PreferredSizeWidget {
   final LessonViewModel vm;
   final VoidCallback? onClose;
   final VoidCallback onAiHint;
 
-  const _LessonAppBar({
+  const _LessonTopBand({
     required this.vm,
     required this.onClose,
     required this.onAiHint,
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 6);
+  Size get preferredSize => const Size.fromHeight(SessionProgressBand.bandHeight);
 
   @override
   Widget build(BuildContext context) {
-    return Selector<
-        LessonViewModel,
-        ({
-          String name,
-          String? stage,
-          bool complete,
-          double progress,
-          bool aiEligible,
-          int question,
-          int total,
-          String? segment,
-        })>(
+    return Selector<LessonViewModel, ({bool aiEligible, int question, int total})>(
       selector: (context, vm) => (
-        name: vm.lesson?.name ?? AppStrings.lessonLessonFallback,
-        stage: vm.currentStageName,
-        complete: vm.isComplete,
-        progress: vm.progress,
         aiEligible: _aiEligible(vm),
         question: vm.currentQuestionNumber,
         total: vm.totalInteractionCount,
-        segment: vm.isSegmented
-            ? AppStrings.lessonSubLessonIndex(
-                vm.segmentNumber,
-                vm.segmentCount,
-              )
-            : null,
       ),
-      builder: (context, s, _) => AppBar(
-        backgroundColor: TurnaTheme.surfaceColor(context),
-        elevation: 0,
-        leading: IconButton(
-          tooltip: AppStrings.commonClose,
-          icon: Icon(
-            Icons.close_rounded,
-            color: TurnaTheme.textPrimaryColor(context),
-          ),
-          onPressed: onClose,
-        ),
-        title: Column(
-          children: [
-            Text(
-              s.name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
-            ),
-            if (s.stage != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                _subtitle(s.segment, s.stage!, s.question, s.total),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-              ),
-            ],
-          ],
-        ),
-        centerTitle: true,
+      builder: (context, s, _) => SessionProgressBand(
+        currentIndex: s.question,
+        totalCount: s.total,
+        style: SessionProgressStyle.dots,
+        onExit: onClose,
+        exitTooltip: AppStrings.commonClose,
         actions: [
           if (s.aiEligible)
             IconButton(
@@ -521,23 +474,6 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: onAiHint,
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(6),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                minHeight: 6,
-                value: s.progress,
-                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  TurnaTheme.brandTeal,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -548,23 +484,6 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
     final i = vm.currentInteraction;
     if (i == null) return false;
     return interactionAiHintEligible(i);
-  }
-
-  /// Subtitle line: `小课 k/n   第 x/y 题`.
-  ///
-  /// 不再拼阶段名 —— 阶段条已经写着它, 两处重复等于白占一行. 分段课程取
-  /// 小课序号, 非分段课程退回到题号; 两者都没有时兜底回阶段名.
-  static String _subtitle(
-    String? segment,
-    String stage,
-    int question,
-    int total,
-  ) {
-    final parts = <String>[
-      if (segment != null) segment,
-      if (total > 0) AppStrings.lessonQuestionIndex(question, total),
-    ];
-    return parts.isEmpty ? stage : parts.join('   ');
   }
 }
 
@@ -672,7 +591,10 @@ class _LessonBody extends StatelessWidget {
           children: [
             Expanded(
               child: PracticeSessionBody(
-                stageName: vm.currentStageName,
+                // 阶段条是顶带之外唯一的上下文行：阶段名 + （分段课程时）
+                // 小课序号「小课 k/n」。旧 AppBar 副标题的这两个数据接缝
+                // 都在这里续接，进度则由顶带的圆点与计数表达。
+                stageName: _stageLabel(vm),
                 stageAccent: TurnaTheme.brandTeal,
                 header: header,
                 scrollController: scrollController,
@@ -718,5 +640,15 @@ class _LessonBody extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 阶段条标签：`阶段名` / `阶段名 · 小课 k/n`。
+  ///
+  /// 非分段课程没有小课序号可拼，退回纯阶段名；阶段名缺失时不渲染阶段条。
+  String? _stageLabel(LessonViewModel vm) {
+    final stage = vm.currentStageName;
+    if (stage == null) return null;
+    if (!vm.isSegmented) return stage;
+    return '$stage · ${AppStrings.lessonSubLessonIndex(vm.segmentNumber, vm.segmentCount)}';
   }
 }

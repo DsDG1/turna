@@ -32,6 +32,7 @@ import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/splash/splash_page.dart';
 import 'package:turna/core/motion.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/home/components/components.dart';
 import 'package:turna/views/home/components/scroll_hide_bar.dart';
 import 'package:turna/views/home/components/tab_stack.dart';
@@ -40,7 +41,6 @@ import 'package:turna/views/home/streak_broken_dialog.dart';
 import 'package:turna/views/play/play_app_bar.dart';
 import 'package:turna/views/play/play_hub_screen.dart';
 import 'package:turna/views/profile/profile_screen.dart';
-import 'package:turna/views/settings/settings_app_bar.dart';
 import 'package:turna/views/settings/settings_page.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/logger.dart';
@@ -203,30 +203,31 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _resetProgressAfterConfirm() async {
-    final go = await showDialog<bool>(
+    // R18 全局弹层：三档动作走 [showTurnaSheet]（次左主右，危险动词染红）。
+    final go = await showTurnaSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.contentUpdateResetConfirmTitle),
-        content: Text(AppStrings.contentUpdateResetConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx, false);
-              AutoRouter.of(context).push(const DataBackupSettingsRoute());
-            },
-            child: Text(AppStrings.contentUpdateExportFirst),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(AppStrings.contentUpdateResetProgress),
-          ),
-        ],
-      ),
+      title: AppStrings.contentUpdateResetConfirmTitle,
+      subtitle: AppStrings.contentUpdateResetConfirmBody,
+      body: const SizedBox.shrink(),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.commonCancel,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TurnaSheetAction(
+          label: AppStrings.contentUpdateExportFirst,
+          onPressed: () {
+            Navigator.of(context).pop(false);
+            AutoRouter.of(context).push(const DataBackupSettingsRoute());
+          },
+        ),
+        TurnaSheetAction(
+          label: AppStrings.contentUpdateResetProgress,
+          primary: true,
+          destructive: true,
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
     );
     if (go != true || !mounted) return;
     await Future.wait([
@@ -239,11 +240,13 @@ class _HomePageState extends State<HomePage> {
     await _acknowledgeContentUpdate();
   }
 
+  // Profile / Settings 的 Tab 级 AppBar 已退役（R15 / R16）：两页改为页内
+  // pageTitle 开篇，这里只占住状态栏条。Learn 与 Play 的顶栏仍各归其位。
   final List<PreferredSizeWidget> appBars = [
-    const StatAppBar(),
+    const LearnTopBar(),
     const PlayAppBar(),
-    const ProfileAppBar(),
-    const SettingsAppBar(),
+    const TabBodySpacer(),
+    const TabBodySpacer(),
   ];
 
   @override
@@ -265,15 +268,21 @@ class _HomePageState extends State<HomePage> {
         extendBody: true,
         bottomNavigationBar: ScrollHideBar(
           hidden: _hidePolicy.hidden,
-          child: BottomNavigator(
-            currentIndex: currentIndex,
-            onPress: onBottomNavigatorTapped,
+          child: TextTabBar(
+            items: [
+              TextTabItem(label: AppStrings.commonNavLearn),
+              TextTabItem(label: AppStrings.commonNavPlay),
+              TextTabItem(label: AppStrings.commonNavProfile),
+              TextTabItem(label: AppStrings.commonNavSettings),
+            ],
+            selectedIndex: currentIndex,
+            onTap: onBottomNavigatorTapped,
           ),
         ),
         body: MediaQuery(
           data: mq.copyWith(
             padding: mq.padding.copyWith(
-              bottom: mq.padding.bottom + BottomNavigator.overlayExtent,
+              bottom: mq.padding.bottom + TextTabBar.contentHeight,
             ),
           ),
           child: Column(

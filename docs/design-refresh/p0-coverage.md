@@ -31,8 +31,9 @@
 
 | 页面 | 路由 · 文件 | 入口 | 平台与守卫 | 处置 |
 |---|---|---|---|---|
-| SectionPickerPage | `SectionPickerRoute` · `views/courses/section_picker_page.dart` | **无生产入口**（已被 SectionBottomSheet 取代） | — | 无生产入口 → 待处置 |
 | CourseManagementPage | `CourseManagementRoute` · `views/courses/course_management_page.dart` | StatAppBar 地球图标 / 课程树空态 / 导入完成「查看牌组」 | CourseReadyGuard | 生产 |
+
+> SectionPickerPage 原列于此：路由与页面已在 A2 处置中删除（功能被章节底部弹层完全取代）。
 
 ### R04 课时骨架
 
@@ -76,7 +77,7 @@
 |---|---|---|---|---|
 | PlayHubScreen | Tab 1 内嵌 · `views/play/play_hub_screen.dart` | 底部导航 | 智能练习 tile 鸿蒙不渲染；Anki 课裁剪单词/语法/词典/弱词入口 | 生产 |
 | PlayAppBar | 组件 · `views/play/play_app_bar.dart` | Tab 1 激活时 | — | 组件 |
-| DailyChallengePage | `DailyChallengeRoute` · `views/play/daily_challenge_screen.dart` | **无生产入口**（设置页仍保留其 Anki 出题开关） | — | 无生产入口 → 待处置 |
+| DailyChallengePage | `DailyChallengeRoute` · `views/play/daily_challenge_screen.dart` | 练习台「练习工具」格（A2 恢复入口；Anki 牌组课不渲染） | — | 生产 |
 | WeakWordsPage | `WeakWordsRoute` · `views/play/weak_words_page.dart` | Play Hub 工具行 | Anki 课时入口隐藏 | 生产 |
 
 ### R08 复习会话
@@ -119,7 +120,8 @@
 | AnkiImportPage（向导壳） | `AnkiImportRoute` · `views/anki/anki_import_screen.dart` | 复习中枢上传按钮 / 课程管理添加卡 | — | 生产 |
 | 预览步骤体 ModernAnkiImportPreview 及配套 | `views/anki/import_wizard/`（目录树、预设选择、notetype 行、样本 sheet、正面选择 sheet、中断横幅） | 向导 Previewing 步 | SmartAdaptation 区鸿蒙不渲染 | 生产（步骤体） |
 | AnkiImportDoneStep | `views/anki/import_wizard/anki_import_done_step.dart` | 向导 Completed 步 | — | 生产（步骤体） |
-| OfficialAnkiMappingPage | `OfficialAnkiMappingRoute` · `views/anki_official/official_anki_mapping_page.dart` | **无生产入口**（流程已被 quick/mcq 两个 sheet 内联取代，仅测试可达） | — | 无生产入口 → 待处置 |
+
+> OfficialAnkiMappingPage 原列于此：路由与页面已在 A2 处置中删除（流程被 quick/mcq 两个内联 sheet 取代，底层建议投影由 application 层测试继续覆盖）。
 
 ### R13 记忆卡管理与宿主
 
@@ -180,7 +182,8 @@
 |---|---|---|---|
 | AboutTurnaPage（双 Tab，内嵌更新日志） | `AboutTurnaRoute` · `views/settings/about_turna_page.dart` | 设置-关于分类 | 生产 |
 | PrivacyDetailsPage | `PrivacyDetailsRoute` · `views/settings/privacy_details_page.dart` | 设置-关于 / 关于页隐私 tile | 生产 |
-| ChangelogPage | `ChangelogRoute` · `views/settings/changelog_page.dart` | **路由无生产 push**（主入口是关于页 Tab 内嵌 `ChangelogFromAsset`） | 无生产入口 → 待处置 |
+
+> ChangelogPage 独立路由原列于此：已在 A2 处置中删除（主入口是关于页「更新日志」Tab 内嵌）；`ChangelogPage` 转为机制 holder（`abstract final class`），渲染与剪贴板逻辑保留。
 
 ## 全局弹层清单
 
@@ -210,7 +213,6 @@
 | TTS 可用性引导 | `views/splash/splash_page.dart` 的 `maybePromptTtsAvailability` | 会话首次（鸿蒙走只读变体） | R01 |
 | StreakBrokenDialog | `views/home/streak_broken_dialog.dart` | 断签且未被 TTS 弹层占用预算 | R01 |
 | 内容更新 banner + 重置确认（内嵌 AlertDialog） | `views/home/home_page.dart` | 课程内容版本变化且有进度 | R01 |
-| ContentUpdateDialog（**死组件，无调用方**） | `views/content_update/content_update_dialog.dart` | 无 | R01 → 待处置 |
 | 课时退出确认 / 完成三弹层 | `views/lesson/new_lesson_screen.dart`、`components/lesson_dialogs.dart` | 课时流程 | R04 / R06 |
 | 统一复习退出确认 | `views/review/unified_review_page.dart` | 会话中退出 | R08 |
 | 导入三阶段进度 / 替换确认 / 错误对话框 | `views/courses/course_management_page.dart`、`views/anki/anki_import_screen.dart` | pack 导入 / Anki 导入 | R03 / R12 |
@@ -227,9 +229,9 @@
 |---|---|---|
 | **域边界（[ADR 0066](../decisions/0066-anki-deck-domain-independence.md)）** | 记忆卡独立成域：课程管理的「从 Anki 导入」卡与牌组列表移除，导入完成不再切换课程，练习中心不做 Anki 课程域裁剪；功能与导入管线保持原版 | 设计约束，随 P3 / P4 记忆卡域重构落地 |
 | 断链 | `AiPracticeDetailRoute` 被 push 但未注册——**已修复**（已注册，带课程守卫） | 已销项 |
-| 无生产入口（路由可达但无 push） | SectionPickerPage、DailyChallengePage、UnifiedReviewRoute、ChangelogPage、OfficialAnkiMappingPage | 逐项决定：保留并给入口 / 迁移内容后删路由 / 明确为深链兜底。决定写入本表，不静默保留 |
-| 死组件（无调用方） | ContentUpdateDialog；Advanced 页尾注与路由注释提及的 developer lab（路由表已无此路由，注释过期） | 删组件与过期注释 |
+| 无生产入口 | **已处置（A2）**：SectionPickerPage / ChangelogRoute / OfficialAnkiMappingPage 三者路由与页面删除；UnifiedReviewRoute 保留并标注「仅深链兜底」（生产路径是 SrsReviewPage 的 widget 嵌入）；DailyChallengePage 恢复练习台工具格入口 | 已销项（明细见 `test/BASELINE.md` 当日条目） |
+| 死组件 | **已处置（A2）**：ContentUpdateDialog 连目录删除；routing 与 Advanced 页的 developer lab 过期注释清除 | 已销项 |
 | 非路由页 | StorageCategoryItemsPage（手工 push + bool 协议，无深链/预测性返回） | 重设计路由化或维持并说明 |
 | 组件型存在 | ContentAuthoringMovedBody（单一使用点） | 并入调用方 |
 
-计数：路由 54 条（含 initial Splash；`AiPracticeDetailRoute` 已注册）；Tab 内嵌页 4；非路由页 1（StorageCategoryItems）；题型 renderer 17；底部 sheet 14 族；对话框/浮层 13 族。全 App 实际页面、平台分支与公共浮层均已入表，后续 P1 逐页线框与 P6 逐页审查以本表为基准。
+计数：路由 51 条（含 initial Splash；A1 补注册详情页、A2 删三个死路由后）；Tab 内嵌页 4；非路由页 1（StorageCategoryItems）；题型 renderer 17；底部 sheet 14 族；对话框/浮层 12 族。全 App 实际页面、平台分支与公共浮层均已入表，后续逐页实现与 P6 逐页审查以本表为基准。

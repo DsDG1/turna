@@ -17,8 +17,9 @@ import 'package:turna/core/theme.dart';
 
 /// Listen-only summary (or similar) card: play audio / TTS, then continue.
 ///
-/// Always reports correct — there is nothing to grade. The lesson screen
-/// shows CONTINUE (autoAdvance is false) so the learner must acknowledge.
+/// Always reports correct — there is nothing to grade. The bottom action band
+/// carries the CONTINUE CTA (autoAdvance is false) so the learner must
+/// acknowledge.
 @injectable
 class ListenOnlyRenderer extends InteractionRenderer {
   @override
@@ -91,6 +92,14 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
     final showTranscript =
         widget.transcript.isNotEmpty && (_hasPlayed || submitted);
 
+    // 「继续」CTA 交给页面底栏（P1：主操作跨题型位置稳定），提交语义
+    // 不变——点按即以 always-correct 记录 'listened'。
+    LessonActionScope.maybeOf(context)?.report(
+      canSubmit: !submitted,
+      submit: () => widget.onSubmit(true, userAnswerText: 'listened'),
+      label: AppStrings.lessonContinueUpper,
+    );
+
     return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,16 +145,6 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
               ),
             ),
           ],
-          const SizedBox(height: 28),
-          LessonCheckButton(
-            label: submitted
-                ? AppStrings.commonDone
-                : AppStrings.lessonContinueUpper,
-            enabled: !submitted,
-            onPressed: submitted
-                ? null
-                : () => widget.onSubmit(true, userAnswerText: 'listened'),
-          ),
         ],
       ),
     );

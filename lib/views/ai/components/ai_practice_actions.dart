@@ -8,10 +8,12 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/practice/ai_practice_generator.dart';
 import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Shared library actions (open / pin / retry / delete) used by both the AI
@@ -27,23 +29,12 @@ Future<void> deleteAiPractices(
   List<AiCourse> items,
 ) async {
   if (items.isEmpty) return;
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showTurnaConfirmDialog(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(AppStrings.aiPracticeDeleteTitle),
-      content: Text(AppStrings.aiPracticeDeleteBody(items.length)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(AppStrings.commonCancel),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(AppStrings.aiPracticeDelete),
-        ),
-      ],
-    ),
+    title: AppStrings.aiPracticeDeleteTitle,
+    message: AppStrings.aiPracticeDeleteBody(items.length),
+    confirmLabel: AppStrings.aiPracticeDelete,
+    destructive: true,
   );
   if (confirmed != true || !context.mounted) return;
   final queue = context.read<AiPracticeJobQueue>();
@@ -90,31 +81,36 @@ Future<void> adjustAiPractice(
 ) async {
   final controller = TextEditingController();
   try {
-    final instruction = await showDialog<String>(
+    final instruction = await showTurnaSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.aiPracticeAdjust),
-        content: TextField(
+      title: AppStrings.aiPracticeAdjust,
+      subtitle: AppStrings.aiPracticeAdjustHint,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.pageMargin,
+        ),
+        child: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 3,
-          decoration: InputDecoration(
-            hintText: AppStrings.aiPracticeAdjustHint,
-            border: const OutlineInputBorder(),
+          decoration: aiSheetInputDecoration(
+            context,
+            hint: AppStrings.aiPracticeAdjustHint,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: Text(AppStrings.commonApply),
-          ),
-        ],
       ),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.commonCancel,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        TurnaSheetAction(
+          label: AppStrings.commonApply,
+          primary: true,
+          onPressed: () =>
+              Navigator.of(context).pop(controller.text.trim()),
+        ),
+      ],
     );
     if (instruction == null || instruction.isEmpty) return;
     if (!context.mounted) return;

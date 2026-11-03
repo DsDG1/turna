@@ -51,12 +51,21 @@ void main() {
     displayName: 'Builtin Turkish',
     isBuiltin: true,
   );
-  final importedEntry = CourseCatalogEntry(
-    scope: const LegacyAnkiCourseScope('import-1'),
-    displayName: 'JLPT N5 词库',
-    isBuiltin: false,
-    legacyImportId: 'import-1',
+  final secondBuiltinEntry = CourseCatalogEntry(
+    scope: const BuiltinCourseScope('japanese'),
+    displayName: 'Builtin Japanese',
+    isBuiltin: true,
     cardCount: 1204,
+  );
+  final officialAnkiEntry = CourseCatalogEntry(
+    scope: const OfficialAnkiCourseScope(
+      profileId: 'p1',
+      sourceId: 'src-anki-1',
+    ),
+    displayName: '记忆卡牌组 A',
+    isBuiltin: false,
+    officialSourceId: 'src-anki-1',
+    cardCount: 800,
   );
 
   setUp(() async {
@@ -72,7 +81,7 @@ void main() {
 
   Future<void> pumpPage(WidgetTester tester) {
     final courses = _FakeCourseProvider(
-      [builtinEntry, importedEntry],
+      [builtinEntry, secondBuiltinEntry, officialAnkiEntry],
       builtinEntry.wireKey,
     );
     return tester.pumpWidget(
@@ -91,13 +100,14 @@ void main() {
 
   testWidgets('add-course cards survive 200% text scale on a narrow phone',
       (tester) async {
-    // 真机收据（2026-10-20）：字体放大后「从 Anki 导入课程」/「导入课程包」
-    // 的标题行报 `RIGHT OVERFLOWED BY 3 PIXELS` —— 文字列原先没有宽度约束。
+    // 真机收据（2026-10-20）：字体放大后导入卡标题行曾报
+    // `RIGHT OVERFLOWED BY 3 PIXELS` —— 文字列原先没有宽度约束。
+    // （「从记忆卡导入」卡已随 ADR 0066 迁出课程管理。）
     await tester.binding.setSurfaceSize(const Size(360, 780));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final courses = _FakeCourseProvider(
-      [builtinEntry, importedEntry],
+      [builtinEntry, secondBuiltinEntry, officialAnkiEntry],
       builtinEntry.wireKey,
     );
     await tester.pumpWidget(
@@ -121,7 +131,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
     expect(
       find.text(AppStrings.courseManagementImportPackTitle),
       findsOneWidget,
@@ -133,32 +142,29 @@ void main() {
     await pumpPage(tester);
 
     expect(find.text('Builtin Turkish'), findsOneWidget);
-    expect(find.text('JLPT N5 词库'), findsOneWidget);
+    expect(find.text('Builtin Japanese'), findsOneWidget);
+    // 内置语言卡副题是「内置课程」；卡数文案只在非内置（导入包）卡上出现。
     expect(
-        find.text(AppStrings.courseManagementCardCount(1204)), findsOneWidget);
-    expect(
-        find.text(AppStrings.courseManagementBuiltinSubtitle), findsOneWidget);
+        find.text(AppStrings.courseManagementBuiltinSubtitle),
+        findsNWidgets(2));
     expect(find.text(AppStrings.courseManagementMyCourses), findsOneWidget);
-    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
+    // ADR 0066：记忆卡条目与「从记忆卡导入」卡都不出现在课程管理。
+    expect(find.text('记忆卡牌组 A'), findsNothing);
+    expect(find.text(AppStrings.courseManagementImportTitle), findsNothing);
     expect(
       find.text(AppStrings.courseManagementImportPackTitle),
       findsOneWidget,
     );
   });
 
-  testWidgets('the Anki import entry is live on every build', (tester) async {
-    // ADR 0050 §6 step 4 removed the degradation that used to disable this
-    // card on the companion build, and with it the "unavailable" subtitle
-    // string, which is now deleted rather than left orphaned. The assertion
-    // that still matters is the inverse of the old one: there is no platform
-    // on which this card is blocked, so an implementation that reintroduced a
-    // guard would strand the feature everywhere rather than only on OHOS.
+  testWidgets('memory-card import lives outside course management (ADR 0066)',
+      (tester) async {
+    // 记忆卡域独立：导入入口与牌组条目都在记忆卡域（练习台的记忆卡中枢
+    // 与导入向导）。课程管理里重新出现任何一条都算域边界回退。
     await pumpPage(tester);
 
-    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
-    expect(find.byIcon(Icons.add_circle_outline_rounded), findsNWidgets(2));
-    // No block affordance anywhere on the page: the two import cards are both
-    // live, and a third disabled icon would mean a degradation crept back.
+    expect(find.text(AppStrings.courseManagementImportTitle), findsNothing);
+    expect(find.byIcon(Icons.add_circle_outline_rounded), findsOneWidget);
     expect(find.byIcon(Icons.block_outlined), findsNothing);
   });
 
@@ -176,10 +182,10 @@ void main() {
       'and it has no TTS item', (tester) async {
     await pumpPage(tester);
 
-    // The built-in course has neither action → no menu at all.
-    expect(find.byType(PopupMenuButton<String>), findsOneWidget);
+    // 两门内置语言互为保留底线（≥2 时可卸载）→ 两张卡都带菜单。
+    expect(find.byType(PopupMenuButton<String>), findsNWidgets(2));
 
-    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
 
     expect(find.text(AppStrings.courseTtsSettingsTitle), findsNothing);
@@ -199,7 +205,8 @@ void main() {
     await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.courseTtsSettingsTitle), findsOneWidget);
-    expect(find.text(AppStrings.courseManagementRemoveCourse), findsNothing);
+    // 两门内置语言互为底线（≥2 可卸载）→ 第一张卡的菜单同样带移除项。
+    expect(find.text(AppStrings.courseManagementRemoveCourse), findsOneWidget);
 
     await tester.tap(find.text(AppStrings.courseTtsSettingsTitle).last);
     await tester.pumpAndSettle();
@@ -210,13 +217,14 @@ void main() {
       (tester) async {
     await pumpPage(tester);
 
-    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text(AppStrings.courseManagementRemoveCourse));
     await tester.pumpAndSettle();
 
-    expect(find.text(AppStrings.ankiUninstallConfirmTitle), findsOneWidget);
-    expect(find.textContaining('import-1'), findsOneWidget);
+    expect(
+        find.text(AppStrings.courseUninstallConfirmTitle), findsOneWidget);
+    expect(find.textContaining('Builtin Japanese'), findsOneWidget);
 
     await tester.tap(find.text(AppStrings.commonCancel));
     await tester.pumpAndSettle();

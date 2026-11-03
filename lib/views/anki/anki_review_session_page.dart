@@ -26,15 +26,15 @@ import 'package:provider/provider.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/anki_official_review_gate.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
 import 'package:turna/views/anki/components/anki_review_session_settlement.dart';
-import 'package:turna/views/review/components/binary_recall_bar.dart';
-import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
@@ -1015,23 +1015,31 @@ class _AnkiStudySessionView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: ReviewProgressHeader(
-        progress: controller.totalCount == 0
-            ? 1
-            : controller.currentIndex / controller.totalCount,
+      // 会话顶带（R08）：bar 风格与统一复习一致；撤销是上下文动作键。
+      appBar: SessionProgressBand(
         currentIndex: controller.currentIndex + 1,
         totalCount: controller.totalCount,
-        onBack: () => Navigator.of(context).maybePop(),
-        onUndo: () async {
-          final ok = await controller.undoLast();
-          if (!ok || !context.mounted) return;
-          TurnaSnackBar.show(
-            context,
-            AppStrings.reviewUndoRatingDone,
-            duration: const Duration(seconds: 2),
-          );
-        },
-        canUndo: controller.lastReceipt != null && !controller.isLocked,
+        style: SessionProgressStyle.bar,
+        onExit: () => Navigator.of(context).maybePop(),
+        exitTooltip: AppStrings.commonClose,
+        actions: [
+          IconButton(
+            tooltip: AppStrings.commonUndoLastCard,
+            icon: const Icon(Icons.undo_rounded),
+            onPressed:
+                (controller.lastReceipt != null && !controller.isLocked)
+                    ? () async {
+                        final ok = await controller.undoLast();
+                        if (!ok || !context.mounted) return;
+                        TurnaSnackBar.show(
+                          context,
+                          AppStrings.reviewUndoRatingDone,
+                          duration: const Duration(seconds: 2),
+                        );
+                      }
+                    : null,
+          ),
+        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -1158,7 +1166,8 @@ class _AnkiStudySessionView extends StatelessWidget {
                   else if (isHarmonyOsTarget)
                     const SizedBox.shrink()
                   else if (!revealed)
-                    _ShowAnswerButton(
+                    SessionPrimaryAction(
+                      label: AppStrings.lessonShowAnswer,
                       onPressed: controller.canReveal
                           ? () => unawaited(
                                 AnkiStudySessionHost.revealAndPresentAnswer(
@@ -1170,17 +1179,41 @@ class _AnkiStudySessionView extends StatelessWidget {
                           : null,
                     )
                   else
-                    BinaryRecallBar(
-                      onOutcome: (outcome) async {
-                        await controller.submitRecall(outcome);
-                        if (controller.phase == StudyCardPhase.readyForNext) {
-                          await advanceFromScheduler(
-                            controller: controller,
-                            officialSession: officialSession,
-                            liveQueue: liveQueue,
-                          );
-                        }
-                      },
+                    SessionRatingBand(
+                      actions: [
+                        SessionRatingAction(
+                          label: AppStrings.reviewBinaryForgotten,
+                          tone: SessionRatingTone.outline,
+                          onPressed: () async {
+                            await controller.submitRecall(
+                              RecallOutcome.forgotten,
+                            );
+                            if (controller.phase == StudyCardPhase.readyForNext) {
+                              await advanceFromScheduler(
+                                controller: controller,
+                                officialSession: officialSession,
+                                liveQueue: liveQueue,
+                              );
+                            }
+                          },
+                        ),
+                        SessionRatingAction(
+                          label: AppStrings.reviewBinaryRemembered,
+                          tone: SessionRatingTone.primary,
+                          onPressed: () async {
+                            await controller.submitRecall(
+                              RecallOutcome.remembered,
+                            );
+                            if (controller.phase == StudyCardPhase.readyForNext) {
+                              await advanceFromScheduler(
+                                controller: controller,
+                                officialSession: officialSession,
+                                liveQueue: liveQueue,
+                              );
+                            }
+                          },
+                        ),
+                      ],
                       enabled: controller.canSubmitRecall,
                     ),
                 ],
@@ -1336,33 +1369,5 @@ class _AnkiSessionToolbar extends StatelessWidget {
   }
 }
 
-class _ShowAnswerButton extends StatelessWidget {
-  const _ShowAnswerButton({required this.onPressed});
-
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: TurnaTheme.brandTeal,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-        child: Text(
-          AppStrings.lessonShowAnswer,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
-  }
-}
+// 「显示答案」主操作已换 SessionPrimaryAction（会话骨架，R08）——原
+// _ShowAnswerButton 是与统一复习页逐字段重复的私有复制，随之退役。

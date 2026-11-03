@@ -12,40 +12,43 @@ import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Lightweight sheet: explain an SRS/Anki card without mutating scores/notes.
+///
+/// R14：容器走全局弹层（拖手 / 标题 / 一句说明 / 关闭由 [showTurnaSheet] 给，
+/// 键盘让位同理），正文只保留讲解内容与就地动作。
 Future<void> showAiCardExplainSheet(
   BuildContext context, {
   required AiCardContext cardContext,
 }) {
-  return showModalBottomSheet<void>(
+  return showTurnaSheet<void>(
     context: context,
+    title: AppStrings.aiExplainCardTitle,
+    subtitle: AppStrings.aiExplainCardDisclaimer,
     isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
+    body: Builder(
+      builder: (sheetCtx) {
+        AiExplainPrefsStore? prefs;
+        try {
+          prefs = context.read<AiExplainPrefsStore>();
+        } catch (_) {/* prefs provider optional — fall back to defaults */}
+        return ChangeNotifierProvider(
+          create: (_) => AiCardExplainProvider(prefs: prefs),
+          child: _AiCardExplainBody(
+            cardContext: cardContext,
+          ),
+        );
+      },
     ),
-    builder: (sheetCtx) {
-      AiExplainPrefsStore? prefs;
-      try {
-        prefs = context.read<AiExplainPrefsStore>();
-      } catch (_) {/* prefs provider optional — fall back to defaults */}
-      return ChangeNotifierProvider(
-        create: (_) => AiCardExplainProvider(prefs: prefs),
-        child: _AiCardExplainBody(
-          cardContext: cardContext,
-        ),
-      );
-    },
   );
 }
 
@@ -84,39 +87,16 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
   Widget build(BuildContext context) {
     final config = context.watch<AiEngineConfigHolder>().config;
     return SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.pageMargin,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.auto_awesome_rounded,
-                    color: TurnaTheme.brandTeal, size: 22),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    AppStrings.aiExplainCardTitle,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: AppStrings.commonClose,
-                  icon: const Icon(Icons.close, size: 22),
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
-              ],
-            ),
-            Text(
-              AppStrings.aiExplainCardDisclaimer,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             if (!config.isComplete)
               const AiNotConfiguredPanel(compact: true)
             else

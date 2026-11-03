@@ -4,40 +4,38 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
-import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings/app_build_info.dart';
 import 'package:turna/application/settings/settings_destination.dart';
-import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/theme_provider.dart';
-import 'package:turna/di/injection.dart';
-import 'package:turna/domain/auth/local_user.dart';
-import 'package:turna/domain/cosmetics/avatar.dart';
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/service/locator.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/widgets/avatar_with_ring.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
 
 Future<AppBuildInfo>? _settingsLandingBuildInfoFuture;
 
 Future<AppBuildInfo> _loadSettingsLandingBuildInfo() =>
     _settingsLandingBuildInfoFuture ??= AppBuildInfo.load();
 
-/// Settings landing page.
+/// Settings landing page（「湿地雾光」R16 偏好目录）。
 ///
-/// The landing surface deliberately shows navigation and lightweight current
-/// values only. Expensive work (backup discovery, storage scans, diagnostics)
-/// remains owned by the destination pages. Formal navigation identity still
-/// comes from [SettingsDestination]; the visual hierarchy here can evolve
-/// without breaking deep links.
+/// 落地页 = 三条高频偏好胶囊（语言 / 主题 / 字号，名称 + 当前值）→ 图标
+/// 目录行（[DirectoryLinkRow]，图标井取域色相）→ 页脚关于链接。导航身份
+/// 仍来自 [SettingsDestination]；昂贵工作（备份发现、存储扫描、诊断）归
+/// 各目标页所有。
+///
+/// 页头为**页内** pageTitle 开篇——Tab 级 `SettingsAppBar` 已退役，外层
+/// [HomePage] 的 AppBar 槽位由 `TabBodySpacer` 占住状态栏条。
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   static const _experienceDestinations = [
+    SettingsDestination.account,
     SettingsDestination.learning,
     SettingsDestination.appearanceAndSound,
     SettingsDestination.accessibility,
@@ -52,18 +50,6 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        toolbarHeight: TurnaTheme.tabAppBarHeight,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 16,
-        title: Text(
-          AppStrings.settingsTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      ),
       body: CustomScrollView(
         key: const PageStorageKey<String>('settings-landing-list'),
         physics: const BouncingScrollPhysics(),
@@ -76,30 +62,30 @@ class SettingsPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 4),
-                    const _PersonalSummaryCard(),
-                    const SizedBox(height: 24),
-                    _LandingSectionTitle(
-                      title: AppStrings.settingsLandingQuickTitle,
+                    const SizedBox(height: AppSpacing.sm + 4),
+                    Padding(
+                      padding: AppSpacing.pageGutterMist,
+                      child: Text(
+                        AppStrings.settingsTitle,
+                        style: AppTextStyles.pageTitle(context),
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    const _QuickSettingsGrid(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.lg),
+                    const _QuickPreferenceCapsules(),
+                    const SizedBox(height: AppSpacing.xl),
                     _LandingSectionTitle(
                       title: AppStrings.settingsGroupLearning,
                     ),
-                    const SizedBox(height: 10),
-                    _DestinationCard(destinations: _experienceDestinations),
-                    const SizedBox(height: 24),
+                    _DestinationRows(destinations: _experienceDestinations),
+                    const SizedBox(height: AppSpacing.xl),
                     _LandingSectionTitle(
                       title: AppStrings.settingsGroupDataSystem,
                     ),
-                    const SizedBox(height: 10),
-                    _DestinationCard(destinations: _systemDestinations),
-                    const SizedBox(height: 16),
-                    const _AboutLandingCard(),
+                    _DestinationRows(destinations: _systemDestinations),
+                    const SizedBox(height: AppSpacing.xl),
+                    const _AboutFooterRow(),
                     SizedBox(
-                      height: 20 + MediaQuery.paddingOf(context).bottom,
+                      height: AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
                     ),
                   ],
                 ),
@@ -112,117 +98,9 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class _PersonalSummaryCard extends StatelessWidget {
-  const _PersonalSummaryCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return PreferenceBuilder<LocalUser>(
-      preference: getIt<AppPrefs>().authUser,
-      builder: (context, user) {
-        final avatar = AvatarCatalog.resolve(user.avatarId);
-        final displayName = user.displayName?.trim().isNotEmpty == true
-            ? user.displayName!.trim()
-            : AppStrings.profileLearnerFallback;
-        final subtitle = AppStrings.settingsLandingPersonalSummary(
-          displayName: displayName,
-          dailyXp: user.dailyXpGoal ?? 100,
-          studyMinutes: user.dailyStudyMinutesGoal ?? 30,
-        );
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Material(
-            color: Colors.transparent,
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          TurnaTheme.brandTeal.withValues(alpha: 0.28),
-                          TurnaTheme.brandNavy.withValues(alpha: 0.38),
-                        ]
-                      : [
-                          TurnaTheme.brandTeal.withValues(alpha: 0.10),
-                          TurnaTheme.brandSky.withValues(alpha: 0.15),
-                        ],
-                ),
-                border: Border.all(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.22),
-                ),
-              ),
-              child: InkWell(
-                key: const Key('settings-personal-summary'),
-                borderRadius: radius,
-                onTap: () => context.router.push(
-                  SettingsDestination.account.route,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      AvatarWithRing(
-                        radius: 27,
-                        gapColor: TurnaTheme.cardBg(context),
-                        backgroundColor:
-                            avatar.background.withValues(alpha: 0.18),
-                        child: Text(
-                          avatar.emoji,
-                          style: const TextStyle(fontSize: 26),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              SettingsDestination.account.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              subtitle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: TurnaTheme.textSecondaryColor(
-                                      context,
-                                    ),
-                                    height: 1.35,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _QuickSettingsGrid extends StatelessWidget {
-  const _QuickSettingsGrid();
+/// 三条高频偏好胶囊：名称 + 当前值，点击直达对应深页。
+class _QuickPreferenceCapsules extends StatelessWidget {
+  const _QuickPreferenceCapsules();
 
   @override
   Widget build(BuildContext context) {
@@ -232,81 +110,60 @@ class _QuickSettingsGrid extends StatelessWidget {
     final themeMode = context.select<ThemeProvider, ThemeMode>(
       (provider) => provider.themeMode,
     );
-    final reminder = context
-        .select<SettingsProvider, ({bool enabled, int hour, int minute})>(
-      (provider) => (
-        enabled: provider.dailyReminderEnabled,
-        hour: provider.dailyReminderHour,
-        minute: provider.dailyReminderMinute,
-      ),
-    );
     final textScale = context.select<AccessibilityProvider, int>(
       (provider) => provider.textScale,
     );
-    final textScaleFactor = MediaQuery.textScalerOf(context).scale(1);
 
-    final items = [
-      _QuickSettingData(
-        icon: Icons.language_rounded,
-        title: AppStrings.settingsLearningLanguageTitle,
+    final capsules = [
+      (
+        label: AppStrings.settingsLearningLanguageTitle,
         value: language,
-        color: TurnaTheme.brandTeal,
-        destination: SettingsDestination.learning,
+        icon: Icons.language_rounded,
+        route: SettingsDestination.learning.route,
       ),
-      _QuickSettingData(
-        icon: Icons.contrast_rounded,
-        title: AppStrings.settingsLandingThemeTitle,
+      (
+        label: AppStrings.settingsLandingThemeTitle,
         value: _themeLabel(themeMode),
-        color: TurnaTheme.anatolianClay,
-        destination: SettingsDestination.appearanceAndSound,
+        icon: Icons.contrast_rounded,
+        route: SettingsDestination.appearanceAndSound.route,
       ),
-      _QuickSettingData(
-        icon: Icons.notifications_active_outlined,
-        title: AppStrings.settingsDailyReminderTitle,
-        value: reminder.enabled
-            ? '${reminder.hour.toString().padLeft(2, '0')}:'
-                '${reminder.minute.toString().padLeft(2, '0')}'
-            : AppStrings.settingsLandingReminderOff,
-        color: TurnaTheme.brandSky,
-        destination: SettingsDestination.learning,
-      ),
-      _QuickSettingData(
-        icon: Icons.text_fields_rounded,
-        title: AppStrings.settingsTextSizeTitle,
+      (
+        label: AppStrings.settingsTextSizeTitle,
         value: AppStrings.settingsTextSizeValue(textScale),
-        color: TurnaTheme.brandNavy,
-        destination: SettingsDestination.accessibility,
+        icon: Icons.text_fields_rounded,
+        route: SettingsDestination.accessibility.route,
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = textScaleFactor > 1.3
-            ? 1
-            : constraints.maxWidth >= 620
-                ? 4
-                : constraints.maxWidth >= 360
-                    ? 2
-                    : 1;
-        const gap = 10.0;
-        final available = constraints.maxWidth - 32;
-        final width = (available - gap * (columns - 1)) / columns;
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: gap,
-            runSpacing: gap,
+    return Padding(
+      padding: AppSpacing.pageGutterMist,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScaleFactor = MediaQuery.textScalerOf(context).scale(1);
+          // 200% 字号下纵向堆叠，胶囊结构与分区动作带保持不变。
+          final useColumn =
+              textScaleFactor > 1.4 || constraints.maxWidth < 320;
+          if (useColumn) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < capsules.length; i++) ...[
+                  if (i > 0) const SizedBox(height: AppSpacing.sm),
+                  _PreferenceCapsule(capsule: capsules[i], expanded: true),
+                ],
+              ],
+            );
+          }
+          return Row(
             children: [
-              for (final item in items)
-                SizedBox(
-                  width: width,
-                  child: _QuickSettingTile(data: item),
-                ),
+              for (var i = 0; i < capsules.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
+                Expanded(child: _PreferenceCapsule(capsule: capsules[i])),
+              ],
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -319,85 +176,69 @@ class _QuickSettingsGrid extends StatelessWidget {
   }
 }
 
-class _QuickSettingData {
-  const _QuickSettingData({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.color,
-    required this.destination,
-  });
+typedef _CapsuleData = ({
+  String label,
+  String value,
+  IconData icon,
+  PageRouteInfo route,
+});
 
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color color;
-  final SettingsDestination destination;
-}
+class _PreferenceCapsule extends StatelessWidget {
+  const _PreferenceCapsule({required this.capsule, this.expanded = false});
 
-class _QuickSettingTile extends StatelessWidget {
-  const _QuickSettingTile({required this.data});
-
-  final _QuickSettingData data;
+  final _CapsuleData capsule;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
     return Material(
-      // ADR 0062：快捷设置是 2×2 格子里的容器卡 → 中性淡彩实面 + 同色描边。
-      color: TurnaTheme.glassSolid(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
-      ),
+      // 偏好胶囊走纸面（ADR 0065）：实色 + 中性细边，不铺玻璃。
+      color: TurnaTheme.cardBg(context),
       shape: RoundedRectangleBorder(
-        borderRadius: radius,
-        side: BorderSide(
-          color: TurnaTheme.glassStroke(
-            context,
-            TurnaTheme.glassNeutral,
-            level: GlassLevel.l1Subtle,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        side: BorderSide(color: TurnaTheme.dividerBg(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: radius,
-        onTap: () => context.router.push(data.destination.route),
+        key: ValueKey('settings-quick-${capsule.label}'),
+        onTap: () => context.router.push(capsule.route),
         child: Padding(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm + 2,
+          ),
           child: Row(
+            mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: data.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: Icon(data.icon, color: data.color, size: 19),
+              Icon(
+                capsule.icon,
+                size: 16,
+                color: TurnaTheme.textSecondaryColor(context),
               ),
-              const SizedBox(width: 10),
-              Expanded(
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      data.title,
+                      capsule.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
+                      style: AppTextStyles.captionSm(context).copyWith(
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs - 2),
                     Text(
-                      data.value,
+                      capsule.value,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: AppTextStyles.bodyText(context).copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: TurnaTheme.brandTealDark,
+                      ),
                     ),
                   ],
                 ),
@@ -418,99 +259,77 @@ class _LandingSectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: TurnaTheme.textSecondaryColor(context),
-              fontWeight: FontWeight.w800,
-            ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        0,
+        AppSpacing.pageMargin,
+        AppSpacing.md,
       ),
+      child: Text(title, style: AppTextStyles.sectionTitle(context)),
     );
   }
 }
 
-class _DestinationCard extends StatelessWidget {
-  const _DestinationCard({required this.destinations});
+/// 图标目录行组：图标井取域色相（R16 偏好目录）。
+class _DestinationRows extends StatelessWidget {
+  const _DestinationRows({required this.destinations});
 
   final List<SettingsDestination> destinations;
 
   @override
   Widget build(BuildContext context) {
-    // ADR 0063：一级落地页显式保留 l1Subtle —— 它是设置域的视觉锚点，
-    // 分类页与更深的下钻页才降到 l1Quiet 让位给表单控件。
-    return SettingsCard(
-      level: GlassLevel.l1Subtle,
-      children: [
-        for (int index = 0; index < destinations.length; index++) ...[
-          if (index > 0) settingsTileDivider(context),
-          _destinationTile(destinations[index]),
+    return Padding(
+      padding: AppSpacing.pageGutterMist,
+      child: Column(
+        children: [
+          for (final destination in destinations)
+            DirectoryLinkRow(
+              key: ValueKey(destination.name),
+              icon: destination.icon,
+              iconTone: _toneFor(destination),
+              title: destination.title,
+              description: destination.subtitle,
+              onTap: () => context.router.push(destination.route),
+            ),
         ],
-      ],
+      ),
     );
   }
 
-  Widget _destinationTile(SettingsDestination destination) {
-    final color = switch (destination) {
+  static Color _toneFor(SettingsDestination destination) {
+    return switch (destination) {
+      SettingsDestination.account => TurnaTheme.brandTeal,
       SettingsDestination.learning => TurnaTheme.brandTeal,
       SettingsDestination.appearanceAndSound => TurnaTheme.anatolianClay,
       SettingsDestination.accessibility => TurnaTheme.brandSky,
       SettingsDestination.dataAndBackup => TurnaTheme.brandNavy,
       SettingsDestination.advanced => TurnaTheme.textSecondary,
       SettingsDestination.about => TurnaTheme.brandTeal,
-      SettingsDestination.account => TurnaTheme.brandTeal,
     };
-    return SettingsNavigationTile(
-      key: ValueKey(destination.name),
-      icon: destination.icon,
-      iconColor: color,
-      iconBackground: color.withValues(alpha: 0.09),
-      title: destination.title,
-      subtitle: destination.subtitle,
-      onTap: (context) => context.router.push(destination.route),
-    );
   }
 }
 
-class _AboutLandingCard extends StatelessWidget {
-  const _AboutLandingCard();
+/// 页脚关于链接：值右对齐显示版本号。
+class _AboutFooterRow extends StatelessWidget {
+  const _AboutFooterRow();
 
   @override
   Widget build(BuildContext context) {
     const destination = SettingsDestination.about;
     final showVersion = MediaQuery.textScalerOf(context).scale(1) <= 1.3;
-    // ADR 0063：一级落地页显式保留 l1Subtle（见 _DestinationCard 的说明）。
-    return SettingsCard(
-      level: GlassLevel.l1Subtle,
-      children: [
-        SettingsTile(
-          key: ValueKey(destination.name),
-          icon: destination.icon,
-          title: destination.title,
-          subtitle: destination.subtitle,
+    return Padding(
+      padding: AppSpacing.pageGutterMist,
+      child: FutureBuilder<AppBuildInfo>(
+        future: showVersion ? _loadSettingsLandingBuildInfo() : null,
+        builder: (context, snapshot) => DirectoryValueRow(
+          key: const ValueKey('settings-about-footer'),
+          label: destination.title,
+          value: showVersion
+              ? (snapshot.data?.versionName ?? AppBuildInfo.unknownVersion)
+              : null,
           onTap: () => context.router.push(destination.route),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showVersion)
-                FutureBuilder<AppBuildInfo>(
-                  future: _loadSettingsLandingBuildInfo(),
-                  builder: (context, snapshot) => Text(
-                    snapshot.data?.versionName ?? AppBuildInfo.unknownVersion,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
-                  ),
-                ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: TurnaTheme.textHintColor(context),
-              ),
-            ],
-          ),
         ),
-      ],
+      ),
     );
   }
 }

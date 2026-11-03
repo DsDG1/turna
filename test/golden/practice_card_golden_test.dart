@@ -49,6 +49,7 @@ void main() {
                   const SizedBox(height: 8),
                   InteractionOptionTile(
                     label: 'merhaba',
+                    index: 1,
                     isSelected: false,
                     isCorrect: false,
                     isWrong: false,
@@ -57,6 +58,7 @@ void main() {
                   const SizedBox(height: 10),
                   InteractionOptionTile(
                     label: 'günaydın',
+                    index: 2,
                     isSelected: true,
                     isCorrect: false,
                     isWrong: false,
@@ -65,6 +67,7 @@ void main() {
                   const SizedBox(height: 10),
                   InteractionOptionTile(
                     label: 'teşekkürler',
+                    index: 3,
                     isSelected: true,
                     isCorrect: true,
                     isWrong: false,
@@ -73,6 +76,7 @@ void main() {
                   const SizedBox(height: 10),
                   InteractionOptionTile(
                     label: 'hoşça kal',
+                    index: 4,
                     isSelected: true,
                     isCorrect: false,
                     isWrong: true,

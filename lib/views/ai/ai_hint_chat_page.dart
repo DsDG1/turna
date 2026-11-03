@@ -18,6 +18,7 @@ import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
@@ -25,6 +26,7 @@ import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_quick_chips.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 @RoutePage()
@@ -213,7 +215,10 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                           },
                           child: ListView.builder(
                             controller: _scrollCtrl,
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.pageMarginCompact,
+                              vertical: AppSpacing.sm,
+                            ),
                             itemCount: itemCount,
                             itemBuilder: (context, i) {
                               final w = context.read<AiHintProvider>();
@@ -257,31 +262,44 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                       },
                     ),
                   ),
+                  // 底部独立输入区（R14）：快捷追问、进度、输入行与免责声明
+                  // 收进同一条动作带；流式停止 / 失败重试状态保持原位。
                   Selector<AiHintProvider, AiHintState>(
                     selector: (_, w) => w.state,
                     builder: (context, state, _) {
                       final busy = state == AiHintState.loading;
-                      return Column(
-                        children: [
-                          AiQuickChipsBar(
-                            enabled: true,
-                            onChip: (label) => _onSend(label),
-                          ),
-                          if (busy) const LinearProgressIndicator(),
-                          _chatInputBar(busy),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              AppStrings.aiDisclaimer,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                    color: TurnaTheme.textHintColor(context),
-                                  ),
+                      return SessionActionBand(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.pageMarginCompact,
+                          AppSpacing.sm,
+                          AppSpacing.pageMarginCompact,
+                          AppSpacing.sm + 2,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AiQuickChipsBar(
+                              enabled: true,
+                              onChip: (label) => _onSend(label),
                             ),
-                          ),
-                        ],
+                            if (busy) const LinearProgressIndicator(),
+                            _chatInputBar(busy),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                AppStrings.aiDisclaimer,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: TurnaTheme.textHintColor(context),
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -327,7 +345,8 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: TurnaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          border: Border.all(color: TurnaTheme.dividerBg(context)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -370,35 +389,32 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
   }
 
   Widget _chatInputBar(bool busy) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _inputCtrl,
-              decoration: aiSheetInputDecoration(
-                context,
-                hint: AppStrings.aiAskMore,
-              ),
-              onSubmitted: busy ? null : (_) => _onSend(),
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _inputCtrl,
+            decoration: aiSheetInputDecoration(
+              context,
+              hint: AppStrings.aiAskMore,
             ),
+            onSubmitted: busy ? null : (_) => _onSend(),
           ),
-          const SizedBox(width: 8),
-          if (busy)
-            IconButton.filled(
-              onPressed: () => context.read<AiHintProvider>().cancel(),
-              icon: const Icon(Icons.stop_rounded),
-              tooltip: AppStrings.aiStopGenerating,
-            )
-          else
-            IconButton.filled(
-              onPressed: () => _onSend(),
-              icon: const Icon(Icons.send_rounded),
-              tooltip: AppStrings.commonSend,
-            ),
-        ],
-      ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        if (busy)
+          IconButton.filled(
+            onPressed: () => context.read<AiHintProvider>().cancel(),
+            icon: const Icon(Icons.stop_rounded),
+            tooltip: AppStrings.aiStopGenerating,
+          )
+        else
+          IconButton.filled(
+            onPressed: () => _onSend(),
+            icon: const Icon(Icons.send_rounded),
+            tooltip: AppStrings.commonSend,
+          ),
+      ],
     );
   }
 }

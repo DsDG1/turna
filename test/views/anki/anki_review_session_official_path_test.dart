@@ -502,11 +502,14 @@ void main() {
       expect(find.text(AppStrings.reviewCompletionTitle), findsOneWidget,
           reason: 'a completed session with answered cards must show the '
               'summary, even when the live queue drained to empty');
-      expect(find.text('3'), findsOneWidget,
-          reason: '复习总数 must be the 3 answered cards');
-      expect(find.text('100%'), findsOneWidget,
-          reason: '3/3 remembered must render 100%, never 4000%');
-      expect(find.text('3 / 0'), findsOneWidget);
+      // 结果一行（湿地雾光 R08）：总数 = 已答题数（不是残留活队列），
+      // 记得/不记得计数天然落在 0..3 内——旧版「记忆率 4000%」的口径
+      // 回归由这一行的三个数字共同守住。
+      expect(
+        find.text(AppStrings.reviewCompletionResultLine(3, 3, 0)),
+        findsOneWidget,
+        reason: '复习总数 must be the 3 answered cards',
+      );
     },
   );
 

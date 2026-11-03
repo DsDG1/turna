@@ -130,7 +130,6 @@ class _WeakWordsPageState extends State<WeakWordsPage>
       xpEarned: xpEarned,
       gemsEarned: gemsEarned,
       wasPerfect: wasPerfect,
-      questionResults: _vm.questionResults,
       random: _random,
     );
     _dialogShown = false;

@@ -9,7 +9,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -17,9 +20,11 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/ai/components/ai_practice_actions.dart';
 import 'package:turna/views/ai/components/ai_practice_card.dart';
 import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
-/// Full AI course library, grouped the way the content actually behaves:
+/// Full AI course library, grouped the way the content actually behaves
+/// （R14 目录化：区块标题 + 行，发丝线分组）:
 ///
 /// - **收藏** — favourited, permanent;
 /// - **草稿** — playable but un-favourited, with a countdown to the automatic
@@ -66,6 +71,8 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
     final favorites = queue.favorites;
     final drafts = queue.drafts;
     final tasks = queue.tasks;
+    // 未配置且空库：空态直接承担「连接」引导；否则底部主行动是「生成练习」。
+    final complete = context.watch<AiEngineConfigHolder>().config.isComplete;
 
     return Scaffold(
       backgroundColor: TurnaTheme.surfaceColor(context),
@@ -73,9 +80,7 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
         centerTitle: true,
         title: Text(
           AppStrings.aiPracticeSectionTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 17),
         ),
         actions: [
           if (items.isNotEmpty)
@@ -102,38 +107,36 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
                 color: TurnaTheme.brandTeal,
                 onRefresh: () => queue.reload(),
                 child: items.isEmpty
-                    ? _empty(context)
+                    ? _empty(context, complete)
                     : ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                        padding: const EdgeInsets.only(top: AppSpacing.md),
                         children: [
                           if (favorites.isNotEmpty)
                             ..._group(
                               context,
                               title: AppStrings.aiPracticeGroupFavorites,
                               items: favorites,
-                              accent: TurnaTheme.anatolianClay,
                             ),
                           if (drafts.isNotEmpty) ...[
                             if (favorites.isNotEmpty)
-                              const SizedBox(height: 20),
+                              const SizedBox(height: AppSpacing.xl),
                             ..._group(
                               context,
                               title: AppStrings.aiPracticeGroupDrafts,
                               items: drafts,
-                              accent: TurnaTheme.brandTeal,
                               footnote: AppStrings.aiPracticeExpiryHint,
                             ),
                           ],
                           if (tasks.isNotEmpty) ...[
                             if (favorites.isNotEmpty || drafts.isNotEmpty)
-                              const SizedBox(height: 20),
+                              const SizedBox(height: AppSpacing.xl),
                             ..._group(
                               context,
                               title: AppStrings.aiPracticeGroupTasks,
                               items: tasks,
-                              accent: TurnaTheme.warning,
                             ),
                           ],
+                          const SizedBox(height: AppSpacing.lg),
                         ],
                       ),
               ),
@@ -141,16 +144,26 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
             if (_selectionMode && items.isNotEmpty)
               _selectionBar(context, items),
             if (!_selectionMode)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => showAiPracticeGenerateSheet(context),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: Text(AppStrings.aiPracticeGenerateTitle),
-                  ),
+              SessionActionBand(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pageMargin,
+                  AppSpacing.md,
+                  AppSpacing.pageMargin,
+                  AppSpacing.lg,
                 ),
+                child: complete
+                    ? SessionPrimaryAction(
+                        label: AppStrings.aiPracticeGenerateTitle,
+                        onPressed: () => showAiPracticeGenerateSheet(context),
+                        trailingIcon: Icons.add_rounded,
+                      )
+                    : SessionPrimaryAction(
+                        label: AppStrings.aiHubConnectCta,
+                        onPressed: () => context.router.push(
+                          const AiApiConfigRoute(),
+                        ),
+                        trailingIcon: Icons.arrow_forward_rounded,
+                      ),
               ),
           ],
         ),
@@ -158,111 +171,117 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
     );
   }
 
-  /// Header + cards for one group.
+  /// 区块标题 + 目录行（发丝线分隔），一组。
   List<Widget> _group(
     BuildContext context, {
     required String title,
     required List<AiCourse> items,
-    required Color accent,
     String? footnote,
   }) {
     return [
-      Row(
-        children: [
-          Container(
-            width: 3,
-            height: 14,
-            decoration: BoxDecoration(
-              color: accent,
-              borderRadius: BorderRadius.circular(2),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pageMargin,
+          0,
+          AppSpacing.pageMargin,
+          AppSpacing.xs + 2,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: AppTextStyles.sectionTitle(context),
+              ),
+            ),
+            Text(
+              AppStrings.aiPracticeGroupCount(items.length),
+              style: AppTextStyles.captionSm(context).copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+                color: TurnaTheme.textHintColor(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (footnote != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            0,
+            AppSpacing.pageMargin,
+            AppSpacing.sm,
+          ),
+          child: Text(
+            footnote,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+              height: 1.4,
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            AppStrings.aiPracticeGroupCount(items.length),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-          ),
-        ],
-      ),
-      if (footnote != null) ...[
-        const SizedBox(height: 4),
-        Text(
-          footnote,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-                height: 1.4,
-              ),
         ),
-      ],
-      const SizedBox(height: 10),
-      for (var i = 0; i < items.length; i++) ...[
-        AiPracticeCard(
-          item: items[i],
-          selectionMode: _selectionMode,
-          selected: _selected.contains(items[i].id),
-          onTap: () => _toggle(items[i]),
-          onStart: () => openAiPractice(context, items[i]),
-          onPin: () => togglePin(context, items[i], pinned: true),
-          onUnpin: () => togglePin(context, items[i], pinned: false),
-          onAdjust: () => adjustAiPractice(context, items[i]),
-          onDetail: () => context.router.push(
-            AiPracticeDetailRoute(courseId: items[i].id),
+      for (var i = 0; i < items.length; i++)
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.pageMargin,
           ),
-          onDelete: () => deleteAiPractices(context, [items[i]]),
-          onRetry: () => retryAiPractice(context, items[i]),
-          onCancel: () => cancelAiPractice(context, items[i]),
+          child: AiPracticeCard(
+            item: items[i],
+            selectionMode: _selectionMode,
+            selected: _selected.contains(items[i].id),
+            showDivider: i < items.length - 1,
+            onTap: () => _toggle(items[i]),
+            onStart: () => openAiPractice(context, items[i]),
+            onPin: () => togglePin(context, items[i], pinned: true),
+            onUnpin: () => togglePin(context, items[i], pinned: false),
+            onAdjust: () => adjustAiPractice(context, items[i]),
+            onDetail: () => context.router.push(
+              AiPracticeDetailRoute(courseId: items[i].id),
+            ),
+            onDelete: () => deleteAiPractices(context, [items[i]]),
+            onRetry: () => retryAiPractice(context, items[i]),
+            onCancel: () => cancelAiPractice(context, items[i]),
+          ),
         ),
-        if (i < items.length - 1) const SizedBox(height: 10),
-      ],
     ];
   }
 
-  Widget _empty(BuildContext context) {
+  /// 空态：一行引导文案（未配置时改说连接），不铺空卡。
+  Widget _empty(BuildContext context, bool complete) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.pageMargin,
+        vertical: AppSpacing.xxxl,
+      ),
       children: [
-        const SizedBox(height: 60),
         Icon(
           Icons.auto_awesome_rounded,
           size: 44,
           color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.md + 2),
         Text(
-          AppStrings.aiPracticeSectionEmpty,
+          complete
+              ? AppStrings.aiPracticeSectionEmpty
+              : AppStrings.aiPracticeLibraryNotConfiguredHint,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-                height: 1.5,
-              ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          AppStrings.aiPracticeExpiryHint,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-                height: 1.5,
-              ),
-        ),
-        const SizedBox(height: 20),
-        Center(
-          child: FilledButton.icon(
-            onPressed: () => showAiPracticeGenerateSheet(context),
-            icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-            label: Text(AppStrings.aiPracticeGenerateTitle),
+          style: AppTextStyles.bodyText(context).copyWith(
+            color: TurnaTheme.textSecondaryColor(context),
+            fontSize: 15,
+            height: 1.5,
           ),
         ),
+        if (complete) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            AppStrings.aiPracticeExpiryHint,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+              height: 1.5,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -271,50 +290,47 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
     final selectedItems =
         items.where((item) => _selected.contains(item.id)).toList();
     final allSelected = selectedItems.length == items.length;
-    return Material(
-      color: TurnaTheme.cardBg(context),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: Row(
-            children: [
-              TextButton(
-                onPressed: () => setState(() {
-                  if (allSelected) {
-                    _selected.clear();
-                  } else {
-                    _selected.addAll(items.map((item) => item.id));
-                  }
-                }),
-                child: Text(
-                  allSelected
-                      ? AppStrings.aiPracticeSelect
-                      : AppStrings.aiPracticeSelectAll,
-                ),
-              ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: selectedItems.isEmpty
-                    ? null
-                    : () => _pinSelected(selectedItems),
-                icon: const Icon(Icons.star_border_rounded, size: 18),
-                label: Text(AppStrings.aiPracticeFavorite),
-              ),
-              const SizedBox(width: 4),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: TurnaTheme.error,
-                ),
-                onPressed: selectedItems.isEmpty
-                    ? null
-                    : () => _deleteSelected(selectedItems),
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                label: Text(AppStrings.aiPracticeDelete),
-              ),
-            ],
+    return SessionActionBand(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          TextButton(
+            onPressed: () => setState(() {
+              if (allSelected) {
+                _selected.clear();
+              } else {
+                _selected.addAll(items.map((item) => item.id));
+              }
+            }),
+            child: Text(
+              allSelected
+                  ? AppStrings.aiPracticeSelect
+                  : AppStrings.aiPracticeSelectAll,
+            ),
           ),
-        ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: selectedItems.isEmpty
+                ? null
+                : () => _pinSelected(selectedItems),
+            icon: const Icon(Icons.star_border_rounded, size: 18),
+            label: Text(AppStrings.aiPracticeFavorite),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: TurnaTheme.error,
+            ),
+            onPressed: selectedItems.isEmpty
+                ? null
+                : () => _deleteSelected(selectedItems),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: Text(AppStrings.aiPracticeDelete),
+          ),
+        ],
       ),
     );
   }

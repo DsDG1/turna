@@ -8,35 +8,27 @@ import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_badge_card.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/core/theme.dart';
 
-/// Series detail bottom sheet: story, full tier ladder with per-tier
-/// target / reward / status, unlock date, next step, and the commemorative
-/// final-tier reward preview.
+/// Series detail sheet（湿地雾光 R15：详情走全局弹层容器）: story, full tier
+/// ladder with per-tier target / reward / status, unlock date, next step, and
+/// the commemorative final-tier reward preview.
 Future<void> showAchievementDetailSheet({
   required BuildContext context,
   required AchievementSeriesDefinition series,
   required AchievementSeriesProgress progress,
   required AchievementService service,
 }) {
-  return showModalBottomSheet<void>(
+  return showTurnaSheet<void>(
     context: context,
+    title: AchievementUiCatalog.titleFor(series.titleKey),
+    subtitle: AchievementUiCatalog.descriptionFor(series.descriptionKey),
     isScrollControlled: true,
-    backgroundColor: TurnaTheme.scaffoldBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (sheetContext) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.6,
-      minChildSize: 0.35,
-      maxChildSize: 0.92,
-      builder: (_, scrollController) => _DetailContent(
-        series: series,
-        progress: progress,
-        service: service,
-        scrollController: scrollController,
-      ),
+    body: _DetailContent(
+      series: series,
+      progress: progress,
+      service: service,
     ),
   );
 }
@@ -45,13 +37,11 @@ class _DetailContent extends StatelessWidget {
   final AchievementSeriesDefinition series;
   final AchievementSeriesProgress progress;
   final AchievementService service;
-  final ScrollController scrollController;
 
   const _DetailContent({
     required this.series,
     required this.progress,
     required this.service,
-    required this.scrollController,
   });
 
   String get _remainingLabel {
@@ -82,20 +72,8 @@ class _DetailContent extends StatelessWidget {
     final unit = AchievementUiCatalog.unitFor(series.metric);
 
     return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
-        Center(
-          child: Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: TurnaTheme.dividerBg(context),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
         Row(
           children: [
             AchievementBadge(
@@ -108,24 +86,22 @@ class _DetailContent extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AchievementUiCatalog.titleFor(series.titleKey),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AchievementUiCatalog.descriptionFor(series.descriptionKey),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                  ),
-                ],
-              ),
+              child: Builder(builder: (context) {
+                final nextTarget =
+                    progress.nextTier?.target ?? progress.currentProgress;
+                final progressLabel = AppStrings.achievementsTierProgress(
+                  progress.currentProgress,
+                  nextTarget,
+                );
+                return Text(
+                  '$progressLabel $unit',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                );
+              }),
             ),
           ],
         ),

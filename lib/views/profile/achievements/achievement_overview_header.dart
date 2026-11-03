@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
+import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/core/theme.dart';
 
-/// Hero overview: owned badge count, total, completion ratio, and the most
-/// recent unlock date. Reads exclusively from the persisted v2 state.
+/// 完成度开篇（湿地雾光 R15）：报告构图的指标头 —— 完成度百分数为大数字，
+/// 已获得数为副行。暖沙 / 陶土是成就域的衬底色相（ADR 0062）。
 class AchievementOverviewHeader extends StatelessWidget {
   final int unlockedCount;
   final int totalCount;
@@ -27,78 +28,11 @@ class AchievementOverviewHeader extends StatelessWidget {
         totalCount > 0 ? (unlockedCount / totalCount).clamp(0.0, 1.0) : 0.0;
     final percent = (ratio * 100).round();
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            TurnaTheme.anatolianClay.withValues(alpha: 0.12),
-            TurnaTheme.warmSand.withValues(alpha: 0.30),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        // 系列色相卡：描边跟随本系列色相，不退回中性灰。
-        border: Border.all(
-          color: TurnaTheme.glassStroke(
-            context,
-            TurnaTheme.glassAchievement,
-            level: GlassLevel.l1,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.military_tech_rounded,
-                color: TurnaTheme.anatolianClay,
-                size: 26,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  AppStrings.achievementsOverviewTitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            AppStrings.achievementsOverviewCount(unlockedCount, totalCount),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: TurnaTheme.anatolianClay,
-                ),
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 8,
-              backgroundColor: TurnaTheme.dividerBg(context),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(TurnaTheme.anatolianClay),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppStrings.achievementsCompletionRatio(percent),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-          ),
-        ],
-      ),
+    return ReportMetricHeader(
+      label: AppStrings.achievementsOverviewTitle,
+      value: AppStrings.achievementsCompletionPercent(percent),
+      caption: AppStrings.achievementsOverviewCount(unlockedCount, totalCount),
+      accentColor: TurnaTheme.anatolianClay,
     );
   }
 }

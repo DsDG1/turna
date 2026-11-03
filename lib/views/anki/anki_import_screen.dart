@@ -14,20 +14,34 @@ import 'package:turna/application/anki_import/official_import_error_messages.dar
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/core/theme.dart';
 
-/// Anki import wizard shell (maintainability plan §10). The page only
-/// renders controller state, hosts dialogs/routes and performs the
-/// done-step navigation intents — the flow state machine lives in
+/// Anki import wizard shell (maintainability plan §10),「湿地雾光」步骤
+/// 流程版式（P1 / ADR 0066：只动视觉外壳，流程、判定与保真档位原样）：
+///
+/// ```text
+/// WizardStepper + 阶段说明     顶部：五步指示 + 阶段标题与一句说明
+/// 中央单焦点                    文件选择 / 解析进度 / 预览 / 完成摘要
+/// SessionActionBand             底部固定阶段操作（选择文件 / 取消 / 导入）
+/// ```
+///
+/// The page only renders controller state, hosts dialogs/routes and performs
+/// the done-step navigation intents — the flow state machine lives in
 /// [AnkiImportController], business work in the official-first flow.
 ///
 /// Steps: 1. file selection 2. parsing 3. preview (deck structure,
@@ -93,22 +107,81 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         ),
         body: AnimatedBuilder(
           animation: controller,
-          builder: (context, _) => TurnaPageContent(
-            maxWidth: 840,
-            child: Column(
-              children: [
-                // The stepper must listen to the same controller as the body.
-                // It used to sit outside this AnimatedBuilder, so it rendered
-                // the initial step once and stayed frozen on 选择文件 while the
-                // body advanced underneath it.
-                WizardStepper(currentStep: controller.state.step),
-                Expanded(
-                  child: _buildBody(context, controller),
-                ),
-              ],
-            ),
-          ),
+          builder: (context, _) {
+            final state = controller.state;
+            // A Failed state renders its return-state UI plus the error
+            // surface (the legacy page swapped _error + step; this encodes
+            // the same outcome in the type).
+            final effective =
+                state is AnkiImportFailed ? state.returnState : state;
+            final failureMessage =
+                state is AnkiImportFailed ? state.message : null;
+            return TurnaPageContent(
+              maxWidth: 840,
+              child: Column(
+                children: [
+                  // The stepper must listen to the same controller as the
+                  // body. It used to sit outside this AnimatedBuilder, so it
+                  // rendered the initial step once and stayed frozen on
+                  // 选择文件 while the body advanced underneath it.
+                  WizardStepper(currentStep: state.step),
+                  _stageHeaderFor(effective, failureMessage),
+                  Expanded(
+                    child: _buildCentralFocus(
+                      context,
+                      controller,
+                      effective,
+                      failureMessage,
+                    ),
+                  ),
+                  if (_buildActionBand(context, controller, effective,
+                          failureMessage) case final band?)
+                    band,
+                ],
+              ),
+            );
+          },
         ),
+      ),
+    );
+  }
+
+  /// 步骤流程的顶部阶段说明。预览与完成步自带内容级说明（预览头卡 /
+  /// 完成摘要），不再叠一层阶段头。
+  Widget _stageHeaderFor(AnkiImportWizardState effective, String? error) {
+    final (String? title, String? hint) = switch (effective) {
+      AnkiImportSelecting() => (
+          AppStrings.ankiImportSelectTitle,
+          error ?? AppStrings.ankiImportSelectSubtitle,
+        ),
+      AnkiImportAlreadyImported(:final displayName) => (
+          AppStrings.ankiAlreadyImportedTitle,
+          displayName,
+        ),
+      AnkiImportParsing() => (AppStrings.ankiStepParse, null),
+      AnkiImportCommitting() => (AppStrings.ankiStepImport, null),
+      _ => (null, null),
+    };
+    if (title == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.md,
+        AppSpacing.pageMargin,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.sectionTitle(context)),
+          if (hint != null && hint.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs + 2),
+            Text(
+              hint,
+              style: AppTextStyles.captionSm(context).copyWith(height: 1.45),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -171,13 +244,14 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     return false;
   }
 
-  Widget _buildBody(BuildContext context, AnkiImportController controller) {
-    final state = controller.state;
-    // A Failed state renders its return-state UI plus the error surface
-    // (the legacy page swapped _error + step; this encodes the same
-    // outcome in the type).
-    final effective = state is AnkiImportFailed ? state.returnState : state;
-    final failureMessage = state is AnkiImportFailed ? state.message : null;
+  // ─── 中央单焦点（每步一个焦点，不混排） ───────────────────────────
+
+  Widget _buildCentralFocus(
+    BuildContext context,
+    AnkiImportController controller,
+    AnkiImportWizardState effective,
+    String? failureMessage,
+  ) {
     switch (effective) {
       case AnkiImportSelecting(:final error):
         return _buildSelectStep(
@@ -185,7 +259,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           controller: controller,
         );
       case AnkiImportAlreadyImported():
-        return _buildAlreadyImported(controller, effective);
+        return _buildAlreadyImportedCentral(controller);
       case AnkiImportParsing():
         return _buildParsingStep(controller, effective);
       case AnkiImportCommitting():
@@ -218,79 +292,41 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               minHeight: constraints.maxHeight,
               minWidth: constraints.maxWidth,
             ),
-            child: StatefulBuilder(
-              builder: (context, setLocal) {
-                // C2：一次 build 只查一次 catalog（同步 sqlite），banner 的
-                // onChanged 触发 setLocal 后自然重读。
-                final hasUnfinished = catalogHasUnfinishedOfficialImport();
-                return Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.upload_file_rounded,
-                        size: 80,
-                        color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(height: 24),
-                      OfficialPendingImportBanner(
-                        onChanged: () {
-                          controller.clearSelectFailure();
-                          setLocal(() {});
-                        },
-                        onContinue: (item) => controller.continuePending(item),
-                      ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(AppStrings.ankiIncludeMedia),
-                        subtitle: Text(AppStrings.ankiIncludeMediaHint),
-                        value: controller.includeMedia,
-                        onChanged: (value) {
-                          controller.setIncludeMedia(value);
-                          setLocal(() {});
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      // No duplicate title here; the AppBar already shows it.
-                      Text(
-                        AppStrings.ankiImportSelectSubtitle,
-                        style: TextStyle(
-                          color: TurnaTheme.textSecondaryColor(context),
-                          fontSize: 15,
-                          height: 1.4,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      if (error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Text(
-                            error,
-                            style: const TextStyle(color: TurnaTheme.error),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ElevatedButton.icon(
-                        onPressed: hasUnfinished ? null : controller.pickFile,
-                        icon: const Icon(Icons.folder_open),
-                        label: Text(AppStrings.ankiChooseFile),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: TurnaTheme.brandTeal,
-                          foregroundColor: TurnaTheme.textOnPrimary,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.upload_file_rounded,
+                      size: 72,
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    OfficialPendingImportBanner(
+                      // Banner 放弃后 controller 重发 Selecting 态，本页
+                      // 随 AnimatedBuilder 一起重读 catalog（C2：一次
+                      // build 只查一次由 build 侧承担——见 _buildActionBand）。
+                      onChanged: controller.clearSelectFailure,
+                      onContinue: (item) => controller.continuePending(item),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(AppStrings.ankiIncludeMedia),
+                      subtitle: Text(AppStrings.ankiIncludeMediaHint),
+                      value: controller.includeMedia,
+                      onChanged: (value) {
+                        controller.setIncludeMedia(value);
+                        // The switch is plain local state; the shell only
+                        // rebuilds on controller ticks, so nudge it here.
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -305,55 +341,40 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     AnkiImportParsing parsing,
   ) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Doc 39 P5: the never-non-zero progress bar died with the field.
-          _ImportProgressIndicator(
-            current: parsing.progressCurrent,
-            total: parsing.progressTotal,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            AppStrings.ankiParsing,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Doc 39 P5: the never-non-zero progress bar died with the field.
+            _ImportProgressIndicator(
+              current: parsing.progressCurrent,
+              total: parsing.progressTotal,
             ),
-          ),
-          if (parsing.message.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.lg),
             Text(
-              parsing.message,
-              style: TextStyle(
-                color: TurnaTheme.textSecondaryColor(context),
-                fontSize: 13,
-              ),
+              AppStrings.ankiParsing,
+              style: AppTextStyles.cardTitle(context),
             ),
+            if (parsing.message.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                parsing.message,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.captionSm(context),
+              ),
+            ],
+            if (parsing.stage != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                parsing.stage!,
+                style: AppTextStyles.captionSm(context).copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+            ],
           ],
-          if (parsing.stage != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              parsing.stage!,
-              style: TextStyle(
-                color: TurnaTheme.textHintColor(context),
-                fontSize: 12,
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: controller.cancel,
-            icon: const Icon(Icons.close, size: 18),
-            label: Text(AppStrings.commonCancel),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: TurnaTheme.textSecondaryColor(context),
-              side: BorderSide(
-                color: TurnaTheme.textHintColor(context).withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -363,44 +384,42 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     AnkiImportCommitting committing,
   ) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _ImportProgressIndicator(
-            current: committing.progressCurrent,
-            total: committing.progressTotal,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            committing.message.isEmpty
-                ? AppStrings.ankiPreparingImport
-                : committing.message,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _ImportProgressIndicator(
+              current: committing.progressCurrent,
+              total: committing.progressTotal,
             ),
-          ),
-          if (committing.stage != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.lg),
             Text(
-              committing.stage!,
-              style: TextStyle(
-                color: TurnaTheme.textHintColor(context),
-                fontSize: 12,
+              committing.message.isEmpty
+                  ? AppStrings.ankiPreparingImport
+                  : committing.message,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.cardTitle(context),
+            ),
+            if (committing.stage != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                committing.stage!,
+                style: AppTextStyles.captionSm(context).copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
               ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              AppStrings.ankiProgressCannotCancel,
+              style: AppTextStyles.captionSm(context),
             ),
+            // A2：commit 一旦进入 live 写不可取消——底部不提供任何阶段
+            // 操作，避免用户以为能中断（台账已在写，强退由 finishCommit
+            // 收尾清理）。
           ],
-          const SizedBox(height: 8),
-          Text(
-            AppStrings.ankiProgressCannotCancel,
-            style: TextStyle(
-              color: TurnaTheme.textSecondaryColor(context),
-              fontSize: 13,
-            ),
-          ),
-          // A2：commit 一旦进入 live 写不可取消——隐藏取消按钮，避免用户
-          // 以为能中断（台账已在写，强退由 finishCommit 收尾清理）。
-        ],
+        ),
       ),
     );
   }
@@ -414,6 +433,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     String? failureMessage,
   ) {
     final official = previewing.preview as OfficialAnkiImportPreviewModel;
+    // 预览步自带滚动内容 + 底部固定导入操作（StickyImportBar 已换
+    // SessionActionBand 壳），外层不再叠阶段操作。
     return ModernAnkiImportPreview(
       preview: official,
       controller: controller,
@@ -431,22 +452,29 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       summary: completed.summary,
       keptLearningProgress: false,
       onStartLearningNow: () => unawaited(_startLearningNow(controller)),
-      onViewDecks: () => unawaited(_viewDecks(controller)),
+      onViewDecks: () => unawaited(_viewDecks()),
       onDone: () => context.router.pop(),
     );
   }
 
-  /// "Start learning now": switch to the freshly-imported course and pop
-  /// back to the Learn tab. This is the ONLY done action that switches
-  /// the active course (ADR 0043).
+  /// "Start learning now": go straight into the freshly-imported deck's
+  /// formal review. ADR 0066 §2 — this action no longer switches the active
+  /// language course; the wizard pops afterwards so the session host is what
+  /// remains on screen.
   Future<void> _startLearningNow(AnkiImportController controller) async {
     final importId = controllerCompletedImportId(controller);
-    if (importId != null) {
+    if (importId != null && mounted) {
       final courseProvider = context.read<CourseProvider>();
-      final wire = ankiImportWireKeyFor(courseProvider, importId);
-      if (wire != null) {
-        await courseProvider.setCourseScope(wire);
-      }
+      await const FormalReviewLauncher().open(
+        context,
+        entry: FormalReviewEntryKind.deckSection,
+        courseId: 'anki-$importId',
+        sectionId: ankiImportSectionIdFor(courseProvider, importId),
+        officialOwner: OfficialFormalDueRepository
+            .instance.officialImportIds.contains(importId),
+        schedulerRuntimeAvailable:
+            OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
+      );
     }
     // In Completed state _confirmLeave is an instant `true`, so a maybePop
     // here would bounce off the canPop gate and re-enter the pop handler
@@ -454,18 +482,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     if (mounted) context.router.pop();
   }
 
-  /// "View decks": open course management with the new course highlighted.
-  /// The current course stays active.
-  Future<void> _viewDecks(AnkiImportController controller) async {
-    final importId = controllerCompletedImportId(controller);
-    String? highlight;
-    if (importId != null) {
-      highlight = ankiImportWireKeyFor(
-        context.read<CourseProvider>(),
-        importId,
-      );
-    }
-    await context.router.push(CourseManagementRoute(highlightWire: highlight));
+  /// "View decks": open the memory-card hub (ADR 0066 §2 — the language
+  /// course management no longer lists decks). The active course stays.
+  Future<void> _viewDecks() async {
+    await context.router.push(const MemoryCardHubRoute());
   }
 
   String? controllerCompletedImportId(AnkiImportController controller) {
@@ -477,44 +497,87 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     return null;
   }
 
-  Widget _buildAlreadyImported(
-    AnkiImportController controller,
-    AnkiImportAlreadyImported state,
-  ) {
-    return SafeArea(
+  Widget _buildAlreadyImportedCentral(AnkiImportController controller) {
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.inventory_2_outlined,
                 size: 72, color: TurnaTheme.brandTeal),
-            const SizedBox(height: 16),
-            Text(
-              AppStrings.ankiAlreadyImportedTitle,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              state.displayName,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: TurnaTheme.textSecondaryColor(context)),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => unawaited(controller.openExistingCourse()),
-              child: Text(AppStrings.ankiAlreadyImportedOpen),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => unawaited(controller.replaceExisting()),
-              child: Text(AppStrings.ankiAlreadyImportedReplace),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  // ─── 底部固定阶段操作（SessionActionBand） ────────────────────────
+
+  Widget? _buildActionBand(
+    BuildContext context,
+    AnkiImportController controller,
+    AnkiImportWizardState effective,
+    String? failureMessage,
+  ) {
+    switch (effective) {
+      case AnkiImportSelecting():
+        // C2：一次 build 只查一次 catalog（同步 sqlite）；banner 变化经
+        // controller 重发 Selecting 后由 AnimatedBuilder 重建再查。
+        final hasUnfinished = catalogHasUnfinishedOfficialImport();
+        return SessionActionBand(
+          child: SessionPrimaryAction(
+            label: AppStrings.ankiChooseFile,
+            trailingIcon: Icons.folder_open_outlined,
+            onPressed: hasUnfinished ? null : controller.pickFile,
+          ),
+        );
+      case AnkiImportAlreadyImported():
+        return SessionActionBand(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SessionPrimaryAction(
+                label: AppStrings.ankiAlreadyImportedOpen,
+                trailingIcon: Icons.play_arrow_rounded,
+                onPressed: () =>
+                    unawaited(controller.openExistingCourse()),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: () => unawaited(controller.replaceExisting()),
+                  child: Text(AppStrings.ankiAlreadyImportedReplace),
+                ),
+              ),
+            ],
+          ),
+        );
+      case AnkiImportParsing():
+        return SessionActionBand(
+          child: SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: controller.cancel,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              label: Text(AppStrings.commonCancel),
+            ),
+          ),
+        );
+      case AnkiImportCommitting():
+        // 不可取消（A2）：无阶段操作。
+        return null;
+      case AnkiImportPreviewing():
+        // 预览的导入操作在 ModernAnkiImportPreview 的 StickyImportBar 内。
+        return null;
+      case AnkiImportCompleted():
+        // 完成动作在 AnkiImportDoneStep 的动作带内。
+        return null;
+      case AnkiImportFailed():
+        return null;
+    }
   }
 }
 

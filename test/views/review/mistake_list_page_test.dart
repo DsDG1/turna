@@ -118,7 +118,8 @@ void main() {
     await mistakes.recordRewrite('w-1'); // one of two needed rewrites
     await pumpPage(tester);
 
-    expect(find.text(AppStrings.timeAgo(now)), findsOneWidget);
+    // 时间并入行内元信息（「类型 · 刚刚」），按包含断言。
+    expect(find.textContaining(AppStrings.timeAgo(now)), findsOneWidget);
     // Semantics widget 携带重写进度文本（无障碍：进度不只靠颜色表达）。
     expect(
       find.byWidgetPredicate(

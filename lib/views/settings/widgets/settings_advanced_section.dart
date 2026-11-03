@@ -267,8 +267,3 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
     );
   }
 }
-
-// Official-Anki internal import diagnostics moved out of the formal Advanced
-// hub (Plan 2 §4.6): it is a duplicate/dangerous import path that conflicts
-// with the unified import flow. Debug-only access now lives in the developer
-// lab category (settings_page.dart), gated by kDebugMode.

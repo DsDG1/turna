@@ -95,12 +95,16 @@ void main() {
 
     await pumpPage(tester);
 
-    // KPI row: 3 active, 0 mastered, 1 to consolidate.
+    // KPI 开篇（湿地雾光 R10）：一项核心指标 + 合并说明行
+    // （「待巩固 1 · 累计已攻克 0 · 待巩固…」式 caption）。
     expect(find.text(AppStrings.mistakeDashboardActiveLabel), findsOneWidget);
-    expect(find.text(AppStrings.mistakeDashboardMasteredLabel), findsOneWidget);
     expect(
-      find.text(AppStrings.mistakeDashboardConsolidateLabel),
-      findsOneWidget,
+      find.textContaining(AppStrings.mistakeDashboardMasteredLabel),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining(AppStrings.mistakeDashboardConsolidateLabel),
+      findsWidgets,
     );
 
     // Trend summary: all 3 mistakes landed today.
@@ -139,6 +143,10 @@ void main() {
     // The log is empty now, but the aggregate keeps the page alive.
     expect(find.text(AppStrings.mistakeDashboardEmptyTitle), findsNothing);
     expect(find.text(AppStrings.mistakeDashboardActiveLabel), findsOneWidget);
-    expect(find.text('1'), findsWidgets); // mastered total KPI
+    // 累计攻克数收进 KPI caption（「累计已攻克 1」）。
+    expect(
+      find.textContaining('${AppStrings.mistakeDashboardMasteredLabel} 1'),
+      findsWidgets,
+    );
   });
 }

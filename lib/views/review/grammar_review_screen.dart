@@ -22,6 +22,9 @@ import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/review/components/review_components.dart';
+import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
@@ -296,123 +299,101 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     final point = grammarPointById[item.wordId];
     final practiceItems = _practiceFor(point);
 
+    // 会话顶带（R08）：三相位（解释 / 练习 / 自评）共用同一副骨架；语法
+    // 队列短，用分段圆点。撤销是上下文动作键。
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.reviewGrammarAppBarTitle),
+      appBar: SessionProgressBand(
+        currentIndex: _currentIndex + 1,
+        totalCount: _queue.length,
+        style: SessionProgressStyle.dots,
         actions: [
-          if (_canUndo)
-            IconButton(
-              tooltip: AppStrings.commonUndoLastCard,
-              onPressed: _onUndo,
-              icon: const Icon(Icons.undo_rounded),
-            ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Text(
-                AppStrings.reviewGrammarProgress(
-                    _currentIndex + 1, _queue.length),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
+          IconButton(
+            tooltip: AppStrings.commonUndoLastCard,
+            icon: const Icon(Icons.undo_rounded),
+            onPressed: _canUndo ? _onUndo : null,
           ),
         ],
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Expanded(
-                child: _phase == _GrammarCardPhase.practice &&
-                        practiceItems.isNotEmpty
-                    ? _PracticePanel(
-                        interaction: practiceItems[_practiceIndex],
-                        renderers: _renderers,
-                        submitted: _practiceSubmitted,
-                        correct: _practiceCorrect,
-                        onSubmit: _onPracticeSubmit,
-                        progressLabel: AppStrings.reviewGrammarPracticeLabel(
-                            _practiceIndex + 1, practiceItems.length),
-                      )
-                    : _GrammarCard(
-                        word: item,
-                        point: point,
-                        showExplanation: _showExplanation,
-                        onFlip: _onRevealExplanation,
-                      ),
-              ),
-              const SizedBox(height: 24),
-              if (_phase == _GrammarCardPhase.rate) ...[
-                ReviewRatingBar(
-                  failPreview: AppStrings.srsPreviewUnknown,
-                  passPreview: () {
-                    final days = context
-                        .read<GrammarReviewProvider>()
-                        .previewOutcomeDays(item, ReviewOutcome.pass);
-                    return days <= 0
-                        ? AppStrings.srsPreviewUnknown
-                        : AppStrings.srsPreviewKnown(days);
-                  }(),
-                  onRate: _onRate,
-                  prompt: AppStrings.reviewGrammarDoYouUnderstand,
-                ),
-              ] else if (_phase == _GrammarCardPhase.practice &&
-                  _practiceSubmitted) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _onPracticeContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.brandTeal,
-                      foregroundColor: TurnaTheme.textOnPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(TurnaTheme.radiusMedium),
-                      ),
-                    ),
-                    child: Text(
-                      _practiceIndex + 1 < practiceItems.length
-                          ? AppStrings.reviewGrammarNextPractice
-                          : AppStrings.reviewGrammarRateGrammar,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ] else if (_phase == _GrammarCardPhase.explain) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _onRevealExplanation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.brandTeal,
-                      foregroundColor: TurnaTheme.textOnPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(TurnaTheme.radiusMedium),
-                      ),
-                    ),
-                    child: Text(
-                      AppStrings.reviewGrammarShowExplanation,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            AppSpacing.lg,
+            AppSpacing.pageMargin,
+            AppSpacing.lg,
           ),
+          child: _phase == _GrammarCardPhase.practice && practiceItems.isNotEmpty
+              ? _PracticePanel(
+                  interaction: practiceItems[_practiceIndex],
+                  renderers: _renderers,
+                  submitted: _practiceSubmitted,
+                  correct: _practiceCorrect,
+                  onSubmit: _onPracticeSubmit,
+                  progressLabel: AppStrings.reviewGrammarPracticeLabel(
+                      _practiceIndex + 1, practiceItems.length),
+                )
+              : _GrammarCard(
+                  word: item,
+                  point: point,
+                  showExplanation: _showExplanation,
+                  onFlip: _onRevealExplanation,
+                ),
         ),
       ),
+      bottomNavigationBar: SessionActionBand(
+        child: _buildPhaseAction(practiceItems),
+      ),
     );
+  }
+
+  /// 阶段动作带内容：explain / practice 相位是全宽主操作，rate 相位是
+  /// 双档评分带（ReviewGrade.unknown → outline、known → primary）。
+  Widget _buildPhaseAction(List<Interaction> practiceItems) {
+    if (_phase == _GrammarCardPhase.rate) {
+      final passDays = context
+          .read<GrammarReviewProvider>()
+          .previewOutcomeDays(_queue[_currentIndex], ReviewOutcome.pass);
+      return SessionRatingBand(
+        above: Text(
+          AppStrings.reviewGrammarDoYouUnderstand,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.captionSm(context),
+        ),
+        actions: [
+          SessionRatingAction(
+            label: AppStrings.reviewDontKnow,
+            tone: SessionRatingTone.outline,
+            interval: AppStrings.reviewIntervalMinutes(10),
+            onPressed: () => _onRate(ReviewGrade.unknown),
+          ),
+          SessionRatingAction(
+            label: AppStrings.reviewKnowIt,
+            tone: SessionRatingTone.primary,
+            interval:
+                passDays > 0 ? AppStrings.reviewIntervalDays(passDays) : null,
+            onPressed: () => _onRate(ReviewGrade.known),
+          ),
+        ],
+        enabled: !_ratingInFlight,
+      );
+    }
+    if (_phase == _GrammarCardPhase.practice && _practiceSubmitted) {
+      return SessionPrimaryAction(
+        label: _practiceIndex + 1 < practiceItems.length
+            ? AppStrings.reviewGrammarNextPractice
+            : AppStrings.reviewGrammarRateGrammar,
+        onPressed: _onPracticeContinue,
+      );
+    }
+    if (_phase == _GrammarCardPhase.explain) {
+      return SessionPrimaryAction(
+        label: AppStrings.reviewGrammarShowExplanation,
+        onPressed: _onRevealExplanation,
+      );
+    }
+    // 练习相位未提交：核对 CTA 由题面 renderer 自管，动作带收空但位置恒定。
+    return const SizedBox.shrink();
   }
 }
 

@@ -54,4 +54,65 @@ abstract final class AppTextStyles {
     color: Colors.white,
     letterSpacing: 0.6,
   );
+
+  // ──「湿地雾光」版面文字角色（P1 排版表，P2 组件起消费）──────────────────
+  //
+  // 与上面做题域的 caption / prompt 角色互补：这里管**页面级**版面——标题、
+  // 区块、正文、辅助信息与重点数字。行高按 P1 的 1.45–1.65 正文区间取值；
+  // 标题类 1.2–1.3（多行长标题换行不散）。
+
+  /// 页面标题：一级页面与章节开篇（28–36，取 30）。
+  static TextStyle pageTitle(BuildContext context) => TextStyle(
+        fontSize: 30,
+        fontWeight: FontWeight.w700,
+        color: TurnaTheme.textPrimaryColor(context),
+        height: 1.25,
+      );
+
+  /// 区块标题：页面内分组（18–20，取 19）。
+  static TextStyle sectionTitle(BuildContext context) => TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.w600,
+        color: TurnaTheme.textPrimaryColor(context),
+        height: 1.3,
+      );
+
+  /// 卡片标题：入口、设置组与结果标题（16–18，取 16）。
+  static TextStyle cardTitle(BuildContext context) => TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: TurnaTheme.textPrimaryColor(context),
+        height: 1.35,
+      );
+
+  /// 正文：说明、释义与可持续阅读内容。
+  static TextStyle bodyText(BuildContext context) => TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: TurnaTheme.textPrimaryColor(context),
+        height: 1.5,
+      );
+
+  /// 辅助信息：时间、来源与次要统计（13）。
+  static TextStyle captionSm(BuildContext context) => TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        color: TurnaTheme.textSecondaryColor(context),
+        height: 1.4,
+      );
+
+  /// 重点数字：今日待复习、完成概览等少量位置（28–36，取 34）。
+  ///
+  /// 色彩由调用方按语义给（待复习数用 teal 深档，警示值用语义色）；
+  /// 默认跟随主文字。
+  static TextStyle metricHero(
+    BuildContext context, {
+    Color? color,
+  }) =>
+      TextStyle(
+        fontSize: 34,
+        fontWeight: FontWeight.w700,
+        color: color ?? TurnaTheme.textPrimaryColor(context),
+        height: 1.1,
+      );
 }

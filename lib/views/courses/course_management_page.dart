@@ -24,20 +24,17 @@ import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/utils/validated_file_picker.dart';
-import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
-import 'package:turna/views/anki_official/components/adaptation_restore_sheet.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Course management page — opened from the course switcher in the Learn
-/// tab. Lists the built-in course plus every Anki course (one entry per
-/// source), lets the user switch the active course (tap), reorder courses
-/// (drag), delete imported courses with an exact-source confirmation (the
-/// built-in course can never be deleted), and reach the add-course entry
-/// points.
+/// tab. Lists the language courses only (built-in + imported packs): switch
+/// the active course (tap), reorder (drag), delete imported packs with an
+/// exact-source confirmation (the built-in course can never be deleted).
+/// Memory-card (Anki) courses and their import entry live in the memory-card
+/// domain, not here (ADR 0066).
 ///
 /// [highlightWire] briefly highlights one catalog entry (v1 scope wire key)
 /// — used by the import wizard's "view decks" action (ADR 0043).
@@ -67,15 +64,6 @@ class CourseManagementPage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            key: const Key('course-open-repair-center'),
-            tooltip: AppStrings.databaseDoctorTitle,
-            icon: const Icon(Icons.healing_outlined),
-            onPressed: () =>
-                context.router.push(OfficialAnkiRepairCenterRoute()),
-          ),
-        ],
       ),
       body: TurnaPageContent(
         maxWidth: 840,
@@ -113,7 +101,15 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
   @override
   Widget build(BuildContext context) {
     final courseProvider = context.watch<CourseProvider>();
-    final entries = courseProvider.catalogEntries;
+    // ADR 0066：课程管理只列语言课程；记忆卡牌组条目（官方与旧版导入
+    // 两类 anki scope）在记忆卡域管理。
+    final allEntries = courseProvider.catalogEntries;
+    final entries = [
+      for (final e in allEntries)
+        if (e.scope is! OfficialAnkiCourseScope &&
+            e.scope is! LegacyAnkiCourseScope)
+          e,
+    ];
     final restorable = courseProvider.restorableBuiltinLanguages;
     final activeScope = courseProvider.courseScope;
     // The read-aloud per-course entry is opt-in: it only appears once the
@@ -143,8 +139,13 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
           child: ReorderableListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
             buildDefaultDragHandles: false,
-            onReorderItem: (oldIndex, newIndex) =>
-                _onReorder(context, entries, oldIndex, newIndex),
+            onReorderItem: (oldIndex, newIndex) => _onReorder(
+              context,
+              languageEntries: entries,
+              allEntries: allEntries,
+              oldIndex: oldIndex,
+              newIndex: newIndex,
+            ),
             children: [
               for (var i = 0; i < entries.length; i++)
                 _CourseCard(
@@ -166,13 +167,6 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                               entries.where((e) => e.isBuiltin).length < 2)
                       ? null
                       : () => _confirmDelete(context, entries[i]),
-                  // 只有官方来源才有适配方案可恢复（ADR 0057 §6）。
-                  onAdaptation: _busy || entries[i].officialSourceId == null
-                      ? null
-                      : () => showAdaptationRestoreSheet(
-                            context,
-                            sourceId: entries[i].officialSourceId!,
-                          ),
                 ),
             ],
           ),
@@ -197,23 +191,6 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                       fontWeight: FontWeight.w700,
                       color: TurnaTheme.textSecondaryColor(context),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  OfficialPendingImportBanner(
-                    onChanged: () => setState(() {}),
-                  ),
-                  _AddCourseCard(
-                    title: AppStrings.courseManagementImportTitle,
-                    // ADR 0050 §6 step 4: no degradation here any more. The
-                    // engine and catalog both work on HarmonyOS (§6 steps 1-3
-                    // receipts), and the faithful renderer that is still
-                    // missing fails loudly inside the reviewer instead of
-                    // hiding the entry point — an entry that appears to work
-                    // and then renders nothing is worse than one that is
-                    // absent, because the user cannot tell which half is
-                    // broken.
-                    enabled: true,
-                    onTap: () => context.router.push(const AnkiImportRoute()),
                   ),
                   const SizedBox(height: 8),
                   _AddCourseCard(
@@ -387,14 +364,26 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
   }
 
   Future<void> _onReorder(
-    BuildContext context,
-    List<CourseCatalogEntry> entries,
-    int oldIndex,
-    int newIndex,
-  ) async {
-    final wires = [for (final e in entries) e.wireKey];
-    final wire = wires.removeAt(oldIndex);
-    wires.insert(newIndex, wire);
+    BuildContext context, {
+    required List<CourseCatalogEntry> languageEntries,
+    required List<CourseCatalogEntry> allEntries,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    // ReorderableListView 给的是语言子列表的 index；持久化顺序必须覆盖
+    // 全量目录（记忆卡条目保持原相对位置），否则子列表重排会把未列出的
+    // 条目从存储顺序里挤掉。
+    final moved = languageEntries[oldIndex];
+    final wires = [for (final e in allEntries) e.wireKey];
+    wires.remove(moved.wireKey);
+    final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    final anchor = adjusted < languageEntries.length - (newIndex > oldIndex ? 0 : 0)
+        ? languageEntries[adjusted]
+        : null;
+    final insertAt = anchor == null
+        ? wires.length
+        : wires.indexOf(anchor.wireKey);
+    wires.insert(insertAt < 0 ? wires.length : insertAt, moved.wireKey);
     await context.read<CourseProvider>().persistCourseOrder(wires);
   }
 
@@ -589,7 +578,6 @@ class _CourseCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onSettings;
   final VoidCallback? onDelete;
-  final VoidCallback? onAdaptation;
 
   const _CourseCard({
     super.key,
@@ -601,7 +589,6 @@ class _CourseCard extends StatelessWidget {
     required this.onTap,
     required this.onSettings,
     required this.onDelete,
-    this.onAdaptation,
   });
 
   @override
@@ -610,7 +597,7 @@ class _CourseCard extends StatelessWidget {
         ? TurnaTheme.brandTeal
         : TurnaTheme.textSecondaryColor(context);
     final hasMenuActions =
-        ttsFeatureEnabled || onDelete != null || onAdaptation != null;
+        ttsFeatureEnabled || onDelete != null;
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
 
     return Padding(
@@ -667,7 +654,6 @@ class _CourseCard extends StatelessWidget {
                     ttsFeatureEnabled: ttsFeatureEnabled,
                     onSettings: onSettings,
                     onDelete: onDelete,
-                    onAdaptation: onAdaptation,
                   ),
                 ReorderableDragStartListener(
                   index: index,
@@ -739,32 +725,31 @@ class _CourseCardInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        // Wrap 而非 Row：200% 字号下「名称 + 当前 + 默认」两枚徽章会溢出
+        // 右缘（两门内置语言时每张卡都可能带徽章）；Wrap 让长名换行、
+        // 徽章流到下一行，不再报 RenderFlex overflow。
+        Wrap(
+          spacing: 8,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Flexible(
-              child: Text(
-                entry.displayName,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
+            Text(
+              entry.displayName,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
-            if (isActive) ...[
-              const SizedBox(width: 8),
+            if (isActive)
               _Badge(
                 label: AppStrings.courseManagementCurrentBadge,
                 color: TurnaTheme.brandTeal,
               ),
-            ],
-            if (entry.isBuiltin) ...[
-              const SizedBox(width: 8),
+            if (entry.isBuiltin)
               _Badge(
                 label: AppStrings.courseManagementDefaultBadge,
                 color: TurnaTheme.textSecondaryColor(context),
               ),
-            ],
           ],
         ),
         const SizedBox(height: 4),
@@ -809,13 +794,11 @@ class _CourseCardMenu extends StatelessWidget {
   final bool ttsFeatureEnabled;
   final VoidCallback onSettings;
   final VoidCallback? onDelete;
-  final VoidCallback? onAdaptation;
 
   const _CourseCardMenu({
     required this.ttsFeatureEnabled,
     required this.onSettings,
     required this.onDelete,
-    this.onAdaptation,
   });
 
   @override
@@ -832,8 +815,6 @@ class _CourseCardMenu extends StatelessWidget {
       onSelected: (value) {
         if (value == 'tts') {
           onSettings();
-        } else if (value == 'adaptation') {
-          onAdaptation?.call();
         } else if (value == 'delete') {
           onDelete?.call();
         }
@@ -851,21 +832,6 @@ class _CourseCardMenu extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(AppStrings.courseTtsSettingsTitle),
-              ],
-            ),
-          ),
-        if (onAdaptation != null)
-          PopupMenuItem(
-            value: 'adaptation',
-            child: Row(
-              children: [
-                Icon(
-                  Icons.tune_rounded,
-                  size: 20,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-                const SizedBox(width: 10),
-                Text(AppStrings.ankiAdaptationRestoreTitle),
               ],
             ),
           ),
@@ -922,35 +888,27 @@ class _AddCourseCard extends StatelessWidget {
   final String? title;
   final String? subtitle;
 
-  /// When false the card stays visible but cannot be tapped, and [subtitle] is
-  /// expected to say why. A capability the build cannot deliver is better shown
-  /// inert with a reason than hidden — hiding it leaves the user wondering
-  /// where it went, and leaving it live means a tap that always fails.
-  final bool enabled;
-
   const _AddCourseCard({
     super.key,
     required this.onTap,
     this.title,
     this.subtitle,
-    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
-    final accent =
-        enabled ? TurnaTheme.brandTeal : TurnaTheme.textSecondaryColor(context);
+    const accent = TurnaTheme.brandTeal;
     return Material(
       color: Colors.transparent,
       borderRadius: radius,
       child: InkWell(
-        onTap: enabled ? onTap : null,
+        onTap: onTap,
         borderRadius: radius,
         child: CustomPaint(
           foregroundPainter: _DashedBorderPainter(
             color:
-                TurnaTheme.brandTeal.withValues(alpha: enabled ? 0.45 : 0.18),
+                TurnaTheme.brandTeal.withValues(alpha: 0.45),
             radius: TurnaTheme.radiusLarge,
           ),
           child: Padding(
@@ -959,9 +917,7 @@ class _AddCourseCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  enabled
-                      ? Icons.add_circle_outline_rounded
-                      : Icons.block_outlined,
+                  Icons.add_circle_outline_rounded,
                   size: 28,
                   color: accent,
                 ),

@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -95,147 +97,90 @@ class _FeatureGuideContent extends StatelessWidget {
   }
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────
+// ─── Hero（引擎状态一行 + 隐私说明，R14：不再是渐变大卡）──────────────────
 
 class _HeroCard extends StatelessWidget {
   const _HeroCard();
 
   @override
   Widget build(BuildContext context) {
-    return Selector<AiEngineConfigHolder, _HeroSnapshot>(
-      selector: (_, h) => _HeroSnapshot(
-        preset: h.config.preset.label,
-        complete: h.config.isComplete,
-      ),
+    return Selector<AiEngineConfigHolder, (bool, String)>(
+      selector: (_, h) => (h.config.isComplete, h.config.preset.label),
       builder: (context, snap, _) {
-        const radius =
-            BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
-
+        final (complete, preset) = snap;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  TurnaTheme.brandTealDark,
-                  TurnaTheme.brandTealLight,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.pageMargin,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppStrings.aiGuideHeroTitle,
+                style: AppTextStyles.pageTitle(context).copyWith(
+                  fontSize: 24,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs + 2),
+              Text(
+                AppStrings.aiGuideHeroSubtitle,
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(height: 1.5),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: complete ? TurnaTheme.brandTeal : null,
+                      border: complete
+                          ? null
+                          : Border.all(color: TurnaTheme.warning, width: 2),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm + 2),
+                  Expanded(
+                    child: Text(
+                      complete
+                          ? AppStrings.aiGuideEngineConfigured(preset)
+                          : AppStrings.aiGuideEngineMissing,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.captionSm(context).copyWith(
+                        color: complete
+                            ? TurnaTheme.textSecondaryColor(context)
+                            : TurnaTheme.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 14,
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                  const SizedBox(width: AppSpacing.xs + 2),
+                  Flexible(
+                    child: Text(
+                      AppStrings.aiGuidePrivacyChip,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.captionSm(context).copyWith(
+                        fontSize: 12,
+                        color: TurnaTheme.textHintColor(context),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              borderRadius: radius,
-              boxShadow: [
-                BoxShadow(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.aiGuideHeroTitle,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  AppStrings.aiGuideHeroSubtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.88),
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _HeroChip(
-                      icon: snap.complete
-                          ? Icons.check_circle_rounded
-                          : Icons.warning_amber_rounded,
-                      label: snap.complete
-                          ? AppStrings.aiGuideEngineConfigured(snap.preset)
-                          : AppStrings.aiGuideEngineMissing,
-                      warning: !snap.complete,
-                    ),
-                    _HeroChip(
-                      icon: Icons.lock_outline_rounded,
-                      label: AppStrings.aiGuidePrivacyChip,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            ],
           ),
         );
       },
-    );
-  }
-}
-
-class _HeroSnapshot {
-  const _HeroSnapshot({required this.preset, required this.complete});
-  final String preset;
-  final bool complete;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _HeroSnapshot &&
-      other.preset == preset &&
-      other.complete == complete;
-
-  @override
-  int get hashCode => Object.hash(preset, complete);
-}
-
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({
-    required this.icon,
-    required this.label,
-    this.warning = false,
-  });
-  final IconData icon;
-  final String label;
-  final bool warning;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color:
-            warning ? TurnaTheme.warning : Colors.white.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: warning ? 0.0 : 0.35),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -345,6 +290,8 @@ void _openSaved(BuildContext context) =>
     context.router.push(const AiSavedListRoute());
 
 void _openDepthTutor(BuildContext context) {
+  // 深度讲解 sheet 属课时域且自带标题行，容器迁移随课时域批次走；这里只
+  // 保证入口是本域的目录式行。
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -381,149 +328,171 @@ class _FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoftCard(
-      accentColor: spec.accent,
-      onTap: () => spec.open(context),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题行
-            Row(
-              children: [
-                AccentIconChip(
-                  icon: spec.icon,
-                  color: spec.accent,
-                  size: 22,
-                  padding: 9,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    spec.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: spec.accent,
-                        ),
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 14,
-                  color: TurnaTheme.brandTeal,
-                ),
-              ],
+    // R14：手册是阅读页 → 功能块走纸面（实色 + 发丝边），不再是淡彩软卡。
+    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => spec.open(context),
+          borderRadius: radius,
+          child: Ink(
+            decoration: TurnaTheme.flatPaperDecoration(
+              context,
+              borderRadius: radius,
             ),
-            const SizedBox(height: 14),
-            // 作用
-            _SectionLabel(
-                label: AppStrings.aiGuideLabelPurpose, color: spec.accent),
-            const SizedBox(height: 4),
-            Text(
-              spec.purpose,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textPrimaryColor(context),
-                    height: 1.55,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            // 适用场景
-            _SectionLabel(
-                label: AppStrings.aiGuideLabelScenarios, color: spec.accent),
-            const SizedBox(height: 4),
-            for (final s in spec.scenarios)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 7, right: 6),
-                      child: Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: spec.accent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        s,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textSecondaryColor(context),
-                              height: 1.5,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 12),
-            // 操作流程
-            _SectionLabel(
-                label: AppStrings.aiGuideLabelSteps, color: spec.accent),
-            const SizedBox(height: 4),
-            for (var i = 0; i < spec.steps.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      child: Text(
-                        '${i + 1}.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: spec.accent,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        spec.steps[i],
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textSecondaryColor(context),
-                              height: 1.5,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 12),
-            // 小贴士
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: spec.accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.lightbulb_outline_rounded,
-                    size: 16,
-                    color: spec.accent,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      spec.tip,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textPrimaryColor(context),
-                            height: 1.5,
+                  // 标题行
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: TurnaTheme.softTint(
+                            context,
+                            spec.accent,
+                            alpha: 0.12,
                           ),
+                          borderRadius:
+                              BorderRadius.circular(TurnaTheme.radiusMedium),
+                        ),
+                        child: Icon(
+                          spec.icon,
+                          size: 18,
+                          color: TurnaTheme.accentOnCard(context, spec.accent),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Text(
+                          spec.title,
+                          style: AppTextStyles.cardTitle(context)
+                              .copyWith(color: spec.accent),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md + 2),
+                  // 作用
+                  _SectionLabel(
+                      label: AppStrings.aiGuideLabelPurpose,
+                      color: spec.accent),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    spec.purpose,
+                    style: AppTextStyles.bodyText(context)
+                        .copyWith(fontSize: 15, height: 1.55),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // 适用场景
+                  _SectionLabel(
+                      label: AppStrings.aiGuideLabelScenarios,
+                      color: spec.accent),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (final s in spec.scenarios)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 7, right: 6),
+                            child: Container(
+                              width: 4,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: spec.accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              s,
+                              style: AppTextStyles.captionSm(context)
+                                  .copyWith(height: 1.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.md),
+                  // 操作流程
+                  _SectionLabel(
+                      label: AppStrings.aiGuideLabelSteps, color: spec.accent),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (var i = 0; i < spec.steps.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            child: Text(
+                              '${i + 1}.',
+                              style: AppTextStyles.captionSm(context).copyWith(
+                                color: spec.accent,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              spec.steps[i],
+                              style: AppTextStyles.captionSm(context)
+                                  .copyWith(height: 1.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.md),
+                  // 小贴士
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: TurnaTheme.softTint(context, spec.accent,
+                          alpha: 0.08),
+                      borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall + 2),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline_rounded,
+                          size: 16,
+                          color: spec.accent,
+                        ),
+                        const SizedBox(width: AppSpacing.xs + 2),
+                        Expanded(
+                          child: Text(
+                            spec.tip,
+                            style: AppTextStyles.captionSm(context).copyWith(
+                              color: TurnaTheme.textPrimaryColor(context),
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -539,11 +508,12 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-          ),
+      style: AppTextStyles.captionSm(context).copyWith(
+        color: color,
+        fontWeight: FontWeight.w800,
+        fontSize: 12,
+        letterSpacing: 0.3,
+      ),
     );
   }
 }

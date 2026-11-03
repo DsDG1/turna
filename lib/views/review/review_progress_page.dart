@@ -8,16 +8,21 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
+import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
-/// Review-overview home (Plan 3 §15.1): a fast, actionable "today" dashboard.
+/// Review-overview home (Plan 3 §15.1) ——「湿地雾光」R10 学习报告构图.
 ///
-/// Information order: today hero (progress + CTA) → due/new/overdue →
-/// streak + light 7-day chart → today quality → course/deck sources →
+/// Information order: 一个核心指标开篇（今日待复习 + 单一主行动）→ 到期
+/// 构成 → 连续与近 7 天柱状（主图）→ 今日质量 → 来源行（真实下钻）→
 /// link to the full 学习洞察 page. Heavy analytics (heatmap, memory curve,
 /// maturity) live on [LearningInsightsPage].
 ///
@@ -117,7 +122,12 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pageMargin,
+                        AppSpacing.md,
+                        AppSpacing.pageMargin,
+                        AppSpacing.xxl,
+                      ),
                       children: [
                         if (_error != null)
                           Padding(
@@ -126,17 +136,28 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
                               onRetry: () => _reload(forceRefresh: true),
                             ),
                           ),
-                        _TodayHero(snapshot: snap),
-                        const SizedBox(height: 12),
-                        _DueRow(snapshot: snap),
-                        const SizedBox(height: 12),
+                        _MetricOpening(snapshot: snap),
+                        const SizedBox(height: AppSpacing.xl),
+                        SessionPrimaryAction(
+                          label: snap.due.actionableTotal > 0
+                              ? AppStrings.reviewContinueCta
+                              : AppStrings.reviewTodayDoneCta,
+                          onPressed: snap.due.actionableTotal > 0
+                              ? () =>
+                                  context.router.push(const SrsReviewRoute())
+                              : null,
+                          trailingIcon: Icons.play_arrow_rounded,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _DueDefinitionList(snapshot: snap),
                         if (!focusMode) ...[
-                          _StreakCard(snapshot: snap),
-                          const SizedBox(height: 12),
-                          _TodayQualityCard(snapshot: snap),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppSpacing.xl),
+                          _WeeklyChartSection(snapshot: snap),
+                          const SizedBox(height: AppSpacing.xl),
+                          _TodayQualitySection(snapshot: snap),
+                          const SizedBox(height: AppSpacing.xl),
                           _SourceList(snapshot: snap),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpacing.lg),
                           OutlinedButton.icon(
                             onPressed: () => context.router
                                 .push(const LearningInsightsRoute()),
@@ -152,372 +173,148 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
   }
 }
 
-// ── Today hero ─────────────────────────────────────────────────────────────
+// ── 核心指标开篇 + 单一主行动 ─────────────────────────────────────────────
 
-class _TodayHero extends StatelessWidget {
-  const _TodayHero({required this.snapshot});
+class _MetricOpening extends StatelessWidget {
+  const _MetricOpening({required this.snapshot});
 
   final ReviewDashboardSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
+    final due = snapshot.due;
     final today = snapshot.today;
-    final due = snapshot.due;
-    final hasGoal = today.hasGoal;
-    final progress = hasGoal && today.todayXp != null
-        ? (today.todayXp! / today.xpGoal!).clamp(0.0, 1.0)
-        : 0.0;
+    final dateLabel =
+        '${snapshot.generatedAt.month} ${AppStrings.reviewMonthDay(snapshot.generatedAt.day)}';
+    final goalCaption = today.hasGoal && today.todayXp != null
+        ? '${AppStrings.reviewTodayGoalProgress(today.todayXp!, today.xpGoal!)} · $dateLabel'
+        : '${AppStrings.reviewTodayReviewed(today.reviewedToday)} · $dateLabel';
 
-    final canReview = due.actionableTotal > 0;
-    final dateLabel = _formatDate(snapshot.generatedAt);
-
-    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    final progressBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          hasGoal && today.todayXp != null
-              ? AppStrings.reviewTodayGoalProgress(
-                  today.todayXp!, today.xpGoal!)
-              : AppStrings.reviewTodayReviewed(today.reviewedToday),
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: TurnaTheme.brandTeal,
-              ),
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: TurnaTheme.dividerBg(context),
-            color: TurnaTheme.brandTeal,
-          ),
-        ),
-      ],
-    );
-    final cta = FilledButton.icon(
-      onPressed:
-          canReview ? () => context.router.push(const SrsReviewRoute()) : null,
-      icon: const Icon(Icons.play_arrow_rounded, size: 20),
-      label: Text(
-        canReview
-            ? AppStrings.reviewContinueCta
-            : AppStrings.reviewTodayDoneCta,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-    );
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: 12,
-            runSpacing: 4,
-            children: [
-              Text(
-                AppStrings.reviewTodayTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              Text(
-                dateLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (largeText) ...[
-            progressBlock,
-            const SizedBox(height: 12),
-            SizedBox(width: double.infinity, child: cta),
-          ] else
-            Row(
-              children: [
-                Expanded(child: progressBlock),
-                const SizedBox(width: 14),
-                cta,
-              ],
-            ),
-        ],
-      ),
+    return ReportMetricHeader(
+      label: AppStrings.reviewMetricDueToday,
+      value: '${due.actionableTotal}',
+      caption: goalCaption,
+      accentColor: due.actionableTotal > 0
+          ? TurnaTheme.brandTealDark
+          : TurnaTheme.textHintColor(context),
     );
   }
-
-  String _formatDate(DateTime d) =>
-      '${d.month} ${AppStrings.reviewMonthDay(d.day)}';
 }
 
-// ── Due / new / overdue ────────────────────────────────────────────────────
+// ── 到期构成（辅助指标 · 定义列表） ────────────────────────────────────────
 
-class _DueRow extends StatelessWidget {
-  const _DueRow({required this.snapshot});
+class _DueDefinitionList extends StatelessWidget {
+  const _DueDefinitionList({required this.snapshot});
 
   final ReviewDashboardSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
     final due = snapshot.due;
-    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    final cards = <Widget>[
-      _DueCard(
-        icon: Icons.schedule_rounded,
-        value: due.due,
-        label: AppStrings.reviewDueCard,
-        accent: due.due > 0 ? TurnaTheme.warning : TurnaTheme.textHint,
-      ),
-      _DueCard(
-        icon: Icons.fiber_new_rounded,
-        value: due.newCards,
-        label: AppStrings.reviewNewCard,
-        accent: TurnaTheme.brandSky,
-      ),
-      _DueCard(
-        icon: Icons.warning_amber_rounded,
-        value: due.overdue,
-        label: AppStrings.reviewOverdueCard,
-        accent: due.overdue > 0 ? TurnaTheme.error : TurnaTheme.textHint,
-      ),
-    ];
-    if (largeText) {
-      return Column(
-        children: [
-          for (var i = 0; i < cards.length; i++) ...[
-            if (i > 0) const SizedBox(height: 8),
-            SizedBox(width: double.infinity, child: cards[i]),
-          ],
-        ],
-      );
-    }
-    return Row(
-      children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(child: cards[i]),
-        ],
+    return ReportDefinitionList(
+      rows: [
+        ReportDefinitionRow(
+          label: AppStrings.reviewDueCard,
+          value: '${due.due}',
+          valueColor: due.due > 0 ? TurnaTheme.warning : null,
+        ),
+        ReportDefinitionRow(
+          label: AppStrings.reviewNewCard,
+          value: '${due.newCards}',
+        ),
+        ReportDefinitionRow(
+          label: AppStrings.reviewOverdueCard,
+          value: '${due.overdue}',
+          valueColor: due.overdue > 0 ? TurnaTheme.error : null,
+        ),
       ],
     );
   }
 }
 
-class _DueCard extends StatelessWidget {
-  const _DueCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.accent,
-  });
+// ── 近 7 天（主图 · 柱状） ────────────────────────────────────────────────
 
-  final IconData icon;
-  final int value;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 18, color: accent),
-          const SizedBox(height: 4),
-          Text(
-            '$value',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
-          ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Streak + 7-day ────────────────────────────────────────────────────────
-
-class _StreakCard extends StatelessWidget {
-  const _StreakCard({required this.snapshot});
+class _WeeklyChartSection extends StatelessWidget {
+  const _WeeklyChartSection({required this.snapshot});
 
   final ReviewDashboardSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
     final streak = snapshot.streak;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 这行原来是 Row + Spacer：字体放大后「连续学习 N 天」+「本周 N 天」
-          // 一起变宽，Spacer 被压到 0 也放不下，真机收据是
-          // `RIGHT OVERFLOWED BY 12 PIXELS`。改 Wrap 后空间不够时「本周」
-          // 自动落到下一行，够宽时仍靠 spaceBetween 右对齐。
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 4,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.local_fire_department_rounded,
-                      color: TurnaTheme.anatolianClay, size: 20),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      AppStrings.reviewStreakDays(streak.currentStreakDays),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+    final points = snapshot.last7Days;
+    final total = points.fold<int>(0, (a, b) => a + b.reviewedCount);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(
+          title: AppStrings.reviewStreakDays(streak.currentStreakDays),
+          trailing: streak.protectedByVoucher
+              ? Tooltip(
+                  message: AppStrings.reviewProtectedTooltip,
+                  child: Chip(
+                    avatar: const Icon(Icons.shield_rounded, size: 15),
+                    label: Text(AppStrings.reviewProtectedChip),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  if (streak.protectedByVoucher) ...[
-                    const SizedBox(width: 8),
-                    Tooltip(
-                      message: AppStrings.reviewProtectedTooltip,
-                      child: Chip(
-                        avatar: const Icon(Icons.shield_rounded, size: 15),
-                        label: Text(AppStrings.reviewProtectedChip),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              Text(
-                AppStrings.reviewThisWeek(streak.activeDaysThisWeek),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-              ),
+                )
+              : Text(
+                  AppStrings.reviewThisWeek(streak.activeDaysThisWeek),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+        ),
+        if (total == 0)
+          Text(
+            AppStrings.reviewNoDataYet,
+            style: TextStyle(
+              fontSize: 13,
+              color: TurnaTheme.textHintColor(context),
+            ),
+          )
+        else ...[
+          ReportBarChart(
+            semanticsLabel: AppStrings.reviewSevenDayChartSemantics(total),
+            height: 150,
+            bars: [
+              for (var i = 0; i < points.length; i++)
+                ReportBar(
+                  label: '${points[i].localDay.day}',
+                  value: points[i].reviewedCount.toDouble(),
+                  highlight: i == points.length - 1,
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            // Bars share leftover height after the day labels so a tall
-            // count never overflows this box (was 52px bar + label in 56px).
-            height: 56,
-            child: _SevenDayChart(points: snapshot.last7Days),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
           // 文本语义摘要（无障碍：图表不只用颜色表达，§17.2）。
           Text(
             _summaryText(),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _summaryText() {
-    final active = snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
-    final total =
-        snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
-    return AppStrings.reviewSevenDaySummary(active, total);
-  }
-}
-
-/// Light 7-point bar chart painted once (no per-frame animation, wrapped in
-/// the parent card; respects reduce-motion by never tweening).
-class _SevenDayChart extends StatelessWidget {
-  const _SevenDayChart({required this.points});
-
-  final List<DailyActivityPoint> points;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxCount = points.fold<int>(
-        0, (a, b) => a > b.reviewedCount ? a : b.reviewedCount);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (var i = 0; i < points.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final maxH = constraints.maxHeight;
-                      final count = points[i].reviewedCount;
-                      final h = maxCount == 0 || count == 0
-                          ? 4.0.clamp(0.0, maxH)
-                          : (4.0 + (maxH - 4.0) * count / maxCount)
-                              .clamp(4.0, maxH);
-                      return Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          width: constraints.maxWidth,
-                          height: h,
-                          decoration: BoxDecoration(
-                            color: count == 0
-                                ? TurnaTheme.dividerBg(context)
-                                : TurnaTheme.brandTeal.withValues(
-                                    alpha: 0.45 + 0.55 * count / maxCount,
-                                  ),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${points[i].localDay.day}',
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontSize: 9,
-                        height: 1.0,
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                ),
-              ],
+            style: TextStyle(
+              fontSize: 13,
+              color: TurnaTheme.textHintColor(context),
             ),
           ),
         ],
       ],
     );
   }
+
+  String _summaryText() {
+    final active =
+        snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
+    final total =
+        snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
+    return AppStrings.reviewSevenDaySummary(active, total);
+  }
 }
 
-// ── Today quality ─────────────────────────────────────────────────────────
+// ── 今日质量（辅助指标 · 定义列表） ────────────────────────────────────────
 
-class _TodayQualityCard extends StatelessWidget {
-  const _TodayQualityCard({required this.snapshot});
+class _TodayQualitySection extends StatelessWidget {
+  const _TodayQualitySection({required this.snapshot});
 
   final ReviewDashboardSnapshot snapshot;
 
@@ -527,37 +324,17 @@ class _TodayQualityCard extends StatelessWidget {
     final accuracyLabel = q.firstAnswerAccuracy == null
         ? AppStrings.reviewNoDataYet
         : AppStrings.reviewAccuracyPct((q.firstAnswerAccuracy! * 100).round());
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.timer_outlined,
-              size: 18, color: TurnaTheme.brandTeal),
-          const SizedBox(width: 8),
-          Text(
-            AppStrings.reviewTodayMinutes(q.studyMinutes),
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(width: 16),
-          const Icon(Icons.check_circle_outline_rounded,
-              size: 18, color: TurnaTheme.brandTeal),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              accuracyLabel,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: q.firstAnswerAccuracy == null
-                        ? TurnaTheme.textHintColor(context)
-                        : null,
-                  ),
-            ),
-          ),
-        ],
-      ),
+    return ReportDefinitionList(
+      rows: [
+        ReportDefinitionRow(
+          label: AppStrings.reviewMetricWindow7,
+          value: AppStrings.reviewTodayMinutes(q.studyMinutes),
+        ),
+        ReportDefinitionRow(
+          label: AppStrings.reviewAccuracyShort,
+          value: accuracyLabel,
+        ),
+      ],
     );
   }
 }
@@ -574,45 +351,33 @@ class _SourceList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sources = snapshot.sources;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.reviewSourcesTitle,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 4),
-          if (sources.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                AppStrings.reviewEmptyHint,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(title: AppStrings.reviewSourcesTitle),
+        if (sources.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              AppStrings.reviewEmptyHint,
+              style: TextStyle(
+                fontSize: 14,
+                color: TurnaTheme.textHintColor(context),
               ),
-            )
-          else
-            for (var i = 0; i < sources.length && i < _maxShown; i++) ...[
-              if (i > 0) Divider(color: TurnaTheme.dividerBg(context)),
-              _SourceTile(row: sources[i]),
-            ],
-        ],
-      ),
+            ),
+          )
+        else
+          for (var i = 0; i < sources.length && i < _maxShown; i++)
+            _SourceRow(row: sources[i]),
+      ],
     );
   }
 }
 
-class _SourceTile extends StatelessWidget {
-  const _SourceTile({required this.row});
+/// 来源行（R10 真实下钻）：整行点进来源详情页——不再有「带 chevron 却不可
+/// 点」的假行。
+class _SourceRow extends StatelessWidget {
+  const _SourceRow({required this.row});
 
   final ReviewSourceSummary row;
 
@@ -628,39 +393,68 @@ class _SourceTile extends StatelessWidget {
     }
   }
 
+  Color get _accent {
+    switch (row.source.kind) {
+      case LearningSourceKind.course:
+        return TurnaTheme.brandTeal;
+      case LearningSourceKind.grammar:
+        return TurnaTheme.brandSky;
+      case LearningSourceKind.ankiLegacy:
+      case LearningSourceKind.ankiOfficial:
+        return TurnaTheme.brandReed;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Icon(_icon, size: 20, color: TurnaTheme.textSecondaryColor(context)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              row.source.displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-          Text(
-            AppStrings.reviewSourceDue(row.dueToday),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: row.dueToday > 0
-                      ? TurnaTheme.warning
-                      : TurnaTheme.textHintColor(context),
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(width: 4),
-          Icon(Icons.chevron_right_rounded,
-              size: 16, color: TurnaTheme.textHintColor(context)),
-        ],
+    return DirectoryTaskRow(
+      icon: _icon,
+      accent: _accent,
+      title: row.source.displayName,
+      countLabel:
+          row.dueToday > 0 ? AppStrings.reviewSourceDue(row.dueToday) : null,
+      onTap: () => context.router.push(
+        ReviewSourceDetailRoute(source: reviewSourceFor(row.source)),
       ),
     );
+  }
+}
+
+/// 仪表盘的来源引用 → 洞察/详情页的来源选择键。
+///
+/// id 口径与 `ReviewProgressProvider._listSources` 的生成规则一致：
+/// course / grammar 是固定 id；导入牌组是 `anki:<importId>`；Official
+/// 牌组是 `official:<sourceId>`。展示层换算，不动 application 模型。
+ReviewSource reviewSourceFor(LearningSourceRef ref) {
+  switch (ref.kind) {
+    case LearningSourceKind.course:
+      return const ReviewSource(
+        kind: ReviewSourceKind.course,
+        id: 'course',
+        label: '课程',
+      );
+    case LearningSourceKind.grammar:
+      return const ReviewSource(
+        kind: ReviewSourceKind.grammar,
+        id: 'grammar',
+        label: '语法',
+      );
+    case LearningSourceKind.ankiLegacy:
+      return ReviewSource(
+        kind: ReviewSourceKind.ankiDeck,
+        id: 'anki:${ref.sourceId}',
+        label: ref.displayName,
+        importId: ref.sourceId,
+        active: ref.active,
+      );
+    case LearningSourceKind.ankiOfficial:
+      return ReviewSource(
+        kind: ReviewSourceKind.ankiOfficial,
+        id: 'official:${ref.sourceId}',
+        label: ref.displayName,
+        importId: ref.sourceId,
+        active: ref.active,
+      );
   }
 }
 

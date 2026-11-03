@@ -2,21 +2,25 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
 
-/// One row in the AI practice library ("我的练习").
+/// One row in the AI practice library ("我的练习") —— 目录行，不是卡。
 ///
-/// Shared by the AI Hub preview and the full library page so status wording,
-/// colors, and menu actions cannot drift between the two surfaces.
+/// 五态（排队 / 生成中 / 待练习 / 失败 / 中断）全部行内表达：左侧状态符
+/// （环 = 排队、spinner = 生成中、实心 = 待练习、error 轮廓 = 失败、pause =
+/// 中断），状态词进副行文字；收藏与菜单动作收进行尾。共享于 AI Hub 预览与
+/// 练习库全页，两处状态口径不会漂移。
 class AiPracticeCard extends StatelessWidget {
   const AiPracticeCard({
     super.key,
     required this.item,
     this.selectionMode = false,
     this.selected = false,
+    this.showDivider = true,
     this.onTap,
     this.onStart,
     this.onPin,
@@ -31,6 +35,7 @@ class AiPracticeCard extends StatelessWidget {
   final AiCourse item;
   final bool selectionMode;
   final bool selected;
+  final bool showDivider;
   final VoidCallback? onTap;
   final VoidCallback? onStart;
   final VoidCallback? onPin;
@@ -45,15 +50,15 @@ class AiPracticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _accent(context);
-    final subtitle = _subtitle(context);
-    return SoftCard(
-      accentColor: accent,
-      onTap: selectionMode ? onTap : (onTap ?? (_playable ? onStart : null)),
+    final failed = item.status == AiPracticeStatus.failed ||
+        item.status == AiPracticeStatus.interrupted;
+    final row = InkWell(
+      onTap: selectionMode
+          ? onTap
+          : (onTap ?? (_playable ? onStart : null)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md + 1),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (selectionMode) ...[
               Checkbox(
@@ -61,64 +66,36 @@ class AiPracticeCard extends StatelessWidget {
                 onChanged: onTap == null ? null : (_) => onTap!(),
                 activeColor: TurnaTheme.brandTeal,
               ),
-              const SizedBox(width: 2),
+              const SizedBox(width: AppSpacing.xs),
             ],
-            AccentIconChip(
-              icon: _icon,
-              color: accent,
-              size: 20,
-              padding: 8,
-            ),
-            const SizedBox(width: 12),
+            _StatusGlyph(status: item.status),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: TurnaTheme.textPrimaryColor(context),
-                                  ),
-                        ),
-                      ),
-                      if (item.pinned) ...[
-                        const SizedBox(width: 6),
-                        _Tag(
-                            label: AppStrings.aiPracticePermanentTag,
-                            color: accent),
-                      ] else if (item.isPlayable &&
-                          item.isExpiringSoon(DateTime.now())) ...[
-                        const SizedBox(width: 6),
-                        _Tag(
-                          label: AppStrings.aiPracticeExpiringBadge,
-                          color: TurnaTheme.warning,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 3),
                   Text(
-                    subtitle,
-                    maxLines: 2,
+                    item.title,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: item.status == AiPracticeStatus.failed ||
-                                  item.status == AiPracticeStatus.interrupted
+                    style: AppTextStyles.cardTitle(context),
+                  ),
+                  const SizedBox(height: AppSpacing.xs - 2),
+                  Text(
+                    _statusLine(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.captionSm(context).copyWith(
+                          fontSize: 12.5,
+                          color: failed
                               ? TurnaTheme.error
                               : TurnaTheme.textSecondaryColor(context),
-                          height: 1.35,
                         ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
             if (item.status.isBusy)
               IconButton(
                 tooltip: AppStrings.aiPracticeCancel,
@@ -267,43 +244,43 @@ class AiPracticeCard extends StatelessWidget {
         ),
       ),
     );
+    if (!showDivider) return row;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
+        ),
+      ),
+      child: row,
+    );
   }
 
-  IconData get _icon => switch (item.status) {
-        AiPracticeStatus.queued => Icons.schedule_rounded,
-        AiPracticeStatus.running => Icons.auto_awesome_rounded,
-        AiPracticeStatus.ready => Icons.play_circle_outline_rounded,
-        AiPracticeStatus.failed => Icons.error_outline_rounded,
-        AiPracticeStatus.interrupted => Icons.pause_circle_outline_rounded,
-      };
-
-  Color _accent(BuildContext context) {
-    if (item.pinned) return TurnaTheme.anatolianClay;
-    return switch (item.status) {
-      AiPracticeStatus.queued => TurnaTheme.textSecondaryColor(context),
-      AiPracticeStatus.running => TurnaTheme.brandTeal,
-      AiPracticeStatus.ready => TurnaTheme.brandTeal,
-      AiPracticeStatus.failed => TurnaTheme.error,
-      AiPracticeStatus.interrupted => TurnaTheme.warning,
-    };
-  }
-
-  String _subtitle(BuildContext context) {
-    final source = _sourceLabel;
+  /// 「来源 · 状态（· 过期）」一行：五态的文本表达。
+  String _statusLine() {
     final status = switch (item.status) {
       AiPracticeStatus.queued => AppStrings.aiPracticeQueued,
       AiPracticeStatus.running => AppStrings.aiPracticeProgress(
           item.progressDone,
           item.progressTotal,
         ),
-      AiPracticeStatus.ready => AppStrings.aiPracticeReady,
+      AiPracticeStatus.ready => item.pinned
+          ? '${AppStrings.aiPracticeReady} · ${AppStrings.aiPracticePermanentTag}'
+          : AppStrings.aiPracticeReady,
       AiPracticeStatus.failed =>
         item.errorMessage ?? AppStrings.aiPracticeFailed,
       AiPracticeStatus.interrupted =>
         item.errorMessage ?? AppStrings.aiPracticeInterrupted,
     };
     final expiry = _expiryLabel();
-    return expiry == null ? '$source · $status' : '$source · $status · $expiry';
+    final source = switch (item.source) {
+      AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
+      AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
+      AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
+      AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
+    };
+    return expiry == null
+        ? '$source · $status'
+        : '$source · $status · $expiry';
   }
 
   /// "还剩 3 天" / "今天过期" for plain drafts; null for favourites (permanent)
@@ -316,36 +293,59 @@ class AiPracticeCard extends StatelessWidget {
         ? AppStrings.aiPracticeExpiringToday
         : AppStrings.aiPracticeExpiresInDays(days);
   }
-
-  String get _sourceLabel => switch (item.source) {
-        AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
-        AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
-        AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
-        AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
-      };
 }
 
-class _Tag extends StatelessWidget {
-  const _Tag({required this.label, required this.color});
-  final String label;
-  final Color color;
+/// 行首状态符：形状表达状态，不靠色相。
+class _StatusGlyph extends StatelessWidget {
+  const _StatusGlyph({required this.status});
+
+  final AiPracticeStatus status;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
+    return switch (status) {
+      // 排队：空心环（未达）。
+      AiPracticeStatus.queued => Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: TurnaTheme.dividerBg(context), width: 2),
+          ),
         ),
-      ),
-    );
+      // 生成中：小 spinner。
+      AiPracticeStatus.running => const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.2,
+            color: TurnaTheme.brandTeal,
+          ),
+        ),
+      // 待练习：实心 teal（可开始）。
+      AiPracticeStatus.ready => Container(
+          width: 18,
+          height: 18,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: TurnaTheme.brandTeal,
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            size: 12,
+            color: TurnaTheme.textOnPrimary,
+          ),
+        ),
+      AiPracticeStatus.failed => const Icon(
+          Icons.error_outline_rounded,
+          size: 18,
+          color: TurnaTheme.error,
+        ),
+      AiPracticeStatus.interrupted => Icon(
+          Icons.pause_circle_outline_rounded,
+          size: 18,
+          color: TurnaTheme.warning,
+        ),
+    };
   }
 }

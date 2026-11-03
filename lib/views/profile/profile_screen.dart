@@ -1,4 +1,6 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -7,18 +9,27 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/home/components/profile_app_bar.dart';
+import 'package:turna/views/profile/widgets/account_app_bar.dart';
 import 'package:turna/views/profile/widgets/learning_stats.dart';
-import 'package:turna/views/profile/widgets/widgets.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/profile/widgets/profile_quick_actions.dart';
+import 'package:turna/views/profile/widgets/share_progress_sheet.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/report_kit.dart';
 
-/// Slim profile page: identity hero, today's one-glance summary, review
-/// quick entries, and links to the stats / achievements detail pages. All
-/// duplicated counters (streak/XP/gems live in the Learn app bar) and the
-/// detailed stats/achievement lists moved to their own pages.
+/// Profile page（「湿地雾光」R15 学习档案）。
+///
+/// 版面自上而下：页内 pageTitle 开篇（Tab 级 [ProfileAppBar] 已退役）→
+/// 身份行（头像 + 昵称 + 一句概览）→ 今日一行 → 学习积累四数（积分与
+/// 宝石随顶栏状态胶囊退役回到这里安家）→ 今日待办 → 记录与成就章节行
+/// （[DirectoryLinkRow] 目录行，行不是卡）。
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -29,21 +40,39 @@ class ProfilePage extends StatelessWidget {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: AccountWidget(
-              onShare: () => ProfileAppBar.openShareSheet(context),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pageMargin,
+              AppSpacing.sm + 4,
+              AppSpacing.pageMargin,
+              0,
+            ),
+            child: Text(
+              AppStrings.profileTitle,
+              style: AppTextStyles.pageTitle(context),
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+        // 身份行：本页唯一的玻璃对象（装饰主题卡），其余区块走纸面与行族。
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: AppSpacing.pageGutterMist,
+            child: AccountWidget(
+              onShare: () => showShareProgressSheet(context),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
         const SliverToBoxAdapter(child: TodaySummaryCard()),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+        const SliverToBoxAdapter(child: _AccumulationSection()),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
         const SliverToBoxAdapter(child: ProfileQuickActions()),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        const SliverToBoxAdapter(child: _DetailPageEntries()),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+        const SliverToBoxAdapter(child: _RecordEntries()),
         SliverPadding(
           padding: EdgeInsets.only(
-            bottom: 16 + MediaQuery.paddingOf(context).bottom,
+            bottom: AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
           ),
         ),
       ],
@@ -51,9 +80,108 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-/// Entry rows to the stats and achievements detail pages.
-class _DetailPageEntries extends StatelessWidget {
-  const _DetailPageEntries();
+/// 学习积累四数：总经验 / 宝石 / 连续天数 / 完成课程。
+///
+/// 顶栏状态胶囊退役（R01）后，积分与宝石在个人页安家；四数以定义列表
+/// 呈现（纸面 + 发丝线）。流订阅挂在 State 上，值变更即刷新。
+class _AccumulationSection extends StatefulWidget {
+  const _AccumulationSection();
+
+  @override
+  State<_AccumulationSection> createState() => _AccumulationSectionState();
+}
+
+class _AccumulationSectionState extends State<_AccumulationSection> {
+  StreamSubscription<int>? _scoreSub;
+  StreamSubscription<int>? _gemsSub;
+  StreamSubscription<int>? _streakSub;
+  int _score = 0;
+  int _gems = 0;
+  int _streak = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final game = context.read<GameProvider>();
+    final gems = context.read<GemsProvider>();
+    // read（非 watch）：Provider 重建不该重建订阅；流自身带初值。
+    _scoreSub ??= game.getUserScoreStream().listen(
+          (v) => setState(() => _score = v),
+        );
+    _gemsSub ??= gems.getGemsStream().listen(
+          (v) => setState(() => _gems = v),
+        );
+    _streakSub ??= game.getUserStreakStream().listen(
+          (v) => setState(() => _streak = v),
+        );
+  }
+
+  @override
+  void dispose() {
+    _scoreSub?.cancel();
+    _gemsSub?.cancel();
+    _streakSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lessonsCompleted =
+        context.read<GameProvider>().currentUserGameState.lessonsCompleted;
+
+    return Padding(
+      padding: AppSpacing.pageGutterMist,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Text(
+              AppStrings.profileAccumulationTitle,
+              style: AppTextStyles.sectionTitle(context),
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: TurnaTheme.flatPaperDecoration(context),
+            child: ReportDefinitionList(
+              rows: [
+                ReportDefinitionRow(
+                  label: AppStrings.profileTotalXp,
+                  value: '$_score',
+                  valueColor: TurnaTheme.textPrimaryColor(context),
+                ),
+                ReportDefinitionRow(
+                  label: AppStrings.profileGems,
+                  value: '$_gems',
+                  valueColor: TurnaTheme.textPrimaryColor(context),
+                ),
+                ReportDefinitionRow(
+                  label: AppStrings.profileDayStreak,
+                  value: AppStrings.accountStreakValue(_streak),
+                  valueColor: TurnaTheme.textPrimaryColor(context),
+                ),
+                ReportDefinitionRow(
+                  label: AppStrings.profileLessonsDone,
+                  value: '$lessonsCompleted',
+                  valueColor: TurnaTheme.textPrimaryColor(context),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 记录与成就章节行：目录行族（图标井 + 一句说明），发丝线分隔。
+class _RecordEntries extends StatelessWidget {
+  const _RecordEntries();
 
   @override
   Widget build(BuildContext context) {
@@ -65,139 +193,34 @@ class _DetailPageEntries extends StatelessWidget {
         .where((v) =>
             !v.isSeriesComplete && v.nextTier != null && v.currentProgress > 0)
         .length;
-    final hasUnseen = achievements.hasUnseenUnlocks;
+
+    final badgeSummary = nearComplete > 0
+        ? '${AppStrings.profileAchievementsBadgeCount(unlocked, total)} · '
+            '${AppStrings.profileAchievementsNearComplete(nearComplete)}'
+        : AppStrings.profileAchievementsBadgeCount(unlocked, total);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        // ADR 0062：个人页入口主卡是「容器」角色 → sand 色相 L1 玻璃。
-        decoration: TurnaTheme.glassDecoration(
-          context,
-          TurnaTheme.glassContainer,
-          level: GlassLevel.l1,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        ),
-        child: Column(
-          children: [
-            _EntryTile(
-              icon: Icons.insights_rounded,
-              iconColor: TurnaTheme.brandTeal,
-              title: AppStrings.profileLearningStatsTitle,
-              subtitle: AppStrings.profileStatsEntrySubtitle,
-              onTap: () => context.router.push(const ReviewProgressRoute()),
-            ),
-            Divider(
-              height: 1,
-              indent: 16,
-              endIndent: 16,
-              color: TurnaTheme.dividerBg(context),
-            ),
-            _EntryTile(
-              icon: Icons.military_tech_rounded,
-              // Achievement section uses secondary brand clay (ADR 0033).
-              iconColor: TurnaTheme.anatolianClay,
-              title: AppStrings.profileAchievementsTitle,
-              subtitle: nearComplete > 0
-                  ? '${AppStrings.profileAchievementsBadgeCount(unlocked, total)} · '
-                      '${AppStrings.profileAchievementsNearComplete(nearComplete)}'
-                  : AppStrings.profileAchievementsBadgeCount(unlocked, total),
-              showUnseenDot: hasUnseen,
-              onTap: () => context.router.push(const AchievementsRoute()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EntryTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  /// Warm clay dot marking unseen achievement unlocks.
-  final bool showUnseenDot;
-
-  const _EntryTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.showUnseenDot = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: Icon(icon, color: iconColor, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyLarge
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        if (showUnseenDot) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: TurnaTheme.anatolianClay,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: TurnaTheme.textHintColor(context),
-              ),
-            ],
+      padding: AppSpacing.pageGutterMist,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DirectoryLinkRow(
+            icon: Icons.insights_rounded,
+            iconTone: TurnaTheme.brandTeal,
+            title: AppStrings.profileLearningStatsTitle,
+            description: AppStrings.profileStatsEntrySubtitle,
+            onTap: () => context.router.push(const ReviewProgressRoute()),
           ),
-        ),
+          DirectoryLinkRow(
+            // Achievement section uses secondary brand clay (ADR 0033).
+            icon: Icons.military_tech_rounded,
+            iconTone: TurnaTheme.anatolianClay,
+            title: AppStrings.profileAchievementsTitle,
+            description: badgeSummary,
+            showDivider: false,
+            onTap: () => context.router.push(const AchievementsRoute()),
+          ),
+        ],
       ),
     );
   }

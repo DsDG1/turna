@@ -156,7 +156,6 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
       xpEarned: xpEarned,
       gemsEarned: gemsEarned,
       wasPerfect: wasPerfect,
-      questionResults: _vm.questionResults,
       random: _random,
     );
     _dialogShown = false;

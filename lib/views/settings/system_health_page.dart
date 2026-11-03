@@ -24,6 +24,8 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -174,13 +176,13 @@ class SystemHealthPage extends StatelessWidget {
   }
 
   Future<void> _clearLogs(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    // R18 全局弹层：清日志是破坏性操作，确认走全局确认弹层。
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (context) => SettingsConfirmDialog(
-        title: AppStrings.systemHealthClearLogsTitle,
-        message: AppStrings.systemHealthClearLogsMessage,
-        confirmText: AppStrings.systemHealthClearLogs,
-      ),
+      title: AppStrings.systemHealthClearLogsTitle,
+      message: AppStrings.systemHealthClearLogsMessage,
+      confirmLabel: AppStrings.systemHealthClearLogs,
+      destructive: true,
     );
     if (confirmed == true) await LogCapture.instance.clear();
   }
@@ -211,31 +213,26 @@ class SystemHealthPage extends StatelessWidget {
   ) async {
     final report = await _buildReport(context, monitor);
     if (!context.mounted) return;
-    final export = await showDialog<bool>(
+    // R18 全局弹层：报告预览走全局弹层（可滚动正文 + 操作区）。
+    final export = await showTurnaSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        ),
-        title: Text(AppStrings.systemHealthReportPreviewTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(child: SelectableText(report)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              AppStrings.systemHealthExportAction,
-              style: const TextStyle(color: TurnaTheme.brandTeal),
-            ),
-          ),
-        ],
+      title: AppStrings.systemHealthReportPreviewTitle,
+      isScrollControlled: true,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: SingleChildScrollView(child: SelectableText(report)),
       ),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.commonCancel,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TurnaSheetAction(
+          label: AppStrings.systemHealthExportAction,
+          primary: true,
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
     );
     if (export != true) return;
     await Share.shareXFiles(
@@ -358,6 +355,8 @@ class _DataIntegrityBanner extends StatelessWidget {
   }
 }
 
+/// 等级开篇（湿地雾光 R17）：报告构图的指标头 —— 健康等级为大数字，
+/// 语义色按等级取（正常 success / 需注意 warning / 严重 error）。
 class _HealthSummary extends StatelessWidget {
   const _HealthSummary({required this.monitor});
   final SystemHealthMonitor monitor;
@@ -365,52 +364,33 @@ class _HealthSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final event = monitor.event;
-    final (color, icon, label) = switch (monitor.level) {
+    final (color, label) = switch (monitor.level) {
       SystemHealthLevel.normal => (
-          monitor.resolved ? TurnaTheme.success : TurnaTheme.success,
-          Icons.check_circle,
+          TurnaTheme.success,
           monitor.resolved
               ? AppStrings.systemHealthLevelNormalChecked
               : AppStrings.systemHealthLevelNormal
         ),
       SystemHealthLevel.attention => (
           TurnaTheme.warning,
-          Icons.warning_rounded,
           AppStrings.systemHealthLevelAttention
         ),
       SystemHealthLevel.critical => (
           TurnaTheme.error,
-          Icons.error,
           AppStrings.systemHealthLevelCritical
         ),
     };
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 36),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(color: color)),
-                Text(AppStrings.systemHealthScoreSummary(
-                    monitor.score, event.groups.length)),
-              ],
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ReportMetricHeader(
+        // 页面标题已是「系统健康」，指标头标签用等级语义，避免同名双标题。
+        label: AppStrings.systemHealthLevelLabel,
+        value: label,
+        caption: AppStrings.systemHealthScoreSummary(
+          monitor.score,
+          event.groups.length,
+        ),
+        accentColor: color,
       ),
     );
   }

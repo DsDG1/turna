@@ -21,7 +21,7 @@ import 'package:turna/core/theme.dart';
 class TurnaSnackBar {
   TurnaSnackBar._();
 
-  /// 高斯模糊强度（与 [BottomNavigator.frostSigma] 保持一致）
+  /// 高斯模糊强度（与胶囊导航时代的 frostSigma] 保持一致）
   static const double frostSigma = 16.0;
 
   /// 构建带有高斯模糊磨砂玻璃质感的悬浮气泡 [SnackBar]。

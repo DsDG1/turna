@@ -19,7 +19,9 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// Plays a generated section straight from the practice library.
 ///
@@ -126,23 +128,12 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
   Future<void> _showMasteryFailed() async {
     if (_dialogShown) return;
     _dialogShown = true;
-    final retry = await showDialog<bool>(
+    final retry = await showTurnaConfirmDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.aiPracticeRunnerTitle),
-        content: Text(AppStrings.aiPracticeMasteryFailed),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(AppStrings.aiPracticeEnd),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(AppStrings.lessonTryAgain),
-          ),
-        ],
-      ),
+      title: AppStrings.aiPracticeRunnerTitle,
+      message: AppStrings.aiPracticeMasteryFailed,
+      confirmLabel: AppStrings.lessonTryAgain,
+      cancelLabel: AppStrings.aiPracticeEnd,
     );
     _dialogShown = false;
     if (!mounted) return;
@@ -244,13 +235,7 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
           centerTitle: true,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(4),
-            child: LinearProgressIndicator(
-              value: _vm.progress,
-              backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                TurnaTheme.brandTeal,
-              ),
-            ),
+            child: SessionThinProgressBar(value: _vm.progress),
           ),
         ),
         body: SafeArea(

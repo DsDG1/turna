@@ -12,11 +12,19 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_saved_explanations.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/search_field.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
+/// 收藏的讲解 —— 阅读目录模式（R14）：[DirectoryEntryRow] 词条行（标题 +
+/// 摘录 + 元信息），发丝线分隔；正文走全局弹层。搜索换 [TurnaSearchField]
+/// （250ms 防抖内建）。
 @RoutePage()
 class AiSavedListPage extends StatefulWidget {
   const AiSavedListPage({super.key});
@@ -42,27 +50,24 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
       appBar: AppBar(
         title: Text(
           AppStrings.aiSavedListTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 17),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: TextField(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageMargin,
+                AppSpacing.sm,
+                AppSpacing.pageMargin,
+                AppSpacing.md,
+              ),
+              child: TurnaSearchField(
+                hint: AppStrings.aiSavedSearchHint,
                 controller: _searchCtrl,
-                decoration: InputDecoration(
-                  hintText: AppStrings.aiSavedSearchHint,
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  isDense: true,
-                ),
                 onChanged: (v) => setState(() => _query = v),
+                onDebouncedChanged: (v) => setState(() => _query = v),
               ),
             ),
             Expanded(
@@ -72,92 +77,37 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                   if (items.isEmpty) {
                     return Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(AppSpacing.xl),
                         child: Text(
                           AppStrings.aiSavedListEmpty,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: AppTextStyles.bodyText(context).copyWith(
+                            fontSize: 15,
+                            color: TurnaTheme.textSecondaryColor(context),
+                          ),
                         ),
                       ),
                     );
                   }
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pageMargin,
+                    ),
                     itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, i) {
                       final e = items[i];
-                      return Material(
-                        // ADR 0062：列表项 → 均匀淡彩实面 + 同色描边。
-                        color: TurnaTheme.glassSolid(
-                          context,
-                          TurnaTheme.glassNeutral,
-                          level: GlassLevel.l1Subtle,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            TurnaTheme.radiusMedium,
-                          ),
-                          side: BorderSide(
-                            color: TurnaTheme.glassStroke(
-                              context,
-                              TurnaTheme.glassNeutral,
-                              level: GlassLevel.l1Subtle,
-                            ),
-                          ),
-                        ),
-                        child: InkWell(
-                          borderRadius:
-                              BorderRadius.circular(TurnaTheme.radiusMedium),
-                          onTap: () => _openDetail(context, e),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        e.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w700),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: AppStrings.aiSavedDelete,
-                                      icon: const Icon(Icons.delete_outline,
-                                          size: 20),
-                                      onPressed: () =>
-                                          _deleteWithUndo(context, store, e),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  e.body,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${AppStrings.aiSavedSourceLabel(e.source)} · ${DateFormat.yMMMd().add_Hm().format(e.createdAt.toLocal())}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        color:
-                                            TurnaTheme.textHintColor(context),
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      return DirectoryEntryRow(
+                        title: e.title,
+                        subtitle: e.body,
+                        meta:
+                            '${AppStrings.aiSavedSourceLabel(e.source)} · ${DateFormat.yMMMd().add_Hm().format(e.createdAt.toLocal())}',
+                        showDivider: i < items.length - 1,
+                        onTap: () => _openDetail(context, e),
+                        trailing: IconButton(
+                          tooltip: AppStrings.aiSavedDelete,
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          onPressed: () =>
+                              _deleteWithUndo(context, store, e),
                         ),
                       );
                     },
@@ -192,61 +142,46 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
   }
 
   void _openDetail(BuildContext context, SavedExplanation e) {
-    showModalBottomSheet<void>(
+    showTurnaSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: TurnaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(TurnaTheme.radiusXLarge),
-        ),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                e.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.55,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SelectableText(e.body),
-                      // Saved explanations are model output too — copying them
-                      // out must not strip the label (标识办法 §10 forbids
-                      // hiding the notice).
-                      const AiGeneratedNotice(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () {
-                  Clipboard.setData(
-                      ClipboardData(text: labelAiGenerated(e.body)));
-                  TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
-                },
-                icon: const Icon(Icons.copy_rounded),
-                label: Text(AppStrings.aiDepthCopy),
-              ),
-            ],
+      title: e.title,
+      body: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageMargin,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SelectableText(e.body),
+                // Saved explanations are model output too — copying them
+                // out must not strip the label (标识办法 §10 forbids
+                // hiding the notice).
+                const AiGeneratedNotice(),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
           ),
         ),
       ),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.aiDepthCopy,
+          primary: true,
+          onPressed: () {
+            Clipboard.setData(
+              ClipboardData(text: labelAiGenerated(e.body)),
+            );
+            TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
+          },
+        ),
+      ],
     );
   }
 }

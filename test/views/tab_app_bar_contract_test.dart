@@ -1,51 +1,47 @@
 // Flutter imports:
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/home/components/profile_app_bar.dart';
-import 'package:turna/views/home/components/stat_app_bar.dart';
+import 'package:turna/views/home/components/learn_top_bar.dart';
+import 'package:turna/views/home/components/tab_body_top_spacer.dart';
 import 'package:turna/views/play/play_app_bar.dart';
 
 /// The four root tabs must agree on chrome height.
 ///
 /// Before this contract Learn carried a 60 dp bar (to fit its score / streak /
 /// gems / due chip row) while Play, Profile and Settings silently fell back to
-/// the framework's 56 dp. Switching tabs moved the title baseline by 4 dp, and
-/// Settings — the only tab that owns its own [Scaffold] — additionally painted
-/// its bar with `scaffoldBg` instead of the `AppBarTheme` fill, so its top edge
-/// read as a different colour from the other three.
+/// the framework's 56 dp. Switching tabs moved the title baseline by 4 dp.
 ///
-/// One token ([TurnaTheme.tabAppBarHeight]) and one fill (the theme's
-/// `appBarTheme.backgroundColor`) now drive all four.
+/// 湿地雾光之后：Learn 的 bar 是 LightTopBar 家族（[LearnTopBar]，同一
+/// token，无状态胶囊）；Play 的标题在页内（R07），顶栏是同 token 的透明
+/// 占位；Profile 与 Settings 的 Tab 级 AppBar 已退役（R15 / R16）——两页以
+/// 页内 pageTitle 开篇，AppBar 槽位由 [TabBodySpacer] 只占状态栏条。
 void main() {
   group('root tab app bar height', () {
-    test('every tab bar measures the shared token', () {
+    test('every real tab bar measures the shared token', () {
       expect(
-        const StatAppBar().preferredSize.height,
+        const LearnTopBar().preferredSize.height,
         TurnaTheme.tabAppBarHeight,
       );
       expect(
         const PlayAppBar().preferredSize.height,
         TurnaTheme.tabAppBarHeight,
       );
-      expect(
-        const ProfileAppBar().preferredSize.height,
-        TurnaTheme.tabAppBarHeight,
-      );
-      // Settings has no PreferredSizeWidget: its bar lives inside the tab's
-      // own Scaffold, so it is pinned by structure below.
+      // Profile / Settings own no Tab-level bar anymore: the spacer covers
+      // only the status-bar strip (measured height comes from the Scaffold),
+      // and each page opens with an in-page pageTitle instead.
+      expect(const TabBodySpacer().preferredSize.height, isZero);
       expect(TurnaTheme.tabAppBarHeight, 60);
     });
 
     test('no tab bar hardcodes its own height again', () {
       for (final path in const [
-        'lib/views/home/components/stat_app_bar.dart',
+        'lib/views/home/components/learn_top_bar.dart',
+        'lib/views/home/components/light_top_bar.dart',
         'lib/views/play/play_app_bar.dart',
-        'lib/views/home/components/profile_app_bar.dart',
       ]) {
         final src = File(path).readAsStringSync();
         final heights =
@@ -61,41 +57,43 @@ void main() {
       }
     });
 
-    test('settings landing bar uses the token and the theme fill', () {
+    test('retired tab app bars stay deleted', () {
+      // ProfileAppBar / SettingsAppBar retired in the R15 / R16 refresh;
+      // neither file nor the class name may come back.
+      expect(
+        File('lib/views/home/components/profile_app_bar.dart').existsSync(),
+        isFalse,
+        reason: 'ProfileAppBar retired; profile opens with an in-page title',
+      );
+      expect(
+        File('lib/views/settings/settings_app_bar.dart').existsSync(),
+        isFalse,
+        reason: 'SettingsAppBar retired; settings opens with an in-page title',
+      );
+    });
+
+    test('settings landing opens with an in-page pageTitle', () {
       final src =
           File('lib/views/settings/settings_page.dart').readAsStringSync();
+      // The Settings tab owns no AppBar: the outer HomePage slot is a
+      // TabBodySpacer, and the page body starts with the pageTitle role.
       expect(
-        src.contains('toolbarHeight: TurnaTheme.tabAppBarHeight'),
-        isTrue,
-        reason: 'the Settings tab bar must not fall back to 56 dp',
-      );
-      // The AppBar block must not override its fill: the status-bar strip
-      // above it is painted by the outer Scaffold, and a `scaffoldBg` fill
-      // here is what made the Settings top edge read as a seam.
-      final block = RegExp(r'appBar: AppBar\(([\s\S]{0,400}?)\n      \),')
-          .firstMatch(src);
-      expect(block, isNotNull, reason: 'settings appBar block moved');
-      expect(
-        block!.group(1)!.contains('backgroundColor'),
+        src.contains('appBar:'),
         isFalse,
-        reason: 'Settings bar must inherit appBarTheme.backgroundColor so it '
-            'matches the other tabs (and the status-bar strip above it)',
+        reason: 'the Settings tab must not own its own AppBar anymore',
+      );
+      expect(
+        src.contains('AppTextStyles.pageTitle'),
+        isTrue,
+        reason: 'settings landing must open with the pageTitle layout role',
       );
     });
 
     test('settings title style matches the other tabs', () {
       final src =
           File('lib/views/settings/settings_page.dart').readAsStringSync();
-      final play = File('lib/views/play/play_app_bar.dart').readAsStringSync();
-      // Both must read their title style from textTheme.titleLarge — a
-      // headlineSmall title rendered visibly heavier than the other tabs.
-      for (final entry in {'settings': src, 'play': play}.entries) {
-        expect(
-          entry.value.contains('textTheme.titleLarge'),
-          isTrue,
-          reason: '${entry.key} tab title must use titleLarge',
-        );
-      }
+      // The in-page title must read from the 湿地雾光 layout roles instead of
+      // an ad-hoc headline style that renders heavier than its peers.
       expect(
         src.contains('headlineSmall'),
         isFalse,

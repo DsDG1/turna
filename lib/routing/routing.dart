@@ -35,7 +35,6 @@ class AppRouter extends RootStackRouter {
         // dictionary / deep-link routes.
         AutoRoute(page: HomeRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: NewLessonRoute.page),
-        AutoRoute(page: SectionPickerRoute.page),
         AutoRoute(page: AiHintChatRoute.page),
         AutoRoute(page: AiTutorChatRoute.page),
         AutoRoute(page: AiDiagnosisRoute.page),
@@ -60,21 +59,26 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: GrammarReviewRoute.page),
         AutoRoute(page: MistakeListRoute.page),
         AutoRoute(page: MistakeDashboardRoute.page),
+        AutoRoute(page: MistakeDetailRoute.page),
         AutoRoute(page: MistakePracticeRoute.page),
         AutoRoute(page: MistakeReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiImportRoute.page),
+        // Memory-card domain home (ADR 0066): due overview, deck list,
+        // import entry — reachable independently of the language courses.
+        AutoRoute(page: MemoryCardHubRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiDeckStatsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiCardBrowserRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
+        // Unified review stays registered as a deep-link fallback only:
+        // the production path embeds UnifiedReviewPage as a widget from
+        // SrsReviewPage (no router push in lib/).
         AutoRoute(page: UnifiedReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
-        // Official mapping is a product import page (doc 42 P2), not diagnostics.
-        AutoRoute(page: OfficialAnkiMappingRoute.page),
         AutoRoute(page: OfficialAnkiRepairCenterRoute.page),
         AutoRoute(
             page: OfficialAnkiReviewerRoute.page, guards: [_diagnosticsGuard]),
@@ -84,15 +88,12 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: StorageDiagnosticsRoute.page),
         AutoRoute(page: AboutTurnaRoute.page),
         AutoRoute(page: PrivacyDetailsRoute.page),
-        AutoRoute(page: ChangelogRoute.page),
         AutoRoute(page: TransparencyLogRoute.page),
         AutoRoute(page: AiApiConfigRoute.page),
         AutoRoute(page: RemoteBackupRoute.page),
         AutoRoute(page: AvatarRingsRoute.page),
         // Formal Settings category routes (Plan §12.2): every category is a
-        // real, routable page — no in-page pseudo navigation. The developer
-        // lab route exists only in debug builds; release/profile have no
-        // reachable entry (neither tile nor deep link).
+        // real, routable page — no in-page pseudo navigation.
         AutoRoute(page: AccountSettingsRoute.page),
         AutoRoute(page: LearningSettingsRoute.page),
         AutoRoute(page: AppearanceSoundSettingsRoute.page),

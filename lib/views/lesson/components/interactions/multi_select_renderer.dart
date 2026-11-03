@@ -192,17 +192,16 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
       final isSelected = _picked.contains(idx);
       widgets.add(InteractionOptionTile(
         label: widget.options[idx],
+        index: idx + 1,
         isSelected: isSelected,
         isCorrect: submitted && correctSet.contains(idx),
         isWrong: submitted &&
             correct == false &&
             isSelected &&
             !correctSet.contains(idx),
+        showDivider: idx < widget.options.length - 1,
         onTap: submitted ? null : () => _toggle(idx),
       ));
-      if (idx < widget.options.length - 1) {
-        widgets.add(const SizedBox(height: 10));
-      }
     }
     return widgets;
   }

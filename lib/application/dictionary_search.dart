@@ -20,6 +20,7 @@ class DictionaryHit {
     this.posLabel,
     this.speakAsWordId,
     this.speakText,
+    this.examples = const <(String, String)>[],
   });
 
   final DictionaryHitKind kind;
@@ -36,6 +37,11 @@ class DictionaryHit {
 
   /// Fallback TTS text when no word id.
   final String? speakText;
+
+  /// Linked example expressions as `(term, gloss)` pairs. Only grammar hits
+  /// carry examples today — resolved from the same in-memory expression map
+  /// the search scans, so no new data source is involved.
+  final List<(String, String)> examples;
 }
 
 /// Case-insensitive search over vocab / expressions / grammar points.
@@ -53,48 +59,79 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
 
   for (final entry in vocabById.values) {
     if (_matchesVocab(entry, q, qTarget)) {
-      hits.add(DictionaryHit(
-        kind: DictionaryHitKind.vocab,
-        id: entry.id,
-        title: entry.term,
-        subtitle: entry.translation,
-        pronunciation: entry.pronunciation,
-        posLabel: _posLabel(entry.pos),
-        speakAsWordId: entry.id,
-        speakText: entry.term,
-      ));
+      hits.add(_vocabHit(entry));
       if (hits.length >= limit) return hits;
     }
   }
 
   for (final exp in expressionsById.values) {
     if (_matchesExpression(exp, q)) {
-      hits.add(DictionaryHit(
-        kind: DictionaryHitKind.expression,
-        id: exp.id,
-        title: exp.term,
-        subtitle: exp.translation,
-        pronunciation: exp.pronunciation,
-        speakText: exp.term,
-      ));
+      hits.add(_expressionHit(exp));
       if (hits.length >= limit) return hits;
     }
   }
 
   for (final gp in grammarPointById.values) {
     if (_matchesGrammar(gp, q)) {
-      hits.add(DictionaryHit(
-        kind: DictionaryHitKind.grammar,
-        id: gp.id,
-        title: gp.title,
-        subtitle: gp.explanation,
-        speakText: gp.title,
-      ));
+      hits.add(_grammarHit(gp));
       if (hits.length >= limit) return hits;
     }
   }
 
   return hits;
+}
+
+/// Full entry directory in stable store order (vocab → expressions →
+/// grammar) — the dictionary landing list before any query.
+///
+/// Same data source [searchDictionary] scans, just unfiltered; vocabulary and
+/// grammar indexes are bounded by the loaded course, so the whole list is
+/// cheap to build and rendered lazily by the page.
+List<DictionaryHit> listDictionaryEntries() {
+  return [
+    for (final entry in vocabById.values) _vocabHit(entry),
+    for (final exp in expressionsById.values) _expressionHit(exp),
+    for (final gp in grammarPointById.values) _grammarHit(gp),
+  ];
+}
+
+DictionaryHit _vocabHit(WordEntry entry) {
+  return DictionaryHit(
+    kind: DictionaryHitKind.vocab,
+    id: entry.id,
+    title: entry.term,
+    subtitle: entry.translation,
+    pronunciation: entry.pronunciation,
+    posLabel: _posLabel(entry.pos),
+    speakAsWordId: entry.id,
+    speakText: entry.term,
+  );
+}
+
+DictionaryHit _expressionHit(Expression exp) {
+  return DictionaryHit(
+    kind: DictionaryHitKind.expression,
+    id: exp.id,
+    title: exp.term,
+    subtitle: exp.translation,
+    pronunciation: exp.pronunciation,
+    speakText: exp.term,
+  );
+}
+
+DictionaryHit _grammarHit(GrammarPoint gp) {
+  return DictionaryHit(
+    kind: DictionaryHitKind.grammar,
+    id: gp.id,
+    title: gp.title,
+    subtitle: gp.explanation,
+    speakText: gp.title,
+    examples: [
+      for (final id in gp.exampleExpressionIds)
+        if (expressionsById[id] case final exp?)
+          (exp.term, exp.translation),
+    ],
+  );
 }
 
 String? _posLabel(String? raw) {

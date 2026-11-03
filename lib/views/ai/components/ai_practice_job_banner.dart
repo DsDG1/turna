@@ -2,15 +2,16 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
 
-/// Compact progress card for the job currently running in the background.
+/// 后台生成任务的**一行化**进度行（R14：运行中进度一行 + 可取消）。
 ///
-/// Shown at the top of the AI Hub while a job is queued/running. The queue is
-/// app-level, so this is only a view of work that continues on other tabs.
+/// 生成队列是 app 级的，这条行只是别处仍在工作的一个视图：spinner + 标题 +
+/// 进度文案同行，行尾是取消键；点行进「我的练习」。不再占一张带进度条的卡。
 class AiPracticeJobBanner extends StatelessWidget {
   const AiPracticeJobBanner({
     super.key,
@@ -27,70 +28,51 @@ class AiPracticeJobBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = job.progressTotal;
     final done = job.progressDone;
-    final label = job.status == AiPracticeStatus.queued
+    final status = job.status == AiPracticeStatus.queued
         ? AppStrings.aiPracticeQueued
         : total > 0
             ? AppStrings.aiPracticeProgress(done, total)
             : AppStrings.aiPracticeGenerating;
-    return SoftCard(
-      accentColor: TurnaTheme.brandTeal,
+    return InkWell(
       onTap: onOpen,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
+          ),
+        ),
         child: Row(
           children: [
             const SizedBox(
-              width: 20,
-              height: 20,
+              width: 18,
+              height: 18,
               child: CircularProgressIndicator(
-                strokeWidth: 2.4,
+                strokeWidth: 2.2,
                 color: TurnaTheme.brandTeal,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    job.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '$label · ${AppStrings.aiPracticeBackgroundHint}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                  ),
-                  if (total > 0) ...[
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: job.progress,
-                        minHeight: 4,
-                        backgroundColor:
-                            TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          TurnaTheme.brandTeal,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+              child: Text(
+                '${job.title} · $status',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyText(context).copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
             IconButton(
               tooltip: AppStrings.aiPracticeCancel,
               onPressed: onCancel,
-              icon: const Icon(Icons.stop_circle_outlined, size: 20),
+              icon: Icon(
+                Icons.stop_circle_outlined,
+                size: 20,
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
             ),
           ],
         ),

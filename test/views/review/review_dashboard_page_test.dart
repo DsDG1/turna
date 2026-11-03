@@ -65,10 +65,16 @@ void main() {
   testWidgets('first load shows skeleton, then the today hero', (tester) async {
     await pumpPage(tester);
     await tester.pumpAndSettle();
-    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewMetricDueToday), findsOneWidget);
     expect(find.text(AppStrings.reviewDueCard), findsOneWidget);
     expect(find.text(AppStrings.reviewNewCard), findsOneWidget);
     expect(find.text(AppStrings.reviewOverdueCard), findsOneWidget);
+    // 来源目录在懒加载首屏之外，滚到可见再断言。
+    await tester.scrollUntilVisible(
+      find.text(AppStrings.reviewSourcesTitle),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text(AppStrings.reviewSourcesTitle), findsOneWidget);
 
     // Heavy insights content stays off the overview home.
@@ -79,11 +85,18 @@ void main() {
     await pumpPage(tester);
     await tester.pumpAndSettle();
 
-    expect(find.text(AppStrings.reviewNoDataYet), findsOneWidget);
+    // 空数据在两处如实呈现：七日图空态 + 正确率行（都不是假 0%）。
+    expect(find.text(AppStrings.reviewNoDataYet), findsNWidgets(2));
     expect(find.text(AppStrings.reviewAccuracyPct(0)), findsNothing);
-    expect(find.text(AppStrings.reviewEmptyHint), findsOneWidget);
-    // No due cards → CTA shows 今日已完成 and is disabled.
+    // No due cards → CTA shows 今日已完成 and is disabled（先断言再滚动，
+    // 滚到页尾后首屏 CTA 会被懒加载卸载）。
     expect(find.text(AppStrings.reviewTodayDoneCta), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text(AppStrings.reviewEmptyHint),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text(AppStrings.reviewEmptyHint), findsOneWidget);
   });
 
   testWidgets('pull-to-refresh awaits the repository and keeps content',
@@ -93,15 +106,15 @@ void main() {
 
     // Drag down to trigger the RefreshIndicator.
     await tester.fling(
-      find.text(AppStrings.reviewTodayTitle),
+      find.text(AppStrings.reviewMetricDueToday),
       const Offset(0, 300),
       1000,
     );
     await tester.pump(); // start the refresh
     // Content stays visible during the refresh (no full-page spinner).
-    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewMetricDueToday), findsOneWidget);
     await tester.pumpAndSettle();
-    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewMetricDueToday), findsOneWidget);
   });
 
   testWidgets('with due cards the CTA is enabled and shows counts',
@@ -177,7 +190,7 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewMetricDueToday), findsOneWidget);
   });
 
   testWidgets(
@@ -234,7 +247,7 @@ void main() {
     );
     await tester.pump();
     await tester.pumpAndSettle();
-    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewMetricDueToday), findsOneWidget);
     expect(find.text(AppStrings.reviewSourcesTitle), findsNothing);
     expect(find.text(AppStrings.reviewOpenInsights), findsNothing);
   });

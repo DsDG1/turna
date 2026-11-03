@@ -22,7 +22,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/play/play_hub_screen.dart';
-import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -100,51 +100,47 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: hubTree()));
     await tester.pumpAndSettle();
 
-    // 今日复习 Hero：标题 + 四队列速览 chips。
-    expect(find.text(AppStrings.playTodayHeroTitle), findsOneWidget);
-    expect(find.text(AppStrings.playTodayHeroAllClear), findsOneWidget);
-    expect(find.text('错题 0'), findsOneWidget);
-    expect(find.text('单词 0'), findsOneWidget);
+    // 页内页头：pageTitle + 日期行。
+    expect(find.text(AppStrings.playTitle), findsOneWidget);
+
+    // 今日复习玻璃对象：标签 + 大数字 + 开始 CTA。
+    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.playTodayStartReview), findsOneWidget);
+    expect(
+      tester.widget<Text>(
+        find.byKey(const Key('play-today-hero-number')),
+      ).data,
+      '0',
+    );
 
     // 分区标题。
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
     expect(find.text(AppStrings.playPracticeToolsTitle), findsOneWidget);
 
-    // 复习队列 2×2（「复习」不再与 Hero 重复出现两次）。智能练习是队列的
-    // 第四格，不再是队列下方一条独立的「AI 助手」横幅。
+    // 复习队列 = 有顺序的任务行（语言课：错题 clay 置顶 / SRS teal / 语法
+    // sky / 智能练习芦苇青）。语言课不出现记忆卡队列行（ADR 0066）。
     expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('复习'), findsOneWidget);
     expect(find.text('语法复习'), findsOneWidget);
     expect(find.text('智能练习'), findsOneWidget);
     expect(find.text('记忆卡复习'), findsNothing);
 
-    // 智能练习：默认空配置 -> 卡上挂「未配置」徽标（警示色）。
-    final smartTitle = find.text('智能练习');
+    // 智能练习：默认空配置 -> 行内「未配置」计数位。
+    final smartRow = find.ancestor(
+      of: find.text('智能练习'),
+      matching: find.byType(DirectoryTaskRow),
+    );
     expect(
-      find.descendant(
-        of: find.ancestor(
-          of: smartTitle,
-          matching: find.byType(ReviewTile),
-        ),
-        matching: find.text('未配置'),
-      ),
+      find.descendant(of: smartRow, matching: find.text('未配置')),
       findsOneWidget,
     );
-    // 旧的独立「AI 助手」分区已撤除。
-    expect(find.text('AI 助手'), findsNothing);
-    expect(find.text('设计课程（AI）'), findsNothing);
-    expect(find.text('导入教材'), findsNothing);
-    expect(find.text('全部 AI 功能'), findsNothing);
 
-    // 练习工具三列。
+    // 工具文字索引：每日挑战 / 薄弱单词 / 词典 / 复习进度 / 记忆卡中枢。
+    expect(find.text('每日挑战'), findsOneWidget);
     expect(find.text('薄弱单词'), findsOneWidget);
     expect(find.text('词典'), findsOneWidget);
     expect(find.text('复习进度'), findsOneWidget);
-
-    // 旧版分区已退役。
-    expect(find.text('今日重点'), findsNothing);
-    expect(find.text('复习中心'), findsNothing);
-    expect(find.text('工具'), findsNothing);
+    expect(find.text(AppStrings.memoryCardHubTitle), findsOneWidget);
 
     expect(find.byType(PageView), findsNothing);
   });
@@ -161,9 +157,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 今日复习 Hero 与队列仍在，语言课队列与单词类工具整体消失
+    // 今日玻璃对象与队列仍在，语言课队列与单词类工具整体消失
     // （词典查的是内置词表，非语言课程下无意义，一并隐藏）。
-    expect(find.text(AppStrings.playTodayHeroTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
     expect(find.text('记忆卡复习'), findsOneWidget);
     expect(find.text('错题复习'), findsNothing);
@@ -173,6 +169,8 @@ void main() {
     expect(find.text('薄弱单词'), findsNothing);
     expect(find.text('词典'), findsNothing);
     expect(find.text('复习进度'), findsOneWidget);
+    // 记忆卡中枢链接与课程域无关，两种 scope 都在。
+    expect(find.text(AppStrings.memoryCardHubTitle), findsOneWidget);
   });
 
   testWidgets('play hub review queues follow course scope switches',
@@ -239,24 +237,9 @@ void main() {
       OfficialFormalDueRepository.instance.resetForTest();
     });
 
-    /// Hero 右侧大数字（digit-only Text，队列 chip 是「Anki N」不会误配）。
-    String heroNumber(WidgetTester tester) {
-      final digitOnly = RegExp(r'^\d+$');
-      final texts = tester
-          .widgetList<Text>(
-            find.descendant(
-              of: find.byType(TodayHeroCard),
-              matching: find.byWidgetPredicate(
-                (widget) =>
-                    widget is Text &&
-                    widget.data != null &&
-                    digitOnly.hasMatch(widget.data!),
-              ),
-            ),
-          )
-          .toList();
-      return texts.isEmpty ? '<missing>' : texts.first.data!;
-    }
+    /// 玻璃对象的大数字（稳定 Key，由 _TodayGlassPanel 提供）。
+    String heroNumber(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('play-today-hero-number'))).data!;
 
     void commitDueSnapshot(String importId, Set<int> schedulerDue) {
       OfficialFormalDueRepository.instance.commit(
@@ -483,14 +466,10 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: hubTree()));
       await tester.pumpAndSettle();
 
-      await tester.longPress(find.text(AppStrings.playTodayHeroTitle));
+      await tester.longPress(find.text(AppStrings.reviewTodayTitle));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.playPopupNextQueueLabel), findsOneWidget);
-      expect(
-        find.text(AppStrings.playTodayHeroAllClear),
-        findsWidgets, // Hero 副标题 + 浮窗「下一个」行。
-      );
     });
   });
 

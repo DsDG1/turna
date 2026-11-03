@@ -236,6 +236,7 @@ class AppStrings {
 
   // ── System health page ──
   static String get systemHealthTitle => '系统健康';
+  static String get systemHealthLevelLabel => '当前等级';
   static String get systemHealthTopIssues => '主要问题';
   static String get systemHealthAllClear => '当前系统运行良好，没有需要处理的异常组';
   static String get systemHealthActions => '处理操作';
@@ -1228,6 +1229,33 @@ class AppStrings {
   static String get playPopupAiModel => '模型';
   static String get playPopupAiNotReadyHint => '配置 API Key 后可使用讲解与诊断';
 
+  // ── Play 任务台（「湿地雾光」R07 今日任务台版式） ──
+  static String get playTodayStartReview => '开始复习';
+  static String playTodayEstimateMinutes(int minutes) => '预计约 $minutes 分钟';
+  static String playHeaderDate(int month, int day) => '$month月$day日';
+
+  // ── Review 会话骨架（R08）──
+  static String get reviewSourceCourseLabel => '课程内容';
+  static String get reviewSourceAnkiLabel => '记忆卡';
+
+  // ── 错题详情（R09 学习笔记式） ──
+  static String get mistakeDetailTitle => '错题详情';
+  static String get mistakeDetailMyAnswer => '我的作答';
+  static String get mistakeDetailCorrect => '正确表达';
+  static String get mistakeDetailAnalysis => '解析';
+  static String get mistakeDetailPractice => '重练';
+
+  // ── 复习报告（R10 报告构图） ──
+  static String reviewSevenDayChartSemantics(int total) =>
+      '近 7 天复习量柱状图，共 $total 次';
+  static String reviewMistakeTrendChartSemantics(int total) =>
+      '近 14 天错题量柱状图，共 $total 个';
+  static String reviewHeatmapChartSemantics(int activeDays, int reviews) =>
+      '每日学习热力图，$activeDays 个活跃日，共 $reviews 次复习';
+  static String reviewMemoryCurveSemantics(int total) => '记忆保持率曲线，样本 $total 次';
+  static String get reviewMetricDueToday => '今日待复习';
+  static String get reviewMetricWindow7 => '近 7 天';
+
   // ── Review ──
   static String get reviewContinueUpper => '继续';
   static String get reviewGotItUpper => '知道了';
@@ -1248,7 +1276,14 @@ class AppStrings {
   // ── Review source detail (来源明细页) ──
   static String get reviewSourceReload => '重新加载';
   static String get reviewSourceMetricDueToday => '今日到期';
-  static String get reviewSourceMetricNewCards => '新卡';
+  static String reviewSourceMetricNewCards(int count) => '新卡 $count';
+  static String reviewCompletionResultLine(
+    int total,
+    int remembered,
+    int forgotten,
+  ) =>
+      '本次 $total 张 · 记得 $remembered · 不记得 $forgotten';
+  static String get reviewAccuracyShort => '正确率';
   static String get reviewSourceMetricDoneToday => '今日完成';
   static String get reviewSourceTrendTitle => '7 / 30 日趋势';
   static String reviewSourceTrendSummary(int reviews7, int reviews30) =>
@@ -1510,6 +1545,7 @@ class AppStrings {
   static String get lessonWrong => '错误';
   static String get lessonTime => '用时';
   static String get lessonXp => '经验值';
+  static String get lessonGems => '宝石';
   static String get lessonAnswerBreakdown => '答题明细';
   static String lessonResultsCount(int correctCount, int totalCount) =>
       '$correctCount / $totalCount';
@@ -2051,6 +2087,42 @@ class AppStrings {
   static String get aiConfigMigrationPendingNotice =>
       '凭据安全迁移尚未完成，当前仍使用旧存储。重启应用会自动重试；如持续出现请在重新输入密钥前备份它。';
 
+  // ── AI 域「湿地雾光」目录化（R14）──
+  /// AI 大厅首屏主行动：引擎未配置时给唯一的「连接」出口。
+  static String get aiHubConnectCta => '连接 AI';
+  static String get aiHubEngineStatusLabel => 'AI 引擎';
+  static String aiHubEngineReady(String preset, String model) =>
+      '$preset · $model';
+  static String get aiHubEngineStatusHint => '点按查看与修改连接';
+
+  /// AI 大厅各能力入口（DirectoryLinkRow）的一句话说明。
+  static String get aiHubFreeChatDesc => '语法、用法、造句，随问随答';
+  static String get aiHubDiagnosisDesc => '按错题与弱词给一份结论与建议';
+  static String get aiHubSavedDesc => '收藏过的 AI 回答，随时回看';
+  static String get aiHubDepthTutorDesc => '语法、近义词与句子拆解的深入讲解';
+
+  /// 练习库五态里的「未配置」行内文案（不占卡）。
+  static String get aiPracticeLibraryNotConfiguredHint => '连接 AI 后即可生成练习';
+
+  /// 生成面板「课型」选项（原先散落在组件内的硬编码中文，R14 收进字符串表）。
+  static String get aiPracticeTemplateMastery => '综合测验';
+  static String get aiPracticeTemplatePractice => '巩固练习';
+  static String get aiPracticeTemplateReview => '复习';
+  static String get aiPracticeTemplateMixed => '混合';
+
+  /// 诊断报告四段式（结论 → 依据 → 建议 → 行动）的段名。
+  static String get aiDiagnosisSectionConclusion => '结论';
+  static String get aiDiagnosisSectionEvidence => '依据';
+  static String get aiDiagnosisSectionAdvice => '建议';
+  static String get aiDiagnosisSectionAction => '行动';
+  static String get aiDiagnosisWeakAreaUnit => '个薄弱点';
+  static String get aiDiagnosisSeverityHigh => '严重';
+  static String get aiDiagnosisSeverityMedium => '中等';
+  static String get aiDiagnosisSeverityLow => '轻微';
+
+  /// 系统提示词弹层的副标题（一句说明；长介绍留在正文）。
+  static String get aiPromptSheetSubtitle => '查看实际发给模型的提示词，追加你自己的要求';
+
   // ── Anki ──
   static String get ankiImportTitle => '导入记忆卡组';
   static String get ankiPendingImportsTitle => '未完成的导入';
@@ -2514,6 +2586,19 @@ class AppStrings {
   static String get ankiUninstallConfirmBody => '将删除该牌组的卡片、复习进度和媒体文件，此操作无法撤销。';
   static String get ankiDeckRemoved => '牌组已移除';
 
+  // ── 记忆卡中枢（ADR 0066：记忆卡域自有首页）──
+  static String get memoryCardHubTitle => '记忆卡';
+  static String get memoryCardHubTodayDue => '今日待复习';
+  static String memoryCardHubDeckDue(int due) => '今日待复习 $due 张';
+  static String get memoryCardHubDeckDueUnknown => '今日待复习 —';
+  static String get memoryCardHubImportTitle => '导入记忆卡';
+  static String get memoryCardHubImportDesc => '从牌组应用导出的 .apkg 文件导入新牌组';
+  static String get memoryCardHubRepairTitle => '修复与维护';
+  static String get memoryCardHubRepairDesc => '数据库健康、未完成导入与残留清理';
+  static String get memoryCardHubSwitchScope => '切换为当前复习域';
+  static String get memoryCardHubActiveScopeBadge => '当前复习域';
+  static String get memoryCardHubToolsTitle => '工具';
+
   /// 批量移除的部分成功文案：`uninstall` 返回 false（locator 未就绪，
   /// 什么都没发生）与抛错（提交前失败）都按「未完成」计数——v2 删除
   /// 序列里用户可见的移除在账本 COMMIT 即生效，之后的清理失败不再
@@ -2715,6 +2800,11 @@ class AppStrings {
   static String get coursesOfficialTreeUnavailable => '官方课程暂时读不出来，内置课程不受影响。';
   static String get coursesNoUnitsAvailable => '暂无可用单元';
   static String get coursesLoadingCourses => '正在加载课程…';
+  static String get coursesResumeCap => '继续学习';
+  static String get coursesLessonDueMeta => '待复习';
+  static String get coursesLessonWeakMeta => '薄弱';
+  static String coursesSectionProgressSemantic(int percent) =>
+      '章节进度 $percent%';
   static String get coursesLessonTypeNormal => '课程';
   static String get coursesLessonTypeListening => '听力';
   static String get coursesLessonTypeReading => '阅读';
@@ -2737,6 +2827,12 @@ class AppStrings {
   static String get dictionaryKindPhrase => '短语';
   static String get dictionaryKindGrammar => '语法';
   static String get dictionaryPlayPronunciation => '播放发音';
+  static String get dictionaryAllEntriesTitle => '全部词条';
+  static String dictionaryAllEntriesCount(int count) => '共 $count 条';
+  static String get dictionaryPickPrompt => '选择一个词条查看释义与例句';
+  static String get dictionaryBackToList => '返回目录';
+  static String get dictionaryExamplesTitle => '例句';
+  static String get dictionaryLearnedMeta => '已学';
 
   // ── Onboarding ──
   static String get onboardingReclaimingTitle => '重拾语言学习';
@@ -2756,6 +2852,11 @@ class AppStrings {
   static String get profileLearningStatsTitle => '学习统计';
   static String get profileTodayTitle => '今日概览';
   static String get profileStatsEntrySubtitle => '近 7 天经验、总量与记忆卡';
+  // ── 学习档案（湿地雾光 R15）──
+  static String get profileOverviewFallback => '一步一笔，记录语言学习之旅';
+  static String get profileAccumulationTitle => '学习积累';
+  static String profileTodaySummaryLine(int xp, int minutes, int accuracy) =>
+      '今日 $xp XP · $minutes 分钟 · $accuracy%';
   // ── Achievements v2 (成就系统焕新) ──
   static String profileAchievementsBadgeCount(int unlocked, int total) =>
       '已获得 $unlocked/$total 枚徽章';
@@ -2764,6 +2865,7 @@ class AppStrings {
   static String achievementsOverviewCount(int unlocked, int total) =>
       '已获得 $unlocked / $total 枚徽章';
   static String achievementsCompletionRatio(int percent) => '完成度 $percent%';
+  static String achievementsCompletionPercent(int percent) => '$percent%';
   static String get achievementsNearestSection => '距离最近';
   static String get achievementsFilterAll => '全部';
   static String get achievementsFilterInProgress => '进行中';

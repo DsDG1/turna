@@ -1,5 +1,6 @@
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 
@@ -10,6 +11,22 @@ String? ankiImportWireKeyFor(CourseProvider courseProvider, String id) {
   for (final entry in courseProvider.catalogEntries) {
     if (entry.legacyImportId == id || entry.officialSourceId == id) {
       return entry.wireKey;
+    }
+  }
+  return null;
+}
+
+/// Section id of the deck imported by [id] — the deck-scoped formal-review
+/// target. ADR 0066 §2: post-import actions go straight into that deck's
+/// formal review instead of switching the active course, so both the
+/// wizard's done step and the memory-card hub resolve the section through
+/// this single copy. Null when the course tree has no section for the
+/// source yet; callers then fall back to the aggregate scope.
+String? ankiImportSectionIdFor(CourseProvider courseProvider, String id) {
+  for (final section in courseProvider.allSections) {
+    if ((section.level == 'Anki' || section.level == 'OfficialAnki') &&
+        LegacyAnkiIdentifiers.importIdFromSectionId(section.id) == id) {
+      return section.id;
     }
   }
   return null;

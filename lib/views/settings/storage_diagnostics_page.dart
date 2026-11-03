@@ -1,6 +1,5 @@
 // Dart imports:
 import 'dart:async';
-import 'dart:math' as math;
 
 // Flutter imports:
 import 'package:auto_route/auto_route.dart';
@@ -26,13 +25,16 @@ import 'package:turna/routing/platform_page_route.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// User-facing storage overview ("存储与性能"): a dashboard over
-/// [StorageInventoryService] that shows total usage with a share ring, four
-/// plain-language category cards, leftover-file warnings, and the one safe
-/// action — clearing regenerable caches — plus one-tap database optimize.
+/// [StorageInventoryService] that shows total usage with a composition bar
+/// (湿地雾光 R17), four plain-language category cards, leftover-file
+/// warnings, and the one safe action — clearing regenerable caches — plus
+/// one-tap database optimize.
 ///
 /// Low-level diagnostics (write telemetry, cache entry counts, WAL/SHM/free
 /// pages) are intentionally NOT shown here; the underlying services still
@@ -128,24 +130,12 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   }
 
   Future<void> _clearCaches(int reclaimableBytes) async {
-    final confirmed = await showDialog<bool>(
+    // R18 全局弹层：清理确认走全局确认弹层。
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.storageDiagClearCacheTitle),
-        content: Text(
-          AppStrings.storageDiagClearCacheBody(_formatBytes(reclaimableBytes)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.ankiRepairCleanAction),
-          ),
-        ],
-      ),
+      title: AppStrings.storageDiagClearCacheTitle,
+      message: AppStrings.storageDiagClearCacheBody(_formatBytes(reclaimableBytes)),
+      confirmLabel: AppStrings.ankiRepairCleanAction,
     );
     if (confirmed != true || !mounted) return;
     await _cacheRegistry.clearRegenerable();
@@ -153,22 +143,11 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   }
 
   Future<void> _optimizeDatabases() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.storageOptimizeConfirmTitle),
-        content: Text(AppStrings.storageOptimizeConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.storageOptimizeDatabase),
-          ),
-        ],
-      ),
+      title: AppStrings.storageOptimizeConfirmTitle,
+      message: AppStrings.storageOptimizeConfirmBody,
+      confirmLabel: AppStrings.storageOptimizeDatabase,
     );
     if (confirmed != true || !mounted) return;
     setState(() => _optimizing = true);
@@ -211,25 +190,13 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     List<StorageArtifactReport> orphans,
     int bytes,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.storageDiagDeleteOrphansTitle),
-        content: Text(
-          AppStrings.storageDiagDeleteOrphansBody(
-              orphans.length, _formatBytes(bytes)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.commonDelete),
-          ),
-        ],
-      ),
+      title: AppStrings.storageDiagDeleteOrphansTitle,
+      message: AppStrings.storageDiagDeleteOrphansBody(
+          orphans.length, _formatBytes(bytes)),
+      confirmLabel: AppStrings.commonDelete,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     setState(() => _loading = true);
@@ -486,8 +453,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   }
 }
 
-/// Dashboard hero: large total-usage figure plus a static share ring broken
-/// down by the four user-facing categories.
+/// Dashboard hero（湿地雾光 R17）：总量指标头 + 构成条。四类磁盘占用折成
+/// [ReportCompositionBar] 的分段与图例，与分类明细卡共用同一色映射。
 class _TotalCard extends StatelessWidget {
   const _TotalCard({required this.report});
 
@@ -495,67 +462,30 @@ class _TotalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final segments = _categorySegments(context, report);
+    final segments = [
+      for (final spec in _categorySpecs(context, report))
+        ReportSegment(
+          label: spec.title,
+          value: spec.bytes.toDouble(),
+          color: spec.color,
+          valueLabel: _formatBytes(spec.bytes),
+        ),
+    ];
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(
-          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
+      decoration: TurnaTheme.flatPaperDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.storageDiagTotalUsage,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatBytes(report.totalPhysicalBytes),
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  AppStrings.storageDiagSafelyReclaimable(
-                      _formatBytes(report.safelyReclaimableBytes)),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-              ],
+          ReportMetricHeader(
+            label: AppStrings.storageDiagTotalUsage,
+            value: _formatBytes(report.totalPhysicalBytes),
+            caption: AppStrings.storageDiagSafelyReclaimable(
+              _formatBytes(report.safelyReclaimableBytes),
             ),
           ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: 104,
-            height: 104,
-            child: CustomPaint(
-              painter: _ShareRingPainter(
-                segments: segments,
-                trackColor: TurnaTheme.dividerBg(context),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.sd_storage_outlined,
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.7),
-                  size: 26,
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(height: 16),
+          ReportCompositionBar(segments: segments),
         ],
       ),
     );
@@ -639,16 +569,6 @@ List<_CategorySpec> _categorySpecs(
         StorageArtifactCategory.logs,
       }),
     ),
-  ];
-}
-
-List<({double value, Color color})> _categorySegments(
-  BuildContext context,
-  StorageInventoryReport report,
-) {
-  return [
-    for (final spec in _categorySpecs(context, report))
-      (value: spec.bytes.toDouble(), color: spec.color),
   ];
 }
 
@@ -909,61 +829,6 @@ class _MemoryCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// Static donut showing each category's share of total disk usage. No
-/// animation — repaints only when the segment values change.
-class _ShareRingPainter extends CustomPainter {
-  const _ShareRingPainter({
-    required this.segments,
-    required this.trackColor,
-  });
-
-  final List<({double value, Color color})> segments;
-  final Color trackColor;
-
-  static const double _strokeWidth = 12;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = (math.min(size.width, size.height) - _strokeWidth) / 2;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _strokeWidth
-      ..strokeCap = StrokeCap.butt;
-
-    final total = segments.fold<double>(0, (sum, s) => sum + s.value);
-    if (total <= 0) {
-      paint.color = trackColor;
-      canvas.drawArc(rect, 0, math.pi * 2, false, paint);
-      return;
-    }
-    var start = -math.pi / 2;
-    for (final segment in segments) {
-      if (segment.value <= 0) continue;
-      final sweep = segment.value / total * math.pi * 2;
-      paint.color = segment.color;
-      canvas.drawArc(rect, start, sweep, false, paint);
-      start += sweep;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ShareRingPainter oldDelegate) {
-    if (oldDelegate.trackColor != trackColor ||
-        oldDelegate.segments.length != segments.length) {
-      return true;
-    }
-    for (var i = 0; i < segments.length; i++) {
-      if (oldDelegate.segments[i].value != segments[i].value ||
-          oldDelegate.segments[i].color != segments[i].color) {
-        return true;
-      }
-    }
-    return false;
   }
 }
 

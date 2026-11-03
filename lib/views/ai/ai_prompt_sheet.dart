@@ -10,25 +10,24 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
-/// 打开「系统提示词」面板。
+/// 打开「系统提示词」面板（R14：走全局弹层容器，标题与一句说明由容器给）。
 ///
 /// 这是只读正文 + 追加自定义的查看器，不是编辑器：默认文本永远不可删改，
 /// 用户只能在自己那一段里加要求（原因见 [applyOverride]）。
 Future<void> showAiPromptSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showTurnaSheet<void>(
     context: context,
+    title: AppStrings.aiPromptSheetTitle,
+    subtitle: AppStrings.aiPromptSheetSubtitle,
     isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) => const AiPromptSheet(),
+    body: const AiPromptSheet(),
   );
 }
 
@@ -97,22 +96,12 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
   Future<void> _resetAll() async {
     final count = _store.customised.length;
     if (count == 0) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.aiPromptResetAllTitle),
-        content: Text(AppStrings.aiPromptResetAllBody(count)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(AppStrings.aiPromptResetAllConfirm),
-          ),
-        ],
-      ),
+      title: AppStrings.aiPromptResetAllTitle,
+      message: AppStrings.aiPromptResetAllBody(count),
+      confirmLabel: AppStrings.aiPromptResetAllConfirm,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     await _store.clearAll();
@@ -137,92 +126,61 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
       override: _store.textFor(_feature),
     );
 
+    // 容器（TurnaSheetPanel）已给拖手、标题、一句说明与关闭键；这里只保留
+    // 功能芯片、正文、编辑器与动作。
     return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.pageMargin,
       ),
       child: SafeArea(
         top: false,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.86,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _header(context),
-              const SizedBox(height: 4),
-              Text(
-                AppStrings.aiPromptSheetIntro,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                      height: 1.45,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              _featureChips(context),
-              if (_store.customised.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: _resetAll,
-                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                    label: Text(AppStrings.aiPromptResetAll),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    _promptView(context, prompt),
-                    const SizedBox(height: 16),
-                    _editor(context),
-                    const SizedBox(height: 12),
-                    _actions(context),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppStrings.aiPromptSheetFooter,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                            height: 1.4,
-                          ),
-                    ),
-                  ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              AppStrings.aiPromptSheetIntro,
+              style: AppTextStyles.captionSm(context).copyWith(height: 1.45),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _featureChips(context),
+            if (_store.customised.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _resetAll,
+                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                  label: Text(AppStrings.aiPromptResetAll),
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: AppSpacing.md),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  _promptView(context, prompt),
+                  const SizedBox(height: AppSpacing.lg),
+                  _editor(context),
+                  const SizedBox(height: AppSpacing.md),
+                  _actions(context),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    AppStrings.aiPromptSheetFooter,
+                    style: AppTextStyles.captionSm(context).copyWith(
+                      fontSize: 12,
+                      color: TurnaTheme.textHintColor(context),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.code_rounded, color: TurnaTheme.brandTeal, size: 22),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            AppStrings.aiPromptSheetTitle,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ),
-        IconButton(
-          tooltip: AppStrings.commonClose,
-          icon: const Icon(Icons.close, size: 22),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ],
     );
   }
 

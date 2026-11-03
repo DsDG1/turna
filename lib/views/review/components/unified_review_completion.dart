@@ -3,10 +3,17 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Unified review completion summary screen.
+///
+/// 「湿地雾光」R08 收敛：**几何完成标记 + 结果一行 + 收获纵向 + 单一下一步**。
+/// 不再用屏高弹层堆叠——完成是一种页面语言：拱形几何标记成就语义，结果用
+/// 一行文字交代，收获（经验 / 宝石 / 成就）纵向排列，下一步只有一个主操作
+/// （还有到期批次时是「继续复习」，否则是「完成」）。
 class UnifiedReviewCompletion extends StatelessWidget {
   final int totalCount;
   final int rememberedCount;
@@ -35,9 +42,7 @@ class UnifiedReviewCompletion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recallRate =
-        totalCount > 0 ? ((rememberedCount / totalCount) * 100).round() : 0;
-    final showRewards = totalCount > 0 && (xpEarned > 0 || gemsEarned > 0);
+    final hasMore = remainingDue > 0 && onReviewMore != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -46,6 +51,7 @@ class UnifiedReviewCompletion extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── 几何完成标记（拱形 · 成就语义） ──────────────────────
             const TurnaGeometry(
               kind: TurnaGeometryKind.achievement,
               size: 132,
@@ -63,75 +69,48 @@ class UnifiedReviewCompletion extends StatelessWidget {
                     color: TurnaTheme.textPrimaryColor(context),
                   ),
             ),
+
+            // ── 结果一行 ────────────────────────────────────────────
             const SizedBox(height: 8),
             Text(
-              AppStrings.reviewCompletionSubtitle,
+              AppStrings.reviewCompletionResultLine(
+                totalCount,
+                rememberedCount,
+                forgottenCount,
+              ),
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
+
+            // ── 收获纵向（经验 / 宝石 / 本场成就） ───────────────────
             const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              // ADR 0062：完成页是成就语义 → clay 色相的 L1 玻璃。
-              decoration: TurnaTheme.glassDecoration(
-                context,
-                TurnaTheme.glassAchievement,
-                level: GlassLevel.l1,
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _StatColumn(
-                    label: AppStrings.reviewCompletionTotalLabel,
-                    value: '$totalCount',
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
-                  _StatColumn(
-                    label: AppStrings.reviewCompletionRecallLabel,
-                    value: '$recallRate%',
-                    color: TurnaTheme.brandTeal,
-                  ),
-                  _StatColumn(
-                    label: AppStrings.reviewCompletionRecallSplitLabel,
-                    value: '$rememberedCount / $forgottenCount',
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ],
-              ),
-            ),
-            if (showRewards) ...[
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+            if (xpEarned > 0 || gemsEarned > 0)
+              ReportDefinitionList(
+                rows: [
                   if (xpEarned > 0)
-                    _RewardBadge(
-                      icon: Icons.bolt_rounded,
-                      label: AppStrings.reviewXpEarned(xpEarned),
-                      color: TurnaTheme.warning,
+                    ReportDefinitionRow(
+                      label: AppStrings.lessonXp,
+                      value: '+$xpEarned',
                     ),
-                  if (xpEarned > 0 && gemsEarned > 0) const SizedBox(width: 12),
                   if (gemsEarned > 0)
-                    _RewardBadge(
-                      icon: Icons.diamond_rounded,
-                      label: AppStrings.reviewGemsEarned(gemsEarned),
-                      color: TurnaTheme.brandSky,
+                    ReportDefinitionRow(
+                      label: AppStrings.lessonGems,
+                      value: '+$gemsEarned',
                     ),
                 ],
               ),
-            ],
             // Achievement unlocks from this review session surface here,
             // in the same completion surface as the XP / gem rewards.
             const AchievementFeedbackBanner(),
-            const SizedBox(height: 16),
-            if (onUndoLast != null)
+            if (onUndoLast != null) ...[
+              const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: onUndoLast,
                 icon: const Icon(Icons.undo_rounded),
                 label: Text(AppStrings.reviewUndoLastCard),
               ),
+            ],
             if (remainingDue > 0) ...[
               const SizedBox(height: 8),
               Text(
@@ -141,121 +120,19 @@ class UnifiedReviewCompletion extends StatelessWidget {
                     ),
               ),
             ],
+
+            // ── 单一下一步 ──────────────────────────────────────────
             const SizedBox(height: 24),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 52),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onFinish,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: TurnaTheme.brandTeal,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ).copyWith(
-                    elevation: const WidgetStatePropertyAll<double>(0),
-                  ),
-                  child: Text(
-                    AppStrings.commonDone,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
+            SessionPrimaryAction(
+              label: hasMore
+                  ? AppStrings.reviewContinueBatch
+                  : AppStrings.commonDone,
+              onPressed: hasMore ? onReviewMore : onFinish,
+              trailingIcon:
+                  hasMore ? Icons.play_arrow_rounded : Icons.check_rounded,
             ),
-            if (remainingDue > 0 && onReviewMore != null) ...[
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 52),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: onReviewMore,
-                    child: Text(AppStrings.reviewContinueBatch),
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StatColumn extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _StatColumn({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: TurnaTheme.textHintColor(context),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RewardBadge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _RewardBadge({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: color,
-            ),
-          ),
-        ],
       ),
     );
   }

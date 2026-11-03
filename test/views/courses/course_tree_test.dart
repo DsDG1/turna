@@ -27,9 +27,8 @@ import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/sub_lesson_summary.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/courses/components/lesson_tile.dart';
-import 'package:turna/views/courses/components/section_switcher.dart';
 import 'package:turna/views/courses/course_tree.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -182,6 +181,18 @@ void main() {
     appPrefs = AppPrefs(preferences);
     accessibility = AccessibilityProvider(appPrefs);
   });
+
+  /// 目录行的行域查找：底部常驻继续条会复现下一个节点的名字，
+  /// 课名断言必须圈定在行内（R02 紧凑稿）。
+  Finder lessonRow(String text) => find.descendant(
+        of: find.byType(DirectoryLessonRow),
+        matching: find.text(text),
+      );
+
+  Finder subRow(String text) => find.descendant(
+        of: find.byType(DirectorySubLessonRow),
+        matching: find.text(text),
+      );
 
   Widget pumpTree(
     CourseProvider courseProvider, {
@@ -399,23 +410,23 @@ void main() {
 
       // Unit is collapsed by default.
       expect(find.text('Big Unit'), findsOneWidget);
-      expect(find.text('Lesson 0'), findsNothing);
+      expect(lessonRow('Lesson 0'), findsNothing);
 
       // Expand the unit.
       await tester.tap(find.text('Big Unit'));
       await tester.pumpAndSettle();
 
       // First lesson appears after expand.
-      expect(find.text('Lesson 0'), findsOneWidget);
-      expect(find.text('Lesson 99'), findsNothing);
+      expect(lessonRow('Lesson 0'), findsOneWidget);
+      expect(lessonRow('Lesson 99'), findsNothing);
 
       // Scroll to the bottom of the list and verify the last lesson is
       // reachable. This exercises the lazy sliver builder with 100 items.
       await tester.scrollUntilVisible(
-        find.text('Lesson 99'),
+        lessonRow('Lesson 99'),
         200,
       );
-      expect(find.text('Lesson 99'), findsOneWidget);
+      expect(lessonRow('Lesson 99'), findsOneWidget);
     });
 
     testWidgets('unit progress refreshes from ProgressProvider only',
@@ -480,11 +491,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('1 项待复习'), findsOneWidget);
+      // 收起单元条只有注意色点，无文字。
+      expect(find.text('待复习'), findsNothing);
 
       await tester.tap(find.text('Attention Unit'));
       await tester.pumpAndSettle();
-      expect(find.text('1 项待复习'), findsNWidgets(2));
+      expect(lessonRow('待复习'), findsOneWidget);
       expect(find.textContaining('需加强'), findsNothing);
     });
 
@@ -507,6 +519,10 @@ void main() {
 
       final reveal = find.byKey(
         const ValueKey<String>('lesson-reveal-motion-lesson'),
+        // 展开首帧行高为 0：行 Sliver 整体被默认 finder 视为 offstage，
+        // 元素实际在树里（新结构中行 Sliver 独立成列，没有非零高的
+        // 单元卡头垫在同一个 SliverList 里）。
+        skipOffstage: false,
       );
       expect(reveal, findsOneWidget);
       await tester.pump(const Duration(milliseconds: 100));
@@ -520,7 +536,7 @@ void main() {
       expect(curtain.sizeFactor.value, inExclusiveRange(0, 1));
 
       await tester.pumpAndSettle();
-      expect(find.text('Motion Lesson'), findsOneWidget);
+      expect(lessonRow('Motion Lesson'), findsOneWidget);
       expect(
         tester
             .widget<SizeTransition>(
@@ -551,6 +567,7 @@ void main() {
 
       final reveal = find.byKey(
         const ValueKey<String>('lesson-reveal-early-fade-lesson'),
+        skipOffstage: false,
       );
       expect(reveal, findsOneWidget);
 
@@ -599,7 +616,7 @@ void main() {
       await tester.tap(find.text('Quiet Unit'));
       await tester.pump();
 
-      expect(find.text('Quiet Lesson'), findsOneWidget);
+      expect(lessonRow('Quiet Lesson'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('lesson-reveal-quiet-lesson')),
         findsNothing,
@@ -623,18 +640,18 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Retract Unit'));
       await tester.pumpAndSettle();
-      expect(find.text('Retract Lesson'), findsOneWidget);
+      expect(lessonRow('Retract Lesson'), findsOneWidget);
 
       await tester.tap(find.text('Retract Unit'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       // 收回途中：行仍在列表里，高度因子处于中间值。
-      expect(find.text('Retract Lesson'), findsOneWidget);
+      expect(lessonRow('Retract Lesson'), findsOneWidget);
       expect(_curtainFactor(tester, 'retract-lesson'), inExclusiveRange(0, 1));
 
       await tester.pumpAndSettle();
       // 归零后行才移除，移除时高度已为 0，无视觉跳变。
-      expect(find.text('Retract Lesson'), findsNothing);
+      expect(lessonRow('Retract Lesson'), findsNothing);
     });
 
     testWidgets(
@@ -671,7 +688,7 @@ void main() {
 
       // 行从未离开列表，展开完成后回到完整高度。
       await tester.pumpAndSettle();
-      expect(find.text('Resume Lesson'), findsOneWidget);
+      expect(lessonRow('Resume Lesson'), findsOneWidget);
       expect(_curtainFactor(tester, 'resume-lesson'), 1.0);
     });
 
@@ -708,19 +725,19 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Alpha Unit'));
       await tester.pumpAndSettle();
-      expect(find.text('Alpha Lesson'), findsOneWidget);
-      expect(find.text('Beta Lesson'), findsNothing);
+      expect(lessonRow('Alpha Lesson'), findsOneWidget);
+      expect(lessonRow('Beta Lesson'), findsNothing);
 
       await tester.tap(find.text('Beta Unit'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       // 并发窗口内：A 的行仍在收回途中，B 的行已在展开。
-      expect(find.text('Alpha Lesson'), findsOneWidget);
-      expect(find.text('Beta Lesson'), findsOneWidget);
+      expect(lessonRow('Alpha Lesson'), findsOneWidget);
+      expect(lessonRow('Beta Lesson'), findsOneWidget);
 
       await tester.pumpAndSettle();
-      expect(find.text('Alpha Lesson'), findsNothing);
-      expect(find.text('Beta Lesson'), findsOneWidget);
+      expect(lessonRow('Alpha Lesson'), findsNothing);
+      expect(lessonRow('Beta Lesson'), findsOneWidget);
     });
 
     testWidgets('reduced motion collapses instantly without retaining rows',
@@ -739,14 +756,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Snap Unit'));
       await tester.pump();
-      expect(find.text('Snap Lesson'), findsOneWidget);
+      expect(lessonRow('Snap Lesson'), findsOneWidget);
 
       await tester.tap(find.text('Snap Unit'));
       await tester.pump();
-      expect(find.text('Snap Lesson'), findsNothing);
+      expect(lessonRow('Snap Lesson'), findsNothing);
     });
 
-    testWidgets('section switcher collapses and remains pinned while scrolling',
+    testWidgets(
+        'compact section head scrolls away while the expanded unit strip pins',
         (tester) async {
       final lessons = List.generate(
         30,
@@ -767,10 +785,8 @@ void main() {
         pumpTree(provider, disableAnimations: true),
       );
       await tester.pumpAndSettle();
-      expect(
-        tester.getSize(find.byType(SectionSwitcher)).height,
-        SectionSwitcherHeaderDelegate.expandedExtent,
-      );
+      // 紧凑章节头随页滚动（不再有吸顶变形头）。
+      expect(find.text('Sticky Section'), findsOneWidget);
 
       await tester.tap(find.text('Sticky Unit'));
       await tester.pumpAndSettle();
@@ -780,11 +796,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sticky Section'), findsOneWidget);
-      expect(
-        tester.getSize(find.byType(SectionSwitcher)).height,
-        SectionSwitcherHeaderDelegate.compactExtent,
-      );
+      expect(find.text('Sticky Section'), findsNothing);
+      // 展开单元的单元条钉在目录顶部。
+      expect(find.text('Sticky Unit'), findsOneWidget);
     });
 
     testWidgets('preserves the expanded unit independently for each section',
@@ -811,16 +825,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('First Unit'));
       await tester.pumpAndSettle();
-      expect(find.text('First Lesson'), findsOneWidget);
+      expect(lessonRow('First Lesson'), findsOneWidget);
 
       provider.showSection(second);
       await tester.pumpAndSettle();
       expect(find.text('Second Unit'), findsOneWidget);
-      expect(find.text('Second Lesson'), findsNothing);
+      expect(lessonRow('Second Lesson'), findsNothing);
 
       provider.showSection(first);
       await tester.pumpAndSettle();
-      expect(find.text('First Lesson'), findsOneWidget);
+      expect(lessonRow('First Lesson'), findsOneWidget);
     });
 
     testWidgets(
@@ -930,11 +944,11 @@ void main() {
 
       await tester.pumpWidget(pumpTree(provider, gameProvider: game));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Next Up Unit'));
-      await tester.pumpAndSettle();
-
+      // 有完成记录时，下一课所在单元自动展开——无需再点（点按反而是
+      // 收起）。断言落在展开态：「下一课」标记恰好一个，且落在未完成
+      // 的课行上。
       expect(find.text('下一课'), findsOneWidget);
-      expect(find.text('Lesson Next Up'), findsOneWidget);
+      expect(lessonRow('Lesson Next Up'), findsOneWidget);
     });
 
     group('sub-lesson nodes (ADR 0063)', () {
@@ -971,8 +985,15 @@ void main() {
           lessonProgress: lessonProgress,
         ));
         await tester.pumpAndSettle();
-        await tester.tap(find.text(section.units.first.name));
-        await tester.pumpAndSettle();
+        // 有课级完成记录的章节会自动展开目标单元；点了反而是收起。
+        // 只有还没展开（一行摘要）时才点单元条。
+        if (find
+            .byType(DirectorySubLessonRow, skipOffstage: false)
+            .evaluate()
+            .isEmpty) {
+          await tester.tap(find.text(section.units.first.name));
+          await tester.pumpAndSettle();
+        }
       }
 
       testWidgets('renders a group header and one tile per sub-lesson',
@@ -989,21 +1010,12 @@ void main() {
 
         await pumpExpanded(tester, section: section);
 
-        // Group header keeps the lesson name and a zero-progress chip.
+        // Group header keeps the lesson name and a k/n progress chip.
         expect(find.text('Grouped Lesson l-group'), findsOneWidget);
-        expect(
-          tester
-              .widget<SubLessonGroupHeader>(
-                find.byType(SubLessonGroupHeader),
-              )
-              .completedCount,
-          0,
-        );
-        // Each sub-lesson is its own tile with its own index chip.
-        expect(find.text('第一小课'), findsOneWidget);
-        expect(find.text('第二小课'), findsOneWidget);
-        expect(find.text('小课 1/2'), findsOneWidget);
-        expect(find.text('小课 2/2'), findsOneWidget);
+        expect(find.text('0/2'), findsOneWidget);
+        // Each sub-lesson is its own row.
+        expect(subRow('第一小课'), findsOneWidget);
+        expect(subRow('第二小课'), findsOneWidget);
       });
 
       testWidgets('next-up lands on the first uncompleted sub-lesson node',
@@ -1022,7 +1034,7 @@ void main() {
 
         // Exactly one next-up affordance in the whole tree: sub-lesson 1.
         expect(find.text('下一课'), findsOneWidget);
-        expect(find.text('甲'), findsOneWidget);
+        expect(subRow('甲'), findsOneWidget);
       });
 
       testWidgets('sub-lesson records advance the header chip and next-up',
@@ -1044,17 +1056,10 @@ void main() {
 
         await pumpExpanded(tester, section: section, lessonProgress: progress);
 
-        expect(
-          tester
-              .widget<SubLessonGroupHeader>(
-                find.byType(SubLessonGroupHeader),
-              )
-              .completedCount,
-          1,
-        );
+        expect(find.text('1/2'), findsOneWidget);
         // Next-up moved to the second sub-lesson node.
         expect(find.text('下一课'), findsOneWidget);
-        expect(find.text('丁'), findsOneWidget);
+        expect(subRow('丁'), findsOneWidget);
       });
 
       testWidgets(
@@ -1078,17 +1083,10 @@ void main() {
         await pumpExpanded(tester, section: section, game: game);
 
         // Header chip counts every node complete via the legacy override.
-        expect(
-          tester
-              .widget<SubLessonGroupHeader>(
-                find.byType(SubLessonGroupHeader),
-              )
-              .completedCount,
-          2,
-        );
+        expect(find.text('2/2'), findsOneWidget);
         // Next-up skips the whole group and lands on the following lesson.
         expect(find.text('下一课'), findsOneWidget);
-        expect(find.text('Lesson After'), findsOneWidget);
+        expect(lessonRow('Lesson After'), findsOneWidget);
       });
     });
 
@@ -1147,7 +1145,10 @@ void main() {
 double _curtainFactor(WidgetTester tester, String lessonId) => tester
     .widget<SizeTransition>(
       find.ancestor(
-        of: find.byKey(ValueKey<String>('lesson-reveal-$lessonId')),
+        of: find.byKey(
+          ValueKey<String>('lesson-reveal-$lessonId'),
+          skipOffstage: false,
+        ),
         matching: find.byType(SizeTransition),
       ),
     )

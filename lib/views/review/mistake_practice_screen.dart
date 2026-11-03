@@ -11,6 +11,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/theme.dart';
 
 @RoutePage()
@@ -62,58 +63,46 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: RepaintBoundary(
-                  // Same overflow fix as `mistake_review_page.dart`: the
-                  // renderer body is a `Column` and a long prompt + many
-                  // options can exceed the viewport, producing
-                  // `BOTTOM OVERFLOWED BY N PIXELS` stripes. Wrapping it in
-                  // a scroll view makes the content reachable.
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(top: 8, bottom: 16),
-                    child: KeyedSubtree(
-                      key: ValueKey(widget.entry.id),
-                      child: renderer.build(
-                        interaction,
-                        InteractionState(
-                          submitted: _submitted,
-                          correct: _correct,
-                          userAnswerText:
-                              _submitted ? widget.entry.userAnswer : null,
-                        ),
-                        (correct, {userAnswerText, reviewQuality}) {
-                          setState(() {
-                            _submitted = true;
-                            _correct = correct;
-                          });
-                          if (correct) {
-                            context
-                                .read<MistakeProvider>()
-                                .recordRewrite(widget.entry.id);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ),
+        // Same overflow fix as `mistake_review_page.dart`: the renderer body
+        // is a `Column` and a long prompt + many options can exceed the
+        // viewport. Wrapping it in a scroll view makes the content reachable.
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: KeyedSubtree(
+            key: ValueKey(widget.entry.id),
+            child: renderer.build(
+              interaction,
+              InteractionState(
+                submitted: _submitted,
+                correct: _correct,
+                userAnswerText:
+                    _submitted ? widget.entry.userAnswer : null,
               ),
-              if (_submitted) ...[
-                const SizedBox(height: 16),
-                LessonCheckButton(
-                  label: AppStrings.lessonContinueUpper,
-                  enabled: true,
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ],
+              (correct, {userAnswerText, reviewQuality}) {
+                setState(() {
+                  _submitted = true;
+                  _correct = correct;
+                });
+                if (correct) {
+                  context
+                      .read<MistakeProvider>()
+                      .recordRewrite(widget.entry.id);
+                }
+              },
+            ),
           ),
         ),
       ),
+      // 稳定底部动作（R09）：提交后收束为单一下一步；提交前的核对 CTA 由
+      // 题面 renderer 自管（无 LessonActionScope 时的既有回退行为）。
+      bottomNavigationBar: _submitted
+          ? SessionActionBand(
+              child: SessionPrimaryAction(
+                label: AppStrings.lessonContinueUpper,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            )
+          : null,
     );
   }
 }

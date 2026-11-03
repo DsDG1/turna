@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
@@ -85,7 +87,7 @@ class _TodaySummaryCardState extends _StudyFuturesState<TodaySummaryCard> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: AppSpacing.pageGutterMist,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -175,6 +177,7 @@ Widget _sectionTitle(BuildContext context, String text, IconData icon) {
   );
 }
 
+/// 今日一行（湿地雾光 R15）：XP / 分钟 / 正确率收进一行纸面摘要。
 class _TodaySummary extends StatelessWidget {
   final DailyStudyStats? stats;
   final bool waiting;
@@ -190,41 +193,29 @@ class _TodaySummary extends StatelessWidget {
         s != null ? int.parse((s.accuracy * 100).toStringAsFixed(0)) : 0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md + 2,
       ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _TodayItem(
-            icon: Icons.bolt_rounded,
-            // Achievement-facing XP: clay icon on sand/soft badge (visibility).
-            iconColor: TurnaTheme.anatolianClay,
-            value: waiting ? AppStrings.emDash : xp.toString(),
-            label: AppStrings.profileXpToday,
-            warmBadge: true,
-          ),
-          Container(width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
-          _TodayItem(
-            icon: Icons.timer_rounded,
-            iconColor: TurnaTheme.leagueAmethyst,
-            value: waiting
-                ? AppStrings.emDash
-                : AppStrings.profileStudyTimeValue(minutes),
-            label: AppStrings.profileStudyTime,
-          ),
-          Container(width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
-          _TodayItem(
-            icon: Icons.percent_rounded,
-            iconColor: TurnaTheme.successDark,
-            value: waiting
-                ? AppStrings.emDash
-                : AppStrings.profileAccuracyValue(accuracy),
-            label: AppStrings.profileAccuracy,
+          const Icon(Icons.bolt_rounded,
+              color: TurnaTheme.anatolianClay, size: 20),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              waiting
+                  ? AppStrings.profileTodaySummaryLine(0, 0, 0)
+                  : AppStrings.profileTodaySummaryLine(xp, minutes, accuracy),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyText(context).copyWith(
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
         ],
       ),
@@ -237,32 +228,19 @@ class _TodayItem extends StatelessWidget {
   final Color iconColor;
   final String value;
   final String label;
-  final bool warmBadge;
 
   const _TodayItem({
     required this.icon,
     required this.iconColor,
     required this.value,
     required this.label,
-    this.warmBadge = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final iconWidget = warmBadge
-        ? Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: TurnaTheme.clayOnSandFill(context),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          )
-        : Icon(icon, color: iconColor, size: 22);
-
     return Column(
       children: [
-        iconWidget,
+        Icon(icon, color: iconColor, size: 22),
         const SizedBox(height: 6),
         Text(
           value,

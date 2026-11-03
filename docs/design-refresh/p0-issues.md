@@ -7,7 +7,7 @@
 | # | 问题 | 证据落点 | 处理 |
 |---|---|---|---|
 | A1 | **已修复** · 原断链路由：`AiPracticeDetailRoute` 已在 `routing.dart` 注册（带课程守卫，与练习库/运行页一致），生成类本就存在，无需 codegen | `views/ai/ai_practice_library_page.dart`、`views/ai/components/ai_practice_library_section.dart`（push 侧）；`routing/routing.dart`（已补注册） | 已销项；后续随 AI 域重设计一并复核 |
-| A2 | **无生产入口 / 死组件五项待处置**：SectionPickerPage（被章节弹层取代）、DailyChallengePage（孤儿路由，但设置页仍有其 Anki 出题开关——功能与入口不一致）、UnifiedReviewRoute（仅被 Srs 页以 widget 嵌入）、ChangelogRoute（主入口是关于页 Tab）、OfficialAnkiMappingPage（被两个内联 sheet 取代）；死组件 ContentUpdateDialog；Advanced 页与路由注释里提及的 developer lab 已不存在 | 见覆盖表「处置汇总」 | 逐项决定：给入口 / 迁移内容后删路由 / 标注为深链兜底。决定写回覆盖表，不静默保留 |
+| A2 | **已处置** · 原五项待处置：SectionPickerPage / ChangelogRoute / OfficialAnkiMappingPage 的路由与页面删除（功能分别被章节弹层、关于页 Tab、quick/mcq 两个内联 sheet 取代）；DailyChallengePage 恢复练习台工具格入口；UnifiedReviewRoute 保留并标注「仅深链兜底」；ContentUpdateDialog 死组件删除、developer lab 过期注释清除 | `routing/routing.dart`、`views/play/play_hub_screen.dart`、`views/settings/changelog_page.dart` 等 | 已销项（明细见 `test/BASELINE.md` 当日条目） |
 | A3 | **鸿蒙 chrome 契约隐式**：正式记忆卡会话在鸿蒙无 AppBar/进度头/工具栏/评分栏（原生 ability 盖面），卡面舞台整 build 分叉。新版面若按 Android 形态画全套 chrome，鸿蒙会被画上不可用按钮 | `views/anki/anki_review_session_page.dart`、`views/anki_official/official_anki_reviewer_stage.dart` | 新版线框为该会话显式出「双平台 chrome 对照」，宿主外壳只设计 Android 侧 + 鸿蒙原生侧边界说明 |
 
 ## B 类：全 App 级设计问题（新版设计抓手）

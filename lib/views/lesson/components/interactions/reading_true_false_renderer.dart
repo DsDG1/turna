@@ -114,34 +114,28 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
                 Text(widget.statement, style: AppTextStyles.promptMd(context)),
           ),
           const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: InteractionOptionTile(
-                  label: AppStrings.lessonTrue,
-                  isSelected: _selectedBool == true,
-                  isCorrect: submitted && widget.answer == true,
-                  isWrong:
-                      submitted && correct == false && _selectedBool == true,
-                  onTap: submitted
-                      ? null
-                      : () => setState(() => _selectedBool = true),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: InteractionOptionTile(
-                  label: AppStrings.lessonFalse,
-                  isSelected: _selectedBool == false,
-                  isCorrect: submitted && widget.answer == false,
-                  isWrong:
-                      submitted && correct == false && _selectedBool == false,
-                  onTap: submitted
-                      ? null
-                      : () => setState(() => _selectedBool = false),
-                ),
-              ),
-            ],
+          // 判断题两个选项与其他选择题共用同一编号行语言（P1「选项为编号行」）。
+          InteractionOptionTile(
+            label: AppStrings.lessonTrue,
+            index: 1,
+            isSelected: _selectedBool == true,
+            isCorrect: submitted && widget.answer == true,
+            isWrong: submitted && correct == false && _selectedBool == true,
+            showDivider: true,
+            onTap: submitted
+                ? null
+                : () => setState(() => _selectedBool = true),
+          ),
+          InteractionOptionTile(
+            label: AppStrings.lessonFalse,
+            index: 2,
+            isSelected: _selectedBool == false,
+            isCorrect: submitted && widget.answer == false,
+            isWrong: submitted && correct == false && _selectedBool == false,
+            showDivider: false,
+            onTap: submitted
+                ? null
+                : () => setState(() => _selectedBool = false),
           ),
         ],
       ),

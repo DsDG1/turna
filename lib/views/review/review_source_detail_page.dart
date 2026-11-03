@@ -5,10 +5,17 @@ import 'package:turna/application/review_dashboard/insights_repository.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/theme.dart';
 
+/// 来源详情 ——「湿地雾光」R10 学习报告构图：核心指标开篇（今日到期）→
+/// 近 14 天活动柱状（主图）→ 辅助指标定义列表 → 单一主行动（开始该来源
+/// 复习）。查询窗口与数据接缝不变（[InsightsRepository] d30 + 按来源过滤）。
 @RoutePage()
 class ReviewSourceDetailPage extends StatefulWidget {
   const ReviewSourceDetailPage({super.key, required this.source});
@@ -72,60 +79,56 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
           final reviews30 = activity
               .skip(activity.length > 30 ? activity.length - 30 : 0)
               .fold<int>(0, (sum, row) => sum + row.reviewedCount);
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (!data.active)
-                const ReviewSourceAvailabilityBanner(active: false),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      _Metric(
-                          label: AppStrings.reviewSourceMetricDueToday,
-                          value: summary.forecast.dueToday),
-                      _Metric(
-                          label: AppStrings.reviewSourceMetricNewCards,
-                          value: summary.maturity.newCards),
-                      _Metric(
-                          label: AppStrings.reviewSourceMetricDoneToday,
-                          value: todayCompleted),
-                    ],
-                  ),
-                ),
+          final trendWindow = activity.length > 14
+              ? activity.sublist(activity.length - 14)
+              : activity;
+
+          return Center(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageMargin,
+                AppSpacing.md,
+                AppSpacing.pageMargin,
+                AppSpacing.xxl,
               ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppStrings.reviewSourceTrendTitle,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        AppStrings.reviewSourceTrendSummary(
-                            reviews7, reviews30),
-                      ),
-                    ],
+              children: [
+                if (!data.active)
+                  const ReviewSourceAvailabilityBanner(active: false),
+                ReportMetricHeader(
+                  label: AppStrings.reviewSourceMetricDueToday,
+                  value: '${summary.forecast.dueToday}',
+                  caption: AppStrings.reviewSourceMetricNewCards(
+                      summary.maturity.newCards),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                _TrendSection(
+                  window: trendWindow,
+                  reviews7: reviews7,
+                  reviews30: reviews30,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                ReportDefinitionList(
+                  rows: [
+                    ReportDefinitionRow(
+                      label: AppStrings.reviewSourceMetricDoneToday,
+                      value: '$todayCompleted',
+                    ),
+                    ReportDefinitionRow(
+                      label: AppStrings.reviewProgressKpiReviews,
+                      value: '${summary.totalReviews}',
+                    ),
+                  ],
+                ),
+                if (data.active) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  SessionPrimaryAction(
+                    label: AppStrings.reviewSourceStartReview,
+                    onPressed: _startReview,
+                    trailingIcon: Icons.play_arrow_rounded,
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (data.active)
-                FilledButton.icon(
-                  onPressed: _startReview,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: Text(AppStrings.reviewSourceStartReview),
-                ),
-            ],
+                ],
+              ],
+            ),
           );
         },
       ),
@@ -151,6 +154,68 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
   }
 }
 
+/// 近 14 天活动（主图 · 柱状）+ 7 / 30 日趋势摘要。
+class _TrendSection extends StatelessWidget {
+  const _TrendSection({
+    required this.window,
+    required this.reviews7,
+    required this.reviews30,
+  });
+
+  final List<ActivityBucketRow> window;
+  final int reviews7;
+  final int reviews30;
+
+  @override
+  Widget build(BuildContext context) {
+    final windowTotal = window.fold<int>(0, (sum, row) => sum + row.reviewedCount);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(title: AppStrings.reviewSourceTrendTitle),
+        if (windowTotal == 0)
+          Text(
+            AppStrings.reviewProgressEmpty,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+          )
+        else ...[
+          ReportBarChart(
+            semanticsLabel:
+                AppStrings.reviewSevenDayChartSemantics(windowTotal),
+            height: 150,
+            bars: [
+              for (var i = 0; i < window.length; i++)
+                ReportBar(
+                  // 首尾两天给日期标签，中间不挤字。
+                  label: (i == 0 || i == window.length - 1)
+                      ? _dayLabel(window[i].bucket)
+                      : '',
+                  value: window[i].reviewedCount.toDouble(),
+                  highlight: i == window.length - 1,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            AppStrings.reviewSourceTrendSummary(reviews7, reviews30),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// bucket 是「YYYY-MM-DD」格式的日期键，只取「日」作标签。
+  static String _dayLabel(String bucket) {
+    final parts = bucket.split('-');
+    return parts.length == 3 ? '${int.tryParse(parts[2]) ?? ''}' : '';
+  }
+}
+
 class ReviewSourceAvailabilityBanner extends StatelessWidget {
   const ReviewSourceAvailabilityBanner({super.key, required this.active});
 
@@ -165,30 +230,6 @@ class ReviewSourceAvailabilityBanner extends StatelessWidget {
         leading: const Icon(Icons.inventory_2_outlined),
         title: Text(AppStrings.reviewSourceDeletedTitle),
         subtitle: Text(AppStrings.reviewSourceDeletedSubtitle),
-      ),
-    );
-  }
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            '$value',
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          Text(label, textAlign: TextAlign.center),
-        ],
       ),
     );
   }

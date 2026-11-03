@@ -1,6 +1,3 @@
-// Dart imports:
-import 'dart:async';
-
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -9,22 +6,27 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
-import 'package:turna/courses/languages/dictionary.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// List filter: everything, word mistakes only, or grammar mistakes only.
 enum _MistakeFilter { all, words, grammar }
 
+/// 我的错题 ——「湿地雾光」R09 学习笔记式列表。
+///
+/// 行不是卡：条目主体是**问题摘要**（16/600 标题 + 正确表达释义行 + 12px
+/// 元信息），来源 / 时间作旁注；点行进详情页（分段对照 + 稳定「重练」）。
+/// 类型筛选、下拉刷新、空态保持不变。
 @RoutePage()
 class MistakeListPage extends StatefulWidget {
   const MistakeListPage({super.key});
@@ -76,13 +78,12 @@ class _MistakeListPageState extends State<MistakeListPage> {
                 slivers: [
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      child: _MistakesStatsHeader(mistakes: mistakes),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pageMargin,
+                        AppSpacing.md,
+                        AppSpacing.pageMargin,
+                        0,
+                      ),
                       child: _FilterBar(
                         selected: _filter,
                         allCount: mistakes.length,
@@ -94,126 +95,21 @@ class _MistakeListPageState extends State<MistakeListPage> {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.all(16),
-                    sliver: SliverList.separated(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pageMargin,
+                      vertical: AppSpacing.sm,
+                    ),
+                    sliver: SliverList.builder(
                       itemCount: visible.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) => _RevealOnMount(
                         index: index,
-                        child: _MistakeCard(mistake: visible[index]),
+                        child: _MistakeEntryRow(mistake: visible[index]),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-    );
-  }
-}
-
-class _MistakesStatsHeader extends StatelessWidget {
-  final List<MistakeEntry> mistakes;
-
-  const _MistakesStatsHeader({required this.mistakes});
-
-  @override
-  Widget build(BuildContext context) {
-    final wordCount = mistakes.where((e) => e.wordId != null).length;
-    final grammarCount = mistakes.where((e) => e.grammarPointId != null).length;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Flexible 防止多语言长 label(德语 / 俄语 / 土耳其语)在窄屏上把整行挤爆
-          Flexible(
-            child: _StatItem(
-              icon: Icons.error_outline_rounded,
-              iconColor: TurnaTheme.error,
-              value: mistakes.length.toString(),
-              label: AppStrings.reviewMistakesLabel,
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            color: TurnaTheme.dividerBg(context),
-          ),
-          Flexible(
-            child: _StatItem(
-              icon: Icons.translate_rounded,
-              iconColor: TurnaTheme.brandTeal,
-              value: wordCount.toString(),
-              label: AppStrings.reviewWordsLabel,
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            color: TurnaTheme.dividerBg(context),
-          ),
-          Flexible(
-            child: _StatItem(
-              icon: Icons.school_rounded,
-              iconColor: TurnaTheme.leagueAmethyst,
-              value: grammarCount.toString(),
-              label: AppStrings.reviewGrammarLabel,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  const _StatItem({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: iconColor, size: 22),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textHintColor(context),
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-      ],
     );
   }
 }
@@ -290,10 +186,12 @@ class _RevealOnMount extends StatelessWidget {
   }
 }
 
-class _MistakeCard extends StatelessWidget {
-  final MistakeEntry mistake;
+/// 学习笔记式条目：问题摘要 + 正确表达释义行 + 来源 / 时间旁注；
+/// 重写进度点放行尾（带 Semantics 文本，不只靠颜色表达）。
+class _MistakeEntryRow extends StatelessWidget {
+  const _MistakeEntryRow({required this.mistake});
 
-  const _MistakeCard({required this.mistake});
+  final MistakeEntry mistake;
 
   @override
   Widget build(BuildContext context) {
@@ -301,157 +199,31 @@ class _MistakeCard extends StatelessWidget {
     final grammar = mistake.grammarPointId != null
         ? grammarPointById[mistake.grammarPointId!]
         : null;
-    final displayQuestion = word?.term ??
+    final title = word?.term ??
+        grammar?.title ??
         (mistake.interactionId.isNotEmpty
             ? mistake.interactionId
             : AppStrings.reviewUnknownQuestion);
-    final correctAnswer = word?.translation ?? mistake.correctAnswer;
-    final resolvedMeaning = word == null && correctAnswer.isNotEmpty
-        ? getWordMeaning(correctAnswer)
-        : '--';
-    final showMeaning =
-        resolvedMeaning != '--' && resolvedMeaning != correctAnswer;
+    final correct = word?.translation ?? mistake.correctAnswer;
+    final typeLabel = grammar != null
+        ? AppStrings.reviewGrammarLabel
+        : word != null
+            ? AppStrings.reviewWordsLabel
+            : AppStrings.mistakeDashboardOtherType;
 
-    final isGrammar = mistake.grammarPointId != null;
-    final isWord = mistake.wordId != null;
-
-    return Container(
-      // 错题列表是重复的行：扁平纸面，色相留在图标和文字上。
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+    return DirectoryEntryRow(
+      title: title,
+      subtitle: correct.isEmpty ? null : correct,
+      meta: '$typeLabel · ${AppStrings.timeAgo(mistake.timestamp)}',
+      trailing: Semantics(
+        label: AppStrings.reviewRewriteProgress(
+          mistake.rewriteCount,
+          MistakeProvider.rewriteGoal,
+        ),
+        child: _RewriteDots(count: mistake.rewriteCount),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _TypeIcon(isWord: isWord, isGrammar: isGrammar),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayQuestion,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                      ),
-                      if (grammar != null) ...[
-                        const SizedBox(height: 6),
-                        _GrammarChip(title: grammar.title),
-                      ],
-                      const SizedBox(height: 6),
-                      _MetaRow(mistake: mistake),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _PracticeButton(mistake: mistake),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _AnswerComparison(
-              userAnswer: mistake.userAnswer,
-              correctAnswer: correctAnswer,
-            ),
-            if (showMeaning) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.menu_book_outlined,
-                    size: 14,
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      resolvedMeaning,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textSecondaryColor(context),
-                            fontStyle: FontStyle.italic,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 12),
-            // 条件按钮"复习语法"出现时,窄屏 + 多语言长 label 仍可能挤爆
-            // 一行;Wrap 保证空间不足时自然换行,保留全部可点性。
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              alignment: WrapAlignment.start,
-              children: [
-                if (mistake.grammarPointId != null)
-                  _TextActionButton(
-                    icon: Icons.menu_book_rounded,
-                    label: AppStrings.reviewReviewGrammar,
-                    onTap: () async {
-                      await context
-                          .read<GrammarReviewProvider>()
-                          .markDueNow(mistake.grammarPointId!);
-                      if (context.mounted) {
-                        unawaited(
-                            context.router.push(const GrammarReviewRoute()));
-                      }
-                    },
-                  ),
-                _TextActionButton(
-                  icon: Icons.check_circle_outline_rounded,
-                  label: AppStrings.reviewGotItNow,
-                  onTap: () =>
-                      context.read<MistakeProvider>().recordRewrite(mistake.id),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 小字元信息行：相对时间 + 重写进度点（答对 [MistakeProvider.rewriteGoal]
-/// 次后条目自动移除；进度点同时带 Semantics 文本，不只靠颜色表达）。
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({required this.mistake});
-
-  final MistakeEntry mistake;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          Icons.schedule_rounded,
-          size: 12,
-          color: TurnaTheme.textHintColor(context),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          AppStrings.timeAgo(mistake.timestamp),
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: TurnaTheme.textHintColor(context),
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-        const SizedBox(width: 10),
-        Semantics(
-          label: AppStrings.reviewRewriteProgress(
-            mistake.rewriteCount,
-            MistakeProvider.rewriteGoal,
-          ),
-          child: _RewriteDots(count: mistake.rewriteCount),
-        ),
-      ],
+      onTap: () =>
+          context.router.push(MistakeDetailRoute(entry: mistake)),
     );
   }
 }
@@ -480,223 +252,6 @@ class _RewriteDots extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// 类型图标按错题种类着色：单词=品牌青、语法=紫晶、其他=中性，让两类
-/// 错题在列表里一眼可分。
-class _TypeIcon extends StatelessWidget {
-  final bool isWord;
-  final bool isGrammar;
-
-  const _TypeIcon({
-    required this.isWord,
-    required this.isGrammar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final IconData icon;
-    final Color foreground;
-    final Color background;
-    if (isGrammar) {
-      icon = Icons.school_rounded;
-      foreground = TurnaTheme.leagueAmethyst;
-      background = TurnaTheme.leagueAmethyst.withValues(alpha: 0.12);
-    } else if (isWord) {
-      icon = Icons.translate_rounded;
-      foreground = TurnaTheme.brandTeal;
-      background = TurnaTheme.tintSoft;
-    } else {
-      icon = Icons.help_outline_rounded;
-      foreground = TurnaTheme.textSecondaryColor(context);
-      background = TurnaTheme.inputFillColor(context);
-    }
-
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: background,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        color: foreground,
-        size: 22,
-      ),
-    );
-  }
-}
-
-class _GrammarChip extends StatelessWidget {
-  final String title;
-
-  const _GrammarChip({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        AppStrings.reviewGrammarChip(title),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: TurnaTheme.brandTeal,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
-class _PracticeButton extends StatelessWidget {
-  final MistakeEntry mistake;
-
-  const _PracticeButton({required this.mistake});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: () => context.router.push(
-        MistakePracticeRoute(entry: mistake),
-      ),
-      icon: const Icon(Icons.play_arrow_rounded, size: 18),
-      label: Text(AppStrings.commonPractice),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        textStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-/// 你的答案 vs 正确答案：两个色块各带浅色底（错误=红 8%、正确=青 8%），
-/// 文字保持红/绿语义色，中间箭头提示"改错方向"。
-class _AnswerComparison extends StatelessWidget {
-  final String userAnswer;
-  final String correctAnswer;
-
-  const _AnswerComparison({
-    required this.userAnswer,
-    required this.correctAnswer,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _AnswerBlock(
-            label: AppStrings.reviewYourAnswer,
-            value: userAnswer.isEmpty ? AppStrings.reviewDash : userAnswer,
-            valueColor: TurnaTheme.error,
-            blockColor: TurnaTheme.error.withValues(alpha: 0.08),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Icon(
-            Icons.arrow_forward_rounded,
-            size: 16,
-            color: TurnaTheme.textHint,
-          ),
-        ),
-        Expanded(
-          child: _AnswerBlock(
-            label: AppStrings.reviewCorrectAnswer,
-            value:
-                correctAnswer.isEmpty ? AppStrings.reviewDash : correctAnswer,
-            valueColor: TurnaTheme.brandTeal,
-            blockColor: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AnswerBlock extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color valueColor;
-  final Color blockColor;
-
-  const _AnswerBlock({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.blockColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: blockColor,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHint,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: valueColor,
-                  fontWeight: FontWeight.w700,
-                ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TextActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _TextActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        textStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
     );
   }
 }
