@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 
 /// Broken-streak explanation with an honest, optional display-only voucher.
@@ -28,11 +29,17 @@ class _StreakBrokenDialogState extends State<StreakBrokenDialog> {
       // Keep the legacy explanatory dialog usable in minimal widget trees.
     }
     final streak = game?.streakProvider;
+    // R18 同构：radius 24 + sectionTitle 标题 + bodyText 正文（与
+    // showTurnaConfirmDialog 同一容器语言；保护券双操作保留原行为）。
     return AlertDialog(
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
       ),
-      title: Text(AppStrings.homeStreakBrokenTitle),
+      title: Text(
+        AppStrings.homeStreakBrokenTitle,
+        style: AppTextStyles.sectionTitle(context),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -42,13 +49,14 @@ class _StreakBrokenDialogState extends State<StreakBrokenDialog> {
             semanticLabel: AppStrings.homeStreakBrokenTitle,
           ),
           const SizedBox(height: 16),
-          Text(AppStrings.homeStreakBroken),
+          Text(AppStrings.homeStreakBroken,
+              style: AppTextStyles.bodyText(context)),
           if (streak?.canProtectPendingBreak ?? false) ...[
             const SizedBox(height: 12),
             Text(
               AppStrings.streakVoucherExplain(
                   streak!.pendingPreviousStreak ?? 0),
-              style: Theme.of(context).textTheme.bodySmall,
+              style: AppTextStyles.captionSm(context),
             ),
           ],
         ],

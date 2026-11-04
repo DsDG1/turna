@@ -15,6 +15,7 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
@@ -427,7 +428,7 @@ class _CompanionSection extends StatelessWidget {
           iconTone: TurnaTheme.brandReed,
           title: AppStrings.aiHubStartDepthTutor,
           description: AppStrings.aiHubDepthTutorDesc,
-          onTap: () => _openSheet(context, const AiDepthTutorSheet()),
+          onTap: () => _openSheet(context),
         ),
       ],
     );
@@ -455,20 +456,14 @@ class _SectionLabel extends StatelessWidget {
 
 // ─── Shared helpers ───────────────────────────────────────────────────────
 
-/// 深度讲解 sheet 属课时域（`views/lesson/components/`），自带标题行与键盘
-/// 让位；这里维持原容器（它的弹层迁移随课时域 P3 批次走），只保证入口行
-/// 本身是目录式。
-void _openSheet(BuildContext context, Widget sheet) {
-  showModalBottomSheet<void>(
+/// 深度讲解 sheet 走全局弹层容器（R18：拖手 / 标题 / 副题 / 关闭统一，
+/// 键盘由 showTurnaSheet 让位）。
+Future<void> _openSheet(BuildContext context) {
+  return showTurnaSheet(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) => sheet,
+    title: AppStrings.aiDepthTutorTitle,
+    subtitle: AppStrings.aiDepthTutorSubtitle,
+    body: const AiDepthTutorSheet(),
   );
 }
 

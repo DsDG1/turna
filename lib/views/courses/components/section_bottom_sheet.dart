@@ -11,15 +11,20 @@ import 'package:turna/application/progress_provider.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/core/theme.dart';
 
-/// Shows a frosted-glass bottom sheet for quick section switching on the home screen.
+/// 章节切换底部弹层（R18 全局容器：拖手 / 标题 / 副题 / 关闭统一走
+/// [showTurnaSheet]；面不透明——底下压着课程列表，半透明会透内容）。
 Future<void> showSectionBottomSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showTurnaSheet(
     context: context,
-    backgroundColor: Colors.transparent,
+    title: AppStrings.coursesChooseSection,
+    subtitle: AppStrings.coursesSectionSheetSubtitle(
+      context.read<CourseProvider>().sections.length,
+    ),
     isScrollControlled: true,
-    builder: (modalContext) => const SectionBottomSheet(),
+    body: const SectionBottomSheet(),
   );
 }
 
@@ -32,113 +37,31 @@ class SectionBottomSheet extends StatelessWidget {
     final a11y = context.watch<AccessibilityProvider>();
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) || a11y.reducedMotion;
-    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.75;
 
     return Consumer2<CourseProvider, ProgressProvider>(
       builder: (context, courseProvider, progressProvider, _) {
         final sections = courseProvider.sections;
         final currentId = courseProvider.currentSectionId;
 
-        return Container(
-          constraints: BoxConstraints(maxHeight: maxSheetHeight),
-          decoration: BoxDecoration(
-            // sheet 面必须**不透明**（ADR 0062 例外）：底下压着课程列表，
-            // 半透明会让内容透上来，长列表读不成。sheet 的浮起感由顶圆角
-            // + M3 的 scrim 承担，不靠材质。
-            color: TurnaTheme.cardBg(context),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(TurnaTheme.radiusXLarge),
-            ),
-            boxShadow: TurnaTheme.cardShadow,
-            border: Border(
-              top: BorderSide(color: TurnaTheme.dividerBg(context)),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top drag handle
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 8),
-                    width: 38,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: TurnaTheme.dividerBg(context),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                // Title and subtitle
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.coursesChooseSection,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: TurnaTheme.textPrimaryColor(context),
-                                  ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${sections.length} ${AppStrings.coursesUnitProgress(0, 0).split(' ').lastOrNull ?? ''}'
-                                  .trim(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: TurnaTheme.textHintColor(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: AppStrings.commonClose,
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                // Section list
-                Flexible(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: sections.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final section = sections[index];
-                      final isSelected = section.id == currentId;
-                      return _SectionSheetTile(
-                        section: section,
-                        isSelected: isSelected,
-                        reduceMotion: reduceMotion,
-                        onTap: () {
-                          courseProvider.switchToSection(section.id);
-                          Navigator.of(context).pop();
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          shrinkWrap: true,
+          physics: const BouncingScrollPhysics(),
+          itemCount: sections.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final section = sections[index];
+            final isSelected = section.id == currentId;
+            return _SectionSheetTile(
+              section: section,
+              isSelected: isSelected,
+              reduceMotion: reduceMotion,
+              onTap: () {
+                courseProvider.switchToSection(section.id);
+                Navigator.of(context).pop();
+              },
+            );
+          },
         );
       },
     );

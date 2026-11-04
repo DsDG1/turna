@@ -459,18 +459,24 @@ class AppStrings {
   static String remoteBackupTestFailed(Object error) => '连接失败：$error';
   static String get remoteBackupHint =>
       '备份会上传到你自己的 WebDAV 服务器（Nextcloud、Alist 等，后续支持坚果云）。包含进度、课程、记忆卡组与媒体；不含服务器密码与 AI API key。';
-  static String get remoteBackupBackupSection => '备份';
+  static String get remoteBackupRecentSection => '最近备份';
+  static String get remoteBackupLastLocalLabel => '本机最近备份';
+  static String get remoteBackupLastRemoteLabel => '远程最新备份';
+  static String get remoteBackupActionsSection => '当前操作';
+  static String get remoteBackupBackupNowSubtitle => '打包学习数据并上传到服务器';
   static String get remoteBackupIncludeMediaTitle => '包含媒体文件';
   static String get remoteBackupIncludeMediaSubtitle => '记忆卡组的图片/音频，按内容增量上传';
   static String get remoteBackupBackupNow => '立即备份';
   static String get remoteBackupNoBackupYet => '尚未备份过';
-  static String remoteBackupLastBackup(Object time, Object size) =>
-      '上次备份：$time（核心包 $size）';
+
+  /// R17 工作流版式：最近结果行的值列（标签已在行首，不再重复前缀）。
+  static String remoteBackupLastBackupValue(Object time, Object size) =>
+      '$time · 核心包 $size';
   static String get remoteBackupRemoteStatusLoading => '正在读取服务器状态…';
   static String remoteBackupRemoteStatusError(Object error) =>
       '读取服务器状态失败：$error';
-  static String remoteBackupRemoteStatus(Object time, Object device) =>
-      '服务器最新备份：$time（来自 $device）';
+  static String remoteBackupRemoteStatusValue(Object time, Object device) =>
+      '$time（来自 $device）';
   static String get remoteBackupPhaseCollectingPrefs => '正在收集进度数据…';
   static String get remoteBackupPhaseSnapshottingCourseDb => '正在快照课程数据库…';
   static String get remoteBackupPhaseSnapshottingOfficialDbs => '正在快照记忆卡数据…';
@@ -483,7 +489,6 @@ class AppStrings {
   static String get remoteBackupPhaseUploadingCore => '正在上传核心包…';
   static String remoteBackupSuccess(Object size) => '备份完成（核心包 $size）';
   static String remoteBackupFailed(Object error) => '备份失败：$error';
-  static String get remoteBackupRestoreSection => '恢复';
   static String get remoteBackupRestoreFromRemote => '从远程恢复';
   static String get remoteBackupRestoreSubtitle => '下载最近备份，重启应用后覆盖本机数据';
   static String get remoteBackupRestoreDialogTitle => '从远程恢复？';
@@ -2803,8 +2808,7 @@ class AppStrings {
   static String get coursesResumeCap => '继续学习';
   static String get coursesLessonDueMeta => '待复习';
   static String get coursesLessonWeakMeta => '薄弱';
-  static String coursesSectionProgressSemantic(int percent) =>
-      '章节进度 $percent%';
+  static String coursesSectionProgressSemantic(int percent) => '章节进度 $percent%';
   static String get coursesLessonTypeNormal => '课程';
   static String get coursesLessonTypeListening => '听力';
   static String get coursesLessonTypeReading => '阅读';
@@ -2817,6 +2821,7 @@ class AppStrings {
   static String coursesWeakLessons(int count) => '$count 项需加强';
   static String get coursesNextLesson => '下一课';
   static String get coursesChooseSection => '选择章节';
+  static String coursesSectionSheetSubtitle(int count) => '共 $count 个章节 · 轻点切换';
 
   // ── Dictionary ──
   static String get dictionaryTitle => '词典';

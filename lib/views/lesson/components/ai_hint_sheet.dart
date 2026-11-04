@@ -12,6 +12,7 @@ import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// Bottom sheet that pops up when the learner taps the AI button on a
 /// lesson question. Shows the AI's explanation of the current question and
@@ -145,16 +146,11 @@ class AiHintSheet extends StatelessWidget {
         Expanded(
           child: OutlinedButton.icon(
             style: aiSheetSecondaryButtonStyle(),
-            onPressed: () => showModalBottomSheet<void>(
+            onPressed: () => showTurnaSheet(
               context: context,
-              isScrollControlled: true,
-              backgroundColor: TurnaTheme.cardBg(context),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(TurnaTheme.radiusXLarge),
-                ),
-              ),
-              builder: (_) => const AiDepthTutorSheet(),
+              title: AppStrings.aiDepthTutorTitle,
+              subtitle: AppStrings.aiDepthTutorSubtitle,
+              body: const AiDepthTutorSheet(),
             ),
             icon: const Icon(Icons.auto_awesome_outlined),
             label: Text(AppStrings.aiDepthTutorTitle),

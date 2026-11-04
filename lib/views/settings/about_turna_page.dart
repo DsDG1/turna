@@ -12,7 +12,10 @@ import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Dedicated About page for Turna (Plan 2 §7.1).
@@ -110,139 +113,139 @@ class _AboutTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final year = DateTime.now().year;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HeroCard(buildInfo: buildInfo),
-          const SizedBox(height: 20),
-          _SectionHeader(text: AppStrings.aboutWhatIsTitle),
-          const SizedBox(height: 10),
-          _AboutCard(
-            child: Text(
-              AppStrings.aboutWhatIsBody,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.5,
-                    color: TurnaTheme.textSecondaryColor(context),
+    return TurnaPageContent(
+      maxWidth: AppSpacing.formColumnMaxWidth,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin, 12, AppSpacing.pageMargin, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _HeroCard(buildInfo: buildInfo),
+            const SizedBox(height: 20),
+            _SectionHeader(text: AppStrings.aboutWhatIsTitle),
+            const SizedBox(height: 10),
+            _AboutCard(
+              child: Text(
+                AppStrings.aboutWhatIsBody,
+                style: AppTextStyles.bodyText(context).copyWith(
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _SectionHeader(text: AppStrings.aboutHighlightsTitle),
+            const SizedBox(height: 10),
+            const _HighlightsCard(),
+            const SizedBox(height: 20),
+            _SectionHeader(text: AppStrings.aboutLinksTitle),
+            const SizedBox(height: 10),
+            _AboutCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _LinkTile(
+                    icon: Icons.code_rounded,
+                    title: AppStrings.settingsOpenSourceLicenses,
+                    onTap: () => showTurnaLicensePage(
+                      context: context,
+                      applicationVersion: AppBuildInfo.unknownVersion,
+                    ),
                   ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _SectionHeader(text: AppStrings.aboutHighlightsTitle),
-          const SizedBox(height: 10),
-          const _HighlightsCard(),
-          const SizedBox(height: 20),
-          _SectionHeader(text: AppStrings.aboutLinksTitle),
-          const SizedBox(height: 10),
-          _AboutCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _LinkTile(
-                  icon: Icons.code_rounded,
-                  title: AppStrings.settingsOpenSourceLicenses,
-                  onTap: () => showTurnaLicensePage(
-                    context: context,
-                    applicationVersion: AppBuildInfo.unknownVersion,
+                  _LinkDivider(),
+                  _ExternalLinkTile(
+                    registry: linkRegistry,
+                    id: ExternalLinkId.projectHome,
+                    icon: Icons.open_in_new_rounded,
+                    title: AppStrings.aboutUpstreamTitle,
+                    configuredSubtitle: AppStrings.aboutUpstreamSubtitle,
                   ),
-                ),
-                _LinkDivider(),
-                _ExternalLinkTile(
-                  registry: linkRegistry,
-                  id: ExternalLinkId.projectHome,
-                  icon: Icons.open_in_new_rounded,
-                  title: AppStrings.aboutUpstreamTitle,
-                  configuredSubtitle: AppStrings.aboutUpstreamSubtitle,
-                ),
-                _LinkDivider(),
-                _ExternalLinkTile(
-                  registry: linkRegistry,
-                  id: ExternalLinkId.issueTracker,
-                  icon: Icons.bug_report_rounded,
-                  title: AppStrings.aboutReportIssueTitle,
-                  configuredSubtitle: AppStrings.aboutReportIssueSubtitle,
-                ),
-                _LinkDivider(),
-                _ExternalLinkTile(
-                  registry: linkRegistry,
-                  id: ExternalLinkId.releaseNotes,
-                  icon: Icons.new_releases_rounded,
-                  title: AppStrings.aboutViewReleasesTitle,
-                  configuredSubtitle: AppStrings.aboutViewReleasesSubtitle,
-                ),
-                _LinkDivider(),
-                _LinkTile(
-                  icon: Icons.share_rounded,
-                  title: AppStrings.aboutShareTitle,
-                  onTap: () => onShare(context),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              AppStrings.aboutLinksNotConfiguredNote,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                    height: 1.4,
+                  _LinkDivider(),
+                  _ExternalLinkTile(
+                    registry: linkRegistry,
+                    id: ExternalLinkId.issueTracker,
+                    icon: Icons.bug_report_rounded,
+                    title: AppStrings.aboutReportIssueTitle,
+                    configuredSubtitle: AppStrings.aboutReportIssueSubtitle,
                   ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _SectionHeader(text: AppStrings.aboutPrivacyTitle),
-          const SizedBox(height: 10),
-          _PrivacyTile(),
-          const SizedBox(height: 20),
-          _SectionHeader(text: AppStrings.aboutCreditsTitle),
-          const SizedBox(height: 10),
-          _AboutCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.aboutCreditsOriginal,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.5,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  AppStrings.aboutCreditsFork,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.5,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  AppStrings.aboutLicense,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-          Center(
-            child: Text(
-              AppStrings.aboutCopyright(year.toString()),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
+                  _LinkDivider(),
+                  _ExternalLinkTile(
+                    registry: linkRegistry,
+                    id: ExternalLinkId.releaseNotes,
+                    icon: Icons.new_releases_rounded,
+                    title: AppStrings.aboutViewReleasesTitle,
+                    configuredSubtitle: AppStrings.aboutViewReleasesSubtitle,
                   ),
+                  _LinkDivider(),
+                  _LinkTile(
+                    icon: Icons.share_rounded,
+                    title: AppStrings.aboutShareTitle,
+                    onTap: () => onShare(context),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                AppStrings.aboutLinksNotConfiguredNote,
+                style: AppTextStyles.captionSm(context).copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _SectionHeader(text: AppStrings.aboutPrivacyTitle),
+            const SizedBox(height: 10),
+            _PrivacyTile(),
+            const SizedBox(height: 20),
+            _SectionHeader(text: AppStrings.aboutCreditsTitle),
+            const SizedBox(height: 10),
+            _AboutCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.aboutCreditsOriginal,
+                    style: AppTextStyles.bodyText(context).copyWith(
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    AppStrings.aboutCreditsFork,
+                    style: AppTextStyles.bodyText(context).copyWith(
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    AppStrings.aboutLicense,
+                    style: AppTextStyles.captionSm(context).copyWith(
+                      color: TurnaTheme.textHintColor(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            Center(
+              child: Text(
+                AppStrings.aboutCopyright(year.toString()),
+                style: AppTextStyles.captionSm(context).copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Short bar + title, matching the learning page's `UnitHeader` rhythm.
+/// 区块标题：与隐私长文页共用同一个 sectionTitle 角色（R18 阅读语）。
 class _SectionHeader extends StatelessWidget {
   final String text;
 
@@ -250,30 +253,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 3,
-            height: 18,
-            decoration: BoxDecoration(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-          ),
-        ],
-      ),
-    );
+    return Text(text, style: AppTextStyles.sectionTitle(context));
   }
 }
 
@@ -304,30 +284,9 @@ class _HeroCard extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            // ADR 0063：一代白描边（浮起 chrome 用法）换成二代同色相描边。
-            border: Border.all(
-              color: TurnaTheme.glassStroke(
-                context,
-                TurnaTheme.glassFocus,
-                level: GlassLevel.l1Quiet,
-              ),
-            ),
-            boxShadow: TurnaTheme.glassShadow(
-              context,
-              TurnaTheme.glassFocus,
-              level: GlassLevel.l1Quiet,
-            ),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                TurnaTheme.brandTeal.withValues(alpha: 0.16),
-                TurnaTheme.anatolianClay.withValues(alpha: 0.10),
-              ],
-            ),
-          ),
+          // R18 阅读语：品牌开篇也走纸面；身份感由 clay+sand 色带与
+          // 图标井承担，不靠玻璃浮起。
+          decoration: TurnaTheme.flatPaperDecoration(context),
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
@@ -371,13 +330,9 @@ class _HeroCard extends StatelessWidget {
                           width: 52,
                           height: 52,
                           decoration: BoxDecoration(
-                            color: TurnaTheme.cardBg(context),
+                            color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(
                               TurnaTheme.radiusMedium,
-                            ),
-                            border: Border.all(
-                              color:
-                                  TurnaTheme.brandTeal.withValues(alpha: 0.2),
                             ),
                           ),
                           child: const Icon(
@@ -403,13 +358,7 @@ class _HeroCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 AppStrings.aboutTagline,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: TurnaTheme.textSecondaryColor(
-                                    context,
-                                  ),
-                                ),
+                                style: AppTextStyles.captionSm(context),
                               ),
                             ],
                           ),
@@ -439,7 +388,7 @@ class _HeroCard extends StatelessWidget {
                     const SizedBox(height: 16),
                     Divider(
                       height: 1,
-                      color: TurnaTheme.statCardBorder(context),
+                      color: TurnaTheme.dividerBg(context),
                     ),
                     const SizedBox(height: 12),
                     const Wrap(
@@ -484,13 +433,7 @@ class _HeroFact extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: TurnaTheme.brandTeal),
         const SizedBox(width: 5),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-        ),
+        Text(label, style: AppTextStyles.captionSm(context)),
       ],
     );
   }
@@ -589,10 +532,7 @@ class _HighlightItem extends StatelessWidget {
           textAlign: textAlign,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
+          style: AppTextStyles.cardTitle(context),
         ),
         const SizedBox(height: 2),
         Text(
@@ -600,9 +540,9 @@ class _HighlightItem extends StatelessWidget {
           textAlign: textAlign,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: TurnaTheme.textHintColor(context),
-              ),
+          style: AppTextStyles.captionSm(context).copyWith(
+            color: TurnaTheme.textHintColor(context),
+          ),
         ),
       ],
     );
@@ -647,18 +587,15 @@ class _PrivacyTile extends StatelessWidget {
                     children: [
                       Text(
                         AppStrings.aboutPrivacySummary,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: TurnaTheme.textPrimaryColor(context),
-                            ),
+                        style: AppTextStyles.cardTitle(context),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         AppStrings.aboutPrivacyOpenDetails,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.brandTeal,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: AppTextStyles.captionSm(context).copyWith(
+                          color: TurnaTheme.brandTeal,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -676,8 +613,7 @@ class _PrivacyTile extends StatelessWidget {
   }
 }
 
-/// Standard content card: `cardBg` + 1px border + soft shadow + 16 radius.
-/// Used for paragraph sections and the link list wrapper.
+/// 通用内容卡片（R18 长文阅读）：纸面（实色 + 中性细边），长文不铺玻璃。
 class _AboutCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -692,12 +628,7 @@ class _AboutCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: padding,
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: child,
     );
   }
@@ -770,21 +701,20 @@ class _ExternalLinkTile extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: descriptor.enabled
-                                ? TurnaTheme.textPrimaryColor(context)
-                                : TurnaTheme.textHintColor(context),
-                          ),
+                      style: AppTextStyles.cardTitle(context).copyWith(
+                        color: descriptor.enabled
+                            ? TurnaTheme.textPrimaryColor(context)
+                            : TurnaTheme.textHintColor(context),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                      style: AppTextStyles.captionSm(context).copyWith(
+                        color: TurnaTheme.textHintColor(context),
+                      ),
                     ),
                   ],
                 ),
@@ -847,9 +777,7 @@ class _LinkTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: AppTextStyles.cardTitle(context),
                     ),
                   ],
                 ),

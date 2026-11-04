@@ -6,7 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:turna/application/settings/changelog_entries.dart';
 import 'package:turna/application/settings/release_manifest.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 // Re-exported for the pages/tests that historically imported the entry
@@ -19,7 +22,6 @@ export 'package:turna/application/settings/changelog_entries.dart'
 /// 独立路由壳已删除（原路由无生产入口）；唯一入口是关于页
 /// 「更新日志」Tab 直接嵌入 [ChangelogFromAsset]。
 abstract final class ChangelogPage {
-
   /// 顶部"更新历程"卡内容 —— 唯一事实来源在 [ReleaseManifest.journeySteps]
   /// （Plan 2 §4.8：changelog 后备列表不再手写第二份编号）。
   static const List<JourneyStep> journeySteps = ReleaseManifest.journeySteps;
@@ -88,12 +90,8 @@ class JourneyOverviewCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
+      // R18 阅读语：历程卡走纸面，与关于页 Tab 同一套材质。
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -116,9 +114,7 @@ class JourneyOverviewCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   AppStrings.changelogHistoryTitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: AppTextStyles.cardTitle(context),
                 ),
               ),
             ],
@@ -130,9 +126,9 @@ class JourneyOverviewCard extends StatelessWidget {
             'Varnamala Plus 从原型到 '
             '${ChangelogPage.journeySteps.last.label} 的 '
             '${ChangelogPage.journeySteps.length} 个阶段',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+            ),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < ChangelogPage.journeySteps.length; i++)
@@ -252,79 +248,80 @@ class _ReleaseList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      children: [
-        Text(
-          AppStrings.changelogIntro,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                height: 1.5,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-        ),
-        const SizedBox(height: 16),
-        const JourneyOverviewCard(),
-        if (banner != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: TurnaTheme.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              border: Border.all(
-                color: TurnaTheme.warning.withValues(alpha: 0.4),
-              ),
+    return TurnaPageContent(
+      maxWidth: AppSpacing.formColumnMaxWidth,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin, 12, AppSpacing.pageMargin, 32),
+        children: [
+          Text(
+            AppStrings.changelogIntro,
+            style: AppTextStyles.bodyText(context).copyWith(
+              color: TurnaTheme.textSecondaryColor(context),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.warning_amber_rounded,
-                  size: 18,
-                  color: TurnaTheme.warning,
+          ),
+          const SizedBox(height: 16),
+          const JourneyOverviewCard(),
+          if (banner != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: TurnaTheme.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                border: Border.all(
+                  color: TurnaTheme.warning.withValues(alpha: 0.4),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    banner!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: TurnaTheme.warning,
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 20),
-        for (var i = 0; i < releases.length; i++) ...[
-          ChangelogReleaseCard(
-            release: releases[i],
-            isLatest: i == 0,
-          ),
-          if (i < releases.length - 1) const SizedBox(height: 14),
-        ],
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.tonalIcon(
-            onPressed: () => ChangelogPage.copyTextToClipboard(
-              context,
-              sourceText ??
-                  ChangelogPage.buildClipboardText(releases: releases),
-            ),
-            icon: const Icon(Icons.content_copy_rounded, size: 18),
-            label: Text(AppStrings.changelogCopyButton),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          AppStrings.changelogFooterNote,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textHintColor(context),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      banner!,
+                      style: AppTextStyles.captionSm(context),
+                    ),
+                  ),
+                ],
               ),
-        ),
-      ],
+            ),
+          ],
+          const SizedBox(height: 20),
+          for (var i = 0; i < releases.length; i++) ...[
+            ChangelogReleaseCard(
+              release: releases[i],
+              isLatest: i == 0,
+            ),
+            if (i < releases.length - 1) const SizedBox(height: 14),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => ChangelogPage.copyTextToClipboard(
+                context,
+                sourceText ??
+                    ChangelogPage.buildClipboardText(releases: releases),
+              ),
+              icon: const Icon(Icons.content_copy_rounded, size: 18),
+              label: Text(AppStrings.changelogCopyButton),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            AppStrings.changelogFooterNote,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -491,19 +488,14 @@ class JourneyStepRow extends StatelessWidget {
                       children: [
                         Text(
                           step.title,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: TurnaTheme.textPrimaryColor(context),
-                                  ),
+                          style: AppTextStyles.cardTitle(context),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           step.subtitle,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: TurnaTheme.textHintColor(context),
-                                  ),
+                          style: AppTextStyles.captionSm(context).copyWith(
+                            color: TurnaTheme.textHintColor(context),
+                          ),
                         ),
                       ],
                     ),
@@ -534,23 +526,14 @@ class ChangelogReleaseCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ).copyWith(
-        // isLatest 的那条要保持 teal 强调，其余走玻璃自己的同色描边。
-        border: Border.all(
-          color: isLatest
-              ? TurnaTheme.brandTeal.withValues(alpha: 0.45)
-              : TurnaTheme.glassStroke(
-                  context,
-                  TurnaTheme.glassNeutral,
-                  level: GlassLevel.l1Quiet,
-                ),
-        ),
-      ),
+      // R18 阅读语：版本卡走纸面；最新版保留 teal 描边强调。
+      decoration: isLatest
+          ? TurnaTheme.flatPaperDecoration(context).copyWith(
+              border: Border.all(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.45),
+              ),
+            )
+          : TurnaTheme.flatPaperDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -580,9 +563,7 @@ class ChangelogReleaseCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   release.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: AppTextStyles.cardTitle(context),
                 ),
               ),
             ],
@@ -609,10 +590,9 @@ class ChangelogReleaseCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            height: 1.45,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
+                      style: AppTextStyles.bodyText(context).copyWith(
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
                     ),
                   ),
                 ],

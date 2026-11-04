@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
@@ -183,7 +184,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         final time =
             DateFormat('yyyy-MM-dd HH:mm').format(manifest.createdAtUtc);
         setState(() => _remoteStatusText =
-            AppStrings.remoteBackupRemoteStatus(time, manifest.deviceLabel));
+            AppStrings.remoteBackupRemoteStatusValue(
+                time, manifest.deviceLabel));
       }
     } on Object catch (e) {
       if (!mounted) return;
@@ -445,9 +447,9 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
               ],
               _serverSection(context),
               const SizedBox(height: 20),
-              _backupSection(context),
+              _recentSection(context),
               const SizedBox(height: 20),
-              _restoreSection(context),
+              _actionsSection(context),
               const SizedBox(height: 20),
               SettingsInfoCard(
                 tone: SettingsInfoTone.neutral,
@@ -580,12 +582,13 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     );
   }
 
-  Widget _backupSection(BuildContext context) {
-    final busy = _backingUp || _restoring;
+  /// R17 工作流版式的第二步：最近结果只陈述事实（本机 / 远程各一行），
+  /// 动作移到 [_actionsSection]——状态不再借恢复行的副标题出场。
+  Widget _recentSection(BuildContext context) {
     final last = _lastLocal;
-    final lastText = last == null
+    final localValue = last == null
         ? AppStrings.remoteBackupNoBackupYet
-        : AppStrings.remoteBackupLastBackup(
+        : AppStrings.remoteBackupLastBackupValue(
             DateFormat('yyyy-MM-dd HH:mm').format(last.createdAtUtc),
             _formatBytes(last.coreZipBytes),
           );
@@ -593,8 +596,38 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionTitle(
-          icon: Icons.cloud_upload_outlined,
-          title: AppStrings.remoteBackupBackupSection,
+          icon: Icons.schedule_rounded,
+          title: AppStrings.remoteBackupRecentSection,
+        ),
+        const SizedBox(height: 8),
+        SettingsCard(
+          children: [
+            _ResultRow(
+              label: AppStrings.remoteBackupLastLocalLabel,
+              value: localValue,
+            ),
+            Divider(height: 1, color: TurnaTheme.dividerBg(context)),
+            _ResultRow(
+              label: AppStrings.remoteBackupLastRemoteLabel,
+              // null = 尚未连接成功或未配置，不猜状态。
+              value: _remoteStatusText ?? '—',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// R17 工作流版式的第三步：备份 / 恢复是同一阶段里的两个动作，
+  /// 与「包含媒体文件」开关同卡，不再一节一卡。
+  Widget _actionsSection(BuildContext context) {
+    final busy = _backingUp || _restoring;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsSectionTitle(
+          icon: Icons.play_circle_outline,
+          title: AppStrings.remoteBackupActionsSection,
         ),
         const SizedBox(height: 8),
         SettingsCard(
@@ -607,73 +640,43 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
               onChanged: busy ? null : _setIncludeMedia,
             ),
             settingsTileDivider(context),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: Text(
-                lastText,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
-              ),
+            SettingsActionTile(
+              icon: Icons.backup_outlined,
+              title: AppStrings.remoteBackupBackupNow,
+              subtitle: AppStrings.remoteBackupBackupNowSubtitle,
+              enabled: !busy,
+              onTap: (_) => _backupNow(),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SettingsPrimaryButton(
-                    label: AppStrings.remoteBackupBackupNow,
-                    icon: Icons.backup_outlined,
-                    onPressed: busy ? null : _backupNow,
-                  ),
-                  if (_stage != null) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _stage!,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _restoreSection(BuildContext context) {
-    final busy = _backingUp || _restoring;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsSectionTitle(
-          icon: Icons.cloud_download_outlined,
-          title: AppStrings.remoteBackupRestoreSection,
-        ),
-        const SizedBox(height: 8),
-        SettingsCard(
-          children: [
+            settingsTileDivider(context),
             SettingsActionTile(
               icon: Icons.settings_backup_restore_rounded,
               title: AppStrings.remoteBackupRestoreFromRemote,
-              subtitle:
-                  _remoteStatusText ?? AppStrings.remoteBackupRestoreSubtitle,
+              subtitle: AppStrings.remoteBackupRestoreSubtitle,
               enabled: !busy,
               onTap: (_) => _restoreFromRemote(),
             ),
+            if (_stage != null) ...[
+              settingsTileDivider(context),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _stage!,
+                        style: AppTextStyles.captionSm(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ],
@@ -723,4 +726,39 @@ String _formatBytes(int bytes) {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
   return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+}
+
+/// 最近结果行：左标签右值。值列可换行——远程状态可能是带错误详情的
+/// 长句（读取失败），不能假设它一行放得下。
+class _ResultRow extends StatelessWidget {
+  const _ResultRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textSecondaryColor(context),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: AppTextStyles.cardTitle(context).copyWith(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

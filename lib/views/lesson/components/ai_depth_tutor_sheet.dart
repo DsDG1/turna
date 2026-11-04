@@ -178,73 +178,47 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // 湿地雾光 R18：本件只承载内容。拖手 / 标题 / 副题 / 关闭由
+    // [showTurnaSheet] 的 TurnaSheetPanel 统一提供，三个调用点（AI 大厅、
+    // 功能手册、课时提示弹层）共用同一容器。
     final configured = context.watch<AiEngineConfigHolder>().config.isComplete;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _header(context),
-            const SizedBox(height: 6),
-            Text(AppStrings.aiDepthTutorSubtitle,
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
-            if (!configured)
-              const AiNotConfiguredPanel(compact: true)
-            else ...[
-              AiSurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _genreGrid(context),
-                    if (_needsInput) ...[
-                      const SizedBox(height: 12),
-                      _inputField(context),
-                    ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!configured)
+            const AiNotConfiguredPanel(compact: true)
+          else ...[
+            AiSurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _genreGrid(context),
+                  if (_needsInput) ...[
+                    const SizedBox(height: 12),
+                    _inputField(context),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _generateButton(context),
-              const SizedBox(height: 12),
-              Flexible(
-                fit: FlexFit.loose,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 320),
-                  child: _resultArea(context),
-                ),
+            ),
+            const SizedBox(height: 12),
+            _generateButton(context),
+            const SizedBox(height: 12),
+            Flexible(
+              fit: FlexFit.loose,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: _resultArea(context),
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _header(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.auto_awesome_rounded,
-            color: TurnaTheme.brandTeal, size: 22),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            AppStrings.aiDepthTutorTitle,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ),
-        IconButton(
-          tooltip: AppStrings.commonClose,
-          icon: const Icon(Icons.close, size: 22),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ],
-    );
-  }
 
   Widget _genreGrid(BuildContext context) {
     final tiles = <(DepthGenre, String, IconData)>[

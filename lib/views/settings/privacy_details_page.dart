@@ -7,7 +7,10 @@ import 'package:auto_route/auto_route.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// 隐私详情页 — Settings → 关于 → 隐私详情 入口。
 ///
@@ -22,10 +25,10 @@ import 'package:turna/core/theme.dart';
 ///   7. 政策更新
 ///   8. 联系方式
 ///
-/// 视觉语言与 `AboutTurnaPage` 一致:
+/// 视觉语言与 `AboutTurnaPage` 一致（R18 长文阅读）:
 ///   - 纯白画布（ADR 0062：不再铺薄荷渐变，淡彩由卡片自身承载）
-///   - `_AboutCard` 中性淡彩玻璃卡（`glassDecoration` + `l1Subtle`）
-///   - `_SectionHeader` 短 teal 横条 + 小标题
+///   - `_AboutCard` 纸面卡（`flatPaperDecoration`，长文不铺玻璃）
+///   - `_SectionHeader` 走 sectionTitle 版面角色
 ///   - 网络访问两栏使用不同色温的 callout 区分「离线」与「可选联网」
 ///
 /// 交互:
@@ -81,8 +84,11 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
                 onNotification: _onScroll,
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  child: Column(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pageMargin, 8, AppSpacing.pageMargin, 24),
+                  child: TurnaPageContent(
+                    maxWidth: AppSpacing.formColumnMaxWidth,
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const _PrivacyHero(),
@@ -168,6 +174,7 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
                       const SizedBox(height: 80),
                     ],
                   ),
+                  ),
                 ),
               ),
             ),
@@ -206,29 +213,9 @@ class _PrivacyHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 顶部 teal 装饰条,与品牌色一致
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  TurnaTheme.brandTeal,
-                  TurnaTheme.brandTeal.withValues(alpha: 0.6),
-                ],
-              ),
-            ),
-          ),
-          Padding(
+      child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             child: Row(
               children: [
@@ -253,11 +240,7 @@ class _PrivacyHero extends StatelessWidget {
                     children: [
                       Text(
                         AppStrings.privacyDetailsTitle,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
+                        style: AppTextStyles.sectionTitle(context),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -294,8 +277,6 @@ class _PrivacyHero extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
     );
   }
 }
@@ -369,12 +350,7 @@ class _NetworkCallout extends StatelessWidget {
     // deep blue tints are near-invisible against the dark card fill.
     final accent = TurnaTheme.accentOnCard(context, tintColor);
     return Container(
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       clipBehavior: Clip.antiAlias,
       child: IntrinsicHeight(
         child: Row(
@@ -474,11 +450,7 @@ class _SectionIntro extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            height: 1.5,
-            color: TurnaTheme.textPrimaryColor(context),
-          ),
+      style: AppTextStyles.cardTitle(context).copyWith(height: 1.5),
     );
   }
 }
@@ -493,15 +465,13 @@ class _BodyText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            height: 1.55,
-            color: TurnaTheme.textSecondaryColor(context),
-          ),
+      style: AppTextStyles.bodyText(context)
+          .copyWith(color: TurnaTheme.textSecondaryColor(context)),
     );
   }
 }
 
-/// 短 teal 横条 + 小标题 — 与 About / 新手页面保持节奏一致。
+/// 区块标题（R18 长文阅读）：sectionTitle 排版角色，不带装饰条。
 class _SectionHeader extends StatelessWidget {
   final String text;
 
@@ -509,34 +479,11 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 3,
-            height: 18,
-            decoration: BoxDecoration(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-          ),
-        ],
-      ),
-    );
+    return Text(text, style: AppTextStyles.sectionTitle(context));
   }
 }
 
-/// 通用内容卡片：中性淡彩玻璃（ADR 0062，`l1Subtle`）+ 16 圆角。
+/// 通用内容卡片（R18 长文阅读）：纸面（实色 + 中性细边），长文不铺玻璃。
 class _AboutCard extends StatelessWidget {
   final Widget child;
 
@@ -546,13 +493,8 @@ class _AboutCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: child,
     );
   }

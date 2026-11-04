@@ -219,8 +219,10 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
     }
+    // hitTestable：滚动到按钮「真正可点」为止——阅读版式（16px 正文）比
+    // 旧的 14px 更高，仅滚到「已构建」会让按钮中心停在视口外。
     await tester.scrollUntilVisible(
-      find.text(AppStrings.changelogCopyButton),
+      find.text(AppStrings.changelogCopyButton).hitTestable(),
       200,
       scrollable: find.byType(Scrollable).first,
     );
@@ -265,7 +267,7 @@ void main() {
       await tester.pump();
     }
     await tester.scrollUntilVisible(
-      find.text(AppStrings.changelogCopyButton),
+      find.text(AppStrings.changelogCopyButton).hitTestable(),
       400,
       scrollable: find.byType(Scrollable).first,
     );

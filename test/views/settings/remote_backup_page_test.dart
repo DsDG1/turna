@@ -140,14 +140,24 @@ void main() {
       )
       .first;
 
-  /// Drags the page list up until [finder] is built and fully on-screen.
+  /// Drags the page list until [finder] is built and fully on-screen.
+  /// Bidirectional sweep: built-but-above-viewport targets drag back down,
+  /// and targets that never got built (e.g. the save button near the list
+  /// top after scrolling to the actions card) get a backward sweep once the
+  /// forward half of the budget is spent.
   Future<void> scrollTo(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 12; i++) {
+    var forward = true;
+    for (var i = 0; i < 24; i++) {
       if (tester.any(finder)) {
         final rect = tester.getRect(finder.first);
         if (rect.top >= 0 && rect.bottom <= 600) return;
+        // Bottom edge past the viewport → scroll forward; top edge above
+        // it → scroll back up.
+        forward = rect.bottom > 600;
+      } else if (i >= 12) {
+        forward = false;
       }
-      await tester.drag(pageScrollable, const Offset(0, -250));
+      await tester.drag(pageScrollable, Offset(0, forward ? -250 : 250));
       await tester.pumpAndSettle();
     }
     fail('never became visible: $finder');
@@ -177,23 +187,28 @@ void main() {
     await scrollTo(tester, find.text(AppStrings.remoteBackupTestOk));
   }
 
-  testWidgets('renders all three sections and the no-backup state',
+  testWidgets('renders the connection → recent → actions workflow',
       (tester) async {
     await pumpPage(tester);
 
     expect(find.text(AppStrings.remoteBackupServerSection), findsOneWidget);
-    expect(find.text(AppStrings.remoteBackupBackupSection), findsOneWidget);
-    await scrollTo(tester, find.text(AppStrings.remoteBackupRestoreSection));
-    expect(find.text(AppStrings.remoteBackupRestoreSection), findsOneWidget);
+    // 最近结果：本机一行「尚未备份过」；远程未查询时显示占位破折号。
+    await scrollTo(tester, find.text(AppStrings.remoteBackupRecentSection));
+    expect(find.text(AppStrings.remoteBackupRecentSection), findsOneWidget);
+    expect(find.text(AppStrings.remoteBackupLastLocalLabel), findsOneWidget);
+    expect(find.text(AppStrings.remoteBackupLastRemoteLabel), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupNoBackupYet), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
+    await scrollTo(tester, find.text(AppStrings.remoteBackupActionsSection));
+    expect(find.text(AppStrings.remoteBackupActionsSection), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupBackupNow), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupRestoreFromRemote), findsOneWidget);
     await scrollTo(tester, find.text(AppStrings.remoteBackupRestoreFromRemote));
     expect(
       find.text(AppStrings.remoteBackupRestoreSubtitle),
       findsOneWidget,
-      reason: 'before configuring, the restore tile falls back to its static '
-          'subtitle (no remote fetch happens unconfigured)',
+      reason: 'restore keeps its static subtitle; the remote status now '
+          'lives in the recent-results row, not on the action tile',
     );
   });
 

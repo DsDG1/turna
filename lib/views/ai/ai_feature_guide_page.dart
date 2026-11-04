@@ -16,6 +16,7 @@ import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
 import 'package:turna/views/widgets/turna_cards.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// AI 助手功能介绍页 — 常驻手册。
 ///
@@ -292,16 +293,11 @@ void _openSaved(BuildContext context) =>
 void _openDepthTutor(BuildContext context) {
   // 深度讲解 sheet 属课时域且自带标题行，容器迁移随课时域批次走；这里只
   // 保证入口是本域的目录式行。
-  showModalBottomSheet<void>(
+  showTurnaSheet(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) => const AiDepthTutorSheet(),
+    title: AppStrings.aiDepthTutorTitle,
+    subtitle: AppStrings.aiDepthTutorSubtitle,
+    body: const AiDepthTutorSheet(),
   );
 }
 
