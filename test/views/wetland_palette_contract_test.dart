@@ -113,13 +113,14 @@ void main() {
   });
 
   group('System UI overlay (status / nav bar)', () {
-    test('light overlay: white chrome + dark icons', () {
+    // 手势区四套一律透明：悬浮胶囊下方若还是实色条，会读出一条白/黑缝。
+    test('light overlay: white status chrome + transparent nav bar', () {
       final style = TurnaTheme.systemUiOverlayFor(
         brightness: Brightness.light,
       );
       expect(style.statusBarColor, Colors.white);
       expect(style.statusBarIconBrightness, Brightness.dark);
-      expect(style.systemNavigationBarColor, Colors.white);
+      expect(style.systemNavigationBarColor, Colors.transparent);
       expect(style.systemNavigationBarIconBrightness, Brightness.dark);
       expect(
         TurnaTheme.lightTheme.appBarTheme.systemOverlayStyle,
@@ -127,20 +128,20 @@ void main() {
       );
     });
 
-    test('dark overlay: darkAppBar chrome + light icons', () {
+    test('dark overlay: darkAppBar status chrome + transparent nav bar', () {
       final style = TurnaTheme.systemUiOverlayFor(
         brightness: Brightness.dark,
       );
       expect(style.statusBarColor, TurnaTheme.darkAppBar);
       expect(style.statusBarIconBrightness, Brightness.light);
-      expect(style.systemNavigationBarColor, TurnaTheme.darkAppBar);
+      expect(style.systemNavigationBarColor, Colors.transparent);
       expect(
         TurnaTheme.darkTheme.appBarTheme.systemOverlayStyle,
         TurnaTheme.darkSystemUiOverlay,
       );
     });
 
-    test('high-contrast overlays use pure black/white surfaces', () {
+    test('high-contrast overlays use pure black/white status chrome', () {
       final lightHc = TurnaTheme.systemUiOverlayFor(
         brightness: Brightness.light,
         highContrast: true,
@@ -151,6 +152,8 @@ void main() {
       );
       expect(lightHc.statusBarColor, Colors.white);
       expect(darkHc.statusBarColor, Colors.black);
+      expect(lightHc.systemNavigationBarColor, Colors.transparent);
+      expect(darkHc.systemNavigationBarColor, Colors.transparent);
       expect(
         TurnaTheme.highContrastLightTheme.appBarTheme.systemOverlayStyle,
         TurnaTheme.highContrastLightSystemUiOverlay,
@@ -276,8 +279,8 @@ void main() {
       // 「湿地雾光」重设计后 clay 的职责从「课程树完美角标」（已随
       // lesson_tile/unit_card 退役）转为：任务台的优先队列标记与统计
       // 强调。课程树完成态按定稿用 teal 环/实心，不再用 clay。
-      final playHubSrc = File('lib/views/play/play_hub_screen.dart')
-          .readAsStringSync();
+      final playHubSrc =
+          File('lib/views/play/play_hub_screen.dart').readAsStringSync();
       expect(playHubSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(playHubSrc.contains('DirectoryTaskRow'), isTrue);
 

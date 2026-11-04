@@ -15,13 +15,15 @@ import 'package:turna/core/theme.dart';
 ///
 /// 视觉与交互契约：
 /// 1. 不触底、不贴边（`behavior: SnackBarBehavior.floating`，四周带边距）；
-/// 2. 悬浮胶囊/大圆角气泡形态（`radiusXLarge` = 20px）；
-/// 3. 内置 `BackdropFilter` 高斯模糊磨砂玻璃效果（sigma = 16，与底部导航栏保持视觉一致）；
+/// 2. 悬浮胶囊/大圆角气泡形态（`radiusXLarge` = 24px）；
+/// 3. 内置 `BackdropFilter` 高斯模糊（[frostSigma] = 16）：气泡短时、面积小、
+///    背后基本静止，可以用更重的模糊；底部文字导航是全宽 64px 窄条、背后
+///    持续滚动，刻意用 `TextTabBar.frostSigma` = 8，两者不追求同一数值；
 /// 4. 自动感知系统/无障碍配置（高对比度或减少动效时退化为纯色/半透无模糊卡片）。
 class TurnaSnackBar {
   TurnaSnackBar._();
 
-  /// 高斯模糊强度（与胶囊导航时代的 frostSigma] 保持一致）
+  /// 气泡专属的高斯模糊强度，不与底部文字导航共用（见类注释第 3 条）。
   static const double frostSigma = 16.0;
 
   /// 构建带有高斯模糊磨砂玻璃质感的悬浮气泡 [SnackBar]。
@@ -121,7 +123,10 @@ class TurnaSnackBar {
       elevation: 0,
       backgroundColor: Colors.transparent,
       padding: EdgeInsets.zero,
-      margin: margin ?? const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      // Scaffold 已按 bottomNavigationBar 的完整高度把 floating SnackBar
+      // 抬到底栏上方；这里只留视觉间距，不要按 TextTabBar.overlayExtent
+      // 叠加，否则无底栏的二级页气泡会飘得过高。
+      margin: margin ?? const EdgeInsets.fromLTRB(16, 0, 16, 24),
       duration: duration,
       content: bubble,
     );

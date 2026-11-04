@@ -150,7 +150,7 @@ class DeckDirectoryTreeView extends StatelessWidget {
           context,
           TurnaTheme.glassNeutral,
           level: GlassLevel.l1Subtle,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         ),
         sliver: SliverPadding(
           padding: const EdgeInsets.all(14),

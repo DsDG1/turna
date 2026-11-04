@@ -4,15 +4,23 @@
 /// Tab，替代旧版图标 + 文字 + 滑动镜片的胶囊导航。选中态靠文字色重 +
 /// 短条双信号，高对比下短条即形状信号；未选中项保持可读的次级色。
 ///
-/// 滚动显隐（ScrollHideBar）与 TabStack 状态保留由外壳在接线时决定是否
-/// 沿用——本组件只保证自身是静态、无持续动画的面。
+/// 外壳是浮在滚动内容之上的磨砂胶囊：离底、左右留边、圆角、单层阴影 +
+/// 轻量背景模糊。滚动显隐（ScrollHideBar）与 TabStack 状态保留由外壳
+/// 接线决定；本组件自身仍是静态、无持续动画的面。
 library;
+
+// Dart imports:
+import 'dart:ui' show ImageFilter;
 
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';
 
+// Package imports:
+import 'package:provider/provider.dart';
+
 // Project imports:
+import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/core/theme.dart';
 
 /// 一个文字导航目的地。
@@ -38,24 +46,63 @@ class TextTabBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
-  /// 内容高度（不含安全区）。接线时 body 的 overlay padding 以此为基线。
+  /// 胶囊内容高度（不含安全区与外边距）。
   static const double contentHeight = 64;
+
+  /// 胶囊左右留边 / 离底间隙 / 顶部给阴影留的空间。
+  static const double sideInset = 16;
+  static const double bottomGap = 8;
+  static const double topShadowPad = 8;
+  static const double capsuleRadius = TurnaTheme.radiusXLarge;
+
+  /// body 避让高度：胶囊相对系统手势区额外占用的高度。
+  ///
+  /// **不含系统 inset** —— `home_page.dart` 的 `mq.padding.bottom` 已带上；
+  /// 含 [topShadowPad] 是为了让滚动内容不贴到胶囊与阴影边缘。
+  static const double overlayExtent = contentHeight + bottomGap + topShadowPad;
+
+  /// 轻量背景模糊强度，刻意低于 `TurnaSnackBar.frostSigma`(16)：底部条是
+  /// 全宽 64px 窄条、背后是持续滚动的列表，每帧都要 backdrop 采样，sigma 16
+  /// 会让 13px 标签发糊且更费 GPU；SnackBar 是短时、小面积、基本静止的气泡，
+  /// 16 仍合适。两者不追求同一数值。
+  static const double frostSigma = 8.0;
 
   @override
   Widget build(BuildContext context) {
+    // Scaffold 传给 bottomNavigationBar 的 MediaQuery 保留底部 padding
+    // （removeBottomPadding: false），这里只吃一次 inset，不再套 SafeArea。
+    // 用 paddingOf 而非 viewPaddingOf：键盘弹出时它归零，与 body 的避让
+    // 同步收缩；旧胶囊用 viewPaddingOf 在键盘场景会与 body 差一截。
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     // 文字放大时封顶 1.4：导航是固定件，不随 200% 字号无限撑高。
     final scale = MediaQuery.textScalerOf(context)
         .clamp(minScaleFactor: 1.0, maxScaleFactor: 1.4);
+    // 可空 read：widget 预览与单测里没挂 Provider，不能抛。
+    final a11y = context.read<AccessibilityProvider?>();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+        (a11y?.reducedMotion ?? false);
+    final solidGlass =
+        (a11y?.highContrast ?? false) || (a11y?.focusMode ?? false);
 
-    return DecoratedBox(
+    final radius = BorderRadius.circular(capsuleRadius);
+    final fill = solidGlass
+        ? TurnaTheme.bottomNavBg(context)
+        : TurnaTheme.floatingBarFill(context);
+
+    final surface = DecoratedBox(
       decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        border: Border(
-          top: BorderSide(color: TurnaTheme.dividerBg(context)),
+        color: fill,
+        borderRadius: radius,
+        border: Border.all(
+          color: solidGlass
+              ? TurnaTheme.statCardBorder(context)
+              : TurnaTheme.glassBorder(context),
+          width: solidGlass ? 1.5 : 1.0,
         ),
       ),
-      child: SafeArea(
-        top: false,
+      // InkWell 的宿主：水波纹画在这一层，才不会被半透明面与滤镜层挡住。
+      child: Material(
+        type: MaterialType.transparency,
         child: SizedBox(
           height: contentHeight,
           child: Row(
@@ -70,6 +117,38 @@ class TextTabBar extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        sideInset,
+        topShadowPad,
+        sideInset,
+        bottomGap + bottomInset,
+      ),
+      // 阴影必须在 ClipRRect 之外，否则会被圆角裁掉。
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: TurnaTheme.floatingBarShadow(context),
+        ),
+        // 隔离每帧的 backdrop 采样，避免牵连整页重绘。
+        child: RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: radius,
+            clipBehavior: Clip.antiAlias,
+            child: solidGlass || reduceMotion
+                ? surface
+                : BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: frostSigma,
+                      sigmaY: frostSigma,
+                    ),
+                    child: surface,
+                  ),
           ),
         ),
       ),
@@ -107,9 +186,7 @@ class _TextTabButton extends StatelessWidget {
               width: 16,
               height: 4,
               decoration: ShapeDecoration(
-                color: selected
-                    ? TurnaTheme.brandReed
-                    : Colors.transparent,
+                color: selected ? TurnaTheme.brandReed : Colors.transparent,
                 shape: const StadiumBorder(),
               ),
             ),

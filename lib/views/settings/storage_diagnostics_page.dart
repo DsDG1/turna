@@ -632,7 +632,7 @@ class _CategoryCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
         ),
@@ -688,7 +688,7 @@ class _CategoryCard extends StatelessWidget {
       child: InkWell(
         key: keyName == null ? null : Key(keyName),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: card,
       ),
     );
@@ -711,7 +711,7 @@ class _OrphanWarningCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: TurnaTheme.warningSurface(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -779,7 +779,7 @@ class _MemoryCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
         ),
@@ -847,7 +847,7 @@ class _ErrorCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: TurnaTheme.error.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
           ),
           child: Column(

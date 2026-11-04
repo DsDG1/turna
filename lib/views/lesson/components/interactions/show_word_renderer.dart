@@ -11,10 +11,10 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/pos_tag.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/lesson/components/lesson_practice_card.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/core/theme.dart';
 
@@ -140,17 +140,15 @@ class _ShowWordCardState extends State<_ShowWordCard> {
         // making pronunciation inaccessible to screen readers. The card's own
         // InkWell exposes the tap action, and the speak chips below carry
         // their own Semantics so they surface as distinct, labeled actions.
-        child: LessonPracticeCard(
-          variant: LessonPracticeCardVariant.surface,
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 40),
+        child: _PaperTapCard(
           onTap: widget.submitted ? null : _handleTap,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Tappable word: speak the term, don't advance. Its own
-              // Semantics makes it a distinct, labeled button so screen
-              // readers can reach the pronunciation action independently
-              // of the card's "continue" tap.
+              // 主区（§7.1）: 大词头与发音。Tappable word: speak the term,
+              // don't advance. Its own Semantics makes it a distinct, labeled
+              // button so screen readers can reach the pronunciation action
+              // independently of the card's "continue" tap.
               Semantics(
                 button: true,
                 label: AppStrings.lessonSpeakTerm(widget.term),
@@ -173,12 +171,7 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                       children: [
                         Text(
                           widget.term,
-                          style: TextStyle(
-                            fontSize: 40,
-                            height: 1.1,
-                            fontWeight: FontWeight.w700,
-                            color: TurnaTheme.textPrimaryColor(context),
-                          ),
+                          style: AppTextStyles.termHero(context),
                         ),
                         const SizedBox(width: 12),
                         const Icon(
@@ -191,34 +184,28 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              if (widget.posLabel.isNotEmpty) ...[
-                Text(
-                  widget.posLabel,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
+              const SizedBox(height: 8),
+              if (widget.posLabel.isNotEmpty)
+                Text(widget.posLabel,
+                    style: AppTextStyles.captionSm(context)),
+              // 辅区: 图像、释义与例句。
               if (widget.imageAsset != null &&
                   widget.imageAsset!.isNotEmpty) ...[
+                const SizedBox(height: 20),
                 RoundedCachedAssetImage(asset: widget.imageAsset!),
-                const SizedBox(height: 12),
               ],
-              if (widget.translation.isNotEmpty)
+              if (widget.translation.isNotEmpty) ...[
+                const SizedBox(height: 16),
                 Text(
                   widget.translation,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: AppTextStyles.bodyText(context).copyWith(
                     fontSize: 18,
-                    height: 1.4,
-                    color: TurnaTheme.textSecondaryColor(context),
                     fontWeight: FontWeight.w500,
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
+              ],
               if (widget.contextSentence != null &&
                   widget.contextSentence!.isNotEmpty) ...[
                 const SizedBox(height: 20),
@@ -256,7 +243,7 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                             child: Text(
                               widget.contextSentence!,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: AppTextStyles.bodyText(context).copyWith(
                                 fontSize: 15,
                                 color: TurnaTheme.textSecondaryColor(context),
                                 fontStyle: FontStyle.italic,
@@ -272,8 +259,7 @@ class _ShowWordCardState extends State<_ShowWordCard> {
               const SizedBox(height: 32),
               Text(
                 AppStrings.lessonTapToContinue,
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppTextStyles.captionSm(context).copyWith(
                   color:
                       TurnaTheme.textHintColor(context).withValues(alpha: 0.8),
                   letterSpacing: 0.4,
@@ -312,9 +298,7 @@ class _UnknownItemCard extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: LessonPracticeCard(
-          variant: LessonPracticeCardVariant.surface,
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 40),
+        child: _PaperTapCard(
           onTap: onTap,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -322,28 +306,64 @@ class _UnknownItemCard extends StatelessWidget {
               Icon(
                 Icons.help_outline_rounded,
                 size: 48,
-                color: TurnaTheme.textHint.withValues(alpha: 0.4),
+                color: TurnaTheme.textHintColor(context).withValues(alpha: 0.4),
               ),
               const SizedBox(height: 12),
               Text(
                 AppStrings.lessonItemNotLoaded,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
+                style: AppTextStyles.bodyText(context).copyWith(
                   color: TurnaTheme.textHintColor(context),
                 ),
               ),
               const SizedBox(height: 24),
               Text(
                 AppStrings.lessonTapToContinue,
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppTextStyles.captionSm(context).copyWith(
                   color:
                       TurnaTheme.textHintColor(context).withValues(alpha: 0.8),
                   letterSpacing: 0.4,
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ShowWord 的纸面整卡: 整卡可点（点击即确认推进）。
+///
+/// 「湿地雾光」§7.1: 大词头与发音构成主区。卡面刻意是**纸面**
+/// （[TurnaTheme.flatPaperDecoration]）——这是"读卡"不是"翻面", 与
+/// AnkiCard 的玻璃翻面卡区分开。Ink 路径保住水波纹（Container 会盖掉
+/// Material 的 ripple, 见 LessonPracticeCard 的同类注释）。
+class _PaperTapCard extends StatelessWidget {
+  const _PaperTapCard({required this.onTap, required this.child});
+
+  final VoidCallback? onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
+    return Material(
+      type: MaterialType.transparency,
+      child: Ink(
+        decoration: TurnaTheme.flatPaperDecoration(
+          context,
+          borderRadius: radius,
+        ),
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 280),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 40),
+              child: child,
+            ),
           ),
         ),
       ),

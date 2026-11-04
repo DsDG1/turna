@@ -7,14 +7,11 @@ import 'package:turna/core/theme.dart';
 /// 视觉风格变体. 不同 variant 仅改底色和边框色阶, 共享同一套渐变 + 阴影,
 /// 以保证练习域所有主卡观感一致.
 enum LessonPracticeCardVariant {
-  /// 浅色白底 + 细 teal 描边 — Anki 正面 / ShowWord 单词卡
+  /// 浅色白底 + 细 teal 描边 — Anki 正面
   front,
 
   /// 轻 teal 底色 + 强 teal 描边 — Anki 翻面
   back,
-
-  /// 中性白底 + 最弱描边 — Translate 源句卡片等需要主卡语义的场景
-  surface,
 }
 
 /// 练习页面的主卡容器（ADR 0062：白纸上的彩色玻璃）.
@@ -26,9 +23,9 @@ enum LessonPracticeCardVariant {
 /// 2. 淡彩渐变 + 白高光预混层 ([TurnaTheme.glassFill]) — 上浅下深的厚度感.
 /// 3. 1px 同色相描边 ([TurnaTheme.glassStroke]) — 有色玻璃边缘因折射更沉.
 ///
-/// 该组件被 [AnkiCardRenderer] / [ShowWordRenderer] / [TranslateSentenceRenderer]
-/// 共用. 替换某个 renderer 的卡片容器时, 只需把外层 `Container` /
-/// `Material(elevation:...)` 替换为本组件即可.
+/// 该组件被 [AnkiCardRenderer] 与官方卡宿主（记忆卡域 fixture）共用——
+/// 翻面语义的玻璃卡。题面类容器（生词卡 / 源句 / 大题面）在「湿地雾光」
+/// §7.1 后走纸面 `SessionRecallCanvas`, 不再用玻璃卡。
 class LessonPracticeCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -57,7 +54,7 @@ class LessonPracticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _resolveColors(variant);
-    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
 
     // 单层 gradient（白高光预混进 stop）。同时传 `color` 时 BoxDecoration
     // 只画 gradient，底色会静默失效 —— 这里压根不给 color。
@@ -144,11 +141,6 @@ class LessonPracticeCard extends StatelessWidget {
           accent: TurnaTheme.glassFocus,
           level: GlassLevel.l2,
           scale: 1.35,
-        );
-      case LessonPracticeCardVariant.surface:
-        return const _CardColors(
-          accent: TurnaTheme.glassNeutral,
-          level: GlassLevel.l2,
         );
     }
   }

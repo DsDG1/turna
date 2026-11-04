@@ -623,7 +623,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Material(
                     color: TurnaTheme.error.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+                    borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
                       child: Column(

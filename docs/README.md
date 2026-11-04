@@ -108,7 +108,8 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 | [0063](./decisions/0063-settings-glass-quiet-tier.md) | 设置域深层页的弱化玻璃档 |
 | [0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md) | 子课提升为课程树节点与独立会话 |
 | [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 |
-| [0066](./decisions/0066-anki-deck-domain-independence.md) | 记忆卡域独立于语言课程域 |
+| [0066](./decisions/0066-anki-deck-domain-independence.md) | 记忆卡域独立于语言课程域（已被 0067 取代） |
+| [0067](./decisions/0067-memory-card-returns-to-course-domain.md) | 记忆卡回归课程域：牌组即课程，练习台无记忆卡入口 |
 
 ## 其它位置
 

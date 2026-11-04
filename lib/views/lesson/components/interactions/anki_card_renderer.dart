@@ -8,9 +8,11 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/sm2.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
 import 'package:turna/core/theme.dart';
@@ -213,34 +215,11 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             ),
           ),
           const SizedBox(height: 24),
-          // Hint (shown before reveal)
+          // Hint (shown before reveal) — 统一提示 chip（与填空题同一视觉）。
           if (!_revealed && widget.hint != null && widget.hint!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: TurnaTheme.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.lightbulb_outline,
-                        size: 16, color: TurnaTheme.warning),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.hint!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: Center(child: InteractionHintChip(label: widget.hint!)),
             ),
           // Action buttons — fixed min height so grade row appearance does
           // not jump the column after the pulse.
@@ -280,10 +259,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           Text(
             widget.front,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
+            style: AppTextStyles.promptLg(context)
+                .copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           _buildMedia(
@@ -293,9 +270,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReveal,
-            style: const TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHint,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
             ),
           ),
         ],
@@ -319,10 +295,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           Text(
             widget.back,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
+            style: AppTextStyles.promptLg(context)
+                .copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           _buildMedia(
@@ -338,9 +312,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReturnFront,
-            style: const TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHint,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
             ),
           ),
         ],

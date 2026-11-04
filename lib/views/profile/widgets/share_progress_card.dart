@@ -6,6 +6,7 @@ import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/profile/utils/share_image_generator.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
 
 /// A brand-styled progress poster designed to be captured and shared.
@@ -46,6 +47,13 @@ class ShareProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The mascots' source PNGs are 1024×1024 (~4 MB decoded each). The card
+    // doubles as the capture target for ShareProgressImageGenerator, so the
+    // decode cap must track the capture ratio — a decode below it would blur
+    // the exported PNG, above it would waste memory. Keep this formula in
+    // sync with cappedSharePixelRatio().
+    final mascotRatio =
+        cappedSharePixelRatio(MediaQuery.devicePixelRatioOf(context));
     return Theme(
       data: TurnaTheme.lightTheme,
       child: Container(
@@ -142,6 +150,9 @@ class ShareProgressCard extends StatelessWidget {
                         child: Image.asset(
                           Assets.images.turna.turnaReading.path,
                           height: 88,
+                          // Height-only constraint + BoxFit.contain: cap only
+                          // the height so the decode keeps the aspect ratio.
+                          cacheHeight: (88 * mascotRatio).round(),
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -155,6 +166,7 @@ class ShareProgressCard extends StatelessWidget {
                       Image.asset(
                         Assets.images.turna.turnaWaving.path,
                         height: 76,
+                        cacheHeight: (76 * mascotRatio).round(),
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 12),

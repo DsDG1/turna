@@ -8,7 +8,9 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Renderer for [Interaction.readingMcq].
 ///
@@ -105,8 +107,17 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonReadingComprehensionCaption),
-          Text(widget.prompt, style: AppTextStyles.promptMd(context)),
-          const SizedBox(height: 20),
+          // 问题在纸面画布上, 与阅读原文（页面级折叠卡）明确接续
+          // （§7.1 阅读理解）; 选项与选择族共用编号行语言。
+          SessionRecallCanvas(
+            minHeight: 140,
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              widget.prompt,
+              style: AppTextStyles.promptMd(context),
+            ),
+          ),
+          const SizedBox(height: 24),
           for (var idx = 0; idx < widget.options.length; idx++)
             InteractionOptionTile(
               label: widget.options[idx],
@@ -118,11 +129,16 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
               onTap:
                   submitted ? null : () => setState(() => _selectedIndex = idx),
             ),
-          if (submitted && correct == false)
-            LessonCorrectAnswerBanner(
-              label: AppStrings.lessonCorrectAnswer,
-              answer: widget.options[widget.correctIndex],
+          if (submitted) ...[
+            const SizedBox(height: 16),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: _selectedIndex == null
+                  ? null
+                  : widget.options[_selectedIndex!],
+              correctAnswer: widget.options[widget.correctIndex],
             ),
+          ],
         ],
       ),
     );

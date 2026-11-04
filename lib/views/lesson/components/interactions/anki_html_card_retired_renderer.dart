@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/theme.dart';
 
 /// Placeholder for [AnkiHtmlCard] items persisted by retired Legacy imports
@@ -38,48 +40,48 @@ class _RetiredAnkiHtmlCardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 主操作交给页面底栏（LessonActionScope 契约）——这是最后一个在滚动
+    // 内容里自画按钮的题型（P0 清点「主 CTA 位置三套并存」的残留）。
+    // 没有底栏的消费面（错题练习等无 Scope 页）回退为卡内按钮, 行为不丢。
+    final scope = LessonActionScope.maybeOf(context);
+    scope?.report(
+      canSubmit: true,
+      submit: () => onSubmit(true),
+      label: AppStrings.ankiRetiredCardContinue,
+    );
+
     return InteractionBody(
-      child: Center(
+      child: SessionRecallCanvas(
+        minHeight: 260,
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.style_outlined,
-                size: 40,
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.7),
-              ),
+            Icon(
+              Icons.style_outlined,
+              size: 40,
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 20),
             Text(
               AppStrings.ankiRetiredCardTitle,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.cardTitle(context),
             ),
             const SizedBox(height: 8),
             Text(
               AppStrings.ankiRetiredCardBody,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: TurnaTheme.textSecondaryColor(context),
+              style: AppTextStyles.captionSm(context).copyWith(height: 1.5),
+            ),
+            if (scope == null) ...[
+              const SizedBox(height: 24),
+              LessonCheckButton(
+                label: AppStrings.ankiRetiredCardContinue,
+                enabled: true,
+                onPressed: () => onSubmit(true),
               ),
-            ),
-            const SizedBox(height: 24),
-            LessonCheckButton(
-              label: AppStrings.ankiRetiredCardContinue,
-              enabled: true,
-              onPressed: () => onSubmit(true),
-            ),
+            ],
           ],
         ),
       ),

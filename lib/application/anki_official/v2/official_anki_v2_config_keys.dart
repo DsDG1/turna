@@ -6,7 +6,10 @@ import 'dart:convert';
 /// v2 决策键清单（ADR 0043）：
 /// - `turna.import.mapping.<sourceId>`   字段映射晋升决策
 /// - `turna.course.placement.<deckId>`   牌组→课程放置决策
-/// - `turna.course.scope`                课程 scope 选择（B6：切换=改一个键）
+///
+/// `turna.course.scope`（课程 scope 选择）已删除（原 ADR 0066 引入的删除，
+/// ADR 0067 保留）：该键全仓库无读方，课程切换不写引擎配置区，scope 只
+/// 持久化于 app prefs。
 abstract final class OfficialAnkiV2ConfigKeys {
   static const namespace = 'turna.';
 
@@ -14,8 +17,6 @@ abstract final class OfficialAnkiV2ConfigKeys {
       'turna.import.mapping.$sourceId';
 
   static String coursePlacement(int deckId) => 'turna.course.placement.$deckId';
-
-  static const courseScope = 'turna.course.scope';
 
   /// SET_CONFIG (op 42) rejects non-`turna.` keys; every key built here
   /// passes that gate by construction.

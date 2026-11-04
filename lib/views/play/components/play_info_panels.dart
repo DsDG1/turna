@@ -56,9 +56,11 @@ class PlayQueueSnapshot {
 
   final List<WeakWord> weakWords;
 
-  /// ADR 0037: imported Anki scopes only count the Anki queue.
+  /// ADR 0037：记忆卡课程激活时，练习队列只看记忆卡到期。
   final bool ankiCourse;
 
+  /// 记忆卡聚合到期数（legacy fail-closed 为 0；unavailable 时调用方
+  /// 自行显示「—」，见 [ankiDueCount] 的用途——记忆卡行与长按浮窗）。
   int get ankiDueCount {
     if (ankiUnavailable) return 0;
     return legacyAnkiDue + (officialAnkiDue ?? 0);
@@ -264,7 +266,8 @@ String _relativeDayLabel(DateTime time) {
 // 各入口面板
 // ────────────────────────────────────────────────────────────────────
 
-/// 今日复习 Hero 长按：四个队列一览 + 高亮「下一个」。
+/// 今日复习 Hero 长按：语言三队列一览 + 高亮「下一个」。
+/// （记忆卡到期走记忆卡行的专属长按浮窗 `AnkiPanelBody`，不混入本表。）
 class TodayOverviewPanelBody extends StatelessWidget {
   final VoidCallback? onEnter;
 
@@ -280,9 +283,9 @@ class TodayOverviewPanelBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 同步失败时显示「—」，与记忆卡行的计数口径一致。
     final ankiValue =
         snapshot.ankiUnavailable ? '—' : '${snapshot.ankiDueCount}';
-
     return InfoPanelShell(
       title: AppStrings.playTodayHeroTitle,
       icon: Icons.play_circle_fill_rounded,

@@ -195,7 +195,7 @@ class _PreferenceCapsule extends StatelessWidget {
       // 偏好胶囊走纸面（ADR 0065）：实色 + 中性细边，不铺玻璃。
       color: TurnaTheme.cardBg(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         side: BorderSide(color: TurnaTheme.dividerBg(context)),
       ),
       clipBehavior: Clip.antiAlias,

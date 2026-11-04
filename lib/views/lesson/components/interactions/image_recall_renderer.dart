@@ -11,7 +11,9 @@ import 'package:turna/core/theme.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// 看图回忆 (ADR 0057 §4): the image is the prompt, the learner recalls the
 /// reading, then reveals and self-grades.
@@ -90,35 +92,35 @@ class _ImageRecallBodyState extends State<_ImageRecallBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonImageRecallCaption),
-          const SizedBox(height: 8),
-          Text(
-            AppStrings.lessonImageRecallPrompt,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd(context),
+          // 图即题面（§7.1 认识词汇与图像回忆）: 揭示后大号答案在同一画布展开。
+          SessionRecallCanvas(
+            minHeight: 260,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppStrings.lessonImageRecallPrompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptMd(context),
+                ),
+                const SizedBox(height: 20),
+                AnkiMediaStrip(imageAssets: widget.imageAssets),
+                if (_revealed) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    widget.answerText,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.termHero(context)
+                        .copyWith(color: TurnaTheme.brandTeal),
+                  ),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
-          AnkiMediaStrip(imageAssets: widget.imageAssets),
           if (!_revealed && widget.hint != null && widget.hint!.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(
-              widget.hint!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-            ),
-          ],
-          if (_revealed) ...[
-            const SizedBox(height: 24),
-            Text(
-              widget.answerText,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.brandTeal,
-                  ),
-            ),
+            Center(child: InteractionHintChip(label: widget.hint!)),
           ],
           const SizedBox(height: 24),
           if (!submitted)

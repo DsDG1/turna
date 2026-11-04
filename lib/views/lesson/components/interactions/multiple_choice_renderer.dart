@@ -15,7 +15,9 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Pick one of N options. Submit locks the UI and colours correct/incorrect
 /// choices using [InteractionState.correct].
@@ -139,37 +141,55 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonMultipleChoiceCaption),
-          Text(
-            widget.prompt,
-            style: AppTextStyles.promptLg(context).copyWith(
-              fontWeight: FontWeight.w600,
+          // 大题面（§7.1 选择族）: prompt 与媒体在纸面画布上, 与下方紧凑
+          // 编号行答案区拉开尺度差。
+          SessionRecallCanvas(
+            minHeight: 160,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.prompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptLg(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (widget.imageAsset != null &&
+                    !AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
+                  const SizedBox(height: 16),
+                  RoundedCachedAssetImage(asset: widget.imageAsset!),
+                ],
+                if (widget.audioAssets.isNotEmpty ||
+                    AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: AnkiMediaStrip(
+                      audioAssets: widget.audioAssets,
+                      imageAssets: [
+                        if (AnkiAudioResolver.isAnkiAsset(widget.imageAsset))
+                          widget.imageAsset!,
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          if (widget.imageAsset != null &&
-              !AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
-            const SizedBox(height: 16),
-            RoundedCachedAssetImage(asset: widget.imageAsset!),
-          ],
-          if (widget.audioAssets.isNotEmpty ||
-              AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
-            const SizedBox(height: 16),
-            Center(
-              child: AnkiMediaStrip(
-                audioAssets: widget.audioAssets,
-                imageAssets: [
-                  if (AnkiAudioResolver.isAnkiAsset(widget.imageAsset))
-                    widget.imageAsset!,
-                ],
-              ),
-            ),
-          ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),
-          if (submitted && correct == false)
-            LessonCorrectAnswerBanner(
-              label: AppStrings.lessonCorrectAnswer,
-              answer: widget.options[widget.correctIndex],
+          // 反馈紧跟答案区（§7.2 第 4 段）: 答对一行轻结果, 答错给分区对照。
+          if (submitted) ...[
+            const SizedBox(height: 16),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: _picked == null
+                  ? null
+                  : widget.options[_picked!],
+              correctAnswer: widget.options[widget.correctIndex],
             ),
+          ],
         ],
       ),
     );

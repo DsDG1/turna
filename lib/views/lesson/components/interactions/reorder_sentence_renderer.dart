@@ -15,8 +15,9 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/lesson/components/lesson_practice_card.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// 词库拼句：把打乱的词块点进答案行，组成目标句子。
@@ -342,10 +343,11 @@ class _ReorderBodyState extends State<_ReorderBody>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonArrangeWordsCaption),
+          // 三段构图（§7.1 排序拼句）: 题面画布 → 可换行答案槽 → 词库。
           if (hasPrompt) ...[
-            // 翻译拼句: 中文题面在词库上方, 形态与翻译题的源句卡片一致.
-            LessonPracticeCard(
-              variant: LessonPracticeCardVariant.surface,
+            // 翻译拼句: 中文题面在词库上方, 与翻译题的源句画布同一形态。
+            SessionRecallCanvas(
+              minHeight: 120,
               padding: const EdgeInsets.all(20),
               child: Text(
                 widget.prompt!,
@@ -358,32 +360,26 @@ class _ReorderBodyState extends State<_ReorderBody>
           ],
           Text(
             AppStrings.lessonTapRightOrder,
-            style: const TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHint,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           _buildAnswerRow(submitted, correct),
           const SizedBox(height: 24),
-          const Divider(),
+          // 发丝线与选项行同语言（不用裸 Divider——它是全宽 16dp 间接缝）。
+          Container(height: 1, color: TurnaTheme.dividerBg(context)),
           const SizedBox(height: 12),
-          Text(
-            AppStrings.lessonWordBank,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: TurnaTheme.textHint,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: 10),
+          SectionCaption(AppStrings.lessonWordBank),
           _buildPool(),
-          if (submitted && correct == false) ...[
+          if (submitted) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectOrder,
-                answer: widget.correct.join(' ')),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: _formatAnswer(),
+              correctAnswer: widget.correct.join(' '),
+              correctAnswerLabel: AppStrings.lessonCorrectOrder,
+            ),
           ],
         ],
       ),
@@ -391,7 +387,7 @@ class _ReorderBodyState extends State<_ReorderBody>
   }
 
   Widget _buildAnswerRow(bool submitted, bool? correct) {
-    Color border = TurnaTheme.textHint.withValues(alpha: 0.30);
+    Color border = TurnaTheme.textHintColor(context).withValues(alpha: 0.30);
     Color background = TurnaTheme.cardBg(context);
     if (submitted) {
       border = correct == true ? TurnaTheme.success : TurnaTheme.error;
@@ -416,7 +412,7 @@ class _ReorderBodyState extends State<_ReorderBody>
               child: Text(
                 AppStrings.lessonTapWordToStart,
                 style: TextStyle(
-                  color: TurnaTheme.textHint.withValues(alpha: 0.7),
+                  color: TurnaTheme.textHintColor(context).withValues(alpha: 0.7),
                   fontSize: 14,
                 ),
               ),

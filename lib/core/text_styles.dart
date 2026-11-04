@@ -55,6 +55,15 @@ abstract final class AppTextStyles {
     letterSpacing: 0.6,
   );
 
+  /// 词条主角: 生词展示卡与看图回忆揭示的大词头（§7.1「大词头与发音
+  /// 构成主区」）。收编 show_word 手写的 40/700 裸字号。
+  static TextStyle termHero(BuildContext context) => TextStyle(
+        fontSize: 40,
+        fontWeight: FontWeight.w700,
+        color: TurnaTheme.textPrimaryColor(context),
+        height: 1.1,
+      );
+
   // ──「湿地雾光」版面文字角色（P1 排版表，P2 组件起消费）──────────────────
   //
   // 与上面做题域的 caption / prompt 角色互补：这里管**页面级**版面——标题、

@@ -289,7 +289,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                             decoration: BoxDecoration(
                               color: TurnaTheme.error.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(
-                                TurnaTheme.radiusMedium,
+                                TurnaTheme.cardRadius,
                               ),
                               border: Border.all(
                                 color: TurnaTheme.error.withValues(alpha: 0.3),
@@ -380,7 +380,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: TurnaTheme.error.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
       ),
       child: Row(

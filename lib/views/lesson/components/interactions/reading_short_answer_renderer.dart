@@ -9,8 +9,9 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Renderer for [Interaction.readingShortAnswer].
 ///
@@ -112,35 +113,33 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonShortAnswerCaption),
-          Text(widget.prompt, style: AppTextStyles.promptMd(context)),
+          // 问题在纸面画布上, 与阅读原文（页面级折叠卡）明确接续（§7.1 阅读理解）。
+          SessionRecallCanvas(
+            minHeight: 140,
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              widget.prompt,
+              style: AppTextStyles.promptMd(context),
+            ),
+          ),
           const SizedBox(height: 24),
-          TextField(
+          InteractionTextField(
             controller: _controller,
+            verdict:
+                interactionVerdictOf(submitted: submitted, correct: correct),
             enabled: !submitted,
             autofocus: !submitted,
-            style: TextStyle(
-              fontSize: 18,
-              color: TurnaTheme.textPrimaryColor(context),
-            ),
-            decoration: InputDecoration(
-              hintText: AppStrings.lessonTypeYourAnswer,
-              filled: true,
-              fillColor: submitted
-                  ? (correct == true
-                      ? TurnaTheme.success.withValues(alpha: 0.10)
-                      : TurnaTheme.error.withValues(alpha: 0.08))
-                  : TurnaTheme.inputFillColor(context),
-            ),
+            hintText: AppStrings.lessonTypeYourAnswer,
             onSubmitted: (_) => _trySubmit(),
           ),
-          if (submitted && correct == false) ...[
+          if (submitted) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-              label: AppStrings.lessonCorrectAnswer,
-              answer: widget.expectedAnswer,
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: widget.state.userAnswerText,
+              correctAnswer: widget.expectedAnswer,
             ),
           ],
-          const SizedBox(height: 24),
         ],
       ),
     );

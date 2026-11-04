@@ -47,33 +47,43 @@ class DictionaryHit {
 /// Case-insensitive search over vocab / expressions / grammar points.
 ///
 /// Pure function over the in-memory maps populated at startup — no I/O.
+///
+/// Matching runs against a memoized pre-normalized index (see [_SearchIndex]):
+/// fold/lowercase happens once per content generation instead of once per
+/// query, so each query is allocation-free scanning over plain strings. The
+/// matchers below are field-for-field equivalent to the naive scan this
+/// replaced — same fields, same contains semantics, same vocab → expression →
+/// grammar ordering and limit truncation.
 List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
   final q = query.trim().toLowerCase();
+  if (q.isEmpty) return const [];
+  final index = _loadSearchIndex();
   // Target-side matching uses the same language-aware fold as the
-  // vocabularyByTerm index (Turkish İ/I handling).
+  // vocabularyByTerm index (Turkish İ/I handling). The index applies the
+  // same fold at build time; a language switch republishes the globals and
+  // bumps the generation, so build and query sides always agree.
   final qTarget =
       LanguageCodes.lookupFoldKey(query, LanguageContentStore.activeCode);
-  if (q.isEmpty) return const [];
 
   final hits = <DictionaryHit>[];
 
-  for (final entry in vocabById.values) {
-    if (_matchesVocab(entry, q, qTarget)) {
-      hits.add(_vocabHit(entry));
+  for (final keys in index.vocab) {
+    if (_matchesVocabKeys(keys, q, qTarget)) {
+      hits.add(_vocabHit(keys.entry));
       if (hits.length >= limit) return hits;
     }
   }
 
-  for (final exp in expressionsById.values) {
-    if (_matchesExpression(exp, q)) {
-      hits.add(_expressionHit(exp));
+  for (final keys in index.expressions) {
+    if (_matchesExpressionKeys(keys, q)) {
+      hits.add(_expressionHit(keys.entry));
       if (hits.length >= limit) return hits;
     }
   }
 
-  for (final gp in grammarPointById.values) {
-    if (_matchesGrammar(gp, q)) {
-      hits.add(_grammarHit(gp));
+  for (final keys in index.grammar) {
+    if (_matchesGrammarKeys(keys, q)) {
+      hits.add(_grammarHit(keys.entry));
       if (hits.length >= limit) return hits;
     }
   }
@@ -139,31 +149,138 @@ String? _posLabel(String? raw) {
   return label.isEmpty ? null : label;
 }
 
-bool _matchesVocab(WordEntry e, String q, String qTarget) {
-  if (LanguageCodes.lookupFoldKey(e.term, LanguageContentStore.activeCode)
-      .contains(qTarget)) {
-    return true;
-  }
-  if (e.translation.toLowerCase().contains(q)) return true;
-  if (e.pronunciation?.toLowerCase().contains(q) == true) return true;
-  for (final t in e.tags) {
-    if (t.toLowerCase().contains(q)) return true;
+bool _matchesVocabKeys(_VocabKeys keys, String q, String qTarget) {
+  if (keys.foldedTerm.contains(qTarget)) return true;
+  if (keys.lowerTranslation.contains(q)) return true;
+  if (keys.lowerPronunciation?.contains(q) == true) return true;
+  for (final t in keys.lowerTags) {
+    if (t.contains(q)) return true;
   }
   return false;
 }
 
-bool _matchesExpression(Expression e, String q) {
-  if (e.term.toLowerCase().contains(q)) return true;
-  if (e.translation.toLowerCase().contains(q)) return true;
-  if (e.pronunciation?.toLowerCase().contains(q) == true) return true;
-  for (final t in e.tags) {
-    if (t.toLowerCase().contains(q)) return true;
+bool _matchesExpressionKeys(_ExpressionKeys keys, String q) {
+  if (keys.lowerTerm.contains(q)) return true;
+  if (keys.lowerTranslation.contains(q)) return true;
+  if (keys.lowerPronunciation?.contains(q) == true) return true;
+  for (final t in keys.lowerTags) {
+    if (t.contains(q)) return true;
   }
   return false;
 }
 
-bool _matchesGrammar(GrammarPoint g, String q) {
-  if (g.title.toLowerCase().contains(q)) return true;
-  if (g.explanation.toLowerCase().contains(q)) return true;
+bool _matchesGrammarKeys(_GrammarKeys keys, String q) {
+  if (keys.lowerTitle.contains(q)) return true;
+  if (keys.lowerExplanation.contains(q)) return true;
   return false;
+}
+
+/// Normalized search keys for one vocab entry, computed once per index build.
+final class _VocabKeys {
+  const _VocabKeys(
+    this.entry,
+    this.foldedTerm,
+    this.lowerTranslation,
+    this.lowerPronunciation,
+    this.lowerTags,
+  );
+
+  final WordEntry entry;
+  final String foldedTerm;
+  final String lowerTranslation;
+  final String? lowerPronunciation;
+  final List<String> lowerTags;
+}
+
+final class _ExpressionKeys {
+  const _ExpressionKeys(
+    this.entry,
+    this.lowerTerm,
+    this.lowerTranslation,
+    this.lowerPronunciation,
+    this.lowerTags,
+  );
+
+  final Expression entry;
+  final String lowerTerm;
+  final String lowerTranslation;
+  final String? lowerPronunciation;
+  final List<String> lowerTags;
+}
+
+final class _GrammarKeys {
+  const _GrammarKeys(this.entry, this.lowerTitle, this.lowerExplanation);
+
+  final GrammarPoint entry;
+  final String lowerTitle;
+  final String lowerExplanation;
+}
+
+/// Memoized pre-normalized view of the global content maps, in store order
+/// (vocab → expressions → grammar) so hit ordering matches the naive scan.
+final class _SearchIndex {
+  _SearchIndex(this.key, this.vocab, this.expressions, this.grammar);
+
+  /// Staleness fingerprint of the globals this index was built from:
+  /// - generation — [LanguageContentStore.globalsGeneration]; bumps on
+  ///   language switch / drop / reset, which also covers the language-aware
+  ///   term fold having to be recomputed for the new active language.
+  /// - the three map lengths — the globals are refilled in place (identity
+  ///   never changes), and in-place insertions/removals (tests seed the maps
+  ///   directly) change a length without touching the generation.
+  final (int, int, int, int) key;
+
+  final List<_VocabKeys> vocab;
+  final List<_ExpressionKeys> expressions;
+  final List<_GrammarKeys> grammar;
+}
+
+_SearchIndex? _searchIndexMemo;
+
+_SearchIndex _loadSearchIndex() {
+  final key = (
+    LanguageContentStore.globalsGeneration,
+    vocabById.length,
+    expressionsById.length,
+    grammarPointById.length,
+  );
+  final memo = _searchIndexMemo;
+  if (memo != null && memo.key == key) return memo;
+  final index = _buildSearchIndex(key);
+  return _searchIndexMemo = index;
+}
+
+_SearchIndex _buildSearchIndex((int, int, int, int) key) {
+  final code = LanguageContentStore.activeCode;
+  return _SearchIndex(
+    key,
+    [
+      for (final entry in vocabById.values)
+        _VocabKeys(
+          entry,
+          LanguageCodes.lookupFoldKey(entry.term, code),
+          entry.translation.toLowerCase(),
+          entry.pronunciation?.toLowerCase(),
+          [for (final t in entry.tags) t.toLowerCase()],
+        ),
+    ],
+    [
+      for (final exp in expressionsById.values)
+        _ExpressionKeys(
+          exp,
+          exp.term.toLowerCase(),
+          exp.translation.toLowerCase(),
+          exp.pronunciation?.toLowerCase(),
+          [for (final t in exp.tags) t.toLowerCase()],
+        ),
+    ],
+    [
+      for (final gp in grammarPointById.values)
+        _GrammarKeys(
+          gp,
+          gp.title.toLowerCase(),
+          gp.explanation.toLowerCase(),
+        ),
+    ],
+  );
 }

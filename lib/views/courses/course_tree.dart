@@ -935,12 +935,12 @@ class _SectionHeadCard extends StatelessWidget {
               color: Colors.transparent,
               child: InkWell(
                 onTap: () => showSectionBottomSheet(context),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: TurnaTheme.cardBorderRadius,
                 child: Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: TurnaTheme.flatPaperDecoration(
                     context,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: TurnaTheme.cardBorderRadius,
                   ),
                   child: Row(
                     children: [
@@ -1298,12 +1298,12 @@ class _ResumeBar extends StatelessWidget {
                   subLessonId: next.subLessonId,
                 ),
               ),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
               child: Container(
                 padding: const EdgeInsets.all(AppSpacing.md - 1),
                 decoration: BoxDecoration(
                   color: TurnaTheme.cardBg(context),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                   border: Border.all(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.40),
                   ),
@@ -1421,7 +1421,7 @@ class _OfficialTreeUnavailableBanner extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: TurnaTheme.warningSurface(context),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
           border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.4)),
         ),
         child: Row(

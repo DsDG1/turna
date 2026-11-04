@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/dictation_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 
@@ -72,7 +73,7 @@ void main() {
     expect(find.text(AppStrings.lessonDictationPrompt), findsOneWidget);
   });
 
-  testWidgets('a correct answer submits true without a correction banner',
+  testWidgets('a correct answer submits true with a light feedback row',
       (tester) async {
     final results = await pumpDictation(tester, expected: 'kedi');
 
@@ -80,7 +81,9 @@ void main() {
     await tapCheck(tester);
 
     expect(results, [true]);
-    expect(find.byType(LessonCorrectAnswerBanner), findsNothing);
+    // 反馈面板渲染答对轻结果行（§7.2 第 4 段：答对也有文案层反馈）。
+    expect(find.byType(InteractionFeedbackPanel), findsOneWidget);
+    expect(find.text(AppStrings.lessonResultCorrect), findsOneWidget);
   });
 
   testWidgets('a wrong answer submits false and shows the expected text',
@@ -91,10 +94,16 @@ void main() {
     await tapCheck(tester);
 
     expect(results, [false]);
-    expect(find.byType(LessonCorrectAnswerBanner), findsOneWidget);
-    // The banner renders "答案: <expected>" through RichText.
+    // 反馈面板给「你的答案 / 正确答案」分区对照（find.text 会同时命中
+    // 输入框内容, 所以用 descendant 锚定面板内部）。
+    final panel = find.byType(InteractionFeedbackPanel);
+    expect(panel, findsOneWidget);
     expect(
-      find.textContaining('kedi', findRichText: true),
+      find.descendant(of: panel, matching: find.text('kopek')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: panel, matching: find.text('kedi')),
       findsOneWidget,
     );
   });

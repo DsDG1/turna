@@ -41,7 +41,7 @@ class AiGroupCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.dividerBg(context),
           width: 1,
@@ -92,7 +92,7 @@ class AiSurfaceCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.dividerBg(context),
           width: 1,

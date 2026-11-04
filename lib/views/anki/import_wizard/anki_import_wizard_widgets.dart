@@ -151,7 +151,7 @@ class SectionCard extends StatelessWidget {
         level: GlassLevel.l1Subtle,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         side: BorderSide(
           color: TurnaTheme.glassStroke(
             context,
@@ -271,7 +271,7 @@ class StatChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: TurnaTheme.brandTeal.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
         ),
@@ -355,7 +355,7 @@ class DoneGroup extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,7 +431,7 @@ class Badge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(

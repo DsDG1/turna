@@ -75,8 +75,12 @@ class RestoreApplier {
       return RestoreApplyOutcome.noPending;
     }
 
+    BackupArchiveMeta meta;
     try {
-      await _verify();
+      // Read once and thread it through verify + apply — the applier used to
+      // decode meta.json twice (once in each phase).
+      meta = _readMeta();
+      await _verify(meta);
     } on Object catch (e) {
       await _setBlockedReason('远程恢复未执行：$e');
       await _discardStaging();
@@ -85,7 +89,7 @@ class RestoreApplier {
 
     try {
       await _applyPrefs();
-      await _applyDatabases();
+      await _applyDatabases(meta);
       await _applyMedia();
       await _prefs.preferences.setString(
           LocalStateKeys.remoteBackupLastRestoredAt,
@@ -105,8 +109,7 @@ class RestoreApplier {
   }
 
   /// Refuses backups this app cannot safely open.
-  Future<void> _verify() async {
-    final meta = _readMeta();
+  Future<void> _verify(BackupArchiveMeta meta) async {
     if (meta.driftSchema > _currentDriftSchema ||
         meta.catalogSchema > _currentCatalogSchema) {
       throw '备份来自更新的应用版本（需 schema ≤ $_currentDriftSchema/$_currentCatalogSchema，备份为 ${meta.driftSchema}/${meta.catalogSchema}），请先升级应用';
@@ -127,17 +130,14 @@ class RestoreApplier {
 
     // SHA256SUMS re-verification: the archive was checked at download time,
     // but the staging area sat on disk across at least one reboot.
-    final sums = _stagedFile(RestoreStagingLayout.sumsEntry);
-    if (!await sums.exists()) {
-      throw '缺少 SHA256SUMS';
-    }
-    for (final line in sums.readAsLinesSync()) {
-      if (line.trim().isEmpty) continue;
-      final match = RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
-      if (match == null) throw 'SHA256SUMS 行格式错误';
-      final digest = archiveFileSha256(_stagedFile(match.group(2)!).path);
-      if (digest != match.group(1)!) throw '文件校验失败: ${match.group(2)}';
-    }
+    //
+    // Deliberately synchronous, unlike the download-time check: this runs on
+    // the main isolate before the first frame — nothing can jank yet — and
+    // it is awaited either way, so an isolate would not shorten startup.
+    verifySha256SumsFile(
+      _stagedFile(RestoreStagingLayout.sumsEntry).path,
+      _staging.path,
+    );
   }
 
   BackupArchiveMeta _readMeta() {
@@ -198,8 +198,7 @@ class RestoreApplier {
     }
   }
 
-  Future<void> _applyDatabases() async {
-    final meta = _readMeta();
+  Future<void> _applyDatabases(BackupArchiveMeta meta) async {
     await _replaceDatabase(
       staged: _stagedFile(RestoreStagingLayout.courseDbEntry),
       target: File(p.join(_appDocuments.path, 'course.db')),

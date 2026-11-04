@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widget_previews.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
@@ -300,8 +301,9 @@ class _LessonCheckButtonState extends State<LessonCheckButton> {
               child: Text(
                 widget.label,
                 style: AppTextStyles.buttonLabel.copyWith(
-                  color:
-                      enabled ? TurnaTheme.textOnPrimary : TurnaTheme.textHint,
+                  color: enabled
+                      ? TurnaTheme.textOnPrimary
+                      : TurnaTheme.textHintColor(context),
                 ),
               ),
             ),
@@ -330,8 +332,15 @@ class InteractionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 侧边距对齐「湿地雾光」主栅格（pageMargin 24, 与底栏 SessionActionBand
+    // 同一数值）, 题面与底栏主键左右齐平。
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        16,
+        AppSpacing.pageMargin,
+        24,
+      ),
       child: child,
     );
   }
@@ -596,7 +605,7 @@ class WordChip extends StatelessWidget {
         : TurnaTheme.textPrimaryColor(context);
     final border = selected
         ? TurnaTheme.brandTeal
-        : TurnaTheme.textHint.withValues(alpha: 0.3);
+        : TurnaTheme.textHintColor(context).withValues(alpha: 0.3);
 
     return Semantics(
       button: true,
@@ -629,75 +638,17 @@ class WordChip extends StatelessWidget {
   }
 }
 
-/// Correct-answer feedback banner shown after a wrong submission.
-class LessonCorrectAnswerBanner extends StatelessWidget {
-  final String label;
-  final String answer;
-  final bool showBorder;
-
-  const LessonCorrectAnswerBanner({
-    super.key,
-    required this.label,
-    required this.answer,
-    this.showBorder = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: TurnaTheme.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: showBorder
-            ? Border.all(color: TurnaTheme.success.withValues(alpha: 0.4))
-            : null,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: TurnaTheme.successDark),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: 14,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
-                children: [
-                  TextSpan(text: '$label: '),
-                  TextSpan(
-                    text: answer,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Circular speaker button that plays audio via TTS.
 ///
 /// 「湿地雾光」R05：44px 圆形 teal 描边键（transparent 底 + 1.5 teal 边 +
 /// teal 图标）——题面去装饰后音频键是唯一的圆形控件，描边档让它不再从
 /// 纸面题干里"浮"出来。朗读中图标切换为声纹并禁点。
+///
+/// 需要「播放主控 = 视觉中心」的听辨题用大号实底档 [SpeakerHero]。
 class SpeakerButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const SpeakerButton({super.key, required this.onPressed});
-
-  ValueListenable<bool>? _speakingListenable() {
-    try {
-      return getIt<AudioController>().speakingListenable;
-    } catch (_) {
-      // Tests and early frames may not have AudioController registered.
-      return null;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -744,6 +695,79 @@ class SpeakerButton extends StatelessWidget {
   }
 }
 
+/// AudioController 的朗读态监听; 早期帧 / 测试环境可能未注册, 拿不到就
+/// 按未在朗读画（两个播放键共用）。
+ValueListenable<bool>? _speakingListenable() {
+  try {
+    return getIt<AudioController>().speakingListenable;
+  } catch (_) {
+    // Tests and early frames may not have AudioController registered.
+    return null;
+  }
+}
+
+/// 听辨题的播放主控（§7.1「纯听与对话」: 播放主控形成视觉中心）。
+///
+/// 72px teal 实底白图标 + 同色相软影, 放在题面画布中央承担「主控」语义;
+/// 与行内 [SpeakerButton]（44px 描边档）相对。朗读中图标切声纹并禁点。
+class SpeakerHero extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const SpeakerHero({super.key, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final listenable = _speakingListenable();
+    if (listenable == null) {
+      return _buildButton(context, speaking: false);
+    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: listenable,
+      builder: (context, speaking, _) =>
+          _buildButton(context, speaking: speaking),
+    );
+  }
+
+  Widget _buildButton(BuildContext context, {required bool speaking}) {
+    return Semantics(
+      button: true,
+      label: AppStrings.lessonPlayAudioLabel,
+      child: Tooltip(
+        message: AppStrings.lessonPlayAudioLabel,
+        child: SizedBox(
+          width: 72,
+          height: 72,
+          // 同色相软影让实底圆从纸面画布里"浮"起一层, 与玻璃卡的投影
+          // 语言同源; 高对比 / 关玻璃模式由 glassShadow 自行退化。
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: TurnaTheme.glassShadow(
+                context,
+                TurnaTheme.glassFocus,
+                level: GlassLevel.l2,
+              ),
+            ),
+            child: Material(
+              color: TurnaTheme.brandTeal,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: speaking ? null : onPressed,
+                child: Icon(
+                  speaking ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
+                  color: TurnaTheme.textOnPrimary,
+                  size: 30,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Small uppercase caption rendered above the prompt in each interaction
 /// body ("Fill in the blank", "Listen and pick", etc.). Centralises the
 /// caption style + the bottom padding so renderers stay visually aligned.
@@ -759,6 +783,36 @@ class SectionCaption extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: AppTextStyles.caption(context),
+      ),
+    );
+  }
+}
+
+// ── Preview ──────────────────────────────────────────────────────────────
+
+@Preview(name: 'Speaker buttons · light', group: 'Wetland mist')
+@Preview(
+    name: 'Speaker buttons · dark',
+    group: 'Wetland mist',
+    brightness: Brightness.dark)
+Widget speakerButtonsPreview() => const _SpeakerButtonsPreview();
+
+class _SpeakerButtonsPreview extends StatelessWidget {
+  const _SpeakerButtonsPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: TurnaTheme.lessonCanvasBg(context),
+      body: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SpeakerButton(onPressed: () {}),
+            const SizedBox(width: 32),
+            SpeakerHero(onPressed: () {}),
+          ],
+        ),
       ),
     );
   }

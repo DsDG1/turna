@@ -31,7 +31,7 @@ class GlassSurface extends StatelessWidget {
   /// 材质层级，默认 [GlassLevel.l1]（内容卡）。表单页用 [GlassLevel.l1Subtle]。
   final GlassLevel level;
 
-  /// 圆角。默认 `radiusLarge`（16）。徽章级用 `radiusRound` 或自身尺寸一半。
+  /// 圆角。默认 `cardRadius`（4）。徽章级用 `radiusRound` 或自身尺寸一半。
   final BorderRadius? radius;
 
   /// 淡彩浓度倍率，1.0 为规范值。供 [SoftCard.tintAlpha] 这类既有强度参数映射。
@@ -62,7 +62,7 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final r = radius ?? BorderRadius.circular(TurnaTheme.radiusLarge);
+    final r = radius ?? BorderRadius.circular(TurnaTheme.cardRadius);
     final interactive = onTap != null || onLongPress != null;
 
     // 阴影与 fill 分开取：fill 传空阴影，阴影挂外层 Container。

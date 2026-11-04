@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 // Package imports:
@@ -82,4 +83,51 @@ class _DigestSink implements Sink<Digest> {
 
   @override
   void close() {}
+}
+
+/// Runs [archiveFileSha256] on a background isolate.
+///
+/// Hashing is pure path-in/digest-out, and the archives this guards reach
+/// hundreds of megabytes — hashing them on the main isolate froze the UI for
+/// the whole read. Static + pure so the [Isolate.run] closure captures nothing
+/// but the path string (same pattern as the "crash-hunt PR1" isolate moves in
+/// `course_repository.dart`).
+Future<String> archiveFileSha256OffMainThread(String path) {
+  return Isolate.run(() => archiveFileSha256(path));
+}
+
+/// Parses a `SHA256SUMS` manifest at [sumsPath] and re-hashes every listed
+/// entry (resolved under [baseDir]), throwing [FormatException] on a missing
+/// manifest, a malformed line, or a digest mismatch.
+///
+/// Single source of truth for the two historical copies of this loop — the
+/// download-time check in `RemoteBackupService` and the boot-time re-check in
+/// `RestoreApplier` — so their verification can never drift apart.
+void verifySha256SumsFile(String sumsPath, String baseDir) {
+  final sumsFile = File(sumsPath);
+  if (!sumsFile.existsSync()) {
+    throw const FormatException('备份包缺少 SHA256SUMS');
+  }
+  for (final line in sumsFile.readAsLinesSync()) {
+    if (line.trim().isEmpty) continue;
+    final match = RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
+    if (match == null) {
+      throw FormatException('SHA256SUMS 行格式错误: $line');
+    }
+    final digest = archiveFileSha256(p.join(baseDir, match.group(2)!));
+    if (digest != match.group(1)!) {
+      throw FormatException('备份包文件校验失败: ${match.group(2)}');
+    }
+  }
+}
+
+/// Runs [verifySha256SumsFile] on a background isolate. The entries it
+/// re-hashes include `course.db`, which can reach hundreds of megabytes —
+/// see [archiveFileSha256OffMainThread] for why that must leave the main
+/// isolate.
+Future<void> verifySha256SumsFileOffMainThread(
+  String sumsPath,
+  String baseDir,
+) {
+  return Isolate.run(() => verifySha256SumsFile(sumsPath, baseDir));
 }

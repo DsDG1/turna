@@ -175,7 +175,7 @@ class _FilterPanel extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

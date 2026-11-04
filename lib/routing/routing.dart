@@ -65,9 +65,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiImportRoute.page),
-        // Memory-card domain home (ADR 0066): due overview, deck list,
-        // import entry — reachable independently of the language courses.
-        AutoRoute(page: MemoryCardHubRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiDeckStatsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiCardBrowserRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),

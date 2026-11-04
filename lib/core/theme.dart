@@ -216,47 +216,50 @@ class TurnaTheme {
   }
 
   // ---------------------------------------------------------------------------
-  // SYSTEM UI (status / navigation bar) — surface-aligned, not brandTeal fill
+  // SYSTEM UI (status / navigation bar) — surface-aligned, not brandTeal fill.
+  // Navigation bar is transparent in all four: a solid strip under the
+  // floating tab capsule reads as a white/black seam. contrastEnforced stays
+  // false, otherwise Android 29+ paints a scrim over the transparent bar.
   // ---------------------------------------------------------------------------
 
-  /// Light AppBar / status / nav chrome (white) with dark icons.
+  /// Light AppBar / status chrome (white) with dark icons.
   static const SystemUiOverlayStyle lightSystemUiOverlay = SystemUiOverlayStyle(
     statusBarColor: Colors.white,
     statusBarIconBrightness: Brightness.dark,
     statusBarBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.white,
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.dark,
     systemNavigationBarContrastEnforced: false,
   );
 
-  /// Dark AppBar / status / nav chrome with light icons.
+  /// Dark AppBar / status chrome with light icons.
   static const SystemUiOverlayStyle darkSystemUiOverlay = SystemUiOverlayStyle(
     statusBarColor: darkAppBar,
     statusBarIconBrightness: Brightness.light,
     statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: darkAppBar,
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.light,
     systemNavigationBarContrastEnforced: false,
   );
 
-  /// High-contrast light: pure white chrome, dark icons.
+  /// High-contrast light: pure white status chrome, dark icons.
   static const SystemUiOverlayStyle highContrastLightSystemUiOverlay =
       SystemUiOverlayStyle(
     statusBarColor: Colors.white,
     statusBarIconBrightness: Brightness.dark,
     statusBarBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.white,
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.dark,
     systemNavigationBarContrastEnforced: false,
   );
 
-  /// High-contrast dark: pure black chrome, light icons.
+  /// High-contrast dark: pure black status chrome, light icons.
   static const SystemUiOverlayStyle highContrastDarkSystemUiOverlay =
       SystemUiOverlayStyle(
     statusBarColor: Colors.black,
     statusBarIconBrightness: Brightness.light,
     statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.black,
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.light,
     systemNavigationBarContrastEnforced: false,
   );
@@ -348,7 +351,7 @@ class TurnaTheme {
   static Color lessonCanvasBg(BuildContext context) =>
       _isDark(context) ? darkScaffold : const Color(0xFFF5F8F7);
 
-  /// 选项条圆角 — 比主卡 (radiusLarge) 小一号, 层级一眼分得开.
+  /// 选项条圆角 — 做题页选项条专用，与卡片几何（cardRadius）分属两套，勿混用.
   static const double radiusOption = 14.0;
 
   // BORDER RADIUS
@@ -357,6 +360,12 @@ class TurnaTheme {
   static const double radiusLarge = 16.0;
   static const double radiusXLarge = 24.0;
   static const double radiusRound = 100.0;
+
+  /// 卡片几何真源：卡片 / 卡片容器统一走近直角（r=4）。
+  /// 不要改用 radiusLarge —— 它同时服务 Dialog / 输入框 / SnackBar 等非卡片元素。
+  static const double cardRadius = 4.0;
+  static const BorderRadius cardBorderRadius =
+      BorderRadius.all(Radius.circular(cardRadius));
 
   // CHROME
   /// Height of the four root-tab app bars (Learn / Play / Profile / Settings).
@@ -563,7 +572,7 @@ class TurnaTheme {
   }) {
     return BoxDecoration(
       color: cardBg(context),
-      borderRadius: borderRadius ?? BorderRadius.circular(radiusLarge),
+      borderRadius: borderRadius ?? cardBorderRadius,
       border: border ?? Border.all(color: dividerBg(context)),
     );
   }
@@ -580,7 +589,7 @@ class TurnaTheme {
     List<BoxShadow>? boxShadow,
     double scale = 1.0,
   }) {
-    final radius = borderRadius ?? BorderRadius.circular(radiusLarge);
+    final radius = borderRadius ?? cardBorderRadius;
     if (!glassEnabled(context)) {
       // 高对比 / 专注模式：退回「无玻璃的普通卡」，而不是画成黑白卡。
       // 黑白卡在 HC dark 下会和纯黑页面同色，边界反而消失；HC light 下
@@ -1089,7 +1098,7 @@ class TurnaTheme {
           color: cardBackground,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
+            borderRadius: BorderRadius.circular(cardRadius),
           ),
         ),
         elevatedButtonTheme: elevatedButtonTheme(
@@ -1265,7 +1274,7 @@ class TurnaTheme {
           color: darkCardBackground,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
+            borderRadius: BorderRadius.circular(cardRadius),
           ),
         ),
         elevatedButtonTheme: elevatedButtonTheme(
@@ -1453,7 +1462,7 @@ class TurnaTheme {
           color: Colors.white,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
+            borderRadius: BorderRadius.circular(cardRadius),
             side: const BorderSide(color: Colors.black, width: 1.5),
           ),
         ),
@@ -1618,7 +1627,7 @@ class TurnaTheme {
           color: Colors.black,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
+            borderRadius: BorderRadius.circular(cardRadius),
             side: const BorderSide(color: Colors.white, width: 1.5),
           ),
         ),

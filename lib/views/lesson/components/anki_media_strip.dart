@@ -173,12 +173,23 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
                     message: _audios[index].available
                         ? '${AppStrings.lessonPlayAudioLabel} ${index + 1}'
                         : AppStrings.lessonAudioMissing,
-                    child: IconButton.filledTonal(
+                    // 「湿地雾光」音频键语言: teal 描边圆（与 SpeakerButton
+                    // 同视觉), 不再用 filledTonal 的另一套底色。
+                    child: IconButton(
                       key: ValueKey('anki-audio-$index'),
                       onPressed: _audios[index].available
                           ? () => _play(_audios[index].ref)
                           : null,
                       color: TurnaTheme.brandTeal,
+                      style: IconButton.styleFrom(
+                        foregroundColor: TurnaTheme.brandTeal,
+                        side: const BorderSide(
+                          color: TurnaTheme.brandTeal,
+                          width: 1.5,
+                        ),
+                        shape: const CircleBorder(),
+                        backgroundColor: Colors.transparent,
+                      ),
                       icon: const Icon(Icons.volume_up_rounded),
                     ),
                   ),
@@ -189,7 +200,8 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(TurnaTheme.radiusMedium),
               // Decode cap (same formula as CachedAssetImage): deck media is
               // routinely multi-megapixel; without it a 160-logical-px
               // thumbnail decodes at full resolution into memory.

@@ -12,6 +12,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/core/theme.dart';
 
@@ -105,46 +106,54 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonSummaryCaption),
-          const SizedBox(height: 8),
-          Text(
-            widget.prompt.isEmpty
-                ? AppStrings.lessonListenToSummary
-                : widget.prompt,
-            style: AppTextStyles.promptMd(context),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 28),
-          Center(
-            child: SpeakerButton(onPressed: _speak),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _hasPlayed
-                ? AppStrings.lessonTapToReplay
-                : AppStrings.lessonTapToListen,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
+          // 播放主控 = 视觉中心（§7.1 纯听）: 大号播放键在纸面画布中央,
+          // 听后 transcript 在同一画布内揭示。
+          SessionRecallCanvas(
+            minHeight: 280,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.prompt.isEmpty
+                      ? AppStrings.lessonListenToSummary
+                      : widget.prompt,
+                  style: AppTextStyles.promptMd(context),
+                  textAlign: TextAlign.center,
                 ),
-            textAlign: TextAlign.center,
-          ),
-          if (showTranscript) ...[
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              ),
-              child: Text(
-                widget.transcript,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      height: 1.5,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 28),
+                SpeakerHero(onPressed: _speak),
+                const SizedBox(height: 12),
+                Text(
+                  _hasPlayed
+                      ? AppStrings.lessonTapToReplay
+                      : AppStrings.lessonTapToListen,
+                  style: AppTextStyles.captionSm(context).copyWith(
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (showTranscript) ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
                     ),
-                textAlign: TextAlign.center,
-              ),
+                    child: Text(
+                      widget.transcript,
+                      style: AppTextStyles.bodyText(context).copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );

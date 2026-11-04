@@ -72,7 +72,7 @@ class AiGeneratedBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: TurnaTheme.softTint(context, TurnaTheme.primaryLight),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

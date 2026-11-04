@@ -51,14 +51,14 @@ class AchievementBadgeCard extends StatelessWidget {
           TurnaTheme.glassAchievement,
           level: GlassLevel.l1,
         ),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
               border: Border.all(
                 color: TurnaTheme.glassStroke(
                   context,

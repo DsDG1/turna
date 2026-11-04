@@ -80,7 +80,7 @@ class _SmartAdaptationPanelState extends State<SmartAdaptationPanel> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: TurnaTheme.brandTeal.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
         ),

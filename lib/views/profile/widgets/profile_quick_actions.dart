@@ -22,7 +22,8 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/theme.dart';
 
-/// Tappable due chips: SRS review, mistakes, Anki review.
+/// Tappable due chips: SRS review, mistakes, grammar; 记忆卡课程激活时
+/// 换成单枚记忆卡 chip（ADR 0037）。
 class ProfileQuickActions extends StatefulWidget {
   const ProfileQuickActions({super.key});
 
@@ -44,8 +45,9 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
 
   @override
   Widget build(BuildContext context) {
-    final ankiCourse = PlayReviewEligibility.isAnkiScope(
-      context.select((CourseProvider p) => p.courseScope),
+    // ADR 0037：记忆卡课程激活时，快捷入口只剩记忆卡复习一枚 chip。
+    final ankiCourse = PlayReviewEligibility.isAnki(
+      context.select((CourseProvider p) => p.scope),
     );
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final mistakesCount =
@@ -165,14 +167,14 @@ class _QuickChip extends StatelessWidget {
 
     return Material(
       color: bg,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             border: Border.all(color: border),
           ),
           child: Column(

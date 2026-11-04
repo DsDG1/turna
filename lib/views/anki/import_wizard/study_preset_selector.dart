@@ -95,14 +95,14 @@ class StudyPresetSelector extends StatelessWidget {
 
     return Material(
       color: TurnaTheme.cardBg(context),
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       child: InkWell(
         onTap: () => onSelectMode(mode),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             border: Border.all(
               color: isSelected
                   ? activeColor

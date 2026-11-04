@@ -11,7 +11,9 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
@@ -117,15 +119,24 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonListenAndPickCaption),
-          Center(
-            child: SpeakerButton(onPressed: _speak),
+          // 大题面（§7.1 纯听）: 播放主控是视觉中心, 选项占独立下半区。
+          SessionRecallCanvas(
+            minHeight: 220,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.prompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptMd(context),
+                ),
+                const SizedBox(height: 20),
+                SpeakerHero(onPressed: _speak),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
-          Text(
-            widget.prompt,
-            style: AppTextStyles.promptMd(context),
-          ),
-          const SizedBox(height: 20),
           for (var idx = 0; idx < widget.options.length; idx++)
             InteractionOptionTile(
               label: widget.options[idx],
@@ -136,11 +147,15 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
               showDivider: idx < widget.options.length - 1,
               onTap: submitted ? null : () => setState(() => _picked = idx),
             ),
-          if (submitted && correct == false)
-            LessonCorrectAnswerBanner(
-              label: AppStrings.lessonCorrectAnswer,
-              answer: widget.options[widget.correctIndex],
+          if (submitted) ...[
+            const SizedBox(height: 16),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer:
+                  _picked == null ? null : widget.options[_picked!],
+              correctAnswer: widget.options[widget.correctIndex],
             ),
+          ],
         ],
       ),
     );

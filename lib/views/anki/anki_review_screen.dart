@@ -465,7 +465,7 @@ class _AnkiDueHero extends StatelessWidget {
       return const _AnkiCaughtUpCard();
     }
 
-    const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
+    const radius = BorderRadius.all(Radius.circular(TurnaTheme.cardRadius));
     return Semantics(
       button: onReviewAll != null,
       label: AppStrings.ankiReviewAll,

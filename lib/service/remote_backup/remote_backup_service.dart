@@ -1,6 +1,7 @@
 // Dart imports:
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 // Package imports:
 import 'package:path/path.dart' as p;
@@ -307,23 +308,40 @@ class RemoteBackupService {
 
     final coreZip = File(p.join(staging.path, 'core.zip'));
     await store.downloadCoreZip(manifest, coreZip);
-    final coreSha = archiveFileSha256(coreZip.path);
+    final coreZipPath = coreZip.path;
+    final coreSha = await archiveFileSha256OffMainThread(coreZipPath);
     if (coreSha != manifest.coreZipSha256) {
       throw WebDavException('核心包校验失败（下载数据损坏）');
     }
 
-    await extractArchiveToDisk(
-      coreZip.path,
-      staging.path,
-      resolveEntryPath: _safeEntryPath,
-      onEntry: (_, __) {},
+    // Extraction is pure file-in/file-out (its internals are synchronous
+    // IO), so the whole call runs on a background isolate; the closure
+    // captures only two path strings and the static entry-name guard.
+    final stagingPath = staging.path;
+    await Isolate.run(
+      () => extractArchiveToDisk(
+        coreZipPath,
+        stagingPath,
+        resolveEntryPath: _safeEntryPath,
+        onEntry: (_, __) {},
+      ),
     );
-    _verifySha256Sums(staging);
-    final meta = _readMeta(staging);
+    await verifySha256SumsFileOffMainThread(
+      p.join(stagingPath, RestoreStagingLayout.sumsEntry),
+      stagingPath,
+    );
+    final meta = await _readMeta(staging);
 
-    final mediaManifest = parseMediaManifest(await File(
-            p.join(staging.path, RestoreStagingLayout.mediaManifestEntry))
-        .readAsString());
+    final mediaManifestText = await File(
+      p.join(staging.path, RestoreStagingLayout.mediaManifestEntry),
+    ).readAsString();
+    // The media manifest grows linearly with the media library (thousands of
+    // entries on big decks), so decode large manifests off the main isolate.
+    // Below the threshold the spawn costs more than the decode — same
+    // trade-off as course_repository's 16 KB lesson-content rule.
+    final mediaManifest = mediaManifestText.length >= 16 * 1024
+        ? await Isolate.run(() => parseMediaManifest(mediaManifestText))
+        : parseMediaManifest(mediaManifestText);
     final objects = mediaManifest.values.map((e) => e.sha256).toSet().toList()
       ..sort();
     final mediaDir = RestoreStagingLayout.media(_appSupport);
@@ -331,11 +349,11 @@ class RemoteBackupService {
     var done = 0;
     for (final sha in objects) {
       final dest = File(p.join(mediaDir.path, sha));
-      final alreadyStaged =
-          await dest.exists() && archiveFileSha256(dest.path) == sha;
+      final alreadyStaged = await dest.exists() &&
+          await archiveFileSha256OffMainThread(dest.path) == sha;
       if (!alreadyStaged) {
         await store.downloadMediaObject(sha, dest);
-        if (archiveFileSha256(dest.path) != sha) {
+        if (await archiveFileSha256OffMainThread(dest.path) != sha) {
           throw WebDavException('媒体对象校验失败: ${sha.substring(0, 8)}…');
         }
       }
@@ -357,7 +375,10 @@ class RemoteBackupService {
 
   /// Entry names inside core.zip are produced by our own packer; still,
   /// reject anything unexpected before it touches disk.
-  String _safeEntryPath(String entryName) {
+  ///
+  /// Static + pure so the extraction isolate closure can reference it
+  /// without capturing `this` (the service holds prefs/config state).
+  static String _safeEntryPath(String entryName) {
     if (entryName.contains('..') ||
         p.isAbsolute(entryName) ||
         entryName.startsWith('/')) {
@@ -366,30 +387,16 @@ class RemoteBackupService {
     return entryName;
   }
 
-  void _verifySha256Sums(Directory staging) {
-    final sumsFile = File(p.join(staging.path, RestoreStagingLayout.sumsEntry));
-    if (!sumsFile.existsSync()) {
-      throw const FormatException('备份包缺少 SHA256SUMS');
-    }
-    for (final line in sumsFile.readAsLinesSync()) {
-      if (line.trim().isEmpty) continue;
-      final match = RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
-      if (match == null) {
-        throw FormatException('SHA256SUMS 行格式错误: $line');
-      }
-      final digest = archiveFileSha256(p.join(staging.path, match.group(2)!));
-      if (digest != match.group(1)!) {
-        throw FormatException('备份包文件校验失败: ${match.group(2)}');
-      }
-    }
-  }
-
-  BackupArchiveMeta _readMeta(Directory staging) {
+  Future<BackupArchiveMeta> _readMeta(Directory staging) async {
     final file = File(p.join(staging.path, RestoreStagingLayout.metaEntry));
-    if (!file.existsSync()) {
+    if (!await file.exists()) {
       throw const FormatException('备份包缺少 meta.json');
     }
-    final decoded = jsonDecode(file.readAsStringSync());
+    final raw = await file.readAsString();
+    // meta.json is a fixed handful of fields — an isolate spawn would cost
+    // more than the decode (same trade-off as course_repository's 16 KB
+    // lesson-content rule), so it stays inline.
+    final decoded = jsonDecode(raw);
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('meta.json 格式错误');
     }

@@ -436,7 +436,7 @@ class _Card extends StatelessWidget {
       // R14：阅读页信息块走纸面（实色 + 发丝边），不再叠玻璃。
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

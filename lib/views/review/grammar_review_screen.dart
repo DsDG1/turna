@@ -425,7 +425,7 @@ class _PracticePanel extends StatelessWidget {
         context,
         TurnaTheme.glassFocus,
         level: GlassLevel.l1,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -479,7 +479,7 @@ class _GrammarCard extends StatelessWidget {
           context,
           TurnaTheme.glassFocus,
           level: GlassLevel.l1,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         ),
         child: SingleChildScrollView(
           child: Column(

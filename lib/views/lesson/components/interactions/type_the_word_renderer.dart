@@ -12,9 +12,10 @@ import 'package:turna/core/turkish_text.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
-import 'package:turna/core/theme.dart';
 
 /// Play audio, then type what was heard. Match is case-insensitive and
 /// whitespace-trimmed.
@@ -124,42 +125,43 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonTypeWhatYouHearCaption),
-          Center(
-            child: SpeakerButton(onPressed: _speak),
+          // 播放主控是视觉中心（§7.1 纯听）: 大号实底播放键在纸面画布上。
+          SessionRecallCanvas(
+            minHeight: 220,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.prompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptMd(context),
+                ),
+                const SizedBox(height: 20),
+                SpeakerHero(onPressed: _speak),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
-          Text(
-            widget.prompt,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd(context),
-          ),
-          const SizedBox(height: 24),
-          TextField(
+          // 大字号书写档与听写共用（interaction_fields 收口处）。
+          InteractionTextField(
             controller: _controller,
+            verdict:
+                interactionVerdictOf(submitted: submitted, correct: correct),
             enabled: !submitted,
             autofocus: !submitted,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: TurnaTheme.textPrimaryColor(context),
-              letterSpacing: 0.5,
-            ),
-            decoration: InputDecoration(
-              hintText: AppStrings.lessonTypeHere,
-              filled: true,
-              fillColor: submitted
-                  ? (correct == true
-                      ? TurnaTheme.success.withValues(alpha: 0.10)
-                      : TurnaTheme.error.withValues(alpha: 0.08))
-                  : TurnaTheme.inputFillColor(context),
-            ),
+            largeStyle: true,
+            hintText: AppStrings.lessonTypeHere,
             onSubmitted: (_) => _trySubmit(),
           ),
-          if (submitted && correct == false) ...[
+          if (submitted) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectAnswer, answer: widget.expected),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: widget.state.userAnswerText,
+              correctAnswer: widget.expected,
+            ),
           ],
         ],
       ),

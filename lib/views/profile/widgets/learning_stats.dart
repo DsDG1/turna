@@ -279,7 +279,7 @@ class _WeeklyXpBars extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +410,7 @@ class _AnkiStatsCard extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,7 +475,7 @@ class _StatCard extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

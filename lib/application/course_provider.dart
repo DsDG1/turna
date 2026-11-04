@@ -12,7 +12,6 @@ import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/builtin_language_service.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_catalog_ordering.dart';
@@ -697,9 +696,7 @@ class CourseProvider extends ChangeNotifier {
   /// choice so it survives restarts; [load] falls back to the builtin
   /// course when the scoped source no longer exists.
   ///
-  /// 持久化两层（v2 决策）：prefs（兼容 v1 读面）+ 配置区决策键
-  /// `turna.course.scope`（随 collection.anki2 备份走）；不等进程正常
-  /// 退出。配置区写经引擎，best-effort 不阻塞切换。
+  /// 持久化只写 prefs（兼容 v1 读面）。
   /// Move off [languageCode] if it is the active builtin scope (pack import
   /// about to rewrite that language).
   Future<void> switchAwayIfActive(String languageCode) async {
@@ -745,7 +742,6 @@ class CourseProvider extends ChangeNotifier {
     // Phase 2 — commit and cascade; any failure rolls back to `previous`.
     _scope = next;
     await _persistScope();
-    await _persistScopeDecisionToConfig(next);
     CourseLoader.invalidateCaches();
     try {
       await reloadCourse();
@@ -770,7 +766,6 @@ class CourseProvider extends ChangeNotifier {
     try {
       _scope = previous;
       await _persistScope();
-      await _persistScopeDecisionToConfig(previous);
       CourseLoader.invalidateCaches();
       await reloadCourse();
       await _syncPracticeLanguageTo(
@@ -884,18 +879,6 @@ class CourseProvider extends ChangeNotifier {
     }
     if (critical && firstFailure != null) {
       throw firstFailure!;
-    }
-  }
-
-  Future<void> _persistScopeDecisionToConfig(CourseScope next) async {
-    try {
-      final engine = OfficialAnkiCompositionRoot.engine;
-      if (engine == null) return;
-      await OfficialAnkiV2DecisionStore(engine).writeCourseScope(
-        next.wireKey,
-      );
-    } catch (error) {
-      logger.w('CourseProvider: scope decision write failed: $error');
     }
   }
 

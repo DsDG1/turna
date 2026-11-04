@@ -8,8 +8,9 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Renderer for [Interaction.readingTrueFalse].
 ///
@@ -103,15 +104,14 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonTrueFalseCaption),
-          Container(
-            width: double.infinity,
+          // 大题面（§7.1 选择族）: 陈述句在纸面画布上, 判断选项为编号行。
+          SessionRecallCanvas(
+            minHeight: 140,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: TurnaTheme.tintLight,
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            child: Text(
+              widget.statement,
+              style: AppTextStyles.promptMd(context),
             ),
-            child:
-                Text(widget.statement, style: AppTextStyles.promptMd(context)),
           ),
           const SizedBox(height: 24),
           // 判断题两个选项与其他选择题共用同一编号行语言（P1「选项为编号行」）。
@@ -137,6 +137,20 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
                 ? null
                 : () => setState(() => _selectedBool = false),
           ),
+          if (submitted) ...[
+            const SizedBox(height: 16),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: _selectedBool == null
+                  ? null
+                  : (_selectedBool!
+                      ? AppStrings.lessonTrue
+                      : AppStrings.lessonFalse),
+              correctAnswer: widget.answer
+                  ? AppStrings.lessonTrue
+                  : AppStrings.lessonFalse,
+            ),
+          ],
         ],
       ),
     );

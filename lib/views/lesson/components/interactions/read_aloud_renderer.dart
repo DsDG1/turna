@@ -1,5 +1,5 @@
 // Flutter imports:
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 
@@ -18,7 +18,9 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/read_aloud_backend.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// 跟读 (read-aloud) card, ADR 0061: show the sentence, speak it as the
@@ -83,9 +85,24 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   bool _gaveUpMic = false;
   ReadAloudScore? _score;
 
+  /// How long a session may stay silent before the status hint is replaced
+  /// and a skip button appears — the last-resort net under the backend's
+  /// watchdogs, so the card can never sit in "listening" forever.
+  static const Duration _stallAfter = Duration(seconds: 10);
+  Timer? _stallTimer;
+  bool _stalled = false;
+
+  /// Set by [_onSkip]: `state.submitted` may not flip synchronously, so a
+  /// late final transcript needs a local guard too.
+  bool _skipped = false;
+
   /// Sentinel userAnswerText recorded when the card degraded — distinguishes
   /// "answered via mic" from "listened through" in restored state.
   static const String _degradedAnswer = 'read-aloud-degraded';
+
+  /// Sentinel for the stall escape hatch: a technical stall is not an
+  /// answer, so it neither scores nor lands in the wrong book.
+  static const String _skippedAnswer = 'read-aloud-skipped';
 
   @override
   void initState() {
@@ -95,6 +112,7 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
 
   @override
   void dispose() {
+    _stallTimer?.cancel();
     // Ending the session here is best-effort cleanup; the backend delivers a
     // final result nobody listens to anymore.
     if (_listening) unawaited(widget.backend.stop());
@@ -155,7 +173,9 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
         _listening = true;
         _partial = null;
         _trouble = null;
+        _stalled = false;
       });
+      _armStallWatch();
       await widget.backend.start(
         // The course's target language: the recognizer needs the right locale
         // or it transcribes Turkish as if it were the device language.
@@ -169,12 +189,18 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   }
 
   void _onResult(String text, bool isFinal) {
-    if (!mounted || widget.state.submitted) return;
+    if (!mounted || _skipped || widget.state.submitted) return;
     if (!isFinal) {
+      // Ongoing speech keeps pushing the stall hint back.
+      _armStallWatch();
       setState(() => _partial = text);
       return;
     }
-    setState(() => _listening = false);
+    _stallTimer?.cancel();
+    setState(() {
+      _listening = false;
+      _stalled = false;
+    });
     if (text.trim().isEmpty) {
       // Recognition ended with nothing usable — not an answer, so no
       // submission: the learner can tap the mic again.
@@ -184,6 +210,31 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
     final score = scoreReadAloud(widget.targetText, text);
     setState(() => _score = score);
     widget.onSubmit(score.passed, userAnswerText: text);
+  }
+
+  void _armStallWatch() {
+    _stallTimer?.cancel();
+    _stallTimer = Timer(_stallAfter, () {
+      _stallTimer = null;
+      if (!mounted || _skipped || widget.state.submitted) return;
+      setState(() => _stalled = true);
+    });
+  }
+
+  void _onSkip() {
+    if (widget.state.submitted || _skipped) return;
+    _stallTimer?.cancel();
+    // Best-effort teardown; a late final transcript is dropped by the
+    // `_skipped` guard rather than scored.
+    unawaited(widget.backend.stop());
+    setState(() {
+      _listening = false;
+      _stalled = false;
+      _skipped = true;
+    });
+    // Same posture as the degraded card: progress never blocks on a
+    // technical stall, and nothing lands in the wrong book.
+    widget.onSubmit(true, userAnswerText: _skippedAnswer);
   }
 
   String _failureText(ReadAloudFailure reason) => switch (reason) {
@@ -197,10 +248,12 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
       };
 
   void _onError(ReadAloudFailure reason) {
-    if (!mounted || widget.state.submitted) return;
+    if (!mounted || widget.state.submitted || _skipped) return;
+    _stallTimer?.cancel();
     setState(() {
       _listening = false;
       _trouble = _failureText(reason);
+      _stalled = false;
     });
   }
 
@@ -219,10 +272,12 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
     final gateOn = readAloudExercisesEnabled();
     // Restored after re-entry: the score is a pure function of the target and
     // the recorded transcript, so it is recomputed rather than persisted.
+    // Sentinel answers carry no transcript to score.
     final score = _score ??
         (submitted &&
                 widget.state.userAnswerText != null &&
-                widget.state.userAnswerText != _degradedAnswer
+                widget.state.userAnswerText != _degradedAnswer &&
+                widget.state.userAnswerText != _skippedAnswer
             ? scoreReadAloud(widget.targetText, widget.state.userAnswerText!)
             : null);
 
@@ -251,40 +306,57 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.readAloudCaption),
-          const SizedBox(height: 8),
-          Text(
-            widget.prompt,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd(context),
-          ),
-          const SizedBox(height: 24),
-          _TargetWords(score: score, targetText: widget.targetText),
-          const SizedBox(height: 16),
-          Center(
-            child: SpeakerButton(
-              onPressed: _speak,
+          // 阶段 1（§7.1 跟读）: 示例句在纸面画布上, 提交后原地变词面结果。
+          SessionRecallCanvas(
+            minHeight: 200,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.prompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptMd(context),
+                ),
+                const SizedBox(height: 16),
+                _TargetWords(score: score, targetText: widget.targetText),
+              ],
             ),
           ),
+          // 阶段 2: 示范播放（行内描边档）; 阶段 3: 录音主控。
+          const SizedBox(height: 20),
+          Center(child: SpeakerButton(onPressed: _speak)),
           const SizedBox(height: 20),
           Center(child: _MicButton(listening: _listening, onTap: _onMicTap)),
           const SizedBox(height: 12),
           Text(
-            _listening
-                ? AppStrings.readAloudListening
-                : AppStrings.readAloudMicHint,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            _stalled
+                ? AppStrings.readAloudStalledHint
+                : _listening
+                    ? AppStrings.readAloudListening
+                    : AppStrings.readAloudMicHint,
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+            ),
             textAlign: TextAlign.center,
           ),
+          if (_stalled && !submitted) ...[
+            const SizedBox(height: 12),
+            Center(
+              child: OutlinedButton(
+                onPressed: _onSkip,
+                child: Text(AppStrings.readAloudSkipAction),
+              ),
+            ),
+          ],
           if (_partial != null && _listening) ...[
             const SizedBox(height: 12),
             Text(
               _partial!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                    fontStyle: FontStyle.italic,
-                  ),
+              style: AppTextStyles.captionSm(context).copyWith(
+                color: TurnaTheme.textHintColor(context),
+                fontStyle: FontStyle.italic,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -292,9 +364,9 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
             const SizedBox(height: 12),
             Text(
               _trouble!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.error,
-                  ),
+              style: AppTextStyles.captionSm(context).copyWith(
+                color: TurnaTheme.error,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -302,17 +374,20 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
             const SizedBox(height: 16),
             Text(
               '${AppStrings.readAloudHeardPrefix}${widget.state.userAnswerText ?? ''}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+              style: AppTextStyles.captionSm(context).copyWith(
+                color: TurnaTheme.textHintColor(context),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
+          // 跟读的词面结果本身就是结果层, 答对不再叠一行轻结果; 只有
+          // 未通过时给「听到 → 目标句」对照（§7.2 第 4 段）。
           if (submitted && widget.state.correct == false) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-              label: AppStrings.lessonCorrectAnswer,
-              answer: widget.targetText,
+            InteractionFeedbackPanel(
+              correct: false,
+              userAnswer: widget.state.userAnswerText,
+              correctAnswer: widget.targetText,
             ),
           ],
         ],
@@ -338,12 +413,8 @@ class _TargetWords extends StatelessWidget {
         targetText,
         key: const ValueKey('read-aloud-target'),
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          height: 1.4,
-          color: TurnaTheme.textPrimaryColor(context),
-        ),
+        style: AppTextStyles.termHero(context)
+            .copyWith(fontSize: 24, height: 1.4),
       );
     }
     return Wrap(
@@ -379,6 +450,9 @@ class _TargetWords extends StatelessWidget {
 }
 
 /// Circular mic button; doubles as stop while listening.
+///
+/// 光晕走主题的同色相投影 token（与 SpeakerHero 同一材质语言）; 录音中
+/// 用一圈语义色描边环表达"正在收音", 不再手写 blur/alpha 字面量。
 class _MicButton extends StatelessWidget {
   const _MicButton({required this.listening, required this.onTap});
 
@@ -388,6 +462,33 @@ class _MicButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = listening ? TurnaTheme.error : TurnaTheme.brandTeal;
+    Widget core = Material(
+      color: color,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Icon(
+            listening ? Icons.stop_rounded : Icons.mic_rounded,
+            color: TurnaTheme.textOnPrimary,
+            size: 36,
+          ),
+        ),
+      ),
+    );
+    if (listening) {
+      core = Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withValues(alpha: 0.4), width: 2),
+        ),
+        child: core,
+      );
+    }
     return Semantics(
       button: true,
       label: listening ? AppStrings.readAloudStop : AppStrings.readAloudMicHint,
@@ -398,29 +499,15 @@ class _MicButton extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: listening ? 0.5 : 0.25),
-                blurRadius: listening ? 16 : 8,
-                spreadRadius: listening ? 4 : 0,
-              ),
-            ],
-          ),
-          child: Material(
-            color: color,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Icon(
-                  listening ? Icons.stop_rounded : Icons.mic_rounded,
-                  color: TurnaTheme.textOnPrimary,
-                  size: 36,
-                ),
-              ),
+            boxShadow: TurnaTheme.glassShadow(
+              context,
+              color,
+              level: GlassLevel.l2,
             ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: core,
           ),
         ),
       ),
@@ -466,38 +553,46 @@ class _DegradedBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.readAloudCaption),
-          const SizedBox(height: 8),
-          Text(
-            prompt,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd(context),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            targetText,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: TurnaTheme.textPrimaryColor(context),
+          // 降级体 = 听示范卡（ADR 0061）: 与 ListenOnly 同构图, 播放主控
+          // 是视觉中心, 权限/不可用提示原位呈现（§7.1 跟读）。
+          SessionRecallCanvas(
+            minHeight: 240,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  prompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptMd(context),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  targetText,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.termHero(context).copyWith(fontSize: 24),
+                ),
+                const SizedBox(height: 24),
+                SpeakerHero(onPressed: onSpeak),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          Center(child: SpeakerButton(onPressed: onSpeak)),
           const SizedBox(height: 12),
           Text(
             note,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.textHintColor(context),
+            ),
             textAlign: TextAlign.center,
           ),
           if (enableOffered) ...[
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onEnable,
-              icon: const Icon(Icons.mic_rounded),
-              label: Text(AppStrings.readAloudEnableAction),
+            Center(
+              child: OutlinedButton.icon(
+                onPressed: onEnable,
+                icon: const Icon(Icons.mic_rounded),
+                label: Text(AppStrings.readAloudEnableAction),
+              ),
             ),
           ],
         ],

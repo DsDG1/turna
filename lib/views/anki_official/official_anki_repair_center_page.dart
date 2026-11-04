@@ -151,7 +151,7 @@ class _OfficialAnkiRepairCenterPageState
               context,
               TurnaTheme.glassNeutral,
               level: GlassLevel.l1Quiet,
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +365,7 @@ class _OfficialAnkiRepairCenterPageState
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         side: BorderSide(
           color: color.withValues(alpha: 0.3),
           width: 1.5,
@@ -426,7 +426,7 @@ class _OfficialAnkiRepairCenterPageState
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: TurnaTheme.cardBg(context),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
               ),
               child: Column(
                 children: [

@@ -14,9 +14,6 @@ import 'package:turna/application/anki_import/official_import_error_messages.dar
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
-import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/spacing.dart';
@@ -32,7 +29,7 @@ import 'package:turna/views/anki/import_wizard/official_pending_import_banner.da
 import 'package:turna/core/theme.dart';
 
 /// Anki import wizard shell (maintainability plan §10),「湿地雾光」步骤
-/// 流程版式（P1 / ADR 0066：只动视觉外壳，流程、判定与保真档位原样）：
+/// 流程版式（P1：只动视觉外壳，流程、判定与保真档位原样）：
 ///
 /// ```text
 /// WizardStepper + 阶段说明     顶部：五步指示 + 阶段标题与一句说明
@@ -452,29 +449,22 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       summary: completed.summary,
       keptLearningProgress: false,
       onStartLearningNow: () => unawaited(_startLearningNow(controller)),
-      onViewDecks: () => unawaited(_viewDecks()),
+      onViewDecks: () => unawaited(_viewDecks(controller)),
       onDone: () => context.router.pop(),
     );
   }
 
-  /// "Start learning now": go straight into the freshly-imported deck's
-  /// formal review. ADR 0066 §2 — this action no longer switches the active
-  /// language course; the wizard pops afterwards so the session host is what
-  /// remains on screen.
+  /// "Start learning now": switch to the freshly-imported course and pop
+  /// back to the Learn tab. This is the ONLY done action that switches
+  /// the active course (ADR 0043).
   Future<void> _startLearningNow(AnkiImportController controller) async {
     final importId = controllerCompletedImportId(controller);
-    if (importId != null && mounted) {
+    if (importId != null) {
       final courseProvider = context.read<CourseProvider>();
-      await const FormalReviewLauncher().open(
-        context,
-        entry: FormalReviewEntryKind.deckSection,
-        courseId: 'anki-$importId',
-        sectionId: ankiImportSectionIdFor(courseProvider, importId),
-        officialOwner: OfficialFormalDueRepository
-            .instance.officialImportIds.contains(importId),
-        schedulerRuntimeAvailable:
-            OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
-      );
+      final wire = ankiImportWireKeyFor(courseProvider, importId);
+      if (wire != null) {
+        await courseProvider.setCourseScope(wire);
+      }
     }
     // In Completed state _confirmLeave is an instant `true`, so a maybePop
     // here would bounce off the canPop gate and re-enter the pop handler
@@ -482,10 +472,18 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     if (mounted) context.router.pop();
   }
 
-  /// "View decks": open the memory-card hub (ADR 0066 §2 — the language
-  /// course management no longer lists decks). The active course stays.
-  Future<void> _viewDecks() async {
-    await context.router.push(const MemoryCardHubRoute());
+  /// "View decks": open course management with the new course highlighted.
+  /// The current course stays active.
+  Future<void> _viewDecks(AnkiImportController controller) async {
+    final importId = controllerCompletedImportId(controller);
+    String? highlight;
+    if (importId != null) {
+      highlight = ankiImportWireKeyFor(
+        context.read<CourseProvider>(),
+        importId,
+      );
+    }
+    await context.router.push(CourseManagementRoute(highlightWire: highlight));
   }
 
   String? controllerCompletedImportId(AnkiImportController controller) {

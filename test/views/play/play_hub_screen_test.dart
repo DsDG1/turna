@@ -17,6 +17,7 @@ import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
@@ -27,19 +28,38 @@ import 'package:turna/views/widgets/directory_rows.dart';
 import '../../helpers/in_memory_course_db.dart';
 
 /// Scope-mutable stand-in so tests can flip the active course without a DB.
+/// 练习台按当前课程 scope 裁剪队列（ADR 0037 / 0067）：语言课程显示语言
+/// 三队列，记忆卡课程显示记忆卡复习行。
 class _ScopeStubCourseProvider extends CourseProvider {
-  _ScopeStubCourseProvider(String scopeWire) : _scopeWire = scopeWire;
+  _ScopeStubCourseProvider({CourseScope initialScope = const BuiltinCourseScope('turkish')})
+      : _scope = initialScope;
 
-  String _scopeWire;
+  CourseScope _scope;
 
-  set scopeWire(String value) {
-    _scopeWire = value;
+  set scope(CourseScope value) {
+    _scope = value;
     notifyListeners();
   }
 
   @override
-  String get courseScope => _scopeWire;
+  CourseScope get scope => _scope;
 }
+
+const _ankiScope = OfficialAnkiCourseScope(
+  profileId: 'profile-default-01',
+  sourceId: 'deck1',
+);
+
+/// 行内计数位：定位「记忆卡复习」行（DirectoryTaskRow）内的计数字段。
+Finder deckRowCountLabel() => find.descendant(
+      of: find.ancestor(
+        of: find.text('记忆卡复习'),
+        matching: find.byType(DirectoryTaskRow),
+      ),
+      matching: find.byWidgetPredicate(
+        (w) => w is Text && w.data != '记忆卡复习',
+      ),
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -61,7 +81,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<CourseProvider>(
-            create: (_) => courseProvider ?? _ScopeStubCourseProvider(''),
+            create: (_) => courseProvider ?? _ScopeStubCourseProvider(),
           ),
           ChangeNotifierProvider(create: (_) => MistakeProvider(prefs)),
           ChangeNotifierProvider(
@@ -117,8 +137,8 @@ void main() {
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
     expect(find.text(AppStrings.playPracticeToolsTitle), findsOneWidget);
 
-    // 复习队列 = 有顺序的任务行（语言课：错题 clay 置顶 / SRS teal / 语法
-    // sky / 智能练习芦苇青）。语言课不出现记忆卡队列行（ADR 0066）。
+    // 复习队列 = 有顺序的任务行（错题 clay 置顶 / SRS teal / 语法 sky /
+    // 智能练习芦苇青）。语言课程激活时没有记忆卡复习行。
     expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('复习'), findsOneWidget);
     expect(find.text('语法复习'), findsOneWidget);
@@ -135,72 +155,76 @@ void main() {
       findsOneWidget,
     );
 
-    // 工具文字索引：每日挑战 / 薄弱单词 / 词典 / 复习进度 / 记忆卡中枢。
+    // 工具文字索引：每日挑战 / 薄弱单词 / 词典 / 复习进度（练习台不再有
+    // 记忆卡入口，ADR 0067）。
     expect(find.text('每日挑战'), findsOneWidget);
     expect(find.text('薄弱单词'), findsOneWidget);
     expect(find.text('词典'), findsOneWidget);
     expect(find.text('复习进度'), findsOneWidget);
-    expect(find.text(AppStrings.memoryCardHubTitle), findsOneWidget);
 
     expect(find.byType(PageView), findsNothing);
   });
 
-  testWidgets('Anki course scope shows only the anki review queue',
-      (tester) async {
+  testWidgets(
+    'anki course swaps language queues for the memory-card row',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: hubTree(
+            courseProvider: _ScopeStubCourseProvider(initialScope: _ankiScope),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // ADR 0037：记忆卡课程激活时语言三队列让位给记忆卡复习。
+      expect(find.text('错题复习'), findsNothing);
+      expect(find.text('复习'), findsNothing);
+      expect(find.text('语法复习'), findsNothing);
+      expect(find.text('记忆卡复习'), findsOneWidget);
+      expect(find.text('智能练习'), findsOneWidget);
+
+      // 工具索引与当前课程无关，常驻。
+      expect(find.text('每日挑战'), findsOneWidget);
+      expect(find.text('薄弱单词'), findsOneWidget);
+      expect(find.text('词典'), findsOneWidget);
+      expect(find.text('复习进度'), findsOneWidget);
+    },
+  );
+
+  testWidgets('queue follows scope changes', (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final courseProvider = _ScopeStubCourseProvider();
     await tester.pumpWidget(
-      MaterialApp(
-          home:
-              hubTree(courseProvider: _ScopeStubCourseProvider('anki:deck1'))),
-    );
-    await tester.pumpAndSettle();
-
-    // 今日玻璃对象与队列仍在，语言课队列与单词类工具整体消失
-    // （词典查的是内置词表，非语言课程下无意义，一并隐藏）。
-    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
-    expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
-    expect(find.text('记忆卡复习'), findsOneWidget);
-    expect(find.text('错题复习'), findsNothing);
-    expect(find.text('语法复习'), findsNothing);
-    // 智能练习与课程类型无关：Anki 课同样按错题生成练习。
-    expect(find.text('智能练习'), findsOneWidget);
-    expect(find.text('薄弱单词'), findsNothing);
-    expect(find.text('词典'), findsNothing);
-    expect(find.text('复习进度'), findsOneWidget);
-    // 记忆卡中枢链接与课程域无关，两种 scope 都在。
-    expect(find.text(AppStrings.memoryCardHubTitle), findsOneWidget);
-  });
-
-  testWidgets('play hub review queues follow course scope switches',
-      (tester) async {
-    await tester.binding.setSurfaceSize(const Size(400, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    final courseProvider = _ScopeStubCourseProvider('');
-    await tester
-        .pumpWidget(MaterialApp(home: hubTree(courseProvider: courseProvider)));
+        MaterialApp(home: hubTree(courseProvider: courseProvider)));
     await tester.pumpAndSettle();
     expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('记忆卡复习'), findsNothing);
 
-    // 语言 → Anki：IndexedStack 保留的 Play Hub 必须随 scope 通知重建。
-    courseProvider.scopeWire = 'anki:deck1';
+    // 语言 → 记忆卡：IndexedStack 保留的 Play Hub 必须随 scope 通知重建。
+    courseProvider.scope = _ankiScope;
     await tester.pumpAndSettle();
     expect(find.text('记忆卡复习'), findsOneWidget);
-    expect(find.text('错题复习'), findsNothing);
+    expect(find.text('错题复习'), findsNothing,
+        reason: '记忆卡课程激活时语言队列必须让位');
 
-    // Anki → 语言：语言课队列恢复。
-    courseProvider.scopeWire = '';
+    // 记忆卡 → 语言（切回语言课程）：记忆卡行消失，语言队列回来。
+    courseProvider.scope = const BuiltinCourseScope('turkish');
     await tester.pumpAndSettle();
-    expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('记忆卡复习'), findsNothing);
+    expect(find.text('错题复习'), findsOneWidget);
   });
 
-  testWidgets('Anki review tile opens the shared session host', (tester) async {
+  testWidgets('memory card row opens the formal review session', (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    OfficialAnkiHomeDueSync.debugRefreshOverride = () async {};
+    addTearDown(() => OfficialAnkiHomeDueSync.debugRefreshOverride = null);
     String? opened;
     FormalReviewNavigator.debugOpenSession = (context, sectionId) async {
       opened = FormalReviewLauncher.sessionRouteName;
@@ -210,19 +234,25 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: hubTree(
-          courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+          courseProvider: _ScopeStubCourseProvider(initialScope: _ankiScope),
         ),
       ),
     );
     await tester.pumpAndSettle();
+
     await tester.ensureVisible(find.text('记忆卡复习'));
     await tester.tap(find.text('记忆卡复习'));
-    await tester.pump();
-    expect(opened, FormalReviewLauncher.sessionRouteName);
+    await tester.pumpAndSettle();
+
+    expect(
+      opened,
+      FormalReviewLauncher.sessionRouteName,
+      reason: '记忆卡复习行点按直开正式复习（ADR 0037），不再绕道中枢',
+    );
   });
 
   group('today hero due number (OfficialFormalDueRepository reactivity)', () {
-    // Hero 大数字读的是 due 仓库单例；测试里用 debug seam 顶掉真实同步，
+    // 记忆卡行的计数位读 due 仓库单例；测试里用 debug seam 顶掉真实同步，
     // 并用 resetForTest 隔离进程级快照。
     setUp(() {
       OfficialFormalDueRepository.instance.resetForTest();
@@ -236,10 +266,6 @@ void main() {
       OfficialAnkiHomeDueSync.debugRefreshOverride = null;
       OfficialFormalDueRepository.instance.resetForTest();
     });
-
-    /// 玻璃对象的大数字（稳定 Key，由 _TodayGlassPanel 提供）。
-    String heroNumber(WidgetTester tester) =>
-        tester.widget<Text>(find.byKey(const Key('play-today-hero-number'))).data!;
 
     void commitDueSnapshot(String importId, Set<int> schedulerDue) {
       OfficialFormalDueRepository.instance.commit(
@@ -271,22 +297,23 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+            courseProvider:
+                _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      // 空快照：大数字 0。
-      expect(heroNumber(tester), '0');
+      // 空快照：行内计数位不显示数字（0 不占位）。
+      expect(deckRowCountLabel(), findsNothing);
 
-      // 仓库 commit（无 setState、无 provider 变化）→ Hero 必须重建。
-      commitDueSnapshot('src-a', {11, 22});
+      // 仓库 commit（无 setState、无 provider 变化）→ 记忆卡行必须重建。
+      commitDueSnapshot('deck1', {11, 22});
       await tester.pumpAndSettle();
 
-      expect(heroNumber(tester), '2',
+      expect(tester.widget<Text>(deckRowCountLabel()).data, '2',
           reason: 'due 仓库是 ChangeNotifier，Play Hub 必须订阅它的通知，'
-              '否则数字冻结在 mount 时的值（一直 0 的根因）');
+              '否则计数冻结在 mount 时的值');
     });
 
     testWidgets('returning from the anki session re-syncs the due snapshot',
@@ -298,7 +325,7 @@ void main() {
       var refreshRuns = 0;
       OfficialAnkiHomeDueSync.debugRefreshOverride = () async {
         refreshRuns++;
-        commitDueSnapshot('src-b', dueAfterSync);
+        commitDueSnapshot('deck1', dueAfterSync);
       };
       FormalReviewNavigator.debugOpenSession = (context, sectionId) async {};
       addTearDown(() => FormalReviewNavigator.debugOpenSession = null);
@@ -306,7 +333,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+            courseProvider:
+                _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
@@ -314,18 +342,20 @@ void main() {
 
       // initState 的首次 due 刷新。
       expect(refreshRuns, 1);
-      expect(heroNumber(tester), '0');
 
-      // 模拟一次复习会话结束（调度器还欠 2 张）：pop 返回后必须重取快照。
+      // 模拟一次复习会话结束（调度器还欠 2 张）：经长按浮窗「进入」开
+      // 会话，pop 返回后必须重取快照。
       dueAfterSync = {11, 22};
       await tester.ensureVisible(find.text('记忆卡复习'));
-      await tester.tap(find.text('记忆卡复习'));
+      await tester.longPress(find.text('记忆卡复习'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(AppStrings.playPopupEnter));
       await tester.pumpAndSettle();
 
       expect(refreshRuns, 2,
           reason: '复习会话只改调度器，返回 Play 页必须显式 refresh，'
               '否则仓库里的 schedulerDue 还是进会话前的旧值');
-      expect(heroNumber(tester), '2');
+      expect(tester.widget<Text>(deckRowCountLabel()).data, '2');
     });
 
     testWidgets('returning to the Play tab re-syncs the due snapshot',
@@ -347,13 +377,7 @@ void main() {
         if (owned) await getIt.unregister<TabRouter>();
       });
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: hubTree(
-            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
-          ),
-        ),
-      );
+      await tester.pumpWidget(MaterialApp(home: hubTree()));
       await tester.pumpAndSettle();
       expect(refreshRuns, 1, reason: '首次挂载刷一次');
 
@@ -367,34 +391,33 @@ void main() {
       expect(refreshRuns, 2, reason: '切回练习页必须重取 due 快照，否则数字永远停在首次挂载时的值');
     });
 
-    testWidgets('an unavailable due snapshot offers a retry on the hub',
+    testWidgets('an unavailable due snapshot shows em-dash, not a stale 0',
         (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 1600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      var refreshRuns = 0;
-      OfficialAnkiHomeDueSync.debugRefreshOverride = () async {
-        refreshRuns++;
-      };
+      OfficialAnkiHomeDueSync.debugRefreshOverride = () async {};
 
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+            courseProvider:
+                _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('play-anki-due-unavailable')), findsNothing);
+      expect(deckRowCountLabel(), findsNothing);
 
+      // 同步失败：行内显示「—」（fail-closed，不冒充 0）；重试条回到
+      // 本页（记忆卡中枢已撤销，ADR 0067）。
       OfficialFormalDueRepository.instance.markUnavailable(StateError('boom'));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('play-anki-due-unavailable')), findsOneWidget,
-          reason: '同步失败时练习页必须有自救入口，不能只把数字冻住');
-
-      await tester.tap(find.text(AppStrings.ankiReviewRetry));
-      await tester.pumpAndSettle();
-      expect(refreshRuns, 2, reason: '重试按钮必须真的重新同步');
+      expect(tester.widget<Text>(deckRowCountLabel()).data, '—');
+      expect(
+        find.byKey(const Key('play-anki-due-unavailable')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -436,7 +459,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+            courseProvider:
+                _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
@@ -474,38 +498,39 @@ void main() {
   });
 
   testWidgets(
-      'queue grid and practice tools survive 200% text scale on a narrow phone',
-      (tester) async {
-    // 真机收据（2026-10-20）：系统字体放大后队列格子报
-    // `BOTTOM OVERFLOWED BY 11 PIXELS`，工具行被外层 `SizedBox(height: 104)`
-    // 掐住。两处都改成行高自适应网格，这里守住回归。
-    await tester.binding.setSurfaceSize(const Size(360, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    'queue grid and practice tools survive 200% text scale on a narrow phone',
+    (tester) async {
+      // 真机收据（2026-10-20）：系统字体放大后队列格子报
+      // `BOTTOM OVERFLOWED BY 11 PIXELS`，工具行被外层 `SizedBox(height: 104)`
+      // 掐住。两处都改成行高自适应网格，这里守住回归。
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(2),
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+            ),
+            child: child!,
           ),
-          child: child!,
+          home: hubTree(),
         ),
-        home: hubTree(),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
 
-    // 队列与工具行在首屏之外，滚到可见才算真正布局过。
-    await tester.scrollUntilVisible(
-      find.text(AppStrings.playPracticeToolsTitle),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
+      // 队列与工具行在首屏之外，滚到可见才算真正布局过。
+      await tester.scrollUntilVisible(
+        find.text(AppStrings.playPracticeToolsTitle),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
-    expect(find.text(AppStrings.playPracticeToolsTitle), findsOneWidget);
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
+      expect(find.text(AppStrings.playPracticeToolsTitle), findsOneWidget);
+    },
+  );
 }

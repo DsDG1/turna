@@ -660,6 +660,8 @@ class AppStrings {
   static String get settingsReadAloudUnavailable => '此设备暂不支持跟读识别，跟读题会以听示范形式出现';
   static String get readAloudMicHint => '点击麦克风，读出这句话';
   static String get readAloudListening => '正在听……读完后稍作停顿';
+  static String get readAloudStalledHint => '还没听到你的声音——可以再试一次，或先跳过这句';
+  static String get readAloudSkipAction => '跳过这句';
   static String get readAloudStop => '点击停止';
   static String get readAloudHeardPrefix => '听到的是：';
   static String get readAloudNoMatch => '没听清，再点麦克风试一次';
@@ -1498,6 +1500,9 @@ class AppStrings {
   static String get lessonFillBlankCaption => '填空';
   static String get lessonFillBlankHint => '___';
   static String get lessonCorrectAnswer => '正确答案';
+  static String get lessonResultCorrect => '答对了';
+  static String get lessonResultWrong => '答错了';
+  static String get lessonYourAnswer => '你的答案';
   static String get lessonListenAndPickCaption => '听音选择';
   static String get lessonSummaryCaption => '概要';
   static String get lessonListenToSummary => '收听概要';
@@ -2590,19 +2595,6 @@ class AppStrings {
   static String get ankiUninstallConfirmTitle => '移除此牌组？';
   static String get ankiUninstallConfirmBody => '将删除该牌组的卡片、复习进度和媒体文件，此操作无法撤销。';
   static String get ankiDeckRemoved => '牌组已移除';
-
-  // ── 记忆卡中枢（ADR 0066：记忆卡域自有首页）──
-  static String get memoryCardHubTitle => '记忆卡';
-  static String get memoryCardHubTodayDue => '今日待复习';
-  static String memoryCardHubDeckDue(int due) => '今日待复习 $due 张';
-  static String get memoryCardHubDeckDueUnknown => '今日待复习 —';
-  static String get memoryCardHubImportTitle => '导入记忆卡';
-  static String get memoryCardHubImportDesc => '从牌组应用导出的 .apkg 文件导入新牌组';
-  static String get memoryCardHubRepairTitle => '修复与维护';
-  static String get memoryCardHubRepairDesc => '数据库健康、未完成导入与残留清理';
-  static String get memoryCardHubSwitchScope => '切换为当前复习域';
-  static String get memoryCardHubActiveScopeBadge => '当前复习域';
-  static String get memoryCardHubToolsTitle => '工具';
 
   /// 批量移除的部分成功文案：`uninstall` 返回 false（locator 未就绪，
   /// 什么都没发生）与抛错（提交前失败）都按「未完成」计数——v2 删除

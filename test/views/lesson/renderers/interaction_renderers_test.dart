@@ -1112,5 +1112,109 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+        '10s of silence shows the stall hint and a skip that keeps the '
+        'lesson moving', (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-stall',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 10));
+
+      expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsOneWidget);
+      final skip = find.widgetWithText(OutlinedButton, '跳过这句');
+      expect(skip, findsOneWidget);
+
+      await tester.tap(skip);
+      await tester.pumpAndSettle();
+
+      // A technical stall is not an answer: always-correct sentinel, nothing
+      // in the wrong book, and the session is torn down.
+      expect(harness.submissions, [(true, 'read-aloud-skipped')]);
+      expect(backend.stopCount, 1);
+      expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
+    });
+
+    testWidgets('ongoing speech pushes the stall hint back', (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-stall-partial',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 9));
+      backend.emitPartial('mer');
+      await tester.pump();
+      // 9s past the partial, still nothing: speaking reset the countdown.
+      await tester.pump(const Duration(seconds: 9));
+      expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsOneWidget);
+    });
+
+    testWidgets('a final transcript arriving after the stall still scores',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-stall-late-final',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 10));
+      backend.emitFinal('merhaba');
+      await tester.pumpAndSettle();
+
+      // The hint was an offer, not a verdict: a late final is scored
+      // normally and the skip button disappears.
+      expect(harness.submissions, [(true, 'merhaba')]);
+      expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
+      expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsNothing);
+    });
+
+    testWidgets('a late final transcript after skipping is ignored',
+        (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-stall-skip-late',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 10));
+      await tester.tap(find.widgetWithText(OutlinedButton, '跳过这句'));
+      await tester.pumpAndSettle();
+
+      backend.emitFinal('merhaba');
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, [(true, 'read-aloud-skipped')]);
+    });
   });
 }

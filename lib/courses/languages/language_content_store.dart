@@ -41,6 +41,18 @@ class LanguageContentStore {
   static final Map<String, LanguageContentStore> _cache = {};
   static String _activeCode = LanguageCodes.turkish;
 
+  /// Bumped every time the published global maps change content wholesale
+  /// (language switch via [publishGlobals], [drop] of the active language,
+  /// [resetForTest]). Consumers that memoize views over the globals — e.g.
+  /// the dictionary search index — compare this generation to detect
+  /// staleness, because the maps are cleared and refilled in place so their
+  /// identity never changes.
+  static int _globalsGeneration = 0;
+
+  /// Current generation of the published global maps. See
+  /// [_globalsGeneration].
+  static int get globalsGeneration => _globalsGeneration;
+
   /// Test seam: when set, [ensureLoaded] for this language throws once per
   /// load attempt, simulating a failed content load (plan P3 failure
   /// injection). Production never sets it.
@@ -80,6 +92,7 @@ class LanguageContentStore {
       vocabByTranslation.clear();
       grammarPointById.clear();
       expressionsById.clear();
+      _globalsGeneration++;
     }
   }
 
@@ -92,6 +105,7 @@ class LanguageContentStore {
     vocabByTranslation.clear();
     grammarPointById.clear();
     expressionsById.clear();
+    _globalsGeneration++;
   }
 
   Future<void> ensureLoaded() {
@@ -137,6 +151,7 @@ class LanguageContentStore {
     expressionsById
       ..clear()
       ..addAll(expressionIndex);
+    _globalsGeneration++;
   }
 
   WordEntry? wordById(String id) => vocabularyById[id];

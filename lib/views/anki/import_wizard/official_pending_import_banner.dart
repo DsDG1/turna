@@ -110,7 +110,7 @@ class OfficialInterruptedImportCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: danger.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(color: danger.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Padding(

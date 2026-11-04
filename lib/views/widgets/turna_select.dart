@@ -57,7 +57,7 @@ class TurnaChoiceCard<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final on = value == selected;
     const accent = TurnaTheme.brandTeal;
-    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
     return Material(
       color: on ? accent.withValues(alpha: 0.14) : TurnaTheme.cardBg(context),
       borderRadius: radius,

@@ -105,7 +105,7 @@ class _CollapsedPassage extends StatelessWidget {
         context,
         TurnaTheme.leagueAmethyst,
         level: GlassLevel.l1,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

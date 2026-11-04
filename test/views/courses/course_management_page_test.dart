@@ -102,7 +102,6 @@ void main() {
       (tester) async {
     // 真机收据（2026-10-20）：字体放大后导入卡标题行曾报
     // `RIGHT OVERFLOWED BY 3 PIXELS` —— 文字列原先没有宽度约束。
-    // （「从记忆卡导入」卡已随 ADR 0066 迁出课程管理。）
     await tester.binding.setSurfaceSize(const Size(360, 780));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -131,6 +130,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
     expect(
       find.text(AppStrings.courseManagementImportPackTitle),
       findsOneWidget,
@@ -143,28 +143,29 @@ void main() {
 
     expect(find.text('Builtin Turkish'), findsOneWidget);
     expect(find.text('Builtin Japanese'), findsOneWidget);
+    // 记忆卡牌组与内置课程并列（ADR 0067：记忆卡回归课程域）。
+    expect(find.text('记忆卡牌组 A'), findsOneWidget);
     // 内置语言卡副题是「内置课程」；卡数文案只在非内置（导入包）卡上出现。
     expect(
         find.text(AppStrings.courseManagementBuiltinSubtitle),
         findsNWidgets(2));
     expect(find.text(AppStrings.courseManagementMyCourses), findsOneWidget);
-    // ADR 0066：记忆卡条目与「从记忆卡导入」卡都不出现在课程管理。
-    expect(find.text('记忆卡牌组 A'), findsNothing);
-    expect(find.text(AppStrings.courseManagementImportTitle), findsNothing);
+    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
     expect(
       find.text(AppStrings.courseManagementImportPackTitle),
       findsOneWidget,
     );
   });
 
-  testWidgets('memory-card import lives outside course management (ADR 0066)',
+  testWidgets('memory-card import lives in course management (ADR 0067)',
       (tester) async {
-    // 记忆卡域独立：导入入口与牌组条目都在记忆卡域（练习台的记忆卡中枢
-    // 与导入向导）。课程管理里重新出现任何一条都算域边界回退。
+    // 记忆卡回归课程域：导入入口与牌组条目都在课程管理，练习台不再有
+    // 记忆卡入口。ADR 0050 §6 step 4 的口径不变：任何构建档都不禁用
+    // 导入卡，重新出现禁用态说明降级又爬回来了。
     await pumpPage(tester);
 
-    expect(find.text(AppStrings.courseManagementImportTitle), findsNothing);
-    expect(find.byIcon(Icons.add_circle_outline_rounded), findsOneWidget);
+    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
+    expect(find.byIcon(Icons.add_circle_outline_rounded), findsNWidgets(2));
     expect(find.byIcon(Icons.block_outlined), findsNothing);
   });
 
@@ -174,7 +175,8 @@ void main() {
     await settings.setTtsFeatureEnabled(true);
     await tester.pumpAndSettle();
 
-    expect(find.byType(PopupMenuButton<String>), findsNWidgets(2));
+    // 三张卡（两门内置 + 一副牌组）都带菜单。
+    expect(find.byType(PopupMenuButton<String>), findsNWidgets(3));
   });
 
   testWidgets(
@@ -182,8 +184,8 @@ void main() {
       'and it has no TTS item', (tester) async {
     await pumpPage(tester);
 
-    // 两门内置语言互为保留底线（≥2 时可卸载）→ 两张卡都带菜单。
-    expect(find.byType(PopupMenuButton<String>), findsNWidgets(2));
+    // 两门内置语言互为保留底线（≥2 时可卸载），牌组可卸载 → 三张卡都带菜单。
+    expect(find.byType(PopupMenuButton<String>), findsNWidgets(3));
 
     await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
@@ -199,7 +201,7 @@ void main() {
     await settings.setTtsFeatureEnabled(true);
     await tester.pump();
 
-    expect(find.byType(PopupMenuButton<String>), findsNWidgets(2));
+    expect(find.byType(PopupMenuButton<String>), findsNWidgets(3));
 
     // The built-in card (first) menu only offers TTS settings.
     await tester.tap(find.byType(PopupMenuButton<String>).first);

@@ -558,9 +558,9 @@ class _PrivacyTile extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: InkWell(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
           onTap: () => context.router.push(const PrivacyDetailsRoute()),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

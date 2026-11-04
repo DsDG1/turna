@@ -235,6 +235,10 @@ class _SplashPageState extends State<SplashPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSkip());
     }
     final bootFailed = course?.bootFailed ?? false;
+    // The logo source PNG is a 1024×1024 store render (~4 MB decoded); cap
+    // the decode to the 80 dp box at the device ratio so splash never
+    // decodes the full-size bitmap.
+    final logoPx = (80 * MediaQuery.devicePixelRatioOf(context)).round();
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       body: SafeArea(
@@ -260,6 +264,8 @@ class _SplashPageState extends State<SplashPage> {
                           'assets/images/app_logo.png',
                           width: 80,
                           height: 80,
+                          cacheWidth: logoPx,
+                          cacheHeight: logoPx,
                         ),
                       ),
                       const SizedBox(height: 24),

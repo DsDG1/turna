@@ -470,7 +470,7 @@ class _DashboardSkeleton extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           decoration: TurnaTheme.flatPaperDecoration(
             context,
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
           ),
         );
     return ListView(
@@ -496,7 +496,7 @@ class _InlineErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: TurnaTheme.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(

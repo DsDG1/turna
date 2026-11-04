@@ -61,7 +61,7 @@ class FlutterCourseCardBody extends StatelessWidget {
           context,
           TurnaTheme.glassFocus,
           level: GlassLevel.l2,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
           scale: isRevealed ? 1.25 : 1.0,
         ),
         child: Column(

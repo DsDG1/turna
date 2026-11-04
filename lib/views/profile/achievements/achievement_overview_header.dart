@@ -64,14 +64,14 @@ class AchievementNearestCard extends StatelessWidget {
       // ADR 0062：用该成就系列自己的色相做均匀淡彩实面（同徽章卡：
       // 网格里的小卡不铺渐变与彩影）。
       color: TurnaTheme.glassSolid(context, accent, level: GlassLevel.l1),
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             border: Border.all(
               color: TurnaTheme.glassStroke(
                 context,

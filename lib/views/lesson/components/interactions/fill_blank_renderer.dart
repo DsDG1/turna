@@ -14,7 +14,9 @@ import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 import 'package:turna/core/theme.dart';
 
@@ -163,11 +165,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
     final correct = widget.state.correct;
 
     final (before, after) = _split;
-    final inputBoxColor = submitted
-        ? (correct == true
-            ? TurnaTheme.success.withValues(alpha: 0.10)
-            : TurnaTheme.error.withValues(alpha: 0.08))
-        : TurnaTheme.inputFillColor(context);
+    // 句中内联空与独立书写区共用同一判分配色（interaction_fields 收口处）。
+    final verdict = interactionVerdictOf(submitted: submitted, correct: correct);
 
     _syncDraft(context);
 
@@ -175,7 +174,6 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 8),
           SectionCaption(AppStrings.lessonFillBlankCaption),
           if (widget.audioAssets.isNotEmpty ||
               widget.imageAssets.isNotEmpty) ...[
@@ -185,24 +183,30 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                 imageAssets: widget.imageAssets,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
           ],
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: AppTextStyles.promptLg(context).copyWith(height: 1.4),
-              children: [
-                TextSpan(text: before),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: _buildBlank(context, submitted, correct, inputBoxColor),
-                ),
-                TextSpan(text: after),
-              ],
+          // 完整上下文在纸面画布上（§7.1 输入族「上方保留完整上下文」）。
+          SessionRecallCanvas(
+            minHeight: 150,
+            padding: const EdgeInsets.all(20),
+            child: RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: AppTextStyles.promptLg(context).copyWith(height: 1.4),
+                children: [
+                  TextSpan(text: before),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: _buildBlank(context, verdict),
+                  ),
+                  TextSpan(text: after),
+                ],
+              ),
             ),
           ),
           if (_useChoices) ...[
             const SizedBox(height: 20),
+            SectionCaption(AppStrings.lessonWordBank),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -224,14 +228,15 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           ],
           if (widget.hint != null && widget.hint!.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _HintChip(hint: widget.hint!),
+            Center(child: InteractionHintChip(label: widget.hint!)),
           ],
-          if (submitted && correct == false) ...[
+          if (submitted) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectAnswer,
-                answer: widget.answer,
-                showBorder: true),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: widget.state.userAnswerText,
+              correctAnswer: widget.answer,
+            ),
           ],
         ],
       ),
@@ -240,18 +245,9 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
 
   /// The inline gap. 选择填空 shows the picked word (or a placeholder);
   /// 打字模式 keeps the tappable [TextField].
-  Widget _buildBlank(
-    BuildContext context,
-    bool submitted,
-    bool? correct,
-    Color inputBoxColor,
-  ) {
-    final border = Border.all(
-      color: submitted
-          ? (correct == true ? TurnaTheme.success : TurnaTheme.error)
-          : TurnaTheme.brandTeal,
-      width: 2,
-    );
+  Widget _buildBlank(BuildContext context, InteractionVerdict verdict) {
+    final outline = verdict.outlineColor() ?? TurnaTheme.brandTeal;
+    final border = Border.all(color: outline, width: 2);
 
     if (!_useChoices) {
       return ConstrainedBox(
@@ -260,14 +256,14 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: inputBoxColor,
+            color: verdict.fillColor(context),
             border: border,
             borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
           ),
           child: TextField(
             controller: _controller,
-            enabled: !submitted,
-            autofocus: !submitted,
+            enabled: !widget.state.submitted,
+            autofocus: !widget.state.submitted,
             textAlign: TextAlign.center,
             style: AppTextStyles.promptMd(context).copyWith(fontSize: 18),
             decoration: InputDecoration(
@@ -291,7 +287,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: inputBoxColor,
+          color: verdict.fillColor(context),
           border: border,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
         ),
@@ -315,39 +311,5 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
     final idx = s.indexOf(marker);
     if (idx < 0) return (s, '');
     return (s.substring(0, idx), s.substring(idx + marker.length));
-  }
-}
-
-class _HintChip extends StatelessWidget {
-  final String hint;
-  const _HintChip({required this.hint});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: TurnaTheme.warning.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.lightbulb_outline,
-                size: 16, color: TurnaTheme.warning),
-            const SizedBox(width: 6),
-            Text(
-              hint,
-              style: TextStyle(
-                fontSize: 13,
-                color: TurnaTheme.textSecondaryColor(context),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

@@ -9,9 +9,9 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/lesson/components/lesson_practice_card.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Free-text translation. User types the translation of a source sentence.
 /// Match is case-insensitive, whitespace-trimmed, and ignores trailing
@@ -137,8 +137,9 @@ class _TranslateBodyState extends State<_TranslateBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonTranslateCaption),
-          LessonPracticeCard(
-            variant: LessonPracticeCardVariant.surface,
+          // 完整上下文（源句）在纸面画布上（§7.1 输入族）。
+          SessionRecallCanvas(
+            minHeight: 140,
             padding: const EdgeInsets.all(20),
             child: Text(
               widget.source,
@@ -148,22 +149,14 @@ class _TranslateBodyState extends State<_TranslateBody> {
             ),
           ),
           const SizedBox(height: 24),
-          TextField(
+          // 明确书写区（§7.1「下方是明确书写区」）。
+          InteractionTextField(
             controller: _controller,
+            verdict: interactionVerdictOf(submitted: submitted, correct: correct),
             enabled: !submitted,
             maxLines: 3,
             minLines: 1,
-            style: TextStyle(
-                fontSize: 18, color: TurnaTheme.textPrimaryColor(context)),
-            decoration: InputDecoration(
-              hintText: AppStrings.lessonTypeTranslation,
-              filled: true,
-              fillColor: submitted
-                  ? (correct == true
-                      ? TurnaTheme.success.withValues(alpha: 0.10)
-                      : TurnaTheme.error.withValues(alpha: 0.08))
-                  : TurnaTheme.inputFillColor(context),
-            ),
+            hintText: AppStrings.lessonTypeTranslation,
           ),
           if (widget.hints.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -171,30 +164,24 @@ class _TranslateBodyState extends State<_TranslateBody> {
               spacing: 8,
               runSpacing: 8,
               children: [
+                // 提示词是可点追加的语言材料, 与词块同一视觉语汇
+                // （不再手调 ActionChip 配色）。
                 for (final h in widget.hints)
-                  ActionChip(
-                    label: Text(h),
-                    onPressed: submitted ? null : () => _applyHint(h),
-                    backgroundColor:
-                        TurnaTheme.brandSky.withValues(alpha: 0.12),
-                    labelStyle: const TextStyle(
-                      color: TurnaTheme.brandNavy,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusRound),
-                      side: BorderSide.none,
-                    ),
+                  WordChip(
+                    label: h,
+                    onTap: submitted ? null : () => _applyHint(h),
                   ),
               ],
             ),
           ],
-          if (submitted && correct == false) ...[
+          if (submitted) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectTranslation,
-                answer: widget.expected),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: widget.state.userAnswerText,
+              correctAnswer: widget.expected,
+              correctAnswerLabel: AppStrings.lessonCorrectTranslation,
+            ),
           ],
         ],
       ),

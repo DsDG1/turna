@@ -47,7 +47,7 @@ class TodayHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
+    const radius = BorderRadius.all(Radius.circular(TurnaTheme.cardRadius));
 
     return Semantics(
       button: true,

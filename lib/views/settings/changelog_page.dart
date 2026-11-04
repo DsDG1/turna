@@ -268,7 +268,7 @@ class _ReleaseList extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: TurnaTheme.warning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                 border: Border.all(
                   color: TurnaTheme.warning.withValues(alpha: 0.4),
                 ),

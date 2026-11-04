@@ -44,15 +44,12 @@ class ShareProgressImageGenerator {
     // before rasterizing it, so the capture is not taken mid-build.
     await WidgetsBinding.instance.endOfFrame;
 
-    // Cap the raster pixel ratio to 3.0: on high-DPR devices (4x) capturing at
-    // the native ratio produces very large images and the PNG encode becomes
-    // a visible jank source. 3.0 is visually crisp while keeping the encode
-    // bounded.
     final views = WidgetsBinding.instance.platformDispatcher.views;
     final deviceRatio = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
-    final pixelRatio = deviceRatio < 3.0 ? deviceRatio : 3.0;
 
-    final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
+    final ui.Image image = await boundary.toImage(
+      pixelRatio: cappedSharePixelRatio(deviceRatio),
+    );
     final ByteData? byteData =
         await image.toByteData(format: ui.ImageByteFormat.png);
     if (byteData == null) {
@@ -70,4 +67,17 @@ class ShareProgressImageGenerator {
       text: shareText,
     );
   }
+}
+
+/// The pixel ratio share-card captures are rasterized at, and the ratio the
+/// card's decode-capped mascot images must be decoded at (see
+/// `ShareProgressCard`): a decode below the capture ratio would blur the
+/// exported PNG.
+///
+/// Cap the raster pixel ratio to 3.0: on high-DPR devices (4x) capturing at
+/// the native ratio produces very large images and the PNG encode becomes
+/// a visible jank source. 3.0 is visually crisp while keeping the encode
+/// bounded.
+double cappedSharePixelRatio(double devicePixelRatio) {
+  return devicePixelRatio < 3.0 ? devicePixelRatio : 3.0;
 }

@@ -29,8 +29,8 @@ import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
-import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_cards.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
@@ -45,13 +45,13 @@ import 'package:turna/core/theme.dart';
 ///    （46）+ 单位 + 预计分钟，下方全宽「开始复习」主行动；长按弹全队列
 ///    浮窗。短按智能进入最高优先级队列
 /// 3. 有顺序的队列行（DirectoryTaskRow，顺序即优先级：错题重练 clay 置顶
-///    emphasized、单词 SRS teal、语法 sky、智能练习 reed；Anki 课为独立的
-///    Anki 队列行）——行长按弹数据浮窗
-/// 4. 文字工具索引（每日挑战 / 薄弱单词 / 词典 / 复习进度）：teal 文字链
-///    + 间隔点，不再四张卡；薄弱单词与复习进度长按浮窗挂在文字链上
-///
-/// 非语言课程（Anki 牌组）没有内置词表可查：队列只留 Anki 复习 + 智能练习
-/// ，工具索引只留复习进度（ADR 0066：记忆卡域独立，不并入语言队列逻辑）。
+///    emphasized、单词 SRS teal、语法 sky、智能练习 reed）——行长按弹数据
+///    浮窗。记忆卡课程激活时三行语言队列让位给一行「记忆卡复习」（点按/
+///    长按浮窗直开正式复习，ADR 0037：记忆卡是可切换的课程，练习台按
+///    当前课程裁剪队列）
+/// 4. 文字工具索引（每日挑战 / 薄弱单词 / 词典 / 复习进度）：
+///    teal 文字链 + 间隔点，不再四张卡；薄弱单词与复习进度长按浮窗挂在
+///    文字链上
 ///
 /// 交互契约：短按一律直接进入页面；长按仅在有数据可看的入口上生效，
 /// 浮窗实现见 `info_popup.dart`。
@@ -174,8 +174,8 @@ class _PlayHubScreenState extends State<PlayHubScreen>
 
     final dueRepo = OfficialFormalDueRepository.instance;
     final ankiUnavailable = dueRepo.snapshot.unavailable;
-    final ankiCourse = PlayReviewEligibility.isAnkiScope(
-      context.select((CourseProvider p) => p.courseScope),
+    final ankiCourse = PlayReviewEligibility.isAnki(
+      context.select((CourseProvider p) => p.scope),
     );
 
     return PlayQueueSnapshot(
@@ -205,7 +205,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
 
   // ── 智能路由（玻璃对象短按） ─────────────────────────────────────
 
-  /// 语言课：错题 → 单词 → 语法；Anki 课：只进 Anki 复习。
+  /// 智能路由：语言课错题 → 单词 → 语法；记忆卡课程直进记忆卡正式复习。
   void _startToday(BuildContext context, PlayQueueSnapshot snapshot) {
     if (snapshot.ankiCourse) {
       _openAnkiReview(context);
@@ -236,6 +236,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
   Widget _buildHub(BuildContext context) {
     final snapshot = _gatherSnapshot(context);
     final totalDue = snapshot.totalDue;
+    final ankiCourse = snapshot.ankiCourse;
     final ankiChipCount =
         snapshot.ankiUnavailable ? null : snapshot.ankiDueCount;
     final engineReady =
@@ -249,7 +250,6 @@ class _PlayHubScreenState extends State<PlayHubScreen>
     } catch (_) {
       // Optional dependency: widget tests pump the hub without the queue.
     }
-    final ankiCourse = snapshot.ankiCourse;
     final now = DateTime.now();
 
     return RepaintBoundary(
@@ -294,17 +294,12 @@ class _PlayHubScreenState extends State<PlayHubScreen>
               ),
             ),
           ),
-          // 同步失败时数字是冻结的旧值（或按 0 显示），而本页原先没有任何
-          // 重试入口 —— Anki hub 有，练习页没有，用户只能靠重启碰运气。
+          // 同步失败时记忆卡行显示「—」，到期数字的重试入口在本页的
+          // 重试条（记忆卡中枢已随 ADR 0067 撤销）。
           if (ankiCourse && snapshot.ankiUnavailable)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pageMargin,
-                  AppSpacing.md,
-                  AppSpacing.pageMargin,
-                  0,
-                ),
+                padding: AppSpacing.pageGutterMist,
                 child: _AnkiDueRetryBar(
                   onRetry: () => unawaited(_refreshOfficialDue(force: true)),
                 ),
@@ -332,6 +327,8 @@ class _PlayHubScreenState extends State<PlayHubScreen>
               padding: AppSpacing.pageGutterMist,
               child: Column(
                 children: [
+                  // ADR 0037：记忆卡课程激活时语言三队列让位给记忆卡复习，
+                  // 语言课程的队列只在语言课程激活时出现。
                   if (!ankiCourse) ...[
                     Builder(
                       builder: (rowContext) => _PopupAnchor(
@@ -384,7 +381,11 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                         ),
                       ),
                     ),
-                  ] else
+                  ],
+                  // 记忆卡课程激活：唯一的队列行，聚合到期数，点按直开正式
+                  // 复习；长按浮窗看构成。同步失败显示「—」＋页头上方
+                  // 的重试条。
+                  if (ankiCourse)
                     Builder(
                       builder: (rowContext) => _PopupAnchor(
                         semanticsLabel: AppStrings.playAnkiReviewTitle,
@@ -399,13 +400,13 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                               : (ankiChipCount != null && ankiChipCount > 0
                                   ? '$ankiChipCount'
                                   : null),
-                          onTap: () => _openAnkiReview(context),
+                          onTap: () => unawaited(_openAnkiReview(context)),
                         ),
                       ),
                     ),
                   // 智能练习：按错题/弱词生成定制练习（AI 伴学的入排位置）。
-                  // 两种课程都保留——Anki 课同样能按错题生成；但鸿蒙伴生版
-                  // 不随包 AI 模块（华为审核合规，ADR 0056），整行不渲染。
+                  // 鸿蒙伴生版不随包 AI 模块（华为审核合规，ADR 0056），
+                  // 整行不渲染。
                   if (!isDegraded(OhosDegradation.aiGeneration))
                     Builder(
                       builder: (rowContext) => _PopupAnchor(
@@ -457,32 +458,28 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                 runSpacing: AppSpacing.xs,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (!ankiCourse) ...[
-                    // 每日挑战原是孤儿路由（功能在、入口丢），在此恢复
-                    // 练习台入口；Anki 牌组课不出现（题目取自已学课时）。
-                    _ToolIndexLink(
-                      label: AppStrings.playDailyTitle,
-                      onTap: () =>
-                          context.router.push(const DailyChallengeRoute()),
+                  // 每日挑战原是孤儿路由（功能在、入口丢），在此恢复
+                  // 练习台入口（题目取自已学课时）。
+                  _ToolIndexLink(
+                    label: AppStrings.playDailyTitle,
+                    onTap: () =>
+                        context.router.push(const DailyChallengeRoute()),
+                  ),
+                  const _ToolIndexDot(),
+                  Builder(
+                    builder: (linkContext) => _ToolIndexLink(
+                      label: AppStrings.playWeakWordsTitle,
+                      onTap: () => context.router.push(const WeakWordsRoute()),
+                      onLongPress: () =>
+                          _showWeakWordsPopup(linkContext, snapshot),
                     ),
-                    const _ToolIndexDot(),
-                    Builder(
-                      builder: (linkContext) => _ToolIndexLink(
-                        label: AppStrings.playWeakWordsTitle,
-                        onTap: () =>
-                            context.router.push(const WeakWordsRoute()),
-                        onLongPress: () =>
-                            _showWeakWordsPopup(linkContext, snapshot),
-                      ),
-                    ),
-                    const _ToolIndexDot(),
-                    _ToolIndexLink(
-                      label: AppStrings.playDictionaryTitle,
-                      onTap: () =>
-                          context.router.push(const DictionaryRoute()),
-                    ),
-                    const _ToolIndexDot(),
-                  ],
+                  ),
+                  const _ToolIndexDot(),
+                  _ToolIndexLink(
+                    label: AppStrings.playDictionaryTitle,
+                    onTap: () => context.router.push(const DictionaryRoute()),
+                  ),
+                  const _ToolIndexDot(),
                   Builder(
                     builder: (linkContext) => _ToolIndexLink(
                       label: AppStrings.playReviewProgressTitle,
@@ -491,14 +488,6 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                       onLongPress: () =>
                           _showReviewProgressPopup(linkContext),
                     ),
-                  ),
-                  // ADR 0066 §3：记忆卡域独立入口——语言课程用户也能直达
-                  // 记忆卡中枢（牌组管理 / 导入 / 修复都在那边）。
-                  const _ToolIndexDot(),
-                  _ToolIndexLink(
-                    label: AppStrings.memoryCardHubTitle,
-                    onTap: () =>
-                        context.router.push(const MemoryCardHubRoute()),
                   ),
                 ],
               ),
@@ -664,7 +653,7 @@ class _TodayGlassPanel extends StatelessWidget {
           decoration: TurnaTheme.glassDecoration(
             context,
             TurnaTheme.glassFocus,
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,11 +787,7 @@ class _ToolIndexDot extends StatelessWidget {
   }
 }
 
-/// Anki due 同步失败的重试条（仅 Anki 课显示）。
-///
-/// 数字冻结时用户没有别的自救手段：玻璃对象短按会直接进复习，长按浮窗只把
-/// Anki 行显示成「—」。这里对齐 Anki hub 的 `_AnkiDueUnavailableBanner`，
-/// 但用练习页自己的卡片语言。
+/// 记忆卡课程激活且到期同步失败：给一个页内重试入口，行内计数位显示「—」。
 class _AnkiDueRetryBar extends StatelessWidget {
   const _AnkiDueRetryBar({required this.onRetry});
 
@@ -842,3 +827,4 @@ class _AnkiDueRetryBar extends StatelessWidget {
     );
   }
 }
+

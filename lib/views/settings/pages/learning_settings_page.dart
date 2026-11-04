@@ -30,8 +30,8 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// list is rendered in the confirmation dialog so the UI promise and the
 /// implementation cannot drift apart.
 ///
-/// Anki 每日上限（新卡 / 复习 / 每日挑战并入）已按 ADR 0066 迁往记忆卡域，
-/// 不再出现在语言课程的设置页。
+/// Anki 每日上限（新卡 / 复习 / 每日挑战并入）在记忆卡复习页
+/// （`AnkiReviewPage`）设置，不出现在语言课程的设置页（ADR 0067）。
 @RoutePage()
 class LearningSettingsPage extends StatefulWidget {
   const LearningSettingsPage({super.key});

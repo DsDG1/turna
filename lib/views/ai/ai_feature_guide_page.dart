@@ -325,7 +325,7 @@ class _FeatureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // R14：手册是阅读页 → 功能块走纸面（实色 + 发丝边），不再是淡彩软卡。
-    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
       child: Material(
@@ -462,7 +462,7 @@ class _FeatureCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: TurnaTheme.softTint(context, spec.accent,
                           alpha: 0.08),
-                      borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall + 2),
+                      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,

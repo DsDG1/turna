@@ -175,9 +175,9 @@ class SettingsTile extends StatelessWidget {
     if (onTap == null) return content;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         onTap: onTap,
         child: content,
       ),

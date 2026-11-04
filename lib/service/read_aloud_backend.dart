@@ -77,6 +77,10 @@ abstract class ReadAloudBackend {
   /// The session ends by itself after [pauseFor] of silence or [listenFor]
   /// overall; [stop] ends it early. Both deliver the final transcript to
   /// `onResult` first. Errors after a successful start go to `onError`.
+  ///
+  /// The call is bounded: when the platform never confirms the session, or
+  /// ends it without a final transcript, `onError` receives a retryable
+  /// `recognitionFailed` instead of leaving the caller hanging.
   Future<void> start({
     required String locale,
     required ReadAloudResultListener onResult,
@@ -87,8 +91,30 @@ abstract class ReadAloudBackend {
   Future<void> stop();
 }
 
+/// How long `start` waits for `listen()` itself to confirm before tearing
+/// the session down. Bounds the call so the renderer's starting flag can
+/// never wedge on a platform that never answers.
+const Duration kReadAloudListenConfirmTimeout = Duration(seconds: 6);
+
+/// How long after a seemingly successful start the session has to show a
+/// first sign of life (a `listening` status or any transcript) before it is
+/// declared never opened.
+const Duration kReadAloudStartWatchdog = Duration(seconds: 5);
+
+/// Grace for the final transcript once the session reports (or is asked) to
+/// stop. Exceeds the plugin's own final-result timeout (2s) so a merely
+/// late final is never declared dead.
+const Duration kReadAloudFinalGrace = Duration(seconds: 3);
+
 /// Android / iOS: `speech_to_text` (platform SpeechRecognizer /
 /// SFSpeechRecognizer).
+///
+/// The plugin's own session-end signals can silently never arrive — after a
+/// `stop` it waits out its final-result timeout and gives up without
+/// notifying Dart — so the backend keeps watchdogs for every phase: the
+/// `listen()` confirm race, the never-opened start, and the final that
+/// trails a session end. Each watchdog surfaces as a retryable
+/// `recognitionFailed` through `onError`, never as silence.
 class SpeechToTextReadAloudBackend implements ReadAloudBackend {
   SpeechToTextReadAloudBackend(this._speech);
 
@@ -96,6 +122,15 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
   ReadAloudErrorListener? _errorListener;
   ReadAloudFailure? _lastFailure;
   Future<bool>? _readyInFlight;
+
+  // Session lifecycle (see the class comment). The generation token
+  // invalidates callbacks still in flight from superseded sessions.
+  int _sessionToken = 0;
+  bool _sessionActive = false;
+  bool _confirmedAlive = false;
+  bool _finalDelivered = false;
+  Timer? _listenWatchdog;
+  Timer? _finalGrace;
 
   @override
   bool get isSupported => true;
@@ -125,11 +160,19 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
             'read-aloud: recognition error ${error.errorMsg} '
             '(permanent=${error.permanent})',
           );
+          // `cancelOnError` ends the session on the plugin side; end it here
+          // too so no watchdog fires into the already-notified listener.
+          _endSession();
           _reportFailure(_categorize(error.errorMsg));
         },
         // The final result — not the `done` status — is the completion signal,
         // because only the result carries the transcript the scorer needs.
-        onStatus: (_) {},
+        // The status stream feeds the session watchdogs in `_onPluginStatus`.
+        //
+        // The plugin wires these listeners only on the first successful
+        // `initialize` and ignores later ones; passing method tear-offs of
+        // this singleton keeps them valid for its whole lifetime.
+        onStatus: _onPluginStatus,
       );
       if (!ready) _lastFailure ??= ReadAloudFailure.permissionDenied;
       return ready;
@@ -156,31 +199,68 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
   }) async {
     _errorListener = onError;
     _lastFailure = null;
+    final token = ++_sessionToken;
+    _beginSession();
     try {
       final resolvedLocale = await resolveLocaleId(locale);
-      await _speech.listen(
-        onResult: (result) =>
-            onResult(result.recognizedWords, result.finalResult),
-        listenOptions: SpeechListenOptions(
-          partialResults: true,
-          cancelOnError: true,
-          listenMode: ListenMode.dictation,
-          localeId: resolvedLocale,
-          pauseFor: const Duration(seconds: 3),
-          listenFor: const Duration(seconds: 30),
-        ),
-      );
+      if (token != _sessionToken) return;
+      await _speech
+          .listen(
+            onResult: (result) {
+              if (token != _sessionToken) return;
+              // Any transcript proves the mic came up; the start watchdog
+              // has nothing left to guard.
+              _confirmedAlive = true;
+              _listenWatchdog?.cancel();
+              if (result.finalResult) _finalDelivered = true;
+              onResult(result.recognizedWords, result.finalResult);
+            },
+            listenOptions: SpeechListenOptions(
+              partialResults: true,
+              cancelOnError: true,
+              listenMode: ListenMode.dictation,
+              localeId: resolvedLocale,
+              pauseFor: const Duration(seconds: 3),
+              listenFor: const Duration(seconds: 30),
+            ),
+          )
+          .timeout(kReadAloudListenConfirmTimeout);
+    } on TimeoutException {
+      // `listen()` never confirmed. `cancel()` is the plugin call that
+      // promises no final result — exactly the teardown a half-open session
+      // needs — and the failure is retryable, so the card's mic button
+      // survives.
+      logger.w('read-aloud: listen() never confirmed; cancelling session');
+      _endSession();
+      await _speech.cancel();
+      _reportFailure(ReadAloudFailure.recognitionFailed);
+      return;
     } on PlatformException catch (e, st) {
       logger.w(
         'read-aloud: listen failed (${e.code})',
         error: e,
         stackTrace: st,
       );
+      _endSession();
       _reportFailure(_platformFailure(e.code));
+      return;
     } catch (e, st) {
       logger.w('read-aloud: listen failed', error: e, stackTrace: st);
+      _endSession();
       _reportFailure(ReadAloudFailure.recognitionFailed);
+      return;
     }
+    if (token != _sessionToken || _confirmedAlive) return;
+    // `listen()` returned, but the platform can still fail to open the mic
+    // at all (service stall, audio focus refused). The first `listening`
+    // status or transcript disarms this watchdog.
+    _listenWatchdog = Timer(kReadAloudStartWatchdog, () {
+      _listenWatchdog = null;
+      if (token != _sessionToken || _confirmedAlive) return;
+      logger.w('read-aloud: no sign of recognition after start');
+      _endSession();
+      _reportFailure(ReadAloudFailure.recognitionFailed);
+    });
   }
 
   /// Resolves the most appropriate locale identifier for [requestedLocale].
@@ -222,6 +302,68 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
   @override
   Future<void> stop() async {
     await _speech.stop();
+    // The plugin waits out its final-result timeout after a stop and stays
+    // silent when the wait fails; arm the same grace so a stop that never
+    // delivers a final transcript still unblocks the card.
+    if (_sessionActive && !_finalDelivered) {
+      _armFinalGrace('stop produced no final transcript');
+    }
+  }
+
+  void _beginSession() {
+    _sessionActive = true;
+    _confirmedAlive = false;
+    _finalDelivered = false;
+    _cancelWatchdogs();
+  }
+
+  void _endSession() {
+    // Bumping the token also invalidates plugin callbacks still in flight.
+    _sessionToken++;
+    _sessionActive = false;
+    _cancelWatchdogs();
+  }
+
+  void _cancelWatchdogs() {
+    _listenWatchdog?.cancel();
+    _listenWatchdog = null;
+    _finalGrace?.cancel();
+    _finalGrace = null;
+  }
+
+  /// Plugin status notifications, wired once at `initialize` and shared by
+  /// every session; the guards keep them scoped to the active one.
+  void _onPluginStatus(String status) {
+    if (!_sessionActive) return;
+    if (status == SpeechToText.listeningStatus) {
+      _confirmedAlive = true;
+      _listenWatchdog?.cancel();
+      _finalGrace?.cancel();
+      return;
+    }
+    if (status != SpeechToText.notListeningStatus &&
+        status != SpeechToText.doneStatus) {
+      return;
+    }
+    // `notListening` before any sign of life is startup ordering noise on
+    // some devices, not a session end.
+    if (!_confirmedAlive) return;
+    if (_finalDelivered) {
+      _endSession();
+      return;
+    }
+    _armFinalGrace('session ended without a final transcript');
+  }
+
+  void _armFinalGrace(String reason) {
+    _finalGrace?.cancel();
+    _finalGrace = Timer(kReadAloudFinalGrace, () {
+      _finalGrace = null;
+      if (!_sessionActive || _finalDelivered) return;
+      logger.w('read-aloud: $reason');
+      _endSession();
+      _reportFailure(ReadAloudFailure.recognitionFailed);
+    });
   }
 
   void _reportFailure(ReadAloudFailure failure) {

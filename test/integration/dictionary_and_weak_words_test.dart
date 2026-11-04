@@ -22,7 +22,7 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/application/weak_word_quiz_assembler.dart';
-import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
@@ -114,9 +114,10 @@ void main() {
       () => AccessibilityProvider(prefs),
     );
 
-    vocabById
-      ..clear()
-      ..addAll({
+    // resetForTest bumps the store generation so the memoized dictionary
+    // search index starts from this file's own seeding.
+    LanguageContentStore.resetForTest();
+    vocabById.addAll({
         'w-habari': const WordEntry(
           id: 'w-habari',
           term: 'Habari',

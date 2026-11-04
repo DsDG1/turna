@@ -282,7 +282,7 @@ class _HomePageState extends State<HomePage> {
         body: MediaQuery(
           data: mq.copyWith(
             padding: mq.padding.copyWith(
-              bottom: mq.padding.bottom + TextTabBar.contentHeight,
+              bottom: mq.padding.bottom + TextTabBar.overlayExtent,
             ),
           ),
           child: Column(

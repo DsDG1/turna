@@ -24,7 +24,7 @@ class SoftCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassSurface(
       accent: accentColor,
-      radius: const BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge)),
+      radius: const BorderRadius.all(Radius.circular(TurnaTheme.cardRadius)),
       scale: tintAlpha / 0.10,
       onTap: onTap,
       onLongPress: onLongPress,

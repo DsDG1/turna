@@ -26,8 +26,13 @@ class _FakeSpeechToText implements SpeechToText {
   Completer<List<LocaleName>>? localesCompleter;
   int initializeCalls = 0;
 
+  /// When set, `listen()` never completes on its own — the shape of a
+  /// platform that hangs instead of confirming the session.
+  Completer<void>? listenCompleter;
+
   final List<String?> listenLocales = [];
   int stopCount = 0;
+  int cancelCount = 0;
   List<LocaleName> availableLocales = [];
   SpeechListenOptions? lastListenOptions;
 
@@ -37,9 +42,12 @@ class _FakeSpeechToText implements SpeechToText {
   }
 
   // SpeechToText exposes a public errorListener setter; the fake redeclares
-  // it as a plain field so tests can read what initialize wired.
+  // it as a plain field so tests can read what initialize wired. Same for
+  // the status listener.
   @override
   SpeechErrorListener? errorListener;
+  @override
+  SpeechStatusListener? statusListener;
   SpeechResultListener? resultListener;
 
   @override
@@ -52,6 +60,7 @@ class _FakeSpeechToText implements SpeechToText {
   }) {
     initializeCalls++;
     errorListener = onError;
+    statusListener = onStatus;
     final pending = initializeCompleter;
     if (pending != null) return pending.future;
     final error = initializeError;
@@ -76,11 +85,18 @@ class _FakeSpeechToText implements SpeechToText {
     resultListener = onResult;
     lastListenOptions = listenOptions;
     listenLocales.add(listenOptions?.localeId ?? localeId);
+    final pending = listenCompleter;
+    if (pending != null) await pending.future;
   }
 
   @override
   Future<void> stop() async {
     stopCount++;
+  }
+
+  @override
+  Future<void> cancel() async {
+    cancelCount++;
   }
 
   @override
@@ -186,6 +202,137 @@ void main() {
 
       await backend.stop();
       expect(fake.stopCount, 1);
+    });
+  });
+
+  group('session watchdogs', () {
+    // The plugin can hang on listen() or die without delivering the final
+    // transcript, and it gives up on a late final without notifying Dart —
+    // without watchdogs the card sits on "listening" forever. These cases
+    // run as widget tests for the fake clock; every armed timer is driven
+    // to completion (firing as a guarded no-op when it must not report).
+    testWidgets('listen() that never confirms fails and cancels the session',
+        (tester) async {
+      final fake = _FakeSpeechToText()..listenCompleter = Completer<void>();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      final started = backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      await tester.pump(const Duration(seconds: 7));
+
+      expect(failures, [ReadAloudFailure.recognitionFailed]);
+      expect(fake.cancelCount, 1);
+      await started;
+    });
+
+    testWidgets('a session that stops without a final transcript fails',
+        (tester) async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      await backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      fake.statusListener!(SpeechToText.listeningStatus);
+      fake.statusListener!(SpeechToText.notListeningStatus);
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(failures, [ReadAloudFailure.recognitionFailed]);
+    });
+
+    testWidgets('a stop that never delivers a final result still unblocks',
+        (tester) async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      await backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      fake.statusListener!(SpeechToText.listeningStatus);
+      await backend.stop();
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(failures, [ReadAloudFailure.recognitionFailed]);
+      expect(fake.stopCount, 1);
+    });
+
+    testWidgets('a delivered final transcript is never declared dead',
+        (tester) async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      await backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      fake.statusListener!(SpeechToText.listeningStatus);
+      fake.resultListener!(
+        SpeechRecognitionResult(
+          [const SpeechRecognitionWords('merhaba', null, 1.0)],
+          ResultType.finalResult.value,
+        ),
+      );
+      fake.statusListener!(SpeechToText.notListeningStatus);
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(failures, isEmpty);
+    });
+
+    testWidgets('any transcript disarms the start watchdog', (tester) async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      await backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      fake.resultListener!(
+        SpeechRecognitionResult(
+          [const SpeechRecognitionWords('mer', null, 1.0)],
+          ResultType.partial.value,
+        ),
+      );
+      await tester.pump(const Duration(seconds: 6));
+
+      expect(failures, isEmpty);
+    });
+
+    testWidgets('notListening before any sign of life is startup noise',
+        (tester) async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      await backend.start(
+        locale: 'tr',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      fake.statusListener!(SpeechToText.notListeningStatus);
+      fake.statusListener!(SpeechToText.listeningStatus);
+      await tester.pump(const Duration(seconds: 6));
+
+      expect(failures, isEmpty);
     });
   });
 

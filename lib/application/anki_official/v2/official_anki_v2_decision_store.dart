@@ -1,6 +1,5 @@
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 
 /// D2 消费者：决策进配置区（op 41/42，ADR 0043）。
@@ -83,31 +82,6 @@ class OfficialAnkiV2DecisionStore {
 
   Future<void> deleteDeckPlacement(int deckId) async {
     await _engine.setConfig(
-        OfficialAnkiV2ConfigKeys.coursePlacement(deckId), null);
-  }
-
-  /// B6：课程切换 = 改一个配置区决策键。best-effort —— 引擎不可用时
-  /// 只记录告警，不阻塞切换（prefs 侧的兼容写由 CourseProvider 负责）。
-  Future<void> writeCourseScope(String wireKey) async {
-    try {
-      await _engine.setConfig(
-        OfficialAnkiV2ConfigKeys.courseScope,
-        {'wireKey': wireKey, 'schema': 1},
-      );
-    } catch (error) {
-      officialAnkiV2Log('course scope decision write failed: $error',
-          warning: true);
-    }
-  }
-
-  Future<String?> readCourseScope() async {
-    try {
-      final value =
-          await _engine.getConfig(OfficialAnkiV2ConfigKeys.courseScope);
-      if (!value.found || value.value is! Map) return null;
-      return (value.value as Map)['wireKey'] as String?;
-    } catch (_) {
-      return null;
-    }
+      OfficialAnkiV2ConfigKeys.coursePlacement(deckId), null);
   }
 }

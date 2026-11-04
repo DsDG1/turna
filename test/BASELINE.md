@@ -7,6 +7,53 @@
 
 ---
 
+### 2026-11-04 ADR 0067 记忆卡回归课程域：撤销 0066 界面口径（数据 / 引擎零改动）
+
+- **性质**：产品口径回退批次——记忆卡牌组恢复为「课程」，练习工具移除记忆卡入口。**测试数 +5 净变化**（删 `memory_card_hub_test` 5 条；`play_hub_screen_test` 桩从 `ankiDeckEntries` 换 `scope`：记忆卡行用例改写为 anki 课程裁剪（语言队列让位 / scope 跟随 / 行点按直开正式会话 / unavailable「—」+ 页内重试条断言）；`course_management_page_test` 反转为「牌组条目与导入卡出现在课程管理」（菜单计数 2→3）；`course_provider_test` / `play_review_eligibility_test` 恢复 HEAD 版（setScope 接受 anki scope、持久化原样恢复），后者删 wire-key 重载用例）。非 golden 全量 **2608 passed / 0 failed**。
+- **改动**：
+  1. scope 复位：`CourseProvider.setScope` 恢复接受 anki scope、`_restoreScopeFromPrefs` 不再钳制、`ankiDeckEntries` 窄缝删除；ADR 0066 的 `turna.course.scope` 越界写删除**保留**（prefs 唯一持久层）。
+  2. 课程管理：恢复全量条目列表（牌组切换 / 排序 / 卸载）、`onAdaptation` 行菜单（ADR 0057 §6）、「从记忆卡导入课程」卡、`OfficialPendingImportBanner`、AppBar 修复中心；`_onReorder` 恢复单列表签名。
+  3. 练习台：删记忆卡独立行与工具索引直达链；恢复 anki 分支——`PlayQueueSnapshot.ankiCourse` 回归（`totalDue` anki 口径）、语言三行/chips 让位给「记忆卡复习」行（`FormalReviewLauncher` 直开、长按浮窗、`_AnkiDueRetryBar` 页内重试条）、`_startToday` / `_heroSubtitle` / `TodayOverviewPanelBody` anki 分支。个人页快捷入口恢复 anki 单 chip 形态。
+  4. 导入完成步：「立即学习」恢复切课（`setCourseScope(wire)` + pop）、「查看牌组」恢复 `CourseManagementRoute(highlightWire:)`；`ankiImportSectionIdFor` 随中枢删除。
+  5. 删除：`memory_card_hub_page.dart` + `MemoryCardHubRoute`（codegen 已用 fork SDK 重跑；`.dart_tool` 里官方 3.12.2 编的 build_runner 快照会令 fork dart 报 `Wrong full snapshot version`，已清缓存重编）、hub 专属 l10n 串。
+  6. 文档：立 [ADR 0067](../docs/decisions/0067-memory-card-returns-to-course-domain.md) 取代 0066（0066 状态行改指针）；`docs/status.md` §8 两段按 0067 口径改写；`docs/README.md` 索引补 0067。
+- **验证**：`flutter analyze` **No issues found**；`flutter test --exclude-tags golden` **2608 / 0**。**未验**：真机「课程管理导入 .apkg → 立即学习切课 → 课程树显示牌组 → 练习页记忆卡行 → 切回语言课程」端到端冒烟。
+
+---
+
+### 2026-11-04 跟读识别加固：会话看门狗 + 10s 停滞提示与跳过
+
+- **性质**：ADR 0061 跟读管线健壮性批次；**测试数 +10**（`read_aloud_backend_test` 新增「session watchdogs」组 6 条：listen() 挂起超时取消、会话无 final 结束报死、stop 后无 final 解锁、final 已投递不误判、任一转写解除启动看门狗、启动序 notListening 噪音忽略——fake 补 `statusListener` 存储 / `listenCompleter` 挂起 / `cancelCount`，用 testWidgets 假时钟驱动；`interaction_renderers_test` ReadAloudRenderer 组新增 4 条：10s 停滞出提示+跳过提交 `read-aloud-skipped` 且停会话、partial 重置停滞倒计时、停滞提示后迟到 final 正常评分且跳过按钮消失、跳过后迟到 final 被忽略）。触达两文件 **77 passed / 0 failed**；全量未重跑。
+- **改动**：
+  1. 后端看门狗（`service/read_aloud_backend.dart`）：`onStatus` 从 `(_) {}` 接线为 `_onPluginStatus`（会话代 token 隔离过期回调）；`listen()` 以 6s 超时竞速、超时走 `cancel()`（不投递 final 的拆除语义）；启动确认看门狗 5s（无 `listening` 状态且无任何转写 → 报 `recognitionFailed`）；`notListening`/`done` 或 `stop()` 后 3s final 宽限（> 插件自身 2s finalTimeout，其超时**不通知 Dart**，此前 tap-to-stop 挂死无解）。常量 `kReadAloudListenConfirmTimeout` / `kReadAloudStartWatchdog` / `kReadAloudFinalGrace`。修「点录音后麦克风无法调用即永久卡在正在听」：`start()` 现在有界返回，渲染器 `_starting` 不再永久楔死。
+  2. 渲染器（`views/lesson/components/interactions/read_aloud_renderer.dart`）：`_stallTimer` 10s 停滞网（partial 重置），触发后状态行换 `readAloudStalledHint` 并出「跳过这句」`OutlinedButton`；跳过走降级卡同款 always-correct 哨兵 `read-aloud-skipped`（技术停滞不算答案、不进错题本）；`_skipped` 本地标志挡迟到 final（`state.submitted` 可能不同步翻转）；恢复态重算 score 的排除清单补 `_skippedAnswer`（否则重进卡片对哨兵串算 bogus 分数）。l10n 新增 `readAloudStalledHint` / `readAloudSkipAction`。
+- **验证**：`flutter analyze` **No issues found**；触达两文件 **77 / 0**。**未验**：真机麦克风会话挂起复现路径（看门狗真机生效）、Android/iOS 实机跟读全流程、全量非 golden。
+
+---
+
+### 2026-11-04 ADR 0066 尾款收口（P0）：记忆卡域 scope 终结 + isAnkiScope 裁剪退役
+
+- **性质**：ADR 0066「记忆卡域独立」影响面收尾批次；**测试数 +5**（新增 `test/views/anki/memory_card_hub_test.dart` 5 条：牌组列表来自 `ankiDeckEntries`、空态、牌组点按开正式会话、菜单无切换项且仅三项、文件内容守卫「中枢不得调 setScope」）。同数改写：`play_hub_screen_test`（anki 裁剪 5 用例 → 记忆卡行共存 / 目录跟随 / 行点击进中枢 / 快照回流改经长按浮窗 / unavailable 显示「—」）、`course_provider_test`（setScope(anki) 群 → 拒绝语义 + 存量持久化 anki wire 的恢复钳制）、`play_review_eligibility_test`（删 wire-key 重载用例）。非 golden 全量 **2603 passed / 0 failed**。
+- **改动**：
+  1. scope 收口：`CourseProvider.setScope` 拒绝 anki scope（`PlayReviewEligibility.isAnki`，no-op + `logger.w`）；`_restoreScopeFromPrefs` 把存量持久化的 anki scope 钳回 `_fallbackBuiltin` 并覆写 prefs（Learn tab 不残留牌组投影树）；`memory_card_hub_page` 删「切换为当前复习域」菜单 / `_switchScope` / `isActiveScope` 徽章，卸载回退简化为恒 `reloadCourse`。
+  2. 越界写删除：`_persistScopeDecisionToConfig` 与 `OfficialAnkiV2DecisionStore.writeCourseScope` / `readCourseScope`、`OfficialAnkiV2ConfigKeys.courseScope`（`turna.course.scope` 全仓库零读者）一并删除；scope 只持久化 prefs。
+  3. 裁剪退役：`play_hub_screen` / `profile_quick_actions` / `play_info_panels`（`PlayQueueSnapshot.ankiCourse`、`totalDue` 恒语言三队列、`TodayOverviewPanelBody` 恒三行）删 `isAnkiScope` 分支；练习台新增条件记忆卡行（有牌组时，聚合到期数，点击进 `MemoryCardHubRoute`，长按浮窗 enter 仍开正式复习）；`_AnkiDueRetryBar` 删除（unavailable 呈现 = 行内「—」，重试在中枢横幅）；个人页语言三 chips 常驻 + 条件记忆卡 chip。
+  4. 窄缝：`CourseProvider.ankiDeckEntries`（中枢列表 / 聚合 / 练习台与个人页的「有牌组」判断统一消费；P1 拆目录时替换数据源）。孤儿串 `memoryCardHubSwitchScope` / `memoryCardHubActiveScopeBadge` 删除。
+- **验证**：`flutter analyze` **No issues found**；`flutter test --exclude-tags golden` **2603 / 0**。**未验**：真机升级路径（prefs 预置 anki scope → 钳制）与中枢 / 练习台手动冒烟。
+
+---
+
+### 2026-11-03 性能三项：词典预归一化索引 / 大图解码上限 / 远程备份恢复异步化
+
+- **性质**：性能批次（全项目性能清点的三项落地）；**测试数 +2**（`dictionary_search_test` 新增「同长度重播种经 generation 触发重建」与「原地插条目经长度变化触发重建」两条，防 memo 索引变陈旧；同文件与 `dictionary_and_weak_words_test` 播种改走 `LanguageContentStore.resetForTest()`）。非 golden 全量 **2598 passed / 0 failed**。
+- **改动**：
+  1. 词典：`language_content_store.dart` 增 `globalsGeneration`（`publishGlobals` / `drop`（active 分支）/ `resetForTest` 自增）；`dictionary_search.dart` 改走 memo 化预归一化索引（vocab term 建 `lookupFoldKey` 折叠键、其余字段 `toLowerCase`，失效指纹 = generation + 三个 map 长度），匹配语义 / 顺序 / limit 截断逐字节不变——纯前缀索引会缩结果集（tag/translation 是 contains 契约），故落地为「归一化一次、查询零分配」。
+  2. 大图：splash `app_logo.png` 加 `cacheWidth/cacheHeight`（80dp × dpr，1024 源图 4MB 解码 → ~240px）；分享卡两张鹤图加 `cacheHeight`（88/76 × `cappedSharePixelRatio`，与截图 `pixelRatio` 同源——`share_image_generator.dart` 把 3.0 上限公式提为顶层函数，卡与生成器共用一处真源，只传 height 保宽高比）。
+  3. 备份：`archive_io.dart` 增共享 `verifySha256SumsFile`（收编 service 与 applier 两份拷贝，文案统一）与 `archiveFileSha256OffMainThread`；`remote_backup_service.dart` 恢复路径 isolate 化（core.zip 哈希、整段解压、SHA256SUMS 校验、媒体循环两处哈希、≥16KB 媒体清单 decode；`meta.json` 固定小文档留内联）；`backup_snapshot_service.dart` 四处同步哈希（含 `_captureVerifiedCopy` 与 `_writeSha256Sums` 的 course.db）下放；`restore_applier.dart` 保持同步（首帧前执行、await 在场、isolate 不缩短启动——注释记录取舍），仅共享 verify 函数 + `meta.json` 单读去重。顺手同类项：`course_ota_service.dart` 下载包哈希同用新 helper。
+- **验证**：`flutter analyze` **No issues found**；`flutter test --exclude-tags golden` **2598 / 0**。**未验**：真机备份 / 恢复端到端（数百 MB 快照的实机耗时）、分享卡截图清晰度实机核对、鸿蒙侧构建。
+
+---
+
 ### 2026-11-03 P3+P4 湿地雾光接线：外壳 / 学习闭环 / 六域逐页重构主体落地
 
 - **性质**：设计翻新 P3 + P4 主体批次（P2 组件全量接线 + 记忆卡中枢新建）；**测试数净 0**（删 `bottom_navigator_test` 8 条与答题明细断言若干，新增 / 改写相当——含课程树契约迁移、练习台任务台断言、报告页 KPI 断言、热图逐日语义探针等；全量计数 2596）。全量非 golden **2596 passed / 0 failed**。

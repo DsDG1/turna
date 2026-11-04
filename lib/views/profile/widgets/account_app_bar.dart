@@ -45,7 +45,7 @@ class AccountWidget extends StatelessWidget {
         return Container(
           key: const Key('profile-cosmetic-theme'),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

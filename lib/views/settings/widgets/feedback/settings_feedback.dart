@@ -140,7 +140,7 @@ class SettingsInfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _surface(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(color: accent.withValues(alpha: 0.30)),
       ),
       child: Row(

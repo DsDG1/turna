@@ -6,12 +6,13 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// 听写 (ADR 0057 §4): audio only on the question face, typed answer.
 ///
@@ -115,53 +116,45 @@ class _DictationBodyState extends State<_DictationBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonTypeWhatYouHearCaption),
-          const SizedBox(height: 8),
-          Text(
-            AppStrings.lessonDictationPrompt,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd(context),
+          // 听写刻意不渲染文字题面（ADR 0057）: 画布里只有播放主控群。
+          SessionRecallCanvas(
+            minHeight: 200,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppStrings.lessonDictationPrompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptMd(context),
+                ),
+                const SizedBox(height: 20),
+                AnkiMediaStrip(audioAssets: widget.audioAssets),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
-          AnkiMediaStrip(audioAssets: widget.audioAssets),
           if (!submitted && widget.hint != null && widget.hint!.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(
-              widget.hint!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-            ),
+            Center(child: InteractionHintChip(label: widget.hint!)),
           ],
           const SizedBox(height: 24),
-          TextField(
+          InteractionTextField(
             controller: _controller,
+            verdict:
+                interactionVerdictOf(submitted: submitted, correct: correct),
             enabled: !submitted,
             autofocus: !submitted,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: TurnaTheme.textPrimaryColor(context),
-              letterSpacing: 0.5,
-            ),
-            decoration: InputDecoration(
-              hintText: AppStrings.lessonTypeHere,
-              filled: true,
-              fillColor: submitted
-                  ? (correct == true
-                      ? TurnaTheme.success.withValues(alpha: 0.10)
-                      : TurnaTheme.error.withValues(alpha: 0.08))
-                  : TurnaTheme.inputFillColor(context),
-            ),
+            largeStyle: true,
+            hintText: AppStrings.lessonTypeHere,
             onSubmitted: (_) => _trySubmit(),
           ),
-          if (submitted && correct == false) ...[
+          if (submitted) ...[
             const SizedBox(height: 16),
-            LessonCorrectAnswerBanner(
-              label: AppStrings.lessonCorrectAnswer,
-              answer: widget.expected,
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: widget.state.userAnswerText,
+              correctAnswer: widget.expected,
             ),
           ],
         ],

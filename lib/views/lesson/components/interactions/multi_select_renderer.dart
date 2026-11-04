@@ -10,8 +10,9 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 
 /// Pick one or more options out of N.
 ///
@@ -159,27 +160,47 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCaption(AppStrings.lessonSelectAllCaption),
-          Text(
-            widget.prompt,
-            style: AppTextStyles.promptLg(context).copyWith(
-              fontWeight: FontWeight.w600,
+          // 大题面（§7.1 选择族）: 纸面画布 + 紧凑编号行。
+          SessionRecallCanvas(
+            minHeight: 140,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.prompt,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.promptLg(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (widget.imageAsset != null) ...[
+                  const SizedBox(height: 16),
+                  RoundedCachedAssetImage(asset: widget.imageAsset!),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
+          // 操作提示行（§7.1「多选显示操作提示」）: 紧贴选项区而不是挤在题面里。
           Text(
             _selectionSummary(),
-            style: AppTextStyles.promptMd(context).copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
+            style: AppTextStyles.captionSm(context),
           ),
-          if (widget.imageAsset != null) ...[
-            const SizedBox(height: 16),
-            RoundedCachedAssetImage(asset: widget.imageAsset!),
-          ],
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.sm),
           ..._buildOptions(submitted, correct),
+          if (submitted) ...[
+            const SizedBox(height: AppSpacing.lg),
+            InteractionFeedbackPanel(
+              correct: correct == true,
+              userAnswer: (_picked.toList()..sort())
+                  .map((i) => widget.options[i])
+                  .join('、'),
+              correctAnswer: (widget.correctIndices.toList()..sort())
+                  .map((i) => widget.options[i])
+                  .join('、'),
+            ),
+          ],
         ],
       ),
     );

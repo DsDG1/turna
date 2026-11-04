@@ -214,7 +214,7 @@ class BackupSnapshotService {
     return BackupSnapshot(
       backupId: backupId,
       coreZip: coreZip,
-      coreZipSha256: archiveFileSha256(coreZip.path),
+      coreZipSha256: await archiveFileSha256OffMainThread(coreZip.path),
       meta: meta,
       mediaManifest: mediaManifest,
       mediaObjects: mediaObjects,
@@ -334,10 +334,10 @@ class BackupSnapshotService {
   ) async {
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
-      final sha = archiveFileSha256(source.path);
+      final sha = await archiveFileSha256OffMainThread(source.path);
       final dest = File(p.join(objectsDir.path, sha));
       await copyImpl(source, dest);
-      if (archiveFileSha256(dest.path) == sha) return sha;
+      if (await archiveFileSha256OffMainThread(dest.path) == sha) return sha;
       lastError = StateError('媒体文件在快照期间持续变化: ${p.basename(source.path)}');
     }
     throw lastError!;
@@ -352,7 +352,10 @@ class BackupSnapshotService {
   Future<void> _writeSha256Sums(Directory dir, List<String> names) async {
     final lines = <String>[];
     for (final name in names) {
-      final digest = archiveFileSha256(p.join(dir.path, name));
+      // Entries include course.db (potentially hundreds of MB) — hash every
+      // entry off the main isolate so packing never freezes the UI.
+      final digest =
+          await archiveFileSha256OffMainThread(p.join(dir.path, name));
       lines.add('$digest  $name');
     }
     await File(p.join(dir.path, 'SHA256SUMS'))

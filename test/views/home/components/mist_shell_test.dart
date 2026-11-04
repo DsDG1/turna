@@ -73,10 +73,14 @@ void main() {
 
       await tester.tap(find.text('设置'));
       expect(taps, [3]);
+
+      // 悬浮胶囊默认走轻模糊，几何与模糊强度是接线契约。
+      expect(find.byType(BackdropFilter), findsOneWidget);
+      expect(TextTabBar.overlayExtent, 80);
+      expect(TextTabBar.frostSigma, 8);
     });
 
-    testWidgets('选中项有语义标签且文字加重（屏幕阅读器与视觉双信号）',
-        (tester) async {
+    testWidgets('选中项有语义标签且文字加重（屏幕阅读器与视觉双信号）', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: TurnaTheme.lightTheme,
@@ -101,6 +105,27 @@ void main() {
       final unselectedText = tester.widget<Text>(find.text('练习'));
       expect(selectedText.style?.fontWeight, FontWeight.w700);
       expect(unselectedText.style?.fontWeight, FontWeight.w500);
+
+      // 减少动效时不构建 BackdropFilter，退回无模糊的面。
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TurnaTheme.lightTheme,
+          home: Scaffold(
+            body: MediaQuery(
+              data: const MediaQueryData(disableAnimations: true),
+              child: TextTabBar(
+                items: const [
+                  TextTabItem(label: '学习'),
+                  TextTabItem(label: '练习'),
+                ],
+                selectedIndex: 0,
+                onTap: _noop,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.byType(BackdropFilter), findsNothing);
     });
   });
 }

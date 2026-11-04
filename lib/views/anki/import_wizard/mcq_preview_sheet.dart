@@ -223,7 +223,7 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: TurnaTheme.scaffoldBg(context),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                   border: Border.all(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
                   ),

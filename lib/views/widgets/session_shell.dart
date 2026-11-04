@@ -267,6 +267,7 @@ class SessionRecallCanvas extends StatelessWidget {
     required this.child,
     this.alignment = Alignment.center,
     this.padding = const EdgeInsets.all(AppSpacing.xl),
+    this.minHeight,
     super.key,
   });
 
@@ -274,14 +275,21 @@ class SessionRecallCanvas extends StatelessWidget {
   final AlignmentGeometry alignment;
   final EdgeInsetsGeometry padding;
 
+  /// 题面下限高度。与紧凑答案区拉开尺度差是 §7.1 选择族的构图基础
+  /// （大题面 / 紧凑答案区）; 不传则随内容自然高。
+  final double? minHeight;
+
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: minHeight == null
+          ? null
+          : BoxConstraints(minHeight: minHeight!),
       alignment: alignment,
       padding: padding,
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: child,
     );

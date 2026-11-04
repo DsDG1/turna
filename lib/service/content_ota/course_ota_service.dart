@@ -198,7 +198,8 @@ class CourseOtaService {
       if (release != null && actualSize != release.sizeBytes) {
         throw const CourseOtaException('课程包大小与清单不一致');
       }
-      final actualSha256 = archiveFileSha256(package.path);
+      final actualSha256 =
+          await archiveFileSha256OffMainThread(package.path);
       if (release != null && actualSha256 != release.sha256) {
         throw const CourseOtaException('课程包 SHA-256 校验失败');
       }

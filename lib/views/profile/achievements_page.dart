@@ -338,7 +338,7 @@ class _RecentRow extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Row(
         children: [

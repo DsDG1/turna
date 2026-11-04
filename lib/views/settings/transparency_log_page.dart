@@ -122,7 +122,7 @@ class _TransparencyHero extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -401,7 +401,7 @@ class _FooterNote extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(
           color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
         ),
@@ -778,7 +778,7 @@ class _AboutCard extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: child,
     );

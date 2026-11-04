@@ -7,12 +7,12 @@ import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/theme.dart';
 
-/// Done step (maintainability plan §10.5), 步骤流程版式（ADR 0066）：中央
+/// Done step (maintainability plan §10.5), 步骤流程版式：中央
 /// 摘要（统一 [AnkiImportSummary] 的分组明细），底部固定动作带。
 ///
-/// 动作口径（ADR 0066 §2）：「立即学习」直接进入该牌组的正式复习，**不再
-/// 切换当前语言课程**；「查看牌组」指向记忆卡中枢；「完成」仅返回。三个
-/// 动作都是页面级意图，由宿主页面接线。
+/// 动作口径（ADR 0067 / 0043）：「立即学习」切换到新导入的牌组课程并
+/// 返回学习 Tab（全 App 唯一切课的完成动作）；「查看牌组」高亮打开课程
+/// 管理；「完成」仅返回。三个动作都是页面级意图，由宿主页面接线。
 class AnkiImportDoneStep extends StatelessWidget {
   const AnkiImportDoneStep({
     super.key,
@@ -137,9 +137,9 @@ class AnkiImportDoneStep extends StatelessWidget {
                 onPressed: onStartLearningNow,
               ),
               const SizedBox(height: AppSpacing.sm),
-              // Secondary action: open the memory-card hub (switch /
-              // inspect / browse) — a distinct destination from "Done",
-              // which simply returns (ADR 0066 §2).
+              // Secondary action: open course management with the new
+              // course highlighted — a distinct destination from "Done",
+              // which simply returns (ADR 0043).
               SizedBox(
                 height: 48,
                 child: OutlinedButton.icon(

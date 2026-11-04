@@ -288,7 +288,7 @@ class _CosmeticTile extends StatelessWidget {
                 : TurnaTheme.statCardBorder(context),
             width: highContrast ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
