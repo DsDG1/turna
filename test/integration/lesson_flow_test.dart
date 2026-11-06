@@ -1,6 +1,8 @@
 // End-to-end lesson path (host): load synthetic lesson → answer → complete →
 // progress recorded. Runs under `flutter test` (no device).
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +25,7 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -196,6 +199,51 @@ void main() {
 
     expect(progress.isLessonCompleted(lesson.id), isTrue);
     expect(progress.isLessonPerfect(lesson.id), isTrue);
+    expect(game.isLessonCompleted(lesson.id), isTrue);
+  });
+
+  test('bundled dialogue lesson: four responses complete the real JSON lesson',
+      () async {
+    final section = parseSection(
+      File('assets/courses/nouveau-turkish/sections/section1.json')
+          .readAsStringSync(),
+    );
+    final lesson = section.units.single.lessons.firstWhere(
+      (lesson) => lesson.id == 'nt-u1-l2-dialogue',
+    );
+    final game = GameProvider.forTesting(prefs);
+    final link = LessonLinkStore(prefs);
+    final srsDao = emptySrsStateDao();
+    final srs = SrsProvider(prefs, link, srsDao);
+    final mistakes = MistakeProvider(prefs);
+    final grammar = GrammarReviewProvider(prefs, link, srsDao);
+    final coordinator = LessonCompletionCoordinator(
+      game,
+      GemsProvider(prefs),
+      AchievementTestStack.build(prefs).service,
+      _FakeStudyStats(prefs),
+    );
+    final vm = LessonViewModel(
+      _FakeCourseProvider(lesson),
+      _FakeAudioController(),
+      srs,
+      mistakes,
+      grammar,
+      coordinator,
+    );
+
+    vm.loadLessonInstance(lesson);
+    expect(vm.totalInteractionCount, 4);
+    for (var i = 0; i < 4; i++) {
+      expect(vm.currentInteraction, isNotNull);
+      vm.submitInteraction(true, userAnswerText: 'response-$i');
+      vm.advance();
+    }
+    for (var i = 0; i < 20 && !vm.isComplete; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(vm.isComplete, isTrue);
     expect(game.isLessonCompleted(lesson.id), isTrue);
   });
 }

@@ -12,13 +12,13 @@
 - Vocabulary words referenced by at least one lesson: 4
 - Sections: 8
 - Units (all sections): 1
-- Lessons (all sections): 1
+- Lessons (all sections): 2
 
 ## Section scale (design contract: ≤60 units/section, ≤40 lessons/unit)
 
 | section | name | units | lessons | max lessons/unit |
 |---|---|---:|---:|---:|
-| nt-s1 | 起步 · Merhaba | 1 | 1 | 1 |
+| nt-s1 | 起步 · Merhaba | 1 | 2 | 2 |
 | nt-s2 | 预留 · 待施工 | 0 | 0 | 0 |
 | nt-s3 | 预留 · 待施工 | 0 | 0 | 0 |
 | nt-s4 | 预留 · 待施工 | 0 | 0 | 0 |

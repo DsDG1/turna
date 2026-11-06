@@ -55,12 +55,14 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 ## 4. 课程引擎
 
 ```
-Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction
+Section → Unit → Lesson
+  → SubLesson / ListeningPhase / DialogueScene / ReadingPassage
+  → Stage → Interaction
 ```
 
 全是 Freezed 不可变类 + JSON 序列化，`Lesson.flattenedStages` 把嵌套内容展平成渲染器可遍历的 `List<Stage>`。Interaction 题型清单以 `lib/domain/course/interaction.dart` 为准（不在此处数数），均 `@injectable` 注册到 GetIt：`showWord`、`multipleChoice`、`multiSelect`、`fillBlank`（打字比对走 `foldTurkish`）、`translateSentence`、`reorderSentence`、`typeTheWord`、`listenAndPick`、`listenOnly`、`imageRecall`、`dictation`、`readingMcq`、`readingTrueFalse`、`readingShortAnswer`、`ankiCard`、`ankiHtmlCard`（官方复习路径用 WebView 渲染原 notetype HTML，存量卡降级为占位卡）、`readAloud`（跟读，[ADR 0061](./decisions/0061-read-aloud-word-matching.md)：平台识别 + 词面匹配，Android/iOS；其余平台降级为听示范卡）。
 
-6 种教学模板 + 1 种兜底：intro 认识新词；practice 受控语境反复操练填空 / 翻译 / 组句；listening 听力训练（自下而上的语音解码）；reading 阅读理解（短文 + 三道递进题）；review 跨单元回顾；mastery 混合题型限时完成；legacy 兜底模板，兼容旧版课程数据。
+7 种教学模板 + 1 种兜底：intro 认识新词；practice 受控语境反复操练填空 / 翻译 / 组句；listening 听力训练（自下而上的语音解码）；dialogue 情景对话（角色轮次 + 学习者以既有题型回应，[ADR 0070](./decisions/0070-scenario-dialogue-lessons.md)）；reading 阅读理解（短文 + 三道递进题）；review 跨单元回顾，可用 `reviewPolicy` 从平铺题池按作者权重与课内错题加权随机抽题（[ADR 0071](./decisions/0071-review-question-pool.md)）；mastery 混合题型限时完成；legacy 兜底模板，兼容旧版课程数据。课时视图由 `lesson_presentation.dart` 的 `LessonPresentationProfile` 集中提供模板图标、进度样式与内容宽度；题型仍由 renderer 插件负责，听力对话的阶段音频与原文经 `ListeningPhaseHeader` 接入共用会话骨架，情景对话经 `DialogueSceneHeader` 接入同一骨架。
 
 > 写课时内容的完整契约见 [`authoring/lesson-type-templates.md`](./authoring/lesson-type-templates.md)、[`authoring/course-layout.md`](./authoring/course-layout.md)、[`authoring/listening-show-format.md`](./authoring/listening-show-format.md)。
 

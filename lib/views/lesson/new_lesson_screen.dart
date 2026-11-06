@@ -30,6 +30,7 @@ import 'package:turna/domain/course/listening_phase.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
+import 'package:turna/views/lesson/components/dialogue_scene_header.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_presentation.dart';
@@ -590,6 +591,7 @@ class _LessonBody extends StatelessWidget {
         final renderer = lookupRenderer(renderers, interaction);
         final readingPassage = lesson.content.readingPassage;
         final legacyPassage = lesson.content.passage;
+        final dialogueScene = lesson.content.dialogueScene;
         final listeningPhase = listeningPhaseForStage(lesson, vm.currentStage);
         final profile = lessonPresentationProfile(lesson.template);
         final stage = _stageLabel(vm);
@@ -600,7 +602,16 @@ class _LessonBody extends StatelessWidget {
             ? LessonReadingPassageCard(passage: readingPassage)
             : legacyPassage.isNotEmpty
                 ? LessonLegacyReadingPassage(text: legacyPassage)
-                : listeningPhase != null &&
+                : dialogueScene != null
+                    ? DialogueSceneHeader(
+                        scene: dialogueScene,
+                        interactions: [
+                          for (final s in lesson.flattenedStages) ...s.items,
+                        ],
+                        currentInteractionId: interaction.id,
+                        currentSubmitted: interactionState.submitted,
+                      )
+                    : listeningPhase != null &&
                             listeningPhase.type == ListeningPhaseType.dialogue
                         ? ListeningPhaseHeader(
                             key: ValueKey('listening-${listeningPhase.id}'),

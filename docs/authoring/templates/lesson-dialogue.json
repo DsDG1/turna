@@ -1,0 +1,52 @@
+{
+  "id": "l-example-dialogue-1",
+  "name": "Dialogue example",
+  "description": "A character-driven scene with a learner response.",
+  "type": "dialogue",
+  "template": "dialogue",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "dialogueScene": {
+      "id": "scene-example",
+      "title": "At the cafe",
+      "characters": [
+        {
+          "id": "ayse",
+          "name": "Ayşe",
+          "imageAsset": ""
+        },
+        {
+          "id": "learner",
+          "name": "你"
+        }
+      ],
+      "turns": [
+        {
+          "id": "turn-1",
+          "speakerId": "ayse",
+          "text": "Merhaba!"
+        },
+        {
+          "id": "turn-2",
+          "speakerId": "learner",
+          "interactionId": "reply-1"
+        }
+      ]
+    },
+    "stages": [
+      {
+        "id": "st-dialogue",
+        "name": "Respond",
+        "items": [
+          {
+            "runtimeType": "fillBlank",
+            "id": "reply-1",
+            "sentence": "— Merhaba!\n— _____",
+            "answer": "Merhaba!",
+            "choices": ["Merhaba!", "Teşekkürler!"]
+          }
+        ]
+      }
+    ]
+  }
+}

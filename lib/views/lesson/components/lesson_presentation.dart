@@ -39,6 +39,12 @@ LessonPresentationProfile lessonPresentationProfile(LessonTemplate template) {
         progressStyle: SessionProgressStyle.dots,
         maxWidth: 720,
       ),
+    LessonTemplate.dialogue => LessonPresentationProfile(
+        icon: Icons.forum_rounded,
+        label: AppStrings.lessonTemplateDialogue,
+        progressStyle: SessionProgressStyle.bar,
+        maxWidth: 760,
+      ),
     LessonTemplate.reading => LessonPresentationProfile(
         icon: Icons.menu_book_rounded,
         label: AppStrings.lessonTemplateReading,

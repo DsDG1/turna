@@ -35,8 +35,13 @@ from src.backend.schema_constants import (
 CONTENT_BY_TEMPLATE: dict[str, set[str]] = {
     TemplateType.INTRO: {ContentKey.SUB_LESSONS},
     TemplateType.PRACTICE: {ContentKey.SUB_LESSONS},
-    TemplateType.REVIEW: {ContentKey.SUB_LESSONS, ContentKey.STAGES},
+    TemplateType.REVIEW: {
+        ContentKey.SUB_LESSONS,
+        ContentKey.STAGES,
+        ContentKey.REVIEW_POLICY,
+    },
     TemplateType.LISTENING: {ContentKey.LISTENING_PHASES},
+    TemplateType.DIALOGUE: {ContentKey.DIALOGUE_SCENE, ContentKey.STAGES},
     TemplateType.READING: {ContentKey.READING_PASSAGE, ContentKey.STAGES},
     TemplateType.MASTERY: {ContentKey.STAGES},
     TemplateType.LEGACY: {ContentKey.STAGES, ContentKey.SUB_LESSONS, ContentKey.LISTENING_PHASES},
@@ -47,6 +52,7 @@ PRIMARY_CONTENT_KEY: dict[str, str] = {
     TemplateType.PRACTICE: ContentKey.SUB_LESSONS,
     TemplateType.REVIEW: ContentKey.SUB_LESSONS,
     TemplateType.LISTENING: ContentKey.LISTENING_PHASES,
+    TemplateType.DIALOGUE: ContentKey.STAGES,
     TemplateType.READING: ContentKey.READING_PASSAGE,
     TemplateType.MASTERY: ContentKey.STAGES,
     TemplateType.LEGACY: ContentKey.STAGES,
@@ -83,6 +89,7 @@ TEMPLATE_LABELS: dict[str, str] = {
     TemplateType.PRACTICE: "巩固练习",
     TemplateType.REVIEW: "复习",
     TemplateType.LISTENING: "听力训练",
+    TemplateType.DIALOGUE: "情景对话",
     TemplateType.READING: "阅读理解",
     TemplateType.MASTERY: "综合测验",
     TemplateType.LEGACY: "基础题",
@@ -94,6 +101,7 @@ TEMPLATE_LABELS: dict[str, str] = {
 #: teal — keep the hex in sync with ``theme_tokens.BRAND_TEAL`` (ADR 0033).
 TEMPLATE_COLORS: dict[str, str] = {
     TemplateType.LISTENING: "#1F727E",  # ≡ theme_tokens.BRAND_TEAL
+    TemplateType.DIALOGUE: "#B85C3F",   # anatolianClay
     TemplateType.READING: "#10B981",    # emerald
     TemplateType.MASTERY: "#F59E0B",    # amber
     TemplateType.INTRO: "#6366F1",      # indigo
@@ -153,6 +161,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("sentence", True, "string", ""),
         FieldSpec("answer", True, "string", ""),
         FieldSpec("hint", False, "string", ""),
+        FieldSpec("choices", False, "string_list", []),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
         FieldSpec("audioAssets", False, "string_list", []),
         FieldSpec("imageAssets", False, "string_list", []),
@@ -190,6 +199,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("id", False, "string", ""),
         FieldSpec("scrambled", True, "string_list", []),
         FieldSpec("correct", True, "string_list", []),
+        FieldSpec("prompt", False, "string", ""),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
     InteractionType.READING_MCQ: [
@@ -302,6 +312,20 @@ def switch_template(lesson: dict[str, Any], new_template: str) -> None:
             content[ContentKey.READING_PASSAGE] = _empty_reading_passage()
     elif primary and primary not in content:
         content[primary] = []
+    if new_template == TemplateType.DIALOGUE and ContentKey.DIALOGUE_SCENE not in content:
+        content[ContentKey.DIALOGUE_SCENE] = _empty_dialogue_scene()
+
+
+def _empty_dialogue_scene() -> dict[str, Any]:
+    return {
+        "id": short_id("scene"),
+        "title": "",
+        "characters": [
+            {"id": "speaker", "name": "角色", "imageAsset": ""},
+            {"id": "learner", "name": "你"},
+        ],
+        "turns": [],
+    }
 
 
 def _empty_reading_passage() -> dict[str, Any]:
@@ -646,10 +670,9 @@ def clone_lesson_with_fresh_ids(
     """Deep-copy a lesson and regenerate all structural ids so the copy can
     coexist with the original (workshop2 P1 duplicate-lesson support).
 
-    Regenerated: lesson id, subLessons, stages, items, listeningPhases.
-    Preserved (they point to external resources/lessons, not structural ids):
-    ``wordId``, ``expressionId``, ``grammarPointId``, ``linkedWordIds``,
-    ``linkedExpressionIds``, ``prerequisiteLessonIds``.
+    Regenerated: lesson id, subLessons, stages, items, listeningPhases, and
+    dialogue scene/turn ids. Dialogue interaction references follow the new
+    item ids. External resource and prerequisite references are preserved.
     """
     import copy
 
@@ -658,12 +681,16 @@ def clone_lesson_with_fresh_ids(
     if name is not None:
         clone["name"] = name
     content = clone.get("content", {})
+    interaction_ids: dict[str, str] = {}
 
     def _renew_items(items: list[dict[str, Any]]) -> None:
         for item in items:
             rt = item.get("runtimeType")
             if rt:
+                old_id = item.get("id", "")
                 item["id"] = short_id(rt[:2])
+                if old_id:
+                    interaction_ids[old_id] = item["id"]
 
     for sub in content.get("subLessons", []):
         sub["id"] = short_id("sl")
@@ -676,6 +703,14 @@ def clone_lesson_with_fresh_ids(
     for ph in content.get("listeningPhases", []):
         ph["id"] = short_id("lp")
         _renew_items(ph.get("items", []))
+    scene = content.get(ContentKey.DIALOGUE_SCENE)
+    if isinstance(scene, dict):
+        scene["id"] = short_id("scene")
+        for turn in scene.get("turns", []):
+            turn["id"] = short_id("turn")
+            old_interaction = turn.get("interactionId")
+            if old_interaction in interaction_ids:
+                turn["interactionId"] = interaction_ids[old_interaction]
     return clone
 
 

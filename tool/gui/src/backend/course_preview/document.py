@@ -101,7 +101,7 @@ def _prompt(item: dict[str, Any], runtime_type: str, words: dict[str, dict[str, 
         pair = " — ".join(part for part in (term, translation) if part)
         return pair or _text(item.get("wordId")) or "未提供词条"
     if runtime_type == "reorderSentence":
-        return "请将下列词块排列成正确句子。"
+        return _text(item.get("prompt")) or "请将下列词块排列成正确句子。"
     if runtime_type == "readAloud":
         return _first(item, "prompt", "targetText")
     return _first(
@@ -196,6 +196,25 @@ def _reading_context(content: dict[str, Any]) -> tuple[str, ...]:
             if text:
                 result.append(text)
     return tuple(result)
+
+
+def _dialogue_context(content: dict[str, Any]) -> tuple[str, ...]:
+    scene = content.get("dialogueScene")
+    if not isinstance(scene, dict):
+        return ()
+    speakers = {
+        _text(character.get("id")): _text(character.get("name"))
+        for character in scene.get("characters") or []
+        if isinstance(character, dict)
+    }
+    result = [_text(scene.get("title"))]
+    for turn in scene.get("turns") or []:
+        if not isinstance(turn, dict):
+            continue
+        speaker = speakers.get(_text(turn.get("speakerId")), _text(turn.get("speakerId")))
+        text = _text(turn.get("text")) or "（学习者回应）"
+        result.append(f"{speaker}：{text}")
+    return tuple(part for part in result if part)
 
 
 @dataclass(frozen=True)
@@ -360,7 +379,7 @@ def build_document(section: dict[str, Any]) -> PreviewDocument:
                     lesson_id=lesson_id,
                     name=lesson_name,
                     template=_text(raw_lesson.get("template") or raw_lesson.get("type")),
-                    context=_reading_context(content),
+                    context=(*_reading_context(content), *_dialogue_context(content)),
                     items=tuple(items),
                 )
             )

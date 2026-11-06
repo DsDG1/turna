@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 from collections import defaultdict
@@ -533,6 +534,16 @@ def _validate_lesson(
                 )
             )
             return
+    elif template == "dialogue":
+        if not isinstance(content.get("dialogueScene"), dict) or not has_stages:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} uses template dialogue but needs both "
+                    "dialogueScene and stages",
+                )
+            )
+            return
     elif template == "reading":
         if not has_reading:
             problems.append(
@@ -588,6 +599,193 @@ def _validate_lesson(
                     "error",
                     f"Lesson {lid} references missing grammarPointId {gp_id}",
                 )
+            )
+
+    if template == "dialogue":
+        _validate_dialogue_scene(lesson, problems)
+    if content.get("reviewPolicy") is not None:
+        _validate_review_policy(lesson, problems)
+
+
+_REVIEW_POOL_TYPES = {
+    "multipleChoice",
+    "multiSelect",
+    "fillBlank",
+    "translateSentence",
+    "listenAndPick",
+    "typeTheWord",
+    "reorderSentence",
+    "readingMcq",
+    "readingTrueFalse",
+    "readingShortAnswer",
+    "readAloud",
+}
+
+
+def _validate_dialogue_scene(
+    lesson: dict[str, Any], problems: list[Problem]
+) -> None:
+    lesson_id = lesson.get("id", "<unknown>")
+    scene = lesson.get("content", {}).get("dialogueScene")
+    if not isinstance(scene, dict):
+        return
+    scene_id = scene.get("id", "")
+    if not str(scene_id).strip():
+        problems.append(Problem("error", f"Dialogue lesson {lesson_id} has empty scene id"))
+
+    characters: set[str] = set()
+    for character in scene.get("characters", []):
+        character_id = character.get("id", "")
+        name = character.get("name", "")
+        if not str(character_id).strip() or not str(name).strip():
+            problems.append(
+                Problem("error", f"Dialogue scene {scene_id} has character with empty id or name")
+            )
+        elif character_id in characters:
+            problems.append(
+                Problem("error", f"Duplicate dialogue character id: {character_id}")
+            )
+        else:
+            characters.add(character_id)
+
+    turns = scene.get("turns", [])
+    if not turns:
+        problems.append(Problem("error", f"Dialogue scene {scene_id} has no turns"))
+
+    interactions = [
+        item
+        for stage in lesson.get("content", {}).get("stages", [])
+        for item in stage.get("items", [])
+    ]
+    interaction_by_id: dict[str, dict[str, Any]] = {}
+    for item in interactions:
+        item_id = item.get("id", "")
+        if not item_id:
+            continue
+        if item_id in interaction_by_id:
+            problems.append(
+                Problem("error", f"Dialogue interaction id {item_id} is not unique")
+            )
+        else:
+            interaction_by_id[item_id] = item
+
+    turn_ids: set[str] = set()
+    referenced_ids: list[str] = []
+    learner_turns = 0
+    for turn in turns:
+        turn_id = turn.get("id", "")
+        speaker_id = turn.get("speakerId", "")
+        if not str(turn_id).strip():
+            problems.append(Problem("error", f"Dialogue scene {scene_id} has turn with empty id"))
+        elif turn_id in turn_ids:
+            problems.append(Problem("error", f"Duplicate dialogue turn id: {turn_id}"))
+        else:
+            turn_ids.add(turn_id)
+        if speaker_id not in characters:
+            problems.append(
+                Problem("error", f"Dialogue turn {turn_id} references missing speakerId {speaker_id}")
+            )
+
+        text = turn.get("text")
+        interaction_id = turn.get("interactionId")
+        has_text = text is not None
+        has_interaction = interaction_id is not None
+        if has_text == has_interaction:
+            problems.append(
+                Problem("error", f"Dialogue turn {turn_id} must declare exactly one of text or interactionId")
+            )
+            continue
+        if has_text:
+            if not str(text).strip():
+                problems.append(Problem("error", f"Dialogue turn {turn_id} has empty text"))
+            continue
+
+        learner_turns += 1
+        if interaction_id in referenced_ids:
+            problems.append(
+                Problem("error", f"Dialogue interaction {interaction_id} is referenced by multiple turns")
+            )
+        referenced_ids.append(interaction_id)
+        item = interaction_by_id.get(interaction_id)
+        if item is None:
+            problems.append(
+                Problem("error", f"Dialogue turn {turn_id} references missing interactionId {interaction_id}")
+            )
+        elif item.get("runtimeType") not in _REVIEW_POOL_TYPES:
+            problems.append(
+                Problem("error", f"Dialogue turn {turn_id} references non-response interaction {interaction_id}")
+            )
+
+    if learner_turns == 0:
+        problems.append(Problem("error", f"Dialogue scene {scene_id} has no learner response turns"))
+    for item in interactions:
+        item_id = item.get("id", "")
+        if item_id and item_id not in referenced_ids:
+            problems.append(
+                Problem("error", f"Dialogue interaction {item_id} is not referenced by a turn")
+            )
+
+    authored_ids = [item.get("id", "") for item in interactions]
+    if len(referenced_ids) == len(authored_ids) and referenced_ids != authored_ids:
+        problems.append(
+            Problem("error", f"Dialogue learner turns must follow stage item order in {lesson_id}")
+        )
+
+
+def _validate_review_policy(
+    lesson: dict[str, Any], problems: list[Problem]
+) -> None:
+    lesson_id = lesson.get("id", "<unknown>")
+    content = lesson.get("content", {})
+    policy = content.get("reviewPolicy")
+    if not isinstance(policy, dict):
+        problems.append(Problem("error", f"Review lesson {lesson_id} has invalid reviewPolicy"))
+        return
+    if lesson.get("template", "legacy") != "review":
+        problems.append(Problem("error", f"Lesson {lesson_id} has reviewPolicy but is not review"))
+    if content.get("subLessons") or content.get("listeningPhases"):
+        problems.append(Problem("error", f"Review lesson {lesson_id} reviewPolicy requires flat stages"))
+
+    pool = [
+        item
+        for stage in content.get("stages", [])
+        for item in stage.get("items", [])
+    ]
+    min_items = policy.get("minItems")
+    max_items = policy.get("maxItems")
+    if not isinstance(min_items, int) or isinstance(min_items, bool):
+        min_items = 0
+    if not isinstance(max_items, int) or isinstance(max_items, bool):
+        max_items = -1
+    if min_items < 1 or max_items < min_items:
+        problems.append(Problem("error", f"Review lesson {lesson_id} must use 1 <= minItems <= maxItems"))
+    if max_items > len(pool):
+        problems.append(
+            Problem("error", f"Review lesson {lesson_id} maxItems {max_items} exceeds pool size {len(pool)}")
+        )
+    for item in pool:
+        if item.get("runtimeType") not in _REVIEW_POOL_TYPES:
+            problems.append(
+                Problem("error", f"Review lesson {lesson_id} pool contains non-gradable or imported item {item.get('id', '')}")
+            )
+
+    weights = policy.get("typeWeights", {})
+    if not isinstance(weights, dict):
+        problems.append(Problem("error", f"Review lesson {lesson_id} has invalid typeWeights"))
+        return
+    for runtime_type, weight in weights.items():
+        if runtime_type not in _REVIEW_POOL_TYPES:
+            problems.append(
+                Problem("error", f"Review lesson {lesson_id} has unsupported typeWeight {runtime_type}")
+            )
+        if (
+            not isinstance(weight, (int, float))
+            or isinstance(weight, bool)
+            or not math.isfinite(weight)
+            or weight <= 0
+        ):
+            problems.append(
+                Problem("error", f"Review lesson {lesson_id} typeWeight {runtime_type} must be finite and greater than zero")
             )
 
 

@@ -1517,10 +1517,16 @@ class AppStrings {
   static String get lessonTemplateIntro => '新词导学';
   static String get lessonTemplatePractice => '巩固练习';
   static String get lessonTemplateListening => '听力训练';
+  static String get lessonTemplateDialogue => '情景对话';
   static String get lessonTemplateReading => '阅读理解';
   static String get lessonTemplateReview => '混合复习';
   static String get lessonTemplateMastery => '掌握检测';
   static String get lessonTemplateLegacy => '课程练习';
+  static String get lessonDialogueYourTurn => '轮到你了，请完成这句回应';
+  static String get lessonDialogueFullTranscript => '查看已进行对话';
+  static String lessonDialogueSpeakLine(String speaker) => '朗读 $speaker 的这句台词';
+  static String lessonDialogueCurrentSpeaker(String speaker) =>
+      '当前说话人：$speaker';
 
   /// Single-answer MCQ caption (was misleadingly "多项选择").
   static String get lessonMultipleChoiceCaption => '单选题';

@@ -53,6 +53,7 @@ def build_teacher_widget(
     """
     from src.teacher.sublesson_flow import SubLessonFlowWidget
     from src.teacher.template_editors import (
+        DialogueTeacherWidget,
         ListeningTeacherWidget,
         MasteryTeacherWidget,
         ReadingTeacherWidget,
@@ -61,6 +62,8 @@ def build_teacher_widget(
     template = lesson.get("template", "legacy")
     if template in ("listening",):
         widget: QWidget = ListeningTeacherWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
+    elif template in ("dialogue",):
+        widget = DialogueTeacherWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
     elif template in ("reading",):
         widget = ReadingTeacherWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
     elif template in ("mastery",):

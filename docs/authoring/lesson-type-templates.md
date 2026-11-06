@@ -1,7 +1,7 @@
 # 课程类型设计模板
 
 本模板用于在 `assets/courses/<lang>/sections/*.json` 中设计单节课（Lesson）。
-它围绕五种 `LessonType` 展开，并给出每种类型推荐的 `LessonTemplate`、内容结构、典型题型和最小可运行示例。
+它围绕六种 `LessonType` 展开，并给出每种类型推荐的 `LessonTemplate`、内容结构、典型题型和最小可运行示例。
 
 > 与代码模型的对应关系见 `lib/domain/course/lesson.dart`。
 > 所有 JSON 编写完成后必须运行：
@@ -19,6 +19,7 @@
 |------|------|----------|--------------|
 | `normal` | 普通新课或常规练习 | `intro` / `practice` / `legacy` | `subLessons` 或 `stages` |
 | `listening` | 听力专项训练 | `listening` | `listeningPhases` |
+| `dialogue` | 角色对话与学习者回应 | `dialogue` | `dialogueScene` + `stages` |
 | `reading` | 阅读理解训练 | `reading` | `readingPassage` + `stages` |
 | `review` | 混合复习 | `review` | `subLessons` 或 `stages` |
 | `challenge` | 掌握检测 / 关卡挑战 | `mastery` | `stages` |
@@ -137,6 +138,23 @@
 - [ ] 新词是否先在 `vocab.json` 中定义
 - [ ] 子课数量是否在 2–5 个之间（体量契约见上文：n ≥ 2，材料量决定，不设固定值）
 - [ ] 是否有至少一种产出型练习（翻译 / 填空 / 排序）
+
+---
+
+## `dialogue` — 情景对话
+
+用于点单、询问、回应等真实社交任务。课程包含角色、按顺序推进的轮次，以及需要学习者亲自完成的回应；不是只给普通选择题套一个情景题干。
+
+- `type: dialogue`、`template: dialogue`。
+- `content.dialogueScene` 包含 `id`、`title`、`characters`、`turns`。
+- 角色包含全局场景内唯一的 `id`、显示名 `name` 和可选 `imageAsset`。
+- 角色台词轮写 `text`；学习者回应轮写 `interactionId`，二者必须二选一。
+- 学习者题目仍写在平铺 `content.stages` 中，轮次顺序必须与题目顺序一致，每个题目恰好被一个轮次引用。
+- 学习者轮次不重复写答案；提交后由题目自己的正确答案恢复对话文本。当前答案与未来轮次不会提前显示。
+- 回应优先使用 `fillBlank`、`reorderSentence`、`translateSentence`、`readAloud` 等直接语言运用题型。展示卡和导入记忆卡不能作为对话回应。
+- 对话逐句使用系统 TTS，不填写整段预生成对话音频。
+
+最小可运行骨架见 `templates/lesson-dialogue.json`，决策见 [ADR 0070](../decisions/0070-scenario-dialogue-lessons.md)。
 
 ---
 
@@ -317,6 +335,30 @@
 
 - 可以用 `subLessons` 按主题组织复习块（推荐 3 个子课）
 - 也可以用 `stages` 平铺所有复习题
+- 平铺题池可声明 `reviewPolicy`，每次打开随机抽题；不写该字段则保持原有静态复习行为
+
+随机题池示例：
+
+```json
+{
+  "minItems": 15,
+  "maxItems": 16,
+  "typeWeights": {
+    "fillBlank": 1.2,
+    "reorderSentence": 1.0
+  }
+}
+```
+
+规则：
+
+- `1 <= minItems <= maxItems <= 题池实际题数`；`typeWeights` 只能使用已知可作答题型，权重必须大于 0。
+- 随机题池只支持平铺 `stages`，不与 `subLessons` / `listeningPhases` 混用。
+- 每次装载随机确定题数，再无放回抽取并混排；同一场内不因撤销或结算重抽。
+- 当前课程的课内错题会提高对应题型权重，最高为基础权重的 4 倍；不使用 FSRS 或记忆卡到期状态。
+- 题池不要放 `showWord`、`listenOnly` 或导入记忆卡题型。
+
+完整决策见 [ADR 0071](../decisions/0071-review-question-pool.md)。
 
 ### 常用题型
 
@@ -454,8 +496,10 @@
 
 | 模板 | 使用字段 | 不要混用 |
 |------|----------|----------|
-| `intro` / `practice` / `review` | `subLessons` | 与 `stages` 同时作为主线 |
+| `intro` / `practice` | `subLessons` | 与 `stages` 同时作为主线 |
+| `review` | `subLessons`，或平铺 `stages` + 可选 `reviewPolicy` | 随机题池不与子课混用 |
 | `listening` | `listeningPhases` | — |
+| `dialogue` | `dialogueScene` + 平铺 `stages` | 不与子课 / 听力阶段混用 |
 | `reading` | `readingPassage` + `stages` | — |
 | `mastery` / `legacy` | `stages` | — |
 

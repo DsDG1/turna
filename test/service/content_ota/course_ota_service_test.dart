@@ -12,6 +12,8 @@ import 'package:turna/service/content_ota/course_ota_service.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
+late int _packageVersion;
+
 void main() {
   late Directory sandbox;
   late Directory updatesRoot;
@@ -23,7 +25,10 @@ void main() {
     sandbox = await Directory.systemTemp.createTemp('course-ota-test-');
     updatesRoot = Directory(p.join(sandbox.path, 'content_updates'));
     courseFiles = await _readCourseFiles();
-    _setIndexVersion(courseFiles, 3);
+    final index = jsonDecode(utf8.decode(courseFiles['index.json']!))
+        as Map<String, dynamic>;
+    _packageVersion = (index['version'] as int) + 1;
+    _setIndexVersion(courseFiles, _packageVersion);
     packageBytes = _zip(courseFiles);
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   });
@@ -63,13 +68,16 @@ void main() {
       url('/course-feed.json').toString(),
     );
 
-    expect(result.version, const (index: 3, expressions: 1));
+    expect(
+      result.version,
+      (index: _packageVersion, expressions: 1),
+    );
     expect(result.notes, '测试更新');
     expect(invalidated, ['tr']);
     final installed = jsonDecode(
       await File(p.join(updatesRoot.path, 'tr', 'index.json')).readAsString(),
     ) as Map<String, dynamic>;
-    expect(installed['version'], 3);
+    expect(installed['version'], _packageVersion);
     expect(
       await File(p.join(updatesRoot.path, 'tr', 'vocab.json')).exists(),
       isTrue,
@@ -160,7 +168,7 @@ void main() {
     });
 
     await expectLater(
-      service(current: const (index: 3, expressions: 1))
+      service(current: (index: _packageVersion, expressions: 1))
           .updateFromUrl(url('/course-feed.json').toString()),
       throwsA(isA<CourseOtaException>().having(
         (error) => error.message,
@@ -407,7 +415,7 @@ String _feed(List<int> bytes) => jsonEncode({
       'format': 'turna-course-feed/1',
       'language': 'tr',
       'latest': {
-        'version': 3,
+        'version': _packageVersion,
         'expressionsVersion': 1,
         'url': 'nouveau-turkish-3.zip',
         'sha256': sha256.convert(bytes).toString(),

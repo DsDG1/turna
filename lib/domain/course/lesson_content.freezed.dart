@@ -14,8 +14,8 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$LessonContent {
-  /// Legacy / default flat stage list. Used by review, challenge, and
-  /// reading-comprehension questions.
+  /// Legacy / default flat stage list. Used by dialogue, review, challenge,
+  /// and reading-comprehension questions.
   List<Stage> get stages;
 
   /// Intro / practice lessons split their content into sub-lessons.
@@ -23,6 +23,12 @@ mixin _$LessonContent {
 
   /// Listening lessons divide into phases (word pairing, dialogue, summary).
   List<ListeningPhase> get listeningPhases;
+
+  /// Character and turn metadata for a scenario-dialogue lesson.
+  DialogueScene? get dialogueScene;
+
+  /// Optional per-session sampling rules for a flat review question pool.
+  ReviewPolicy? get reviewPolicy;
 
   /// Structured reading passage for reading lessons.
   ReadingPassage? get readingPassage;
@@ -59,6 +65,10 @@ mixin _$LessonContent {
                 .equals(other.subLessons, subLessons) &&
             const DeepCollectionEquality()
                 .equals(other.listeningPhases, listeningPhases) &&
+            (identical(other.dialogueScene, dialogueScene) ||
+                other.dialogueScene == dialogueScene) &&
+            (identical(other.reviewPolicy, reviewPolicy) ||
+                other.reviewPolicy == reviewPolicy) &&
             (identical(other.readingPassage, readingPassage) ||
                 other.readingPassage == readingPassage) &&
             (identical(other.passage, passage) || other.passage == passage) &&
@@ -75,6 +85,8 @@ mixin _$LessonContent {
       const DeepCollectionEquality().hash(stages),
       const DeepCollectionEquality().hash(subLessons),
       const DeepCollectionEquality().hash(listeningPhases),
+      dialogueScene,
+      reviewPolicy,
       readingPassage,
       passage,
       audioAsset,
@@ -82,7 +94,7 @@ mixin _$LessonContent {
 
   @override
   String toString() {
-    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
+    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, dialogueScene: $dialogueScene, reviewPolicy: $reviewPolicy, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
   }
 }
 
@@ -96,11 +108,15 @@ abstract mixin class $LessonContentCopyWith<$Res> {
       {List<Stage> stages,
       List<SubLesson> subLessons,
       List<ListeningPhase> listeningPhases,
+      DialogueScene? dialogueScene,
+      ReviewPolicy? reviewPolicy,
       ReadingPassage? readingPassage,
       String passage,
       String? audioAsset,
       List<String> linkedGrammarPointIds});
 
+  $DialogueSceneCopyWith<$Res>? get dialogueScene;
+  $ReviewPolicyCopyWith<$Res>? get reviewPolicy;
   $ReadingPassageCopyWith<$Res>? get readingPassage;
 }
 
@@ -120,6 +136,8 @@ class _$LessonContentCopyWithImpl<$Res>
     Object? stages = null,
     Object? subLessons = null,
     Object? listeningPhases = null,
+    Object? dialogueScene = freezed,
+    Object? reviewPolicy = freezed,
     Object? readingPassage = freezed,
     Object? passage = null,
     Object? audioAsset = freezed,
@@ -138,6 +156,14 @@ class _$LessonContentCopyWithImpl<$Res>
           ? _self.listeningPhases
           : listeningPhases // ignore: cast_nullable_to_non_nullable
               as List<ListeningPhase>,
+      dialogueScene: freezed == dialogueScene
+          ? _self.dialogueScene
+          : dialogueScene // ignore: cast_nullable_to_non_nullable
+              as DialogueScene?,
+      reviewPolicy: freezed == reviewPolicy
+          ? _self.reviewPolicy
+          : reviewPolicy // ignore: cast_nullable_to_non_nullable
+              as ReviewPolicy?,
       readingPassage: freezed == readingPassage
           ? _self.readingPassage
           : readingPassage // ignore: cast_nullable_to_non_nullable
@@ -155,6 +181,34 @@ class _$LessonContentCopyWithImpl<$Res>
           : linkedGrammarPointIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
     ));
+  }
+
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $DialogueSceneCopyWith<$Res>? get dialogueScene {
+    if (_self.dialogueScene == null) {
+      return null;
+    }
+
+    return $DialogueSceneCopyWith<$Res>(_self.dialogueScene!, (value) {
+      return _then(_self.copyWith(dialogueScene: value));
+    });
+  }
+
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $ReviewPolicyCopyWith<$Res>? get reviewPolicy {
+    if (_self.reviewPolicy == null) {
+      return null;
+    }
+
+    return $ReviewPolicyCopyWith<$Res>(_self.reviewPolicy!, (value) {
+      return _then(_self.copyWith(reviewPolicy: value));
+    });
   }
 
   /// Create a copy of LessonContent
@@ -269,6 +323,8 @@ extension LessonContentPatterns on LessonContent {
             List<Stage> stages,
             List<SubLesson> subLessons,
             List<ListeningPhase> listeningPhases,
+            DialogueScene? dialogueScene,
+            ReviewPolicy? reviewPolicy,
             ReadingPassage? readingPassage,
             String passage,
             String? audioAsset,
@@ -283,6 +339,8 @@ extension LessonContentPatterns on LessonContent {
             _that.stages,
             _that.subLessons,
             _that.listeningPhases,
+            _that.dialogueScene,
+            _that.reviewPolicy,
             _that.readingPassage,
             _that.passage,
             _that.audioAsset,
@@ -311,6 +369,8 @@ extension LessonContentPatterns on LessonContent {
             List<Stage> stages,
             List<SubLesson> subLessons,
             List<ListeningPhase> listeningPhases,
+            DialogueScene? dialogueScene,
+            ReviewPolicy? reviewPolicy,
             ReadingPassage? readingPassage,
             String passage,
             String? audioAsset,
@@ -324,6 +384,8 @@ extension LessonContentPatterns on LessonContent {
             _that.stages,
             _that.subLessons,
             _that.listeningPhases,
+            _that.dialogueScene,
+            _that.reviewPolicy,
             _that.readingPassage,
             _that.passage,
             _that.audioAsset,
@@ -351,6 +413,8 @@ extension LessonContentPatterns on LessonContent {
             List<Stage> stages,
             List<SubLesson> subLessons,
             List<ListeningPhase> listeningPhases,
+            DialogueScene? dialogueScene,
+            ReviewPolicy? reviewPolicy,
             ReadingPassage? readingPassage,
             String passage,
             String? audioAsset,
@@ -364,6 +428,8 @@ extension LessonContentPatterns on LessonContent {
             _that.stages,
             _that.subLessons,
             _that.listeningPhases,
+            _that.dialogueScene,
+            _that.reviewPolicy,
             _that.readingPassage,
             _that.passage,
             _that.audioAsset,
@@ -381,6 +447,8 @@ class _LessonContent implements LessonContent {
       {final List<Stage> stages = const <Stage>[],
       final List<SubLesson> subLessons = const <SubLesson>[],
       final List<ListeningPhase> listeningPhases = const <ListeningPhase>[],
+      this.dialogueScene,
+      this.reviewPolicy,
       this.readingPassage,
       this.passage = '',
       this.audioAsset,
@@ -392,12 +460,12 @@ class _LessonContent implements LessonContent {
   factory _LessonContent.fromJson(Map<String, dynamic> json) =>
       _$LessonContentFromJson(json);
 
-  /// Legacy / default flat stage list. Used by review, challenge, and
-  /// reading-comprehension questions.
+  /// Legacy / default flat stage list. Used by dialogue, review, challenge,
+  /// and reading-comprehension questions.
   final List<Stage> _stages;
 
-  /// Legacy / default flat stage list. Used by review, challenge, and
-  /// reading-comprehension questions.
+  /// Legacy / default flat stage list. Used by dialogue, review, challenge,
+  /// and reading-comprehension questions.
   @override
   @JsonKey()
   List<Stage> get stages {
@@ -429,6 +497,14 @@ class _LessonContent implements LessonContent {
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_listeningPhases);
   }
+
+  /// Character and turn metadata for a scenario-dialogue lesson.
+  @override
+  final DialogueScene? dialogueScene;
+
+  /// Optional per-session sampling rules for a flat review question pool.
+  @override
+  final ReviewPolicy? reviewPolicy;
 
   /// Structured reading passage for reading lessons.
   @override
@@ -484,6 +560,10 @@ class _LessonContent implements LessonContent {
                 .equals(other._subLessons, _subLessons) &&
             const DeepCollectionEquality()
                 .equals(other._listeningPhases, _listeningPhases) &&
+            (identical(other.dialogueScene, dialogueScene) ||
+                other.dialogueScene == dialogueScene) &&
+            (identical(other.reviewPolicy, reviewPolicy) ||
+                other.reviewPolicy == reviewPolicy) &&
             (identical(other.readingPassage, readingPassage) ||
                 other.readingPassage == readingPassage) &&
             (identical(other.passage, passage) || other.passage == passage) &&
@@ -500,6 +580,8 @@ class _LessonContent implements LessonContent {
       const DeepCollectionEquality().hash(_stages),
       const DeepCollectionEquality().hash(_subLessons),
       const DeepCollectionEquality().hash(_listeningPhases),
+      dialogueScene,
+      reviewPolicy,
       readingPassage,
       passage,
       audioAsset,
@@ -507,7 +589,7 @@ class _LessonContent implements LessonContent {
 
   @override
   String toString() {
-    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
+    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, dialogueScene: $dialogueScene, reviewPolicy: $reviewPolicy, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
   }
 }
 
@@ -523,11 +605,17 @@ abstract mixin class _$LessonContentCopyWith<$Res>
       {List<Stage> stages,
       List<SubLesson> subLessons,
       List<ListeningPhase> listeningPhases,
+      DialogueScene? dialogueScene,
+      ReviewPolicy? reviewPolicy,
       ReadingPassage? readingPassage,
       String passage,
       String? audioAsset,
       List<String> linkedGrammarPointIds});
 
+  @override
+  $DialogueSceneCopyWith<$Res>? get dialogueScene;
+  @override
+  $ReviewPolicyCopyWith<$Res>? get reviewPolicy;
   @override
   $ReadingPassageCopyWith<$Res>? get readingPassage;
 }
@@ -548,6 +636,8 @@ class __$LessonContentCopyWithImpl<$Res>
     Object? stages = null,
     Object? subLessons = null,
     Object? listeningPhases = null,
+    Object? dialogueScene = freezed,
+    Object? reviewPolicy = freezed,
     Object? readingPassage = freezed,
     Object? passage = null,
     Object? audioAsset = freezed,
@@ -566,6 +656,14 @@ class __$LessonContentCopyWithImpl<$Res>
           ? _self._listeningPhases
           : listeningPhases // ignore: cast_nullable_to_non_nullable
               as List<ListeningPhase>,
+      dialogueScene: freezed == dialogueScene
+          ? _self.dialogueScene
+          : dialogueScene // ignore: cast_nullable_to_non_nullable
+              as DialogueScene?,
+      reviewPolicy: freezed == reviewPolicy
+          ? _self.reviewPolicy
+          : reviewPolicy // ignore: cast_nullable_to_non_nullable
+              as ReviewPolicy?,
       readingPassage: freezed == readingPassage
           ? _self.readingPassage
           : readingPassage // ignore: cast_nullable_to_non_nullable
@@ -583,6 +681,34 @@ class __$LessonContentCopyWithImpl<$Res>
           : linkedGrammarPointIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
     ));
+  }
+
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $DialogueSceneCopyWith<$Res>? get dialogueScene {
+    if (_self.dialogueScene == null) {
+      return null;
+    }
+
+    return $DialogueSceneCopyWith<$Res>(_self.dialogueScene!, (value) {
+      return _then(_self.copyWith(dialogueScene: value));
+    });
+  }
+
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $ReviewPolicyCopyWith<$Res>? get reviewPolicy {
+    if (_self.reviewPolicy == null) {
+      return null;
+    }
+
+    return $ReviewPolicyCopyWith<$Res>(_self.reviewPolicy!, (value) {
+      return _then(_self.copyWith(reviewPolicy: value));
+    });
   }
 
   /// Create a copy of LessonContent

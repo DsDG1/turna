@@ -10,11 +10,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -22,6 +26,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -424,10 +430,256 @@ class ReadingEditor(QWidget):
         ]
 
 
+class DialogueEditor(QWidget):
+    """dialogue: scene metadata plus the existing flat interaction editor."""
+
+    changed = Signal()
+
+    def __init__(self, adapter: CourseAdapter, lesson: dict[str, Any]) -> None:
+        super().__init__()
+        self.lesson = lesson
+        content = lesson.setdefault("content", {})
+        self.scene = content.setdefault(ContentKey.DIALOGUE_SCENE, {
+            "id": "scene-dialogue",
+            "title": "",
+            "characters": [],
+            "turns": [],
+        })
+        self.scene.setdefault("characters", [])
+        self.scene.setdefault("turns", [])
+        stages = content.setdefault(ContentKey.STAGES, [])
+        if not stages:
+            add_stage(content, "Responses")
+
+        layout = QVBoxLayout(self)
+        title_row = QFormLayout()
+        self.title_edit = QLineEdit(self.scene.get("title", ""))
+        self.title_edit.textChanged.connect(self._title_changed)
+        title_row.addRow("场景标题:", self.title_edit)
+        layout.addLayout(title_row)
+
+        layout.addWidget(QLabel("角色（编号 / 名字 / 头像路径）"))
+        self.characters = QTableWidget(0, 3)
+        self.characters.setHorizontalHeaderLabels(["id", "name", "imageAsset"])
+        self.characters.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.characters.setMaximumHeight(150)
+        self.characters.cellChanged.connect(self._character_changed)
+        layout.addWidget(self.characters)
+        layout.addLayout(self._table_buttons(self._add_character, self._delete_character))
+
+        layout.addWidget(QLabel("轮次（text 与 interactionId 只填一个）"))
+        self.turns = QTableWidget(0, 4)
+        self.turns.setHorizontalHeaderLabels(["id", "speakerId", "text", "interactionId"])
+        self.turns.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.turns.setMaximumHeight(180)
+        self.turns.cellChanged.connect(self._turn_changed)
+        layout.addWidget(self.turns)
+        layout.addLayout(self._table_buttons(self._add_turn, self._delete_turn))
+
+        self.item_panel = ItemListPanel(adapter)
+        layout.addWidget(self.item_panel, 1)
+        self.item_panel.show_stage(stages[0])
+        self._refresh()
+
+    def _title_changed(self, text: str) -> None:
+        self.scene["title"] = text
+        self.changed.emit()
+
+    def _table_buttons(self, add, delete) -> QHBoxLayout:
+        row = QHBoxLayout()
+        add_btn = QPushButton("+ 添加")
+        delete_btn = QPushButton("- 删除选中")
+        add_btn.clicked.connect(add)
+        delete_btn.clicked.connect(delete)
+        row.addWidget(add_btn)
+        row.addWidget(delete_btn)
+        row.addStretch()
+        return row
+
+    def _refresh(self) -> None:
+        self._refresh_table(
+            self.characters,
+            self.scene["characters"],
+            ("id", "name", "imageAsset"),
+        )
+        self._refresh_table(
+            self.turns,
+            self.scene["turns"],
+            ("id", "speakerId", "text", "interactionId"),
+        )
+        self.changed.emit()
+
+    def _refresh_table(self, table, rows, keys) -> None:
+        table.blockSignals(True)
+        table.setRowCount(len(rows))
+        for row, value in enumerate(rows):
+            for column, key in enumerate(keys):
+                table.setItem(row, column, QTableWidgetItem(str(value.get(key, ""))))
+        table.blockSignals(False)
+
+    def _character_changed(self, row: int, column: int) -> None:
+        keys = ("id", "name", "imageAsset")
+        if 0 <= row < len(self.scene["characters"]):
+            self.scene["characters"][row][keys[column]] = self.characters.item(row, column).text()
+            self.changed.emit()
+
+    def _turn_changed(self, row: int, column: int) -> None:
+        keys = ("id", "speakerId", "text", "interactionId")
+        if not 0 <= row < len(self.scene["turns"]):
+            return
+        key = keys[column]
+        value = self.turns.item(row, column).text()
+        if key in ("text", "interactionId") and not value:
+            self.scene["turns"][row].pop(key, None)
+        else:
+            self.scene["turns"][row][key] = value
+        self.changed.emit()
+
+    def _add_character(self) -> None:
+        self.scene["characters"].append({
+            "id": f"role-{len(self.scene['characters']) + 1}",
+            "name": "新角色",
+            "imageAsset": "",
+        })
+        self._refresh()
+
+    def _delete_character(self) -> None:
+        row = self.characters.currentRow()
+        if 0 <= row < len(self.scene["characters"]):
+            del self.scene["characters"][row]
+            self._refresh()
+
+    def _add_turn(self) -> None:
+        speaker = self.scene["characters"][0]["id"] if self.scene["characters"] else ""
+        self.scene["turns"].append({
+            "id": f"turn-{len(self.scene['turns']) + 1}",
+            "speakerId": speaker,
+            "text": "新台词",
+        })
+        self._refresh()
+
+    def _delete_turn(self) -> None:
+        row = self.turns.currentRow()
+        if 0 <= row < len(self.scene["turns"]):
+            del self.scene["turns"][row]
+            self._refresh()
+
+
+class ReviewPolicyEditor(QGroupBox):
+    """Optional weighted-pool controls for a flat review lesson."""
+
+    def __init__(self, lesson: dict[str, Any]) -> None:
+        super().__init__("每次打开随机抽题")
+        self.lesson = lesson
+        self.content = lesson.setdefault("content", {})
+        self.pool_size = sum(
+            len(stage.get("items", [])) for stage in self.content.get("stages", [])
+        )
+        layout = QVBoxLayout(self)
+        self.enabled = QCheckBox("启用题池抽题（不启用则按原顺序播放全部题目）")
+        self.enabled.setChecked(self.content.get(ContentKey.REVIEW_POLICY) is not None)
+        self.enabled.toggled.connect(self._toggle)
+        layout.addWidget(self.enabled)
+
+        controls = QHBoxLayout()
+        self.min_spin = QSpinBox()
+        self.max_spin = QSpinBox()
+        for spin in (self.min_spin, self.max_spin):
+            spin.setRange(1, max(1, self.pool_size))
+        policy = self.content.get(ContentKey.REVIEW_POLICY) or {}
+        self.min_spin.setValue(int(policy.get("minItems", min(15, max(1, self.pool_size)))))
+        self.max_spin.setValue(int(policy.get("maxItems", min(16, max(1, self.pool_size)))))
+        self.min_spin.valueChanged.connect(self._counts_changed)
+        self.max_spin.valueChanged.connect(self._counts_changed)
+        controls.addWidget(QLabel("最少"))
+        controls.addWidget(self.min_spin)
+        controls.addWidget(QLabel("最多"))
+        controls.addWidget(self.max_spin)
+        controls.addStretch()
+        layout.addLayout(controls)
+
+        self.weights = QTableWidget(0, 2)
+        self.weights.setHorizontalHeaderLabels(["题型", "基础权重"])
+        self.weights.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.weights.setMaximumHeight(180)
+        layout.addWidget(self.weights)
+        self._build_weights()
+        self._set_controls_enabled(self.enabled.isChecked())
+
+    def _set_controls_enabled(self, enabled: bool) -> None:
+        self.min_spin.setEnabled(enabled)
+        self.max_spin.setEnabled(enabled)
+        self.weights.setEnabled(enabled)
+
+    def _toggle(self, enabled: bool) -> None:
+        if enabled:
+            self.content[ContentKey.REVIEW_POLICY] = {
+                "minItems": self.min_spin.value(),
+                "maxItems": self.max_spin.value(),
+                "typeWeights": {},
+            }
+            self._counts_changed()
+        else:
+            self.content.pop(ContentKey.REVIEW_POLICY, None)
+        self._set_controls_enabled(enabled)
+
+    def _counts_changed(self) -> None:
+        if self.min_spin.value() > self.max_spin.value():
+            self.max_spin.blockSignals(True)
+            self.max_spin.setValue(self.min_spin.value())
+            self.max_spin.blockSignals(False)
+        policy = self.content.get(ContentKey.REVIEW_POLICY)
+        if policy is not None:
+            policy["minItems"] = self.min_spin.value()
+            policy["maxItems"] = self.max_spin.value()
+
+    def _build_weights(self) -> None:
+        policy = self.content.get(ContentKey.REVIEW_POLICY) or {}
+        configured = policy.get("typeWeights", {})
+        types = sorted({
+            item.get("runtimeType", "")
+            for stage in self.content.get("stages", [])
+            for item in stage.get("items", [])
+            if item.get("runtimeType")
+        })
+        self.weights.setRowCount(len(types))
+        for row, runtime_type in enumerate(types):
+            label = QTableWidgetItem(INTERACTION_LABELS.get(runtime_type, runtime_type))
+            label.setFlags(label.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.weights.setItem(row, 0, label)
+            spin = QDoubleSpinBox()
+            spin.setRange(0.1, 10.0)
+            spin.setSingleStep(0.1)
+            spin.setValue(float(configured.get(runtime_type, 1.0)))
+            spin.valueChanged.connect(
+                lambda value, rt=runtime_type: self._weight_changed(rt, value)
+            )
+            self.weights.setCellWidget(row, 1, spin)
+
+    def _weight_changed(self, runtime_type: str, value: float) -> None:
+        policy = self.content.get(ContentKey.REVIEW_POLICY)
+        if policy is None:
+            return
+        weights = policy.setdefault("typeWeights", {})
+        if value == 1.0:
+            weights.pop(runtime_type, None)
+        else:
+            weights[runtime_type] = value
+
+
 class LessonEditor(QWidget):
     """Container that picks the right editor by lesson template."""
 
-    TEMPLATES = ("intro", "practice", "review", "listening", "reading", "mastery", "legacy")
+    TEMPLATES = (
+        "intro",
+        "practice",
+        "review",
+        "listening",
+        "dialogue",
+        "reading",
+        "mastery",
+        "legacy",
+    )
 
     def __init__(
         self,
@@ -466,10 +718,14 @@ class LessonEditor(QWidget):
             if child.widget():
                 child.widget().deleteLater()
         template = self.lesson.get("template", "legacy")
+        if template == "review":
+            self.body_layout.addWidget(ReviewPolicyEditor(self.lesson))
         if template in ("intro", "practice", "review", "legacy"):
             editor: QWidget = SubLessonTreeEditor(self.adapter, self.lesson)
         elif template == "listening":
             editor = ListeningPhasesEditor(self.adapter, self.lesson)
+        elif template == "dialogue":
+            editor = DialogueEditor(self.adapter, self.lesson)
         elif template == "reading":
             editor = ReadingEditor(self.adapter, self.lesson)
         elif template == "mastery":

@@ -17,6 +17,7 @@ part 'lesson.g.dart';
 enum LessonType {
   normal,
   listening,
+  dialogue,
   reading,
   review,
   challenge,
@@ -34,13 +35,16 @@ enum LessonTemplate {
   /// Three-phase listening lesson.
   listening,
 
+  /// Character-driven scene with learner responses authored as interactions.
+  dialogue,
+
   /// Four sub-lessons practicing prior intro content, harder.
   practice,
 
   /// Reading passage + comprehension questions.
   reading,
 
-  /// Mixed review sub-lessons.
+  /// Mixed review sub-lessons or a configurable flat question pool.
   review,
 
   /// Single mastery check with pass threshold.

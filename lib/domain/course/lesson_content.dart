@@ -1,8 +1,10 @@
 // Package imports:
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'dialogue_scene.dart';
 import 'listening_phase.dart';
 import 'reading_passage.dart';
+import 'review_policy.dart';
 import 'stage.dart';
 import 'sub_lesson.dart';
 
@@ -15,6 +17,7 @@ part 'lesson_content.g.dart';
 /// - **Normal / review / challenge** lessons use [stages].
 /// - **Intro / practice** lessons use [subLessons].
 /// - **Listening** lessons use [listeningPhases].
+/// - **Dialogue** lessons use [dialogueScene] plus [stages] for responses.
 /// - **Reading** lessons use [readingPassage] plus [stages] for questions.
 ///
 /// All fields are optional so existing JSON keeps working and the loader can
@@ -22,8 +25,8 @@ part 'lesson_content.g.dart';
 @freezed
 abstract class LessonContent with _$LessonContent {
   const factory LessonContent({
-    /// Legacy / default flat stage list. Used by review, challenge, and
-    /// reading-comprehension questions.
+    /// Legacy / default flat stage list. Used by dialogue, review, challenge,
+    /// and reading-comprehension questions.
     @Default(<Stage>[]) List<Stage> stages,
 
     /// Intro / practice lessons split their content into sub-lessons.
@@ -31,6 +34,12 @@ abstract class LessonContent with _$LessonContent {
 
     /// Listening lessons divide into phases (word pairing, dialogue, summary).
     @Default(<ListeningPhase>[]) List<ListeningPhase> listeningPhases,
+
+    /// Character and turn metadata for a scenario-dialogue lesson.
+    DialogueScene? dialogueScene,
+
+    /// Optional per-session sampling rules for a flat review question pool.
+    ReviewPolicy? reviewPolicy,
 
     /// Structured reading passage for reading lessons.
     ReadingPassage? readingPassage,

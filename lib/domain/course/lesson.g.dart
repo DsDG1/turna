@@ -35,6 +35,7 @@ Map<String, dynamic> _$LessonToJson(_Lesson instance) => <String, dynamic>{
 const _$LessonTypeEnumMap = {
   LessonType.normal: 'normal',
   LessonType.listening: 'listening',
+  LessonType.dialogue: 'dialogue',
   LessonType.reading: 'reading',
   LessonType.review: 'review',
   LessonType.challenge: 'challenge',
@@ -43,6 +44,7 @@ const _$LessonTypeEnumMap = {
 const _$LessonTemplateEnumMap = {
   LessonTemplate.intro: 'intro',
   LessonTemplate.listening: 'listening',
+  LessonTemplate.dialogue: 'dialogue',
   LessonTemplate.practice: 'practice',
   LessonTemplate.reading: 'reading',
   LessonTemplate.review: 'review',

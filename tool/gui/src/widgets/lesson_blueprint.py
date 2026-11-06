@@ -304,7 +304,7 @@ class LessonBlueprint(QWidget):
                     item_id = item.get("id")
                     if item_id:
                         ids.add(item_id)
-        elif template in (TemplateType.READING, TemplateType.MASTERY):
+        elif template in (TemplateType.READING, TemplateType.DIALOGUE, TemplateType.MASTERY):
             for stage in content.get(ContentKey.STAGES, []):
                 for item in stage.get(ContentKey.ITEMS, []):
                     item_id = item.get("id")
@@ -332,7 +332,7 @@ class LessonBlueprint(QWidget):
                         item_id = items[0].get("id")
                         if item_id:
                             self.expanded_item_ids.add(item_id)
-            elif template in (TemplateType.READING, TemplateType.MASTERY):
+            elif template in (TemplateType.READING, TemplateType.DIALOGUE, TemplateType.MASTERY):
                 for stage in content.setdefault(ContentKey.STAGES, []):
                     items = stage.setdefault(ContentKey.ITEMS, [])
                     if items:
@@ -366,7 +366,7 @@ class LessonBlueprint(QWidget):
             self._build_listening()
         elif template == "reading":
             self._build_reading()
-        elif template == "mastery":
+        elif template in ("dialogue", "mastery"):
             self._build_mastery()
         else:
             self._build_sublessons()

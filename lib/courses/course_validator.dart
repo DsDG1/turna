@@ -2,6 +2,7 @@
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction_rules.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/listening_phase.dart';
 import 'package:turna/domain/course/section.dart';
@@ -319,6 +320,13 @@ void _validateLessonContent(
         return;
       }
       break;
+    case LessonTemplate.dialogue:
+      if (content.dialogueScene == null || !hasStages) {
+        errors.add('Lesson ${lesson.id} uses template "dialogue" but needs '
+            'both dialogueScene and stages.');
+        return;
+      }
+      break;
     case LessonTemplate.reading:
       if (!hasReadingPassage) {
         errors
@@ -361,6 +369,154 @@ void _validateLessonContent(
   if (hasListeningPhases) {
     _validateListeningPhases(
         lesson, listeningPhases, vocabIds, expressionIds, errors);
+  }
+
+  if (lesson.template == LessonTemplate.dialogue) {
+    _validateDialogueScene(lesson, errors);
+  }
+  if (content.reviewPolicy != null) {
+    _validateReviewPolicy(lesson, errors);
+  }
+}
+
+void _validateDialogueScene(Lesson lesson, List<String> errors) {
+  final scene = lesson.content.dialogueScene;
+  if (scene == null) return;
+  if (scene.id.trim().isEmpty) {
+    errors.add('Dialogue lesson ${lesson.id} has an empty scene id.');
+  }
+
+  final characters = <String>{};
+  for (final character in scene.characters) {
+    if (character.id.trim().isEmpty || character.name.trim().isEmpty) {
+      errors.add('Dialogue scene ${scene.id} has a character with an empty '
+          'id or name.');
+    } else if (!characters.add(character.id)) {
+      errors.add('Duplicate dialogue character id "${character.id}" in '
+          '${lesson.id}.');
+    }
+  }
+  if (scene.turns.isEmpty) {
+    errors.add('Dialogue scene ${scene.id} has no turns.');
+  }
+
+  final interactions = <Interaction>[
+    for (final stage in lesson.content.stages) ...stage.items,
+  ];
+  final interactionById = <String, Interaction>{};
+  for (final item in interactions) {
+    if (item.id.isEmpty) continue;
+    if (interactionById.containsKey(item.id)) {
+      errors.add('Dialogue interaction id "${item.id}" is not unique within '
+          '${lesson.id}.');
+    } else {
+      interactionById[item.id] = item;
+    }
+  }
+
+  final turnIds = <String>{};
+  final referencedIds = <String>[];
+  var learnerTurns = 0;
+  for (final turn in scene.turns) {
+    if (turn.id.trim().isEmpty) {
+      errors.add('Dialogue scene ${scene.id} has a turn with an empty id.');
+    } else if (!turnIds.add(turn.id)) {
+      errors.add('Duplicate dialogue turn id "${turn.id}" in ${lesson.id}.');
+    }
+    if (!characters.contains(turn.speakerId)) {
+      errors.add('Dialogue turn ${turn.id} references missing speakerId '
+          '${turn.speakerId}.');
+    }
+
+    final hasText = turn.text != null;
+    final hasInteraction = turn.interactionId != null;
+    if (hasText == hasInteraction) {
+      errors.add('Dialogue turn ${turn.id} must declare exactly one of text '
+          'or interactionId.');
+      continue;
+    }
+    if (hasText) {
+      if (turn.text!.trim().isEmpty) {
+        errors.add('Dialogue turn ${turn.id} has empty text.');
+      }
+      continue;
+    }
+
+    learnerTurns++;
+    final interactionId = turn.interactionId!;
+    if (referencedIds.contains(interactionId)) {
+      errors.add('Dialogue interaction "$interactionId" is referenced by '
+          'more than one turn in ${lesson.id}.');
+    }
+    referencedIds.add(interactionId);
+    final item = interactionById[interactionId];
+    if (item == null) {
+      errors.add('Dialogue turn ${turn.id} references missing interactionId '
+          '$interactionId.');
+    } else if (!isReviewPoolInteraction(item)) {
+      errors.add('Dialogue turn ${turn.id} references non-response interaction '
+          '$interactionId.');
+    }
+  }
+  if (learnerTurns == 0) {
+    errors.add('Dialogue scene ${scene.id} has no learner response turns.');
+  }
+
+  for (final item in interactions) {
+    if (item.id.isNotEmpty && !referencedIds.contains(item.id)) {
+      errors
+          .add('Dialogue interaction ${item.id} is not referenced by a turn.');
+    }
+  }
+  final authoredIds = [for (final item in interactions) item.id];
+  if (referencedIds.length == authoredIds.length) {
+    for (var i = 0; i < authoredIds.length; i++) {
+      if (referencedIds[i] != authoredIds[i]) {
+        errors.add('Dialogue learner turns must follow the stage item order '
+            'in ${lesson.id}.');
+        break;
+      }
+    }
+  }
+}
+
+void _validateReviewPolicy(Lesson lesson, List<String> errors) {
+  final content = lesson.content;
+  final policy = content.reviewPolicy!;
+  if (lesson.template != LessonTemplate.review) {
+    errors.add(
+        'Lesson ${lesson.id} has reviewPolicy but is not a review lesson.');
+  }
+  if (content.subLessons.isNotEmpty || content.listeningPhases.isNotEmpty) {
+    errors.add('Review lesson ${lesson.id} reviewPolicy requires flat stages.');
+  }
+
+  final pool = <Interaction>[
+    for (final stage in content.stages) ...stage.items,
+  ];
+  if (policy.minItems < 1 || policy.maxItems < policy.minItems) {
+    errors.add('Review lesson ${lesson.id} must use '
+        '1 <= minItems <= maxItems.');
+  }
+  if (policy.maxItems > pool.length) {
+    errors.add('Review lesson ${lesson.id} maxItems ${policy.maxItems} exceeds '
+        'the pool size ${pool.length}.');
+  }
+  for (final item in pool) {
+    if (!isReviewPoolInteraction(item)) {
+      errors.add('Review lesson ${lesson.id} pool contains non-gradable or '
+          'imported item ${item.id}.');
+    }
+  }
+  for (final entry in policy.typeWeights.entries) {
+    if (!reviewPoolInteractionTypeNames.contains(entry.key)) {
+      errors.add('Review lesson ${lesson.id} has unsupported typeWeight '
+          '${entry.key}.');
+    }
+    if (!entry.value.isFinite || entry.value <= 0) {
+      errors.add('Review lesson ${lesson.id} typeWeight ${entry.key} must be '
+          'finite and greater than zero.');
+    }
   }
 }
 

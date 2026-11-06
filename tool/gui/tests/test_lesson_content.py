@@ -317,6 +317,49 @@ class LessonBuilderTest(unittest.TestCase):
         self.assertEqual(lesson["content"]["subLessons"], [])
 
 
+class DialogueReviewSchemaTest(unittest.TestCase):
+    def test_existing_choice_fields_survive_normalization(self) -> None:
+        fill = normalize_item({
+            "runtimeType": "fillBlank",
+            "sentence": "_____",
+            "answer": "A",
+            "choices": ["A", "B"],
+        })
+        reorder = normalize_item({
+            "runtimeType": "reorderSentence",
+            "scrambled": ["b", "a"],
+            "correct": ["a", "b"],
+            "prompt": "Translate",
+        })
+        self.assertEqual(fill["choices"], ["A", "B"])
+        self.assertEqual(reorder["prompt"], "Translate")
+
+    def test_dialogue_template_has_scene_and_flat_stage(self) -> None:
+        lesson = new_lesson_from_template("dialogue", {})
+        self.assertEqual(lesson["type"], "dialogue")
+        self.assertIn("dialogueScene", lesson["content"])
+        self.assertIn("stages", lesson["content"])
+
+    def test_clone_dialogue_remaps_turn_interaction_ids(self) -> None:
+        from src.backend.lesson_content import clone_lesson_with_fresh_ids
+
+        lesson = new_lesson_from_template("dialogue", {})
+        original_item = lesson["content"]["stages"][0]["items"][0]
+        original_turn = lesson["content"]["dialogueScene"]["turns"][1]
+        clone = clone_lesson_with_fresh_ids(lesson)
+        cloned_item = clone["content"]["stages"][0]["items"][0]
+        cloned_turn = clone["content"]["dialogueScene"]["turns"][1]
+        self.assertNotEqual(cloned_item["id"], original_item["id"])
+        self.assertEqual(cloned_turn["interactionId"], cloned_item["id"])
+        self.assertNotEqual(cloned_turn["id"], original_turn["id"])
+
+    def test_review_policy_is_an_allowed_review_content_key(self) -> None:
+        from src.backend.lesson_content import allowed_content_keys
+
+        self.assertIn("reviewPolicy", allowed_content_keys("review"))
+        self.assertNotIn("reviewPolicy", allowed_content_keys("practice"))
+
+
 class LabelsTest(unittest.TestCase):
     def test_every_runtime_type_has_label(self) -> None:
         from src.backend.lesson_content import CONTENT_BY_TEMPLATE

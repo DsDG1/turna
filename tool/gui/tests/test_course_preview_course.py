@@ -33,7 +33,7 @@ class CourseBundleTest(unittest.TestCase):
         )
         document = build_document(bundle["entries"][0]["section"])
         self.assertEqual(document.lessons[0].items[0].prompt, "Türkçe — 土耳其语")
-        self.assertEqual(document.item_count, 26)
+        self.assertEqual(document.item_count, 30)
 
     def test_section_path_cannot_escape_course_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -36,8 +36,9 @@ Composite reseed key is `indexVersion+expressionsVersion`.
 - Unit: `{ id, name, description?, lessons: [...] }`
 - Lesson: `{ id, name, type, template, content, ... }`
 - Prefer **canonical** content shapes (`stages` / `subLessons` / `listeningPhases`).
-  Flat `questions` is still normalized at seed time, but new authoring should
-  write canonical shapes.
+  Dialogue lessons additionally use `dialogueScene`; flat review pools may declare
+  `reviewPolicy`. Flat `questions` is still normalized at seed time, but new
+  authoring should write canonical shapes.
 
 ## Scale contract
 

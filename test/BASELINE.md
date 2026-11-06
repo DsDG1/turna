@@ -7,6 +7,15 @@
 
 ---
 
+### 2026-11-07 情景对话与复习随机题池
+
+- **性质**：课程领域模型、课时 UI、真实内容与作者工具批次；**测试数 +17**（抽题 5、真实课程与校验 5、对话组件 6、真实对话课宿主端到端 1）。非 golden 全量 **2635 passed / 0 failed**。
+- **改动**：新增 `dialogue` 场景模板与首课《咖啡馆的第一句》，角色轮次复用现有 Interaction 判分；新增平铺复习课 `reviewPolicy`，按作者配比与当前课程错题加权无放回抽题，存量无策略复习课不变。Dart / Python validator、GUI 编辑预览、ADR 0070 / 0071 同步。
+- **验证**：`flutter analyze` 无问题；`flutter test --exclude-tags golden` 全绿；`flutter build apk --debug` 成功，产物 `build/app/outputs/flutter-apk/app-debug.apk`；课程严格 validate / lint 与 GUI CI 全绿。头像改用全局内置图片，保持 OTA JSON-only 契约；OTA 13 例通过，夹具改为内置版本 +1。
+- **未验**：当前无 Android/iOS 移动设备或移动模拟器连接，未做移动真机对话流程、TTS 与跟读识别验收。
+
+---
+
 ### 2026-11-06 课程模板呈现与听力面板优化
 
 - **性质**：课时 UI 与局部资源复用批次；**测试数 +5**（新增 `lesson_presentation_test`：七模板 profile、展平听力 stage 回溯源 phase、对话播放后按需揭示原文、reduced-motion、窄屏 200% 字号）。触达测试 **77 passed / 0 failed**；非 golden 全量 **2618 passed / 0 failed**。

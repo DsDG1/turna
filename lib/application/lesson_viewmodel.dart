@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:math';
 
 // Flutter imports:
 import 'package:flutter/foundation.dart';
@@ -25,6 +26,7 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/review/review_lesson_sampler.dart';
 import 'package:turna/application/lesson_srs_undo_log.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
@@ -109,6 +111,8 @@ class LessonViewModel extends ChangeNotifier {
   final GrammarReviewProvider _grammarReviewProvider;
   final LessonCompletionCoordinator _completionCoordinator;
   final LessonProgressProvider? _progressProvider;
+  final ReviewLessonSampler _reviewSampler = const ReviewLessonSampler();
+  final Random _reviewRandom;
 
   LessonViewModel(
     this._courseProvider,
@@ -118,7 +122,9 @@ class LessonViewModel extends ChangeNotifier {
     this._grammarReviewProvider,
     this._completionCoordinator, {
     LessonProgressProvider? progressProvider,
+    Random? reviewRandom,
   })  : _progressProvider = progressProvider,
+        _reviewRandom = reviewRandom ?? Random(),
         _srsUndoStack = LessonSrsUndoLog(
           srs: _srsProvider,
           grammar: _grammarReviewProvider,
@@ -437,7 +443,12 @@ class LessonViewModel extends ChangeNotifier {
     _lesson = fresh;
     _recordsMistakes = true; // real lessons always record wrong answers
     await _ankiKeyResolver.ensureOfficialCardIndex(fresh.id);
-    _resetToLesson(_targetedSubLessonSession(fresh, subLessonId));
+    final session = _targetedSubLessonSession(fresh, subLessonId);
+    _resetToLesson(_reviewSampler.sample(
+      session,
+      mistakes: _mistakeProvider.entries,
+      random: _reviewRandom,
+    ));
 
     notifyListeners();
     return true;
@@ -491,6 +502,7 @@ class LessonViewModel extends ChangeNotifier {
     return c.stages.isNotEmpty ||
         c.subLessons.isNotEmpty ||
         c.listeningPhases.isNotEmpty ||
+        c.dialogueScene != null ||
         c.readingPassage != null ||
         c.passage.isNotEmpty;
   }
@@ -512,7 +524,11 @@ class LessonViewModel extends ChangeNotifier {
     // a cheap indexed lookup that keeps the cache correct for the rare
     // case where the instance actually is a projected lesson.
     unawaited(_ankiKeyResolver.ensureOfficialCardIndex(lesson.id));
-    _resetToLesson(lesson);
+    _resetToLesson(_reviewSampler.sample(
+      lesson,
+      mistakes: _mistakeProvider.entries,
+      random: _reviewRandom,
+    ));
     notifyListeners();
   }
 

@@ -246,6 +246,103 @@
               }
             ]
           }
+        },
+        {
+          "id": "nt-u1-l2-dialogue",
+          "name": "咖啡馆的第一句",
+          "description": "走进 Ayşe 的咖啡馆，亲自回应问候，并在接过饮品时道谢。Buyurun 只需听懂，不要求产出。",
+          "type": "dialogue",
+          "template": "dialogue",
+          "prerequisiteLessonIds": ["nt-u1-l1"],
+          "content": {
+            "dialogueScene": {
+              "id": "nt-scene-cafe-welcome",
+              "title": "Ayşe 的咖啡馆",
+              "characters": [
+                {
+                  "id": "ayse",
+                  "name": "Ayşe",
+                  "imageAsset": "assets/images/ayse.png"
+                },
+                {
+                  "id": "learner",
+                  "name": "你"
+                }
+              ],
+              "turns": [
+                {
+                  "id": "nt-dialogue-turn-1",
+                  "speakerId": "ayse",
+                  "text": "Merhaba!"
+                },
+                {
+                  "id": "nt-dialogue-turn-2",
+                  "speakerId": "learner",
+                  "interactionId": "nt-dialogue-reply-merhaba"
+                },
+                {
+                  "id": "nt-dialogue-turn-3",
+                  "speakerId": "ayse",
+                  "text": "Buyurun!"
+                },
+                {
+                  "id": "nt-dialogue-turn-4",
+                  "speakerId": "learner",
+                  "interactionId": "nt-dialogue-formal-thanks"
+                },
+                {
+                  "id": "nt-dialogue-turn-5",
+                  "speakerId": "ayse",
+                  "text": "Teşekkürler!"
+                },
+                {
+                  "id": "nt-dialogue-turn-6",
+                  "speakerId": "learner",
+                  "interactionId": "nt-dialogue-type-thanks"
+                },
+                {
+                  "id": "nt-dialogue-turn-7",
+                  "speakerId": "learner",
+                  "interactionId": "nt-dialogue-read-thanks"
+                }
+              ]
+            },
+            "stages": [
+              {
+                "id": "nt-dialogue-stage-responses",
+                "name": "回应 Ayşe",
+                "items": [
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-dialogue-reply-merhaba",
+                    "sentence": "— Merhaba!\n— _____",
+                    "answer": "Merhaba!",
+                    "choices": ["Merhaba!", "Teşekkürler!", "Türkçe!"]
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "nt-dialogue-formal-thanks",
+                    "prompt": "接过饮品，用更客气的一版说「谢谢您」",
+                    "scrambled": ["ederim", "Teşekkür"],
+                    "correct": ["Teşekkür", "ederim"]
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-dialogue-type-thanks",
+                    "source": "谢谢",
+                    "expected": "teşekkürler",
+                    "hints": ["全小写", "注意 ş、ü 和双 k"]
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-dialogue-read-thanks",
+                    "targetText": "Teşekkürler!",
+                    "prompt": "把最后这句道谢说出口"
+                  }
+                ]
+              }
+            ]
+          }
         }
       ]
     }

@@ -20,6 +20,13 @@ _LessonContent _$LessonContentFromJson(Map<String, dynamic> json) =>
               ?.map((e) => ListeningPhase.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <ListeningPhase>[],
+      dialogueScene: json['dialogueScene'] == null
+          ? null
+          : DialogueScene.fromJson(
+              json['dialogueScene'] as Map<String, dynamic>),
+      reviewPolicy: json['reviewPolicy'] == null
+          ? null
+          : ReviewPolicy.fromJson(json['reviewPolicy'] as Map<String, dynamic>),
       readingPassage: json['readingPassage'] == null
           ? null
           : ReadingPassage.fromJson(
@@ -37,6 +44,8 @@ Map<String, dynamic> _$LessonContentToJson(_LessonContent instance) =>
       'stages': instance.stages,
       'subLessons': instance.subLessons,
       'listeningPhases': instance.listeningPhases,
+      'dialogueScene': instance.dialogueScene,
+      'reviewPolicy': instance.reviewPolicy,
       'readingPassage': instance.readingPassage,
       'passage': instance.passage,
       'audioAsset': instance.audioAsset,

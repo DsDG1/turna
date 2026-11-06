@@ -369,6 +369,19 @@ class TeacherTemplateWidget(QWidget):
         self.changed.emit()
 
 
+class DialogueTeacherWidget(TeacherTemplateWidget):
+    """Teacher view for a scene and its existing response interactions."""
+
+    def _build_teacher_view(self) -> None:
+        if self._content_layout is None:
+            return
+        from src.widgets.lesson_editor import DialogueEditor
+
+        editor = DialogueEditor(self.adapter, self.lesson)
+        editor.changed.connect(self.changed.emit)
+        self._content_layout.addWidget(editor)
+
+
 class ListeningTeacherWidget(TeacherTemplateWidget):
     """Teacher view for listening lessons: phases with optional items."""
 
