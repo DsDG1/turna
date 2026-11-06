@@ -227,7 +227,7 @@
 
 | 类别 | 条目 | 建议动作 |
 |---|---|---|
-| **域边界（[ADR 0066](../decisions/0066-anki-deck-domain-independence.md)）** | 记忆卡独立成域：课程管理的「从 Anki 导入」卡与牌组列表移除，导入完成不再切换课程，练习中心不做 Anki 课程域裁剪；功能与导入管线保持原版 | 设计约束，随 P3 / P4 记忆卡域重构落地 |
+| **域边界（[ADR 0067](../decisions/0067-memory-card-returns-to-course-domain.md)）** | 记忆卡回归课程域：牌组即课程，出现在课程管理列表且可切换，从课程管理导入；练习台无记忆卡独立入口，记忆卡中枢页删除；语言课程激活时无记忆卡入口 | 设计约束，已随 P3 / P4 落地 |
 | 断链 | `AiPracticeDetailRoute` 被 push 但未注册——**已修复**（已注册，带课程守卫） | 已销项 |
 | 无生产入口 | **已处置（A2）**：SectionPickerPage / ChangelogRoute / OfficialAnkiMappingPage 三者路由与页面删除；UnifiedReviewRoute 保留并标注「仅深链兜底」（生产路径是 SrsReviewPage 的 widget 嵌入）；DailyChallengePage 恢复练习台工具格入口 | 已销项（明细见 `test/BASELINE.md` 当日条目） |
 | 死组件 | **已处置（A2）**：ContentUpdateDialog 连目录删除；routing 与 Advanced 页的 developer lab 过期注释清除 | 已销项 |

@@ -35,6 +35,9 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 本页没有页级几何主视觉位：身份行以下全是纸面行族，页级大形会从行
+    // 缝里漏出来。成就环缩进身份卡内、垫在模糊层之下（见 AccountWidget），
+    // 由卡自身的圆角裁掉一截——那才是"玻璃盖在几何上"。
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [

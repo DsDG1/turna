@@ -84,7 +84,7 @@
 
 | 层 | 事实 | 真源 |
 |---|---|---|
-| **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0050](./decisions/0050-ohos-official-anki.md)（原 ADR 0041（已删）的 EOL 口径已被 ADR 0047 修订、0050 再修订） |
+| **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0050](./decisions/0050-ohos-official-anki.md)（原 ADR 0041 已删，口径见 ADR 0047 与 ADR 0050） |
 | **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道；**不含 AI 生成**（华为审核合规移除，[ADR 0056](./decisions/0056-ohos-remove-ai-compliance.md)）；**不含跟读识别**（readAloud 题型降级为听示范卡，[ADR 0061](./decisions/0061-read-aloud-word-matching.md)） | [ADR 0047](./decisions/0047-ohos-companion-lite-build.md) |
 | **Official Anki** | 已授权；接线步 0–5b 已施工 | [ADR 0050](./decisions/0050-ohos-official-anki.md) |
 
@@ -121,7 +121,7 @@
 
 **子课播放粒度**：多子课的课在课程树上按子课拆为独立节点，每节点一次独立会话、独立发奖（课级完成走结算门）；数据格式不变，`lessons` 表 v34 起携带 L1 子课摘要列。见 [ADR 0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md)。
 
-本地内容读取接缝已接线：`CourseContentSource`、`DatabaseSeeder` 和 `CourseProvider.refreshBuiltinContent` 支持整套选源、版本比较、损坏更新回落、事务重播种与缓存刷新；决策见 [ADR 0058](./decisions/0058-builtin-course-content-source.md)。`tool/publish_course.py` 已实现本地快照校验、升版、zip 与 feed 生成、SHA-256 和历史清单，并已实际生成首包；`check_builtin_version` 拒绝低于内置的版本、对同版包给 stderr 警告（接缝同版选内置 assets），发布契约见 [ADR 0059](./decisions/0059-course-release-feed.md)。`CourseOtaService` 已实现 feed/zip 下载、相对 URL 解析、传输策略、SHA-256/大小校验、JSON-only zip-slip 防护、整包课程校验、版本拒绝及可恢复的原子目录切换；服务层测试覆盖失败保留旧内容与中断恢复。学习设置页的 `SettingsCourseUpdateTile` 已接入手动 URL 更新、进度/错误反馈和 `CourseProvider.refreshBuiltinContent`；下载成功但应用被学习／备份门控拦截时可免重下重试。`SettingsCourseRestoreTile` 通过 `CourseOtaService.clearInstalledContent` 删除已下载目录（含 backup 与 tmp）并重播种回内置内容，随后写 `contentVersionAcknowledged`，避免降级重弹 ADR 0002 提示。内存 DB 全链路已验证 HTTP 安装 → 重播种 → 课程树显示新内容，以及清除后回落内置内容。**尚未完成云端热更新日常闭环**：远端托管发布与真机验收仍待实现；本地覆盖、恢复入口与进度提示也尚无真机验收证据。
+本地内容读取接缝已接线：`CourseContentSource`、`DatabaseSeeder` 和 `CourseProvider.refreshBuiltinContent` 支持整套选源、版本比较、损坏更新回落、事务重播种与缓存刷新；决策见 [ADR 0058](./decisions/0058-builtin-course-content-source.md)。`tool/publish_course.py` 已实现本地快照校验、升版、zip 与 feed 生成、SHA-256 和历史清单，并已实际生成首包；`check_builtin_version` 拒绝低于内置的版本、对同版包给 stderr 警告（接缝同版选内置 assets），发布契约见 [ADR 0059](./decisions/0059-course-release-feed.md)。`CourseOtaService` 已实现 feed/zip 下载、相对 URL 解析、传输策略、SHA-256/大小校验、JSON-only zip-slip 防护、整包课程校验、版本拒绝及可恢复的原子目录切换；服务层测试覆盖失败保留旧内容与中断恢复。学习设置页的 `SettingsCourseUpdateTile` 已接入手动 URL 更新、进度/错误反馈和 `CourseProvider.refreshBuiltinContent`；下载成功但应用被学习／备份门控拦截时可免重下重试。`SettingsCourseRestoreTile` 通过 `CourseOtaService.clearInstalledContent` 删除已下载目录（含 backup 与 tmp）并重播种回内置内容，随后写 `contentVersionAcknowledged`，避免降级重弹版本升级确认提示（原 ADR 0002，已随文档精简删除）。内存 DB 全链路已验证 HTTP 安装 → 重播种 → 课程树显示新内容，以及清除后回落内置内容。**尚未完成云端热更新日常闭环**：远端托管发布与真机验收仍待实现；本地覆盖、恢复入口与进度提示也尚无真机验收证据。
 
 ---
 
@@ -131,9 +131,13 @@
 
 **题型模板深化完成（计划 §7.1，纯 UI）**：17 个 renderer 的题面与作答区按题型分组重画——大题面统一为纸面 `SessionRecallCanvas`（该 P2 组件自此真正接线）与紧凑答案区形成尺度差；反馈区收编为 `InteractionFeedbackPanel`（答对一行轻结果、答错「你的答案 / 正确表达」分区，`LessonCorrectAnswerBanner` 删除）；听辨类播放主控 `SpeakerHero` 上画布中央；判分书写区、提示 chip、`termHero` 大词头文字角色收口在 `interaction_fields.dart` 与 `text_styles.dart`；退役占位卡接入底栏 CTA 契约（无 `LessonActionScope` 的消费面回退卡内按钮），`LessonPracticeCard` 只保留翻面语义的 front / back 变体（surface 变体随题面纸面化删除）。
 
-「湿地雾光」的公共色彩、纸面/玻璃材质、间距圆角、跨域卡片、静态几何图形、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
+**课程模板呈现二次优化已落地（纯 UI）**：视图层 `LessonPresentationProfile` 统一七种课程模板的图标、进度样式与内容宽度；听力对话阶段恢复消费已有 `ListeningPhase.audioAsset / transcript`，听选、听写与概要共用带播放状态和按需原文揭示的听力面板；选择、书写与阅读题面按任务重组，课程包图片路径解析按 asset 复用。非 golden 全量测试、静态分析和 Android debug 构建通过；组件渲染已核对听力 / 阅读与浅色 / 深色，窄屏 200% 和 reduced-motion 有回归用例。**移动真机流程与帧耗时仍未验收**。
 
-**ADR 0067 记忆卡回归课程域已落地**（取代 ADR 0066 的界面口径，数据 / 引擎层零改动）：记忆卡牌组恢复为课程——课程管理列出牌组条目（切换 / 排序 / 卸载 / 适配恢复）并恢复「从记忆卡导入课程」卡、未完成导入横幅与修复中心入口；导入完成「立即学习」切到牌组课程、「查看牌组」高亮打开课程管理；`CourseProvider.setScope` 重新接受 anki scope，持久化 scope 原样恢复；练习台与个人页按当前课程裁剪——记忆卡课程激活时语言队列让位给「记忆卡复习」行（点按直开正式复习，同步失败有页内重试条），语言课程激活时无任何记忆卡入口；记忆卡中枢页（`MemoryCardHubPage`）与 `ankiDeckEntries` 窄缝删除，牌组管理回归课程管理页与 `AnkiReviewPage`。ADR 0066 的 `turna.course.scope` 配置区越界写删除保留（prefs 是唯一持久层）。
+「湿地雾光」的公共色彩、纸面/玻璃材质、L0 环境天光与毛玻璃档、间距圆角、跨域卡片、几何图形（含页级贴边形态）、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。课程 / 练习 / 个人 / 设置四个 Tab 各有几何主视觉位（拱、斜切、环、交叠色片）。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
+
+**材质第三轮（[ADR 0068](./decisions/0068-ambient-light-and-frosted-glass.md)）**：L0 从纯白改为「白 + 三片极淡天光」（`AmbientLight`，峰值 ≤8.6%，只落边缘），`AmbientBackdrop` 从零调用点接回主外壳 / 课时作答页 / 三个长文阅读页；新增 `GlassLevel.l2Frost`（半透明填充 + `BackdropFilter sigma 14` + 1px 顶部受光边，每页 ≤2 张），首个落地为个人页头卡。ADR 0062 §2 的淡彩、白高光、同色相投影与积色描边参数一个未动。
+
+**ADR 0067 记忆卡回归课程域已落地**（统一底座界面口径，原 ADR 0066 已随文档精简删除，数据 / 引擎层零改动）：记忆卡牌组恢复为课程——课程管理列出牌组条目（切换 / 排序 / 卸载 / 适配恢复）并恢复「从记忆卡导入课程」卡、未完成导入横幅与修复中心入口；导入完成「立即学习」切到牌组课程、「查看牌组」高亮打开课程管理；`CourseProvider.setScope` 重新接受 anki scope，持久化 scope 原样恢复；练习台与个人页按当前课程裁剪——记忆卡课程激活时语言队列让位给「记忆卡复习」行（点按直开正式复习，同步失败有页内重试条），语言课程激活时无任何记忆卡入口；记忆卡中枢页（`MemoryCardHubPage`）与 `ankiDeckEntries` 窄缝删除，牌组管理回归课程管理页与 `AnkiReviewPage`。ADR 0066 的 `turna.course.scope` 配置区越界写删除保留（prefs 是唯一持久层）。
 
 **已取得的运行证据**：Pixel 6 / Android 15 模拟器的 debug 构建已走通启动、四个主 Tab、词典输入与无结果、深色、高对比、200% 字号，以及课程树展开 → 13/13 子课作答（含文本键盘输入）→ 完成 → 返回并显示真实进度。截图与覆盖记录位于 `dist/design-refresh/`。
 

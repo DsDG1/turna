@@ -8,6 +8,36 @@
 
 ## 当前基线
 
+- **2026-11-06（课程目录与整门发布 hook）**：
+  **214 模块 / 3018 例**（发现器 `countTestCases`；上一条目 213 / 3006，+1 模块 +12 例；
+  本轮新增 9 例，另有 3 例为既有基线漂移）。
+  - 新增课程目录加载器：读取 `index.json` / section / 课程级词汇，预检路径与 id，
+    空章节保留为「待施工」；`publish-course` 通过一次 SSH stdin 发布整门课程。
+  - 课程清单保存稳定章节预览映射；新增网站课程列表与课程页，复用单节不可变修订、
+    题目和反馈页面，重复发布不增加未修改章节的修订。
+  - 新增 `test_course_preview_course` 7 例，既有预览 HTTP 与 SSH 测试各增 1 例；
+    真实 `nouveau-turkish` 覆盖 8 个索引章节、首节 26 题与词汇展开。相关 37 例全绿，
+    本轮相关文件 ruff 全绿。
+
+- **2026-11-06（课程草稿网页预览与反馈修订）**：
+  **213 模块 / 3006 例**（发现器 `countTestCases`；上一条目 209 / 2977，+4 模块 +29 例；
+  本轮新增 28 例，另有 1 例为既有基线漂移）。
+  - 新增 Qt-free `backend/course_preview/`：section 展开、静态 HTML、不可变修订、JSONL 反馈、
+    SSH 客户端与真实 HTTP 服务；新增 `tool/course_preview.py` 和幂等部署脚本。
+  - 工坊与整门课程规划接入同一「网页预览 / 反馈」：私密链接发布、留言拉取、AI 修订、
+    diff 确认、同链接新版；只有发布成功才结案反馈，不自动导入课程。
+  - 新增 `test_course_preview` 11 例、`test_course_preview_client` 4 例、
+    `test_course_preview_dialog` 9 例、`test_course_preview_deploy` 4 例，覆盖 XSS 转义、
+    旧修订反馈、限流、状态恢复、取消 diff、校验/SSH 失败与 Caddy/systemd 配置。
+  - 相关 93 例全绿；全量 213 模块为 **212 通过 / 1 失败**，失败是既存
+    `test_signal_lifecycle` 对 `teacher/preview_window.py` 旧 lambda 的扫描，本功能未触碰该文件。
+    全量 ruff 另报 `document_profile.py`、`markdown_chopper.py`、`test_textbook_controller.py`
+    三处既存问题；本轮相关文件 ruff 全绿。
+  - 门禁：`app_dialogs` 13、`broad_except` 873、`ui_backend` 167、`widgets_dialogs` 4 均未提高；
+    模块树、GUI 文档索引与根 `docs_hygiene_test` 全绿。
+  - 另修复 `course_plan_window.py` 在 HEAD 中已存在的 can-do join 字符串断行，
+    否则规划窗口及其新预览入口无法编译；不属于行为变更。
+
 - **2026-10-30（教材/纲领适配 + MiniMax TTS 参数 + AI 模型名对齐）**：
   **209 模块 / 2977 例**（发现器 `countTestCases`；上一条目 206 / 2925，+3 模块 +52 例 =
   `test_markdown_auto_split` 16 + `test_document_profile` 10 + `test_syllabus_brief` 18 +

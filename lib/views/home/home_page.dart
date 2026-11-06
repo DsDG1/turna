@@ -30,7 +30,7 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/splash/splash_page.dart';
-import 'package:turna/core/motion.dart';
+import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/home/components/components.dart';
@@ -252,16 +252,13 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    final reduceMotion = context.select<AccessibilityProvider, bool>(
-      (p) => p.reducedMotion,
-    );
     final bg = currentIndex == 0
         ? TurnaTheme.scaffoldBg(context)
         : TurnaTheme.surfaceColor(context);
-    return AnimatedContainer(
-      duration:
-          TurnaMotion.scaled(const Duration(milliseconds: 120), reduceMotion),
-      color: bg,
+    // L0 环境层（ADR 0068）：底色 + 三片极淡天光。外壳传 [bg] 而不是让
+    // 环境层自己取主题色 —— Tab 之间底色本来就不同，光斑层不该改这个事实。
+    return AmbientBackdrop(
+      baseColor: bg,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: appBars[currentIndex],

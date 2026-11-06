@@ -9,6 +9,7 @@ import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/language_detector.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -140,18 +141,31 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonMultipleChoiceCaption),
-          // 大题面（§7.1 选择族）: prompt 与媒体在纸面画布上, 与下方紧凑
-          // 编号行答案区拉开尺度差。
           SessionRecallCanvas(
-            minHeight: 160,
+            minHeight: 130,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.quiz_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonMultipleChoiceCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Text(
                   widget.prompt,
-                  textAlign: TextAlign.center,
                   style: AppTextStyles.promptLg(context).copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -184,9 +198,7 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
             const SizedBox(height: 16),
             InteractionFeedbackPanel(
               correct: correct == true,
-              userAnswer: _picked == null
-                  ? null
-                  : widget.options[_picked!],
+              userAnswer: _picked == null ? null : widget.options[_picked!],
               correctAnswer: widget.options[widget.correctIndex],
             ),
           ],

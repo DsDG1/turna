@@ -476,20 +476,9 @@ class _AnkiDueHero extends StatelessWidget {
           onTap: onReviewAll,
           borderRadius: radius,
           child: Ink(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
-              ),
+            decoration: TurnaTheme.brandHeroDecoration(
+              context,
               borderRadius: radius,
-              boxShadow: [
-                BoxShadow(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: Padding(
               padding: const EdgeInsets.all(20),

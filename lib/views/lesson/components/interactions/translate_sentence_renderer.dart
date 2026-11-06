@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -136,23 +137,44 @@ class _TranslateBodyState extends State<_TranslateBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonTranslateCaption),
-          // 完整上下文（源句）在纸面画布上（§7.1 输入族）。
           SessionRecallCanvas(
-            minHeight: 140,
+            minHeight: 120,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
-            child: Text(
-              widget.source,
-              style: AppTextStyles.promptLg(context).copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.translate_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonTranslateCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  widget.source,
+                  style: AppTextStyles.promptLg(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),
           // 明确书写区（§7.1「下方是明确书写区」）。
           InteractionTextField(
             controller: _controller,
-            verdict: interactionVerdictOf(submitted: submitted, correct: correct),
+            verdict:
+                interactionVerdictOf(submitted: submitted, correct: correct),
             enabled: !submitted,
             maxLines: 3,
             minLines: 1,

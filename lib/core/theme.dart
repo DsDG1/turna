@@ -173,6 +173,73 @@ class TurnaTheme {
             )
           : courseTreeGradient;
 
+  /// L0 环境光斑：白纸上"光从哪来"的方位感（ADR 0068）。
+  ///
+  /// ADR 0062 §1 把画布定成纯白，理由是玻璃自己发色、背后没有东西可糊。
+  /// 那条理由对**卡片填充**仍然成立，但它同时让整个 App 失去空间：一屏白纸
+  /// 上叠几张淡彩卡，读不出光源方位，也读不出前后。
+  ///
+  /// 这里补的不是"背景色"，是**光**：三片径向光晕落在左上、右上与底缘，
+  /// 峰值 alpha 压在 5% 以内。低于这个数才安全 —— 一旦底被染上色，卡面
+  /// 9~19% 的淡彩就失去参照，整页会读回"被染过的底 + 灰白卡"（ADR 0062
+  /// §1 的原始警告）。所以光斑只出现在**页面边缘**，中部保持净白。
+  ///
+  /// 高对比 / [GlassMode.off] 返回空表：那时背景必须是纯净高对比底色，
+  /// 任何光晕都是对比度噪声。
+  static List<AmbientLight> ambientLights(BuildContext context) {
+    if (!glassEnabled(context)) return const <AmbientLight>[];
+    return _isDark(context) ? _ambientLightsDark : _ambientLightsLight;
+  }
+
+  static const List<AmbientLight> _ambientLightsLight = <AmbientLight>[
+    // 左上：天光从湿地水面反射上来，最亮的一片。半径收到 0.7 是为了让光
+    // **集中成角落的一团**，而不是整屏淡染 —— 后者会把画布读成"有色底"，
+    // 正好踩中 ADR 0062 §1 警告的那个失败。浓度可以给到 10%，因为覆盖面小。
+    AmbientLight(
+      center: Alignment(-0.86, -0.94),
+      color: Color(0x161F727E),
+      radius: 0.72,
+      scale: 1.15,
+    ),
+    // 右上：暖沙的二次反射，给"光源在对侧"一个落点。
+    AmbientLight(
+      center: Alignment(0.98, -0.52),
+      color: Color(0x12EAD9B8),
+      radius: 0.68,
+      scale: 1.10,
+    ),
+    // 底缘：陶土余温，压住画面下沿不让它飘。课时页题面以下的空区主要靠它
+    // 兜住，否则读作"没渲染完"。
+    AmbientLight(
+      center: Alignment(-0.04, 1.08),
+      color: Color(0x14B85C3F),
+      radius: 0.86,
+      scale: 1.20,
+    ),
+  ];
+
+  static const List<AmbientLight> _ambientLightsDark = <AmbientLight>[
+    // 深色画布是中性近黑，同样一片光要更亮才读得出来。
+    AmbientLight(
+      center: Alignment(-0.90, -0.94),
+      color: Color(0x262F7F8E),
+      radius: 0.78,
+      scale: 1.15,
+    ),
+    AmbientLight(
+      center: Alignment(0.98, -0.30),
+      color: Color(0x18EAD9B8),
+      radius: 0.70,
+      scale: 1.05,
+    ),
+    AmbientLight(
+      center: Alignment(-0.04, 1.10),
+      color: Color(0x16B85C3F),
+      radius: 0.82,
+      scale: 1.15,
+    ),
+  ];
+
   /// Main CTA / primary FAB gradient — teal only (never insert clay).
   static const LinearGradient buttonGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -476,6 +543,45 @@ class TurnaTheme {
     );
   }
 
+  /// 真毛玻璃档的实时模糊强度（[GlassLevel.l2Frost]）。
+  ///
+  /// 14 是「能读出背后有东西、但读不出是什么」的下限附近。低于 8 只剩一层
+  /// 灰雾，高于 20 会把 L0 光斑糊成均匀底色 —— 白烧采样。
+  static const double frostSigma = 14;
+
+  /// [GlassLevel.l2Frost] 专用：**半透明**淡彩渐变。
+  ///
+  /// 与 [glassFill] 唯一的区别是基面不实：彩色罩在半透明白（深色下是半透明
+  /// 暗面）上，背后那层环境光斑才能被 `BackdropFilter` 糊开再透上来。
+  ///
+  /// [opacity] 是"卡面还剩多少不透明"：0.72 时模糊感清楚、正文仍然稳；
+  /// 低于 0.6 长文本会随背景明暗起伏，读不动。
+  static LinearGradient glassFrostFill(
+    BuildContext context,
+    Color accent, {
+    double opacity = 0.72,
+  }) {
+    final spec = glassSpec(GlassLevel.l2Frost);
+    final isDark = _isDark(context);
+    final base =
+        (isDark ? spec.darkBase : Colors.white).withValues(alpha: opacity);
+    final tintStart = isDark ? spec.darkTintStart : spec.tintStart;
+    final tintEnd = isDark ? spec.darkTintEnd : spec.tintEnd;
+    final sheen = isDark ? spec.darkSheen : spec.sheen;
+    final mid = tintStart + (tintEnd - tintStart) * spec.sheenStop;
+
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        _glassMix(accent, tintStart, sheen, base),
+        _glassMix(accent, mid, 0, base),
+        _glassMix(accent, tintEnd, 0, base),
+      ],
+      stops: [0.0, spec.sheenStop, 1.0],
+    );
+  }
+
   /// 同色相双层投影。
   ///
   /// 色相先向 [brandNavy] 靠拢 [glassShadowCooling]：直接把 `success #FFD93D`
@@ -613,6 +719,41 @@ class TurnaTheme {
     );
   }
 
+  /// 品牌主卡渐变：teal → sky，左上到右下（与三段的 [brandGradient] 不是同一条）。
+  ///
+  /// 主卡与图标块共用这一条。页面里不要再写 `colors: [brandTeal, brandSky]`
+  /// —— 改品牌要改 N 处，`test/architecture/card_material_guard_test.dart` 会拦。
+  static const LinearGradient brandHeroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [brandTeal, brandSky],
+  );
+
+  /// 品牌渐变主卡：teal → sky、白字、同色投影。练习台「今日复习」与记忆卡
+  /// 复习入口是**同一张卡**，只是内容不同。
+  ///
+  /// 这条渐变曾经在两个页面里各写一遍（连投影的 0.25 / 16 / 8 都逐字相同），
+  /// 改一次品牌色要改两处，还容易改漏。页面里不要再内联这个渐变 ——
+  /// `test/architecture/card_material_guard_test.dart` 会拦。
+  static BoxDecoration brandHeroDecoration(
+    BuildContext context, {
+    BorderRadius? borderRadius,
+    List<BoxShadow>? boxShadow,
+  }) {
+    return BoxDecoration(
+      gradient: brandHeroGradient,
+      borderRadius: borderRadius ?? cardBorderRadius,
+      boxShadow: boxShadow ??
+          <BoxShadow>[
+            BoxShadow(
+              color: brandTeal.withValues(alpha: 0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+    );
+  }
+
   /// 混色前先降 accent 的饱和度。[glassChroma] 只动彩度，不动浓度。
   static Color _glassCalm(Color accent) {
     final hsl = HSLColor.fromColor(accent);
@@ -725,6 +866,31 @@ class TurnaTheme {
             darkSheen: 0.08,
             darkNearAlpha: 0.18,
             darkFarAlpha: 0.30,
+          ),
+        // 真毛玻璃（ADR 0068）：本档不靠"更浓"立起来，靠**半透明填充 + 实时
+        // 模糊**。它消费的是 L0 环境光斑 —— 没有光斑就没有可糊的内容，所以
+        // 只在 `ambientLights` 非空（玻璃开启）时才有意义。
+        //
+        // 浓度比 l2 只高一档，描边与投影略收：卡面已经透出背景，再加浓会
+        // 读成"糊了一块彩纸"而不是玻璃。
+        GlassLevel.l2Frost => const GlassSpec(
+            tintStart: 0.13,
+            tintEnd: 0.20,
+            sheen: 0.42,
+            sheenStop: 0.44,
+            stroke: 0.34,
+            nearAlpha: 0.09,
+            nearBlur: 14,
+            nearY: 6,
+            farAlpha: 0.06,
+            farBlur: 34,
+            farY: 16,
+            darkBase: Color(0xFF1D1D1D),
+            darkTintStart: 0.14,
+            darkTintEnd: 0.22,
+            darkSheen: 0.10,
+            darkNearAlpha: 0.20,
+            darkFarAlpha: 0.34,
           ),
         GlassLevel.badge => const GlassSpec(
             tintStart: 0.13,
@@ -1742,7 +1908,34 @@ class TurnaTheme {
 /// - [l1Quiet] 弱化卡（设置域深层页：同色阶淡彩，只削高光与投影，让位给表单）
 /// - [l2] 浮起面（下一课行、吸顶条、胶囊导航）
 /// - [badge] 徽章 / 标签（平涂，无描边无投影）
-enum GlassLevel { l1, l1Subtle, l1Quiet, l2, badge }
+enum GlassLevel { l1, l1Subtle, l1Quiet, l2, l2Frost, badge }
+
+/// L0 环境层的一片光晕（ADR 0068）。
+///
+/// 只描述"哪里有一片什么色的光"，不描述材质：光斑永远画在最底层、
+/// 不接收命中测试、不参与任何卡面计算。
+@immutable
+class AmbientLight {
+  const AmbientLight({
+    required this.center,
+    required this.color,
+    required this.radius,
+    required this.scale,
+  });
+
+  /// 光心坐标，`Alignment` 语义（-1 左/上，1 右/下）。允许越界 —— 光心落在
+  /// 画布外时只会露出一段弧形边缘，比"整片圆"更像天光。
+  final Alignment center;
+
+  /// 光心色。**alpha 必须低于 5%**（见 `ambientLights` 的浓度说明）。
+  final Color color;
+
+  /// 半径，相对画布短边。1.0 = 恰好覆盖短边。
+  final double radius;
+
+  /// 椭圆长短轴比：>1 沿纵向拉伸，读作缓慢的天光而不是一个圆形色块。
+  final double scale;
+}
 
 /// 高对比 / 降级模式下的玻璃开关。
 ///

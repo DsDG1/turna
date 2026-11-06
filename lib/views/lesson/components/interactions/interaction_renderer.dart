@@ -451,7 +451,8 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
     // 选中 teal 6%；判分用语义色淡底（与圈、图标同一色相）。
     final rowColor = switch (stateAccent) {
       null => Colors.transparent,
-      final accent => accent.withValues(alpha: accent == TurnaTheme.brandTeal ? 0.06 : 0.10),
+      final accent =>
+        accent.withValues(alpha: accent == TurnaTheme.brandTeal ? 0.06 : 0.10),
     };
     final radius = BorderRadius.circular(TurnaTheme.radiusMedium);
 
@@ -472,7 +473,8 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
               child: AnimatedContainer(
                 duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
                 curve: Curves.easeOutCubic,
-                decoration: BoxDecoration(color: rowColor, borderRadius: radius),
+                decoration:
+                    BoxDecoration(color: rowColor, borderRadius: radius),
                 child: Material(
                   type: MaterialType.transparency,
                   child: InkWell(
@@ -666,9 +668,13 @@ class SpeakerButton extends StatelessWidget {
   Widget _buildButton(BuildContext context, {required bool speaking}) {
     return Semantics(
       button: true,
-      label: AppStrings.lessonPlayAudioLabel,
+      label: speaking
+          ? AppStrings.lessonAudioPlaying
+          : AppStrings.lessonPlayAudioLabel,
       child: Tooltip(
-        message: AppStrings.lessonPlayAudioLabel,
+        message: speaking
+            ? AppStrings.lessonAudioPlaying
+            : AppStrings.lessonPlayAudioLabel,
         child: SizedBox(
           width: 44,
           height: 44,
@@ -731,9 +737,13 @@ class SpeakerHero extends StatelessWidget {
   Widget _buildButton(BuildContext context, {required bool speaking}) {
     return Semantics(
       button: true,
-      label: AppStrings.lessonPlayAudioLabel,
+      label: speaking
+          ? AppStrings.lessonAudioPlaying
+          : AppStrings.lessonPlayAudioLabel,
       child: Tooltip(
-        message: AppStrings.lessonPlayAudioLabel,
+        message: speaking
+            ? AppStrings.lessonAudioPlaying
+            : AppStrings.lessonPlayAudioLabel,
         child: SizedBox(
           width: 72,
           height: 72,

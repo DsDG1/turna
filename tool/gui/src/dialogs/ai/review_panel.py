@@ -147,6 +147,10 @@ class ReviewPanel(QWidget):
         self._try_btn.setToolTip("用播放器试做草稿中的某一课时")
         self._try_btn.clicked.connect(self._on_try)
         row.addWidget(self._try_btn)
+        self._web_preview_btn = QPushButton("网页预览 / 反馈")
+        self._web_preview_btn.setToolTip("发布静态题目链接，拉取留言后再决定是否修改草稿；不会导入课程")
+        self._web_preview_btn.clicked.connect(self._on_web_preview)
+        row.addWidget(self._web_preview_btn)
         self._diff_btn = QPushButton("与现有课程对比 (diff)")
         self._diff_btn.clicked.connect(self._on_diff)
         row.addWidget(self._diff_btn)
@@ -238,6 +242,7 @@ class ReviewPanel(QWidget):
                 btn.setStyleSheet("")
         for btn in (
             self._try_btn,
+            self._web_preview_btn,
             self._diff_btn,
             self._fix_btn,
             self._quality_fix_btn,
@@ -516,6 +521,37 @@ class ReviewPanel(QWidget):
     # ------------------------------------------------------------------ actions
     def _on_try(self) -> None:
         self._design_panel._on_try_lesson()
+        self.refresh()
+
+    def _on_web_preview(self) -> None:
+        draft = self._draft()
+        if draft is None:
+            return
+        from src.widgets.course_preview_dialog import CoursePreviewDialog
+
+        controller = self._design_panel._controller
+
+        def apply_revision(corrected: dict) -> None:
+            self._design_panel._json_editor.set_json(corrected)
+            controller.set_draft(corrected)
+            self._design_panel.flush_autosave()
+            self.refresh()
+
+        def save_state(state: dict) -> None:
+            controller.set_web_preview_state(state)
+            self._design_panel.flush_autosave()
+
+        dialog = CoursePreviewDialog(
+            draft_fn=self._draft,
+            preview_state=controller.web_preview_state,
+            on_state_changed=save_state,
+            on_apply_revision=apply_revision,
+            validate=self._collect_structural,
+            ai_config=self._ai_config(),
+            course_context=self._course_context_for_fix(draft),
+            parent=self,
+        )
+        dialog.exec()
         self.refresh()
 
     def _on_diff(self) -> None:

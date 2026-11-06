@@ -77,39 +77,29 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 
 | 编号 | 主题 | 编号 | 主题 |
 |---|---|---|---|
-| [0001](./decisions/0001-tts-language-code.md) | TTS 语言码 | [0032](./decisions/0032-about-page-tool-gui-content.md) | 关于页加入课程编辑器 |
-| [0002](./decisions/0002-content-replacement-progress-policy.md) | 内容替换进度口径 | [0033](./decisions/0033-turna-wetland-crane-palette.md) | 「湿地鹤」色板 |
-| [0007](./decisions/0007-di-consolidation-and-refactors.md) | 依赖注入整合 | [0034](./decisions/0034-ai-companion-hardening.md) | AI 伴学加固 |
-| [0010](./decisions/0010-audio-content-decoupling.md) | 音频与内容解耦 | [0035](./decisions/0035-reed-reanchor-and-scaffold-cooling.md) | 去绿化：主色重锚 |
-| [0011](./decisions/0011-srs-persistence-scaling.md) | 复习状态持久化扩容 | [0037](./decisions/0037-anki-course-review-unification.md) | Anki 课程与复习大一统 |
-| [0012](./decisions/0012-study-log-append-strategy.md) | 学习日志追加策略 | [0038](./decisions/0038-ai-cache-memory-only.md) | AI 缓存只存内存 |
-| [0013](./decisions/0013-srs-queue-base-class.md) | 复习队列基类 | [0039](./decisions/0039-webdav-secure-credential-migration.md) | WebDAV 凭据迁移到安全存储 |
-| [0014](./decisions/0014-dictionary-and-weak-word-review.md) | 词典与弱词复习 | [0040](./decisions/0040-system-health-state-machine.md) | 系统健康状态机 |
-| [0015](./decisions/0015-gameprovider-split.md) | GameProvider 拆分为门面 | [0042](./decisions/0042-staging-first-official-import.md) | Staging-first 官方导入 |
-| [0020](./decisions/0020-swahili-to-turkish-pivot.md) | 目标语从斯瓦希里语转向土耳其语 | [0043](./decisions/0043-anki-v2-single-source-of-truth.md) | Anki 底座 v2 单一事实源 |
-| [0021](./decisions/0021-git-resource-library-architecture.md) | Git 资源库架构 | [0044](./decisions/0044-anki-v2-revival.md) | Anki 底座 v2 复活 |
-| [0026](./decisions/0026-local-resource-editor-enhancements.md) | 本地资源编辑器增强 | [0045](./decisions/0045-gui-course-delivery.md) | 编辑器把课程交给 App |
-| [0028](./decisions/0028-fsrs-continuous-memory-model.md) | FSRS 连续记忆模型 | [0047](./decisions/0047-ohos-companion-lite-build.md) | 鸿蒙伴生轻量版 |
-| [0029](./decisions/0029-fsrs-relearn-and-local-weights.md) | FSRS 重学阶梯与本地权重 | [0048](./decisions/0048-ohos-companion-audio-tts.md) | 鸿蒙伴生版音频与 TTS |
-| [0031](./decisions/0031-turna-rebrand.md) | 改名 Turna | [0049](./decisions/0049-ohos-turkish-tts-sherpa-feasibility.md) | 土耳其语 TTS 构建可行性 |
-| | | [0050](./decisions/0050-ohos-official-anki.md) | 鸿蒙启用 Official Anki 全档 |
-| | | [0051](./decisions/0051-ohos-bundle-name-unique-vs-android.md) | 鸿蒙包名必须与安卓错开 |
-| | | [0052](./decisions/0052-tool-gui-functional-lesson-wizard-and-blueprint.md) | 编辑器功能课向导与蓝图 |
-| | | [0053](./decisions/0053-turnapack-external-courses.md) | 外部课程经 `.turnapack` 进入 |
-| | | [0054](./decisions/0054-ai-practice-library.md) | AI 练习库与后台生成 |
-| | | [0055](./decisions/0055-ai-credential-persistence-ohos.md) | AI 凭据在鸿蒙上真正落盘 |
-| | | [0056](./decisions/0056-ohos-remove-ai-compliance.md) | 鸿蒙伴生版移除 AI 生成（合规） |
-| | | [0057](./decisions/0057-card-adaptation-plan.md) | 记忆卡适配方案与统一展示解析 |
-| | | [0058](./decisions/0058-builtin-course-content-source.md) | 内置课程统一选择内容来源 |
-| | | [0059](./decisions/0059-course-release-feed.md) | 内置课程离线打包与发布清单 |
-| | | [0060](./decisions/0060-textbook-syllabus-adaptation-and-tts-alignment.md) | 教材/纲领适配与 TTS 参数对齐 |
-| | | [0061](./decisions/0061-read-aloud-word-matching.md) | 跟读识别：词面匹配（音素级评分维持不做） |
-| | | [0062](./decisions/0062-colored-glass-material.md) | 彩色玻璃材质：白纸上的淡彩玻璃 |
-| [0063](./decisions/0063-settings-glass-quiet-tier.md) | 设置域深层页的弱化玻璃档 |
-| [0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md) | 子课提升为课程树节点与独立会话 |
-| [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 |
-| [0066](./decisions/0066-anki-deck-domain-independence.md) | 记忆卡域独立于语言课程域（已被 0067 取代） |
-| [0067](./decisions/0067-memory-card-returns-to-course-domain.md) | 记忆卡回归课程域：牌组即课程，练习台无记忆卡入口 |
+| [0007](./decisions/0007-di-consolidation-and-refactors.md) | 依赖注入整合 | [0043](./decisions/0043-anki-v2-single-source-of-truth.md) | Anki 底座 v2 单一事实源 |
+| [0010](./decisions/0010-audio-content-decoupling.md) | 音频与内容解耦 | [0044](./decisions/0044-anki-v2-revival.md) | Anki 底座 v2 复活 |
+| [0011](./decisions/0011-srs-persistence-scaling.md) | 复习状态持久化扩容 | [0045](./decisions/0045-gui-course-delivery.md) | 编辑器把课程交给 App |
+| [0012](./decisions/0012-study-log-append-strategy.md) | 学习日志追加策略 | [0047](./decisions/0047-ohos-companion-lite-build.md) | 鸿蒙伴生轻量版 |
+| [0013](./decisions/0013-srs-queue-base-class.md) | 复习队列基类 | [0048](./decisions/0048-ohos-companion-audio-tts.md) | 鸿蒙伴生版音频与 TTS |
+| [0014](./decisions/0014-dictionary-and-weak-word-review.md) | 词典与弱词复习 | [0049](./decisions/0049-ohos-turkish-tts-sherpa-feasibility.md) | 土耳其语 TTS 构建可行性 |
+| [0015](./decisions/0015-gameprovider-split.md) | GameProvider 拆分为门面 | [0050](./decisions/0050-ohos-official-anki.md) | 鸿蒙启用 Official Anki 全档 |
+| [0020](./decisions/0020-swahili-to-turkish-pivot.md) | 目标语从斯瓦希里语转向土耳其语 | [0051](./decisions/0051-ohos-bundle-name-unique-vs-android.md) | 鸿蒙包名必须与安卓错开 |
+| [0021](./decisions/0021-git-resource-library-architecture.md) | Git 资源库架构 | [0052](./decisions/0052-tool-gui-functional-lesson-wizard-and-blueprint.md) | 编辑器功能课向导与蓝图 |
+| [0026](./decisions/0026-local-resource-editor-enhancements.md) | 本地资源编辑器增强 | [0053](./decisions/0053-turnapack-external-courses.md) | 外部课程经 `.turnapack` 进入 |
+| [0028](./decisions/0028-fsrs-continuous-memory-model.md) | FSRS 连续记忆模型 | [0054](./decisions/0054-ai-practice-library.md) | AI 练习库与后台生成 |
+| [0029](./decisions/0029-fsrs-relearn-and-local-weights.md) | FSRS 重学阶梯与本地权重 | [0055](./decisions/0055-ai-credential-persistence-ohos.md) | AI 凭据在鸿蒙上真正落盘 |
+| [0031](./decisions/0031-turna-rebrand.md) | 改名 Turna | [0056](./decisions/0056-ohos-remove-ai-compliance.md) | 鸿蒙伴生版移除 AI 生成（合规） |
+| [0032](./decisions/0032-about-page-tool-gui-content.md) | 关于页加入课程编辑器 | [0057](./decisions/0057-card-adaptation-plan.md) | 记忆卡适配方案与统一展示解析 |
+| [0033](./decisions/0033-turna-wetland-crane-palette.md) | 「湿地鹤」色板 | [0058](./decisions/0058-builtin-course-content-source.md) | 内置课程统一选择内容来源 |
+| [0034](./decisions/0034-ai-companion-hardening.md) | AI 伴学加固 | [0059](./decisions/0059-course-release-feed.md) | 内置课程离线打包与发布清单 |
+| [0037](./decisions/0037-anki-course-review-unification.md) | Anki 课程与复习大一统 | [0060](./decisions/0060-textbook-syllabus-adaptation-and-tts-alignment.md) | 教材/纲领适配与 TTS 参数对齐 |
+| [0038](./decisions/0038-ai-cache-memory-only.md) | AI 缓存只存内存 | [0061](./decisions/0061-read-aloud-word-matching.md) | 跟读识别：词面匹配（音素级评分维持不做） |
+| [0039](./decisions/0039-webdav-secure-credential-migration.md) | WebDAV 凭据迁移到安全存储 | [0062](./decisions/0062-colored-glass-material.md) | 彩色玻璃材质：白纸上的淡彩玻璃 |
+| [0040](./decisions/0040-system-health-state-machine.md) | 系统健康状态机 | [0063](./decisions/0063-settings-glass-quiet-tier.md) | 设置域深层页的弱化玻璃档 |
+| [0042](./decisions/0042-staging-first-official-import.md) | Staging-first 官方导入 | [0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md) | 子课提升为课程树节点与独立会话 |
+| [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 | [0067](./decisions/0067-memory-card-returns-to-course-domain.md) | 记忆卡回归课程域：牌组即课程，练习台无记忆卡入口 |
+| [0068](./decisions/0068-ambient-light-and-frosted-glass.md) | L0 环境天光与真毛玻璃档 | [0069](./decisions/0069-course-draft-web-preview.md) | 课程网页目录、草稿预览与反馈修订 |
 
 ## 其它位置
 

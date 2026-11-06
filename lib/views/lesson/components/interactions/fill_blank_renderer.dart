@@ -166,7 +166,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
 
     final (before, after) = _split;
     // 句中内联空与独立书写区共用同一判分配色（interaction_fields 收口处）。
-    final verdict = interactionVerdictOf(submitted: submitted, correct: correct);
+    final verdict =
+        interactionVerdictOf(submitted: submitted, correct: correct);
 
     _syncDraft(context);
 
@@ -174,7 +175,6 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonFillBlankCaption),
           if (widget.audioAssets.isNotEmpty ||
               widget.imageAssets.isNotEmpty) ...[
             Center(
@@ -187,21 +187,44 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           ],
           // 完整上下文在纸面画布上（§7.1 输入族「上方保留完整上下文」）。
           SessionRecallCanvas(
-            minHeight: 150,
+            minHeight: 130,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
-            child: RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: AppTextStyles.promptLg(context).copyWith(height: 1.4),
-                children: [
-                  TextSpan(text: before),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: _buildBlank(context, verdict),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.edit_note_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonFillBlankCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                RichText(
+                  textAlign: TextAlign.start,
+                  text: TextSpan(
+                    style:
+                        AppTextStyles.promptLg(context).copyWith(height: 1.4),
+                    children: [
+                      TextSpan(text: before),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: _buildBlank(context, verdict),
+                      ),
+                      TextSpan(text: after),
+                    ],
                   ),
-                  TextSpan(text: after),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           if (_useChoices) ...[
@@ -299,8 +322,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                   fontSize: 14,
                   color: TurnaTheme.textHintColor(context),
                 )
-              : AppTextStyles.promptMd(context).copyWith(
-                  fontSize: 18, fontWeight: FontWeight.w600),
+              : AppTextStyles.promptMd(context)
+                  .copyWith(fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ),
     );

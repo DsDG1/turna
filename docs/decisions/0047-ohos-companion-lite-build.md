@@ -6,7 +6,7 @@
 >
 > 关联：[ADR 0050](./0050-ohos-official-anki.md)（修订本文 §2 第 2 条与 §5.8）、[ADR 0048](./0048-ohos-companion-audio-tts.md)、[`native/turna_anki_core/build-ohos/README.md`](../../native/turna_anki_core/build-ohos/README.md)
 >
-> 修订说明：原 ADR 0041（产品级 EOL）已随文档精简删除，其口径由本文取代。**§2 第 2 条「不启用 Official Anki 引擎与保真复习器」与 §5.8「`ohos/` 不得出现 Official Anki 引擎宿主」均由 [ADR 0050](./0050-ohos-official-anki.md) 取代**；§2 其余条款、§3–§7 全部不变。当前接线状态见 [`../status.md`](../status.md) §6。
+> 修订说明：原 ADR 0041（产品级 EOL，已随文档精简删除）由本文取代；Official Anki 引擎与复习器授权见 [ADR 0050](./0050-ohos-official-anki.md)。当前接线状态见 [`../status.md`](../status.md) §6。
 
 ## 决策
 
@@ -21,11 +21,11 @@
 ### 2. 范围（不做什么，且由门禁强制）
 
 - 不对齐 Android 全功能（全量对齐另需 4–6 周，其中复习器 5–8 人日，而 Android 侧自身尚有 3 条 HOLD 未收）
-- **不启用 Official Anki 引擎与保真复习器** —— 该条已由 [ADR 0050](./0050-ohos-official-anki.md) 取代：鸿蒙伴生版启用 Official Anki 全档（引擎 / `.apkg` 导入 / 课程树投影 / 保真复习器）。现行接线状态见 [`../status.md`](../status.md) §6。
+- **Official Anki 支持**：鸿蒙伴生版启用 Official Anki 全档（引擎 / `.apkg` 导入 / 课程树投影 / 保真复习器），具体授权与契约由 [ADR 0050](./0050-ohos-official-anki.md) 规定。现行接线状态见 [`../status.md`](../status.md) §6。
 - 不做音频播放 / TTS 的隐式降级：必须在 UI 上显式说明。
 - 不从源码构建 OHOS Flutter Engine：使用预编译 SDK（Windows 只能 `gen_snapshot`，完整 Engine 构建需 Linux / macOS）
 - 不改 Android / iOS 行为，不降主产品的依赖约束
-- **不引入依赖包 fork 补丁工具链**（`tool/apply_patches.sh` / `tool/patches/`）。**但允许** §7 列出的两处**预编译产物 / 上游包**适配，且二者都在仓库内受版本控制、由门禁断言——这与「给第三方 pub 包打补丁」是两件事：前者是我们自维护的移植，后者是被原 ADR 0041（已删）明令删除的东西
+- **不引入依赖包 fork 补丁工具链**（`tool/apply_patches.sh` / `tool/patches/`）。**但允许** §7 列出的两处**预编译产物 / 上游包**适配，且二者都在仓库内受版本控制、由门禁断言——这与「给第三方 pub包打补丁」是两件事：前者是我们自维护的移植，后者是被原 ADR 0041（已删）明令删除的东西
 
 ### 3. 门禁处置
 
@@ -67,7 +67,7 @@
 5. `flutter_tts` / `audioplayers` **不得**被 override（无 OHOS fork；将来若要加，必须先改本 ADR）。伴生版**没有** override 它们，而是另写 ArkTS 通道（ADR 0048）走平台原生能力。
 6. `ohos/` 下**不得**含构建产物（把误提交永久固化为断言）
 7. `ohos/` 必须含必需文件集（`module.json5` / `build-profile.json5` / `hvigorfile.ts` / **四个**手写 ArkTS 插件）——空目录或残缺目录失败。权威清单以门禁的 `_requiredOhosFiles` 为准（RDB、文件选择、音频、TTS）
-8. **`ohos/` 不得出现 Official Anki 引擎宿主** —— 该条已由 [ADR 0050](./0050-ohos-official-anki.md) 取代：引擎宿主正是 ADR 0050 要装进 `ohos/` 的东西。该条承诺的「针对 `ohos/` 目录本身的」补充断言**从未实现**（门禁只对 Dart 文件断言 `case 'ohos':`），ADR 0050 已记录该缺口并把补门禁留给接线批次。
+8. `ohos/` 包含 Official Anki 引擎宿主并由 [ADR 0050](./0050-ohos-official-anki.md) 授权接入。
 
 ### 6. 允许的 OHOS 依赖 override 清单
 

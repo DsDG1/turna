@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
@@ -106,15 +107,34 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonReadingComprehensionCaption),
-          // 问题在纸面画布上, 与阅读原文（页面级折叠卡）明确接续
-          // （§7.1 阅读理解）; 选项与选择族共用编号行语言。
           SessionRecallCanvas(
-            minHeight: 140,
+            minHeight: 110,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
-            child: Text(
-              widget.prompt,
-              style: AppTextStyles.promptMd(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.menu_book_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonReadingComprehensionCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  widget.prompt,
+                  style: AppTextStyles.promptMd(context),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),

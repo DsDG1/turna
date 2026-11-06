@@ -7,6 +7,14 @@
 
 ---
 
+### 2026-11-06 课程模板呈现与听力面板优化
+
+- **性质**：课时 UI 与局部资源复用批次；**测试数 +5**（新增 `lesson_presentation_test`：七模板 profile、展平听力 stage 回溯源 phase、对话播放后按需揭示原文、reduced-motion、窄屏 200% 字号）。触达测试 **77 passed / 0 failed**；非 golden 全量 **2618 passed / 0 failed**。
+- **改动**：新增视图层课程模板 profile 与听力音频面板；对话阶段重新消费 `ListeningPhase.audioAsset / transcript`；听选 / 听写 / 概要按任务重组；选择、输入、阅读题面增加明确层级；课程包图片路径解析按 asset 复用 Future。课程 JSON、判分、SRS 与结算不变。
+- **验证**：`flutter analyze` 无问题；`flutter test --exclude-tags golden` 全绿；`flutter build apk --debug` 成功。组件实际渲染图核对听力 / 阅读、浅色 / 深色，新增用例覆盖窄屏 200% 与 reduced-motion。**未验**：Android/iOS 真机课程流程与帧耗时；当前无移动设备连接。
+
+---
+
 ### 2026-11-04 ADR 0067 记忆卡回归课程域：撤销 0066 界面口径（数据 / 引擎零改动）
 
 - **性质**：产品口径回退批次——记忆卡牌组恢复为「课程」，练习工具移除记忆卡入口。**测试数 +5 净变化**（删 `memory_card_hub_test` 5 条；`play_hub_screen_test` 桩从 `ankiDeckEntries` 换 `scope`：记忆卡行用例改写为 anki 课程裁剪（语言队列让位 / scope 跟随 / 行点按直开正式会话 / unavailable「—」+ 页内重试条断言）；`course_management_page_test` 反转为「牌组条目与导入卡出现在课程管理」（菜单计数 2→3）；`course_provider_test` / `play_review_eligibility_test` 恢复 HEAD 版（setScope 接受 anki scope、持久化原样恢复），后者删 wire-key 重载用例）。非 golden 全量 **2608 passed / 0 failed**。

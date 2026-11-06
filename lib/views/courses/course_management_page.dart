@@ -703,13 +703,7 @@ class _CourseCardIcon extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: isActive
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
-              )
-            : null,
+        gradient: isActive ? TurnaTheme.brandHeroGradient : null,
         color: isActive ? null : accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -935,8 +929,7 @@ class _AddCourseCard extends StatelessWidget {
         borderRadius: radius,
         child: CustomPaint(
           foregroundPainter: _DashedBorderPainter(
-            color:
-                TurnaTheme.brandTeal.withValues(alpha: 0.45),
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.45),
             radius: TurnaTheme.cardRadius,
           ),
           child: Padding(

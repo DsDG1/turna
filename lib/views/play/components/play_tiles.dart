@@ -60,20 +60,9 @@ class TodayHeroCard extends StatelessWidget {
           onLongPress: onLongPress,
           borderRadius: radius,
           child: Ink(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
-              ),
+            decoration: TurnaTheme.brandHeroDecoration(
+              context,
               borderRadius: radius,
-              boxShadow: [
-                BoxShadow(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -273,6 +262,7 @@ class ReviewTile extends StatelessWidget {
       tintAlpha: tintAlpha,
       onTap: onTap,
       onLongPress: onLongPress,
+      semanticsHint: onLongPress == null ? null : AppStrings.playLongPressHint,
       // 高度基线由外层 AdaptiveCardGrid 的 minChildAspectRatio 给出，
       // 常驻字体放大时随内容长高（不再靠 GridView 的固定格子高度）。
       child: Padding(
@@ -373,6 +363,9 @@ class ToolsTile extends StatelessWidget {
         accentColor: accentColor,
         onTap: enabled ? onTap : null,
         onLongPress: enabled ? onLongPress : null,
+        semanticsHint: (enabled && onLongPress != null)
+            ? AppStrings.playLongPressHint
+            : null,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -442,6 +435,7 @@ class CompactToolTile extends StatelessWidget {
       accentColor: accentColor,
       onTap: onTap,
       onLongPress: onLongPress,
+      semanticsHint: onLongPress == null ? null : AppStrings.playLongPressHint,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

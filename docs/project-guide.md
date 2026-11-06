@@ -186,6 +186,8 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 
 在 [`tool/gui/`](../tool/gui/)，基于 **PySide6**，复用 `tool/course_cli.py` 的校验和归一化逻辑。题型 schema 的唯一真相源是 `tool/gui/src/backend/lesson_content.py` 的 `INTERACTION_SCHEMA`，lint/validate 规则只进 `tool/course_cli.py`，GUI 不新增自有校验规则；`normalize_item` 按 schema 白名单重建 dict，所以每个 App 支持的字段都必须进 schema，否则「打开→不动→保存」会静默丢字段。重新播种触发器是组合版本 `"$indexVersion+$expressionsVersion"`，vocab-only 变更要靠 bump expressions 版本触发客户端重建。
 
+已有课程目录可经 `tool/course_preview.py publish-course` 发布为网站课程目录，生成后也可显式调用同一 hook；单节作者草稿仍可从 GUI 发布为私密网页。VPS 保存课程到预览的稳定映射、不可变修订与逐题反馈，本地通过 SSH 发布/取回，AI 修订经校验和 diff 确认后才保存草稿；不会自动导入课程或写 App 数据库。操作与部署契约见 [`../tool/gui/docs/course-web-preview.md`](../tool/gui/docs/course-web-preview.md)，决策见 [ADR 0069](./decisions/0069-course-draft-web-preview.md)。
+
 ## 12. 听力音频生成流水线
 
 `listening` 模板的 `listeningPhases[].audioAsset` 指向预生成的 MP3。流水线离线生成，运行时**不**调云端 TTS：[`tool/generate_audio.py`](../tool/generate_audio.py) 调 **MiniMax T2A v2 REST API** 合成，再用 [`tool/mix_listening_a1.py`](../tool/mix_listening_a1.py) 以 **pydub** 混音（需要 ffmpeg）；结构是 `debut + [主内容 + BGM(降 18dB)] + fin`，结尾 BGM 淡出 800ms。人工录音可替换 TTS 文件，规范见 [`docs/audio-recording-guidelines.md`](./audio-recording-guidelines.md)。

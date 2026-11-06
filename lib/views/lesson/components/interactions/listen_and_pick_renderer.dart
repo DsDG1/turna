@@ -7,13 +7,12 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/smart_speech.dart';
-import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/listening_audio_panel.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
@@ -65,6 +64,7 @@ class _ListenAndPickBody extends StatefulWidget {
 
 class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
   int? _picked;
+  bool _hasPlayed = false;
 
   @override
   void initState() {
@@ -94,7 +94,9 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
   Future<void> _speak() async {
     final result =
         await getIt<AudioController>().speakWordWithResult(widget.audioAsset);
-    if (mounted) showTtsFailureFeedback(context, result);
+    if (!mounted) return;
+    setState(() => _hasPlayed = true);
+    showTtsFailureFeedback(context, result);
   }
 
   @override
@@ -118,23 +120,11 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonListenAndPickCaption),
-          // 大题面（§7.1 纯听）: 播放主控是视觉中心, 选项占独立下半区。
-          SessionRecallCanvas(
-            minHeight: 220,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.prompt,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.promptMd(context),
-                ),
-                const SizedBox(height: 20),
-                SpeakerHero(onPressed: _speak),
-              ],
-            ),
+          ListeningAudioPanel(
+            title: AppStrings.lessonListenAndPickCaption,
+            prompt: widget.prompt,
+            hasPlayed: _hasPlayed,
+            onPlay: _speak,
           ),
           const SizedBox(height: 24),
           for (var idx = 0; idx < widget.options.length; idx++)
@@ -151,8 +141,7 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
             const SizedBox(height: 16),
             InteractionFeedbackPanel(
               correct: correct == true,
-              userAnswer:
-                  _picked == null ? null : widget.options[_picked!],
+              userAnswer: _picked == null ? null : widget.options[_picked!],
               correctAnswer: widget.options[widget.correctIndex],
             ),
           ],

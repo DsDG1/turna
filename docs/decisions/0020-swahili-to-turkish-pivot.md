@@ -2,7 +2,7 @@
 
 > **Status:** Accepted ｜ **Date:** 2026-07-12
 >
-> **Supersedes:** [ADR 0001 — TTS 语言码](./0001-tts-language-code.md)（`'sw'` 那一项决定），并放弃 [ADR 0002 — 卡纳达语→斯瓦希里语内容替换](./0002-content-replacement-progress-policy.md)
+> **Supersedes:** ADR 0001（已随文档精简删除，TTS 语言码 `'sw'`）与 ADR 0002（已随文档精简删除，卡纳达语→斯瓦希里语内容替换）
 ## 决策
 
 1. **Scope:** framework re-skin + a minimal Turkish course scaffold (`assets/courses/turkish/` with one section, one legacy lesson, empty vocab/grammar/expressions). No real content authoring this round.

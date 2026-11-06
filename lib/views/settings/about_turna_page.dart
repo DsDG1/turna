@@ -15,6 +15,7 @@ import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -80,10 +81,7 @@ class AboutTurnaPage extends StatelessWidget {
             ),
           ),
         ),
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: TurnaTheme.courseTreeGradientFor(context),
-          ),
+        body: AmbientBackdrop(
           child: TabBarView(
             children: [
               _AboutTab(

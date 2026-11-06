@@ -15,6 +15,7 @@
 - 📦 **语言资源独立建模**：词汇 (`vocab`)、固定表达 (`expressions`)、语法点 (`grammar_points`) 表格管理；CSV 导入导出、引用依赖检测。
 - 🛡️ **单一校验源与保存回滚**：不另定义校验规则，完全对接 `course_cli validate & lint`；保存校验失败自动恢复内存与磁盘文件。
 - 🎓 **教师预览与试做模式**：教师视图审查结构，对课时实时交互测试。
+- 🌐 **网页粗预览与反馈修订**：草稿经 SSH 发布私密题目链接，逐题留言后本地 AI + diff 修订，不自动导入课程。
 - 🚀 **发布工作流**：版本 Bump、音频 Manifest 挂载检查、Diff 比对、发布报告一键生成。
 
 ---
@@ -224,7 +225,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 | 区域 | 用途 |
 |---|---|
-| **结构大纲**（约 55% 宽，生成后自动切到） | 单元/课时树、人话校验 chips、池内覆盖率；**试做** / **diff** / **AI 修复**（应用前看 diff）/ **导入**；右键课时或单元可 **局部重生成**；可 **恢复上一版草稿** |
+| **结构大纲**（约 55% 宽，生成后自动切到） | 单元/课时树、人话校验 chips、池内覆盖率；**试做** / **网页预览与反馈** / **diff** / **AI 修复**（应用前看 diff）/ **导入**；右键课时或单元可 **局部重生成**；可 **恢复上一版草稿** |
 | **章节导入**（约 45% 宽） | 导入策略、冲突预览（与教材批量导入同源） |
 
 ### 6. 导入后闭环
@@ -232,6 +233,20 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 「导入到课程」可选：新建 section / 并入已有 section（追加 unit）/ 并入已有 unit（追加 lesson）。策略含合并、跳过、覆盖、追加新 id 等。幂等：重复导入不制造废节点。
 
 导入成功后主窗口可询问是否 **切换教师模式并定位**该章节（教师模式只换壳、不再把选择跳到首课）。工坊底栏 **定位到课程树** 亦可跳转；已导入章节后点「导入」阶段灯即为定位。导入后仍须在主窗口 **保存**。
+
+### 6.1 网页预览与反馈闭环
+
+已有课程目录可直接发布整门课程；生成或保存课程文件后也可重复调用同一 hook：
+
+```bash
+python tool/course_preview.py publish-course assets/courses/nouveau-turkish
+```
+
+`/course-preview/` 列出明确发布的课程，课程页按 `index.json` 展示章节；空章节标注「待施工」，其他章节进入现有题目与反馈页。重复执行复用课程地址和各节链接，未修改的章节不增加修订。
+
+工坊结构大纲和整门课程规划的草稿行仍可点「网页预览 / 反馈」：通过 `ssh turna` 发布单节静态题目页 → 分享私密链接 → 网页逐题/整节留言 → 本地拉取并勾选 → AI 修订 + diff → 同一链接发布新版。发布不会导入课程；只有新版发布成功才把所选留言标为已处理。
+
+网页用于看题干、选项、答案和上下文，不复刻 App 判分或媒体资源。CLI、目录可见性、部署与恢复见 [`docs/course-web-preview.md`](./docs/course-web-preview.md)。
 
 ### 7. 高级特性与快捷键
 
@@ -254,11 +269,12 @@ tool/gui/
 │   ├── main.py                 # 程序主入口（--gallery 打开组件画廊）
 │   ├── theme.py                # 主题应用（调色板 + 密度 + UI 缩放）
 │   ├── theme_tokens.py         # 设计 token 单一真源（色/间距/圆角/字阶/层级/密度，Qt-free）
-│   ├── application/            # 63 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
+│   ├── application/            # 64 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
 │   │   ├── commands/               # 6 个 .py — Undoable edit commands for the course editor (B2).
 │   │   └── experience_handlers/    # 12 个 .py — Experience skill handlers (M7).
-│   ├── backend/                # 120 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
+│   ├── backend/                # 128 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
 │   │   ├── ai/                     # 11 个 .py — AI backend package (OpenAI-compatible course generation).
+│   │   ├── course_preview/         # 8 个 .py — Course catalogs and private-link drafts with revisioned reviewer ...
 │   │   └── experience/             # 54 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
 │   ├── dialogs/                # 59 个 .py — 对话框与独立子窗口
 │   │   ├── ai/                     # 20 个 .py — AI course-generation dialog package.
@@ -271,7 +287,7 @@ tool/gui/
 │   ├── infrastructure/         # 7 个 .py — 横切设施：操作日志 / 遥测 / 滚轮防误触 / 屏幕适配
 │   ├── teacher/                # 11 个 .py — 教师模式：线性流程 / 题目卡 / 词表 / 模板编辑
 │   ├── theme_styles/           # 8 个 .py — 模块化 QSS（builder 组装）
-│   ├── widgets/                # 42 个 .py — 可复用 UI 组件
+│   ├── widgets/                # 43 个 .py — 可复用 UI 组件
 │   │   └── ui/                     # 10 个 .py — Turna UI kit (GUI 焕新 W1).
 ├── tests/                  # unittest 自动化测试套件（分档见 run_gui_tests.py）
 ├── docs/                   # 契约与设计文档（ai_refactor_contract.md 为门禁契约）
@@ -348,6 +364,7 @@ python -m unittest discover -s test -p "*_test.py"   # 含 GUI→CLI round-trip
 
 - [`docs/experienceai.md`](./docs/experienceai.md) — Experience AI 上游规范（感知/决策/执行/解释/记忆五层），A3 / E4-M01 / E4-M0345 / K08 四篇设计的共同上位规范
 - [`docs/ai_refactor_contract.md`](./docs/ai_refactor_contract.md) — 分层契约与门禁基线（`make guard-gui` 每条规则的出处）
+- [`docs/course-web-preview.md`](./docs/course-web-preview.md) — 草稿网页预览、反馈修订与 VPS 部署运维
 - `docs/a3-companion-ambient-design.md`、`docs/e4-m01-attachments-context-design.md`、`docs/e4-m0345-multimodal-design.md`、`docs/k08-spiral-vocab-design.md` — 在役设计文档
 
 > 新增文档后必须同步登记进 `docs/README.md`，否则 `make guard-gui`（`check_docs_index.py`）会失败 —— 避免再出现「规范躺在 archive 里、没有任何入口」的情况。

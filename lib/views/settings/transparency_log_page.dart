@@ -13,6 +13,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 透明度报告页 — 隐私详情页底部 pill 跳进来。
@@ -50,10 +51,7 @@ class TransparencyLogPage extends StatelessWidget {
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: TurnaTheme.courseTreeGradientFor(context),
-        ),
+      body: AmbientBackdrop(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           child: Column(

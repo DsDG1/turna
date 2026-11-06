@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
@@ -103,14 +104,34 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonTrueFalseCaption),
-          // 大题面（§7.1 选择族）: 陈述句在纸面画布上, 判断选项为编号行。
           SessionRecallCanvas(
-            minHeight: 140,
+            minHeight: 110,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
-            child: Text(
-              widget.statement,
-              style: AppTextStyles.promptMd(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.fact_check_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonTrueFalseCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  widget.statement,
+                  style: AppTextStyles.promptMd(context),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),
@@ -122,9 +143,8 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             isCorrect: submitted && widget.answer == true,
             isWrong: submitted && correct == false && _selectedBool == true,
             showDivider: true,
-            onTap: submitted
-                ? null
-                : () => setState(() => _selectedBool = true),
+            onTap:
+                submitted ? null : () => setState(() => _selectedBool = true),
           ),
           InteractionOptionTile(
             label: AppStrings.lessonFalse,
@@ -133,9 +153,8 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             isCorrect: submitted && widget.answer == false,
             isWrong: submitted && correct == false && _selectedBool == false,
             showDivider: false,
-            onTap: submitted
-                ? null
-                : () => setState(() => _selectedBool = false),
+            onTap:
+                submitted ? null : () => setState(() => _selectedBool = false),
           ),
           if (submitted) ...[
             const SizedBox(height: 16),

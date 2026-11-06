@@ -16,6 +16,7 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
 
 Future<AppBuildInfo>? _settingsLandingBuildInfoFuture;
 
@@ -48,51 +49,64 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 底色透明：本页是 HomePage 的一个 Tab，外壳的 L0 环境层（ADR 0068）
+    // 就铺在它下面。此前这里自带一层不透明 `scaffoldBg`，把天光整个盖掉，
+    // 设置成了四个 Tab 里唯一没有环境光的一页。
     return Scaffold(
-      backgroundColor: TurnaTheme.scaffoldBg(context),
-      body: CustomScrollView(
-        key: const PageStorageKey<String>('settings-landing-list'),
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: AppSpacing.sm + 4),
-                    Padding(
-                      padding: AppSpacing.pageGutterMist,
-                      child: Text(
-                        AppStrings.settingsTitle,
-                        style: AppTextStyles.pageTitle(context),
+      backgroundColor: Colors.transparent,
+      // 页级主视觉位（R16）：两片交叠的圆角色块从右上角探进来。
+      // 落地页是"目录行 + 胶囊"的密集版面，只有页内标题带露出底色。
+      body: TurnaGeometryBackdrop(
+        kind: TurnaGeometryKind.connection,
+        alignment: Alignment.topRight,
+        size: 188,
+        offset: const Offset(28, -30),
+        intensity: 0.8,
+        child: CustomScrollView(
+          key: const PageStorageKey<String>('settings-landing-list'),
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: AppSpacing.sm + 4),
+                      Padding(
+                        padding: AppSpacing.pageGutterMist,
+                        child: Text(
+                          AppStrings.settingsTitle,
+                          style: AppTextStyles.pageTitle(context),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const _QuickPreferenceCapsules(),
-                    const SizedBox(height: AppSpacing.xl),
-                    _LandingSectionTitle(
-                      title: AppStrings.settingsGroupLearning,
-                    ),
-                    _DestinationRows(destinations: _experienceDestinations),
-                    const SizedBox(height: AppSpacing.xl),
-                    _LandingSectionTitle(
-                      title: AppStrings.settingsGroupDataSystem,
-                    ),
-                    _DestinationRows(destinations: _systemDestinations),
-                    const SizedBox(height: AppSpacing.xl),
-                    const _AboutFooterRow(),
-                    SizedBox(
-                      height: AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.lg),
+                      const _QuickPreferenceCapsules(),
+                      const SizedBox(height: AppSpacing.xl),
+                      _LandingSectionTitle(
+                        title: AppStrings.settingsGroupLearning,
+                      ),
+                      _DestinationRows(destinations: _experienceDestinations),
+                      const SizedBox(height: AppSpacing.xl),
+                      _LandingSectionTitle(
+                        title: AppStrings.settingsGroupDataSystem,
+                      ),
+                      _DestinationRows(destinations: _systemDestinations),
+                      const SizedBox(height: AppSpacing.xl),
+                      const _AboutFooterRow(),
+                      SizedBox(
+                        height: AppSpacing.xl +
+                            MediaQuery.paddingOf(context).bottom,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -141,8 +155,7 @@ class _QuickPreferenceCapsules extends StatelessWidget {
         builder: (context, constraints) {
           final textScaleFactor = MediaQuery.textScalerOf(context).scale(1);
           // 200% 字号下纵向堆叠，胶囊结构与分区动作带保持不变。
-          final useColumn =
-              textScaleFactor > 1.4 || constraints.maxWidth < 320;
+          final useColumn = textScaleFactor > 1.4 || constraints.maxWidth < 320;
           if (useColumn) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

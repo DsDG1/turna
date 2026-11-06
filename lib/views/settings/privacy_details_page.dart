@@ -10,6 +10,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// 隐私详情页 — Settings → 关于 → 隐私详情 入口。
@@ -73,10 +74,7 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
               ),
         ),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: TurnaTheme.courseTreeGradientFor(context),
-        ),
+      body: AmbientBackdrop(
         child: Stack(
           children: [
             Positioned.fill(
@@ -85,95 +83,95 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.pageMargin, 8, AppSpacing.pageMargin, 24),
+                      AppSpacing.pageMargin, 8, AppSpacing.pageMargin, 24),
                   child: TurnaPageContent(
                     maxWidth: AppSpacing.formColumnMaxWidth,
                     child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _PrivacyHero(),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsOverviewTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsOverviewIntro,
-                          body: AppStrings.privacyDetailsOverviewBody,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _PrivacyHero(),
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsOverviewTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsOverviewIntro,
+                            body: AppStrings.privacyDetailsOverviewBody,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsNotCollectTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsNotCollectIntro,
-                          body: AppStrings.privacyDetailsNotCollectBody,
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsNotCollectTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsNotCollectIntro,
+                            body: AppStrings.privacyDetailsNotCollectBody,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsStorageTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsStorageIntro,
-                          body: AppStrings.privacyDetailsStorageBody,
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsStorageTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsStorageIntro,
+                            body: AppStrings.privacyDetailsStorageBody,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsNetworkTitle),
-                      const SizedBox(height: 4),
-                      _SectionIntro(
-                          text: AppStrings.privacyDetailsNetworkIntro),
-                      const SizedBox(height: 10),
-                      const _NetworkCalloutRow(),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsExternalLinksTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsExternalLinksIntro,
-                          body: AppStrings.privacyDetailsExternalLinksBody,
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsNetworkTitle),
+                        const SizedBox(height: 4),
+                        _SectionIntro(
+                            text: AppStrings.privacyDetailsNetworkIntro),
+                        const SizedBox(height: 10),
+                        const _NetworkCalloutRow(),
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsExternalLinksTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsExternalLinksIntro,
+                            body: AppStrings.privacyDetailsExternalLinksBody,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsYourRightsTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsYourRightsIntro,
-                          body: AppStrings.privacyDetailsYourRightsBody,
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsYourRightsTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsYourRightsIntro,
+                            body: AppStrings.privacyDetailsYourRightsBody,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsUpdatesTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsUpdatesIntro,
-                          body: AppStrings.privacyDetailsUpdatesBody,
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsUpdatesTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsUpdatesIntro,
+                            body: AppStrings.privacyDetailsUpdatesBody,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _SectionHeader(
-                          text: AppStrings.privacyDetailsContactTitle),
-                      const SizedBox(height: 10),
-                      _AboutCard(
-                        child: _SectionBody(
-                          intro: AppStrings.privacyDetailsContactIntro,
-                          body: AppStrings.privacyDetailsContactBody,
+                        const SizedBox(height: 20),
+                        _SectionHeader(
+                            text: AppStrings.privacyDetailsContactTitle),
+                        const SizedBox(height: 10),
+                        _AboutCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsContactIntro,
+                            body: AppStrings.privacyDetailsContactBody,
+                          ),
                         ),
-                      ),
-                      // 给药丸留底部空间,避免覆盖最后一张卡片。
-                      const SizedBox(height: 80),
-                    ],
-                  ),
+                        // 给药丸留底部空间,避免覆盖最后一张卡片。
+                        const SizedBox(height: 80),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -216,67 +214,65 @@ class _PrivacyHero extends StatelessWidget {
       decoration: TurnaTheme.flatPaperDecoration(context),
       clipBehavior: Clip.antiAlias,
       child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusMedium),
-                  ),
-                  child: const Icon(
-                    Icons.shield_outlined,
-                    color: TurnaTheme.brandTeal,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppStrings.privacyDetailsTitle,
-                        style: AppTextStyles.sectionTitle(context),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        AppStrings.privacyDetailsEntrySubtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // 最后更新角标
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-                  ),
-                  child: Text(
-                    AppStrings.privacyDetailsLastUpdated,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: TurnaTheme.brandTeal,
-                    ),
-                  ),
-                ),
-              ],
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+              ),
+              child: const Icon(
+                Icons.shield_outlined,
+                color: TurnaTheme.brandTeal,
+                size: 26,
+              ),
             ),
-          ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.privacyDetailsTitle,
+                    style: AppTextStyles.sectionTitle(context),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    AppStrings.privacyDetailsEntrySubtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 最后更新角标
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+              ),
+              child: Text(
+                AppStrings.privacyDetailsLastUpdated,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: TurnaTheme.brandTeal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

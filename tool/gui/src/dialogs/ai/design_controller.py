@@ -163,6 +163,7 @@ class DesignController:
         self._draft: dict[str, Any] | None = None
         self._draft_checkpoint: dict[str, Any] | None = None
         self._explanation = ""
+        self._web_preview: dict[str, Any] = {}
         self._worker: Any | None = None
         # Live pipeline snapshot (Phase 5): updated on every progress callback
         # and persisted into ``project.design`` so a cancelled refine run can
@@ -193,6 +194,14 @@ class DesignController:
     @property
     def explanation(self) -> str:
         return self._explanation
+
+    @property
+    def web_preview_state(self) -> dict[str, Any]:
+        return copy.deepcopy(self._web_preview)
+
+    def set_web_preview_state(self, state: dict[str, Any] | None) -> None:
+        self._web_preview = copy.deepcopy(state) if isinstance(state, dict) else {}
+        self._on_design_changed()
 
     @property
     def is_busy(self) -> bool:
@@ -806,6 +815,8 @@ class DesignController:
             "draft_sections": [self._draft] if self._draft else [],
             "explanation": self._explanation,
         }
+        if self._web_preview:
+            data["web_preview"] = copy.deepcopy(self._web_preview)
         # Phase 5 (P5-4): persist an incomplete pipeline snapshot so a
         # cancelled refine run resumes from its outline/draft on reopen.
         if self._pipeline_live is not None:
@@ -840,6 +851,8 @@ class DesignController:
         drafts = data.get("draft_sections") or []
         self._draft = drafts[-1] if drafts and isinstance(drafts[-1], dict) else None
         self._explanation = data.get("explanation", "") or ""
+        raw_preview = data.get("web_preview")
+        self._web_preview = copy.deepcopy(raw_preview) if isinstance(raw_preview, dict) else {}
         pipeline = data.get("pipeline")
         if isinstance(pipeline, dict) and (
             pipeline.get("outline") or pipeline.get("step")

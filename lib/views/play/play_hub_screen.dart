@@ -30,6 +30,7 @@ import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/turna_cards.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/spacing.dart';
@@ -229,7 +230,19 @@ class _PlayHubScreenState extends State<PlayHubScreen>
     // 永远冻结在 initState 那次刷新读到的值上（启动竞态失败时一直是 0）。
     return ListenableBuilder(
       listenable: OfficialFormalDueRepository.instance,
-      builder: (context, _) => _buildHub(context),
+      // 页级主视觉位（R03）：斜切留白从右上角切进标题带。
+      //
+      // 练习页从玻璃主卡往下全是方块砖（复习队列 / 练习工具），没有一处
+      // 可以用大面构图；唯一暴露底色的就是标题带。所以这里只用一道斜切
+      // ——它的作用是给砖墙一个"上边界不是方的"，不是填空白。
+      builder: (context, _) => TurnaGeometryBackdrop(
+        kind: TurnaGeometryKind.diagonalCut,
+        alignment: Alignment.topRight,
+        size: 196,
+        offset: const Offset(16, -26),
+        intensity: 0.8,
+        child: _buildHub(context),
+      ),
     );
   }
 
@@ -356,9 +369,8 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                           icon: Icons.repeat_rounded,
                           accent: TurnaTheme.brandTeal,
                           title: AppStrings.playReviewTitle,
-                          countLabel: snapshot.srsDue > 0
-                              ? '${snapshot.srsDue}'
-                              : null,
+                          countLabel:
+                              snapshot.srsDue > 0 ? '${snapshot.srsDue}' : null,
                           onTap: () =>
                               context.router.push(const SrsReviewRoute()),
                         ),
@@ -389,8 +401,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                     Builder(
                       builder: (rowContext) => _PopupAnchor(
                         semanticsLabel: AppStrings.playAnkiReviewTitle,
-                        onLongPress: () =>
-                            _showAnkiPopup(rowContext, snapshot),
+                        onLongPress: () => _showAnkiPopup(rowContext, snapshot),
                         child: DirectoryTaskRow(
                           icon: Icons.style_rounded,
                           accent: TurnaTheme.brandSky,
@@ -485,8 +496,7 @@ class _PlayHubScreenState extends State<PlayHubScreen>
                       label: AppStrings.playReviewProgressTitle,
                       onTap: () =>
                           context.router.push(const ReviewProgressRoute()),
-                      onLongPress: () =>
-                          _showReviewProgressPopup(linkContext),
+                      onLongPress: () => _showReviewProgressPopup(linkContext),
                     ),
                   ),
                 ],
@@ -827,4 +837,3 @@ class _AnkiDueRetryBar extends StatelessWidget {
     );
   }
 }
-

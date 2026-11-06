@@ -26,13 +26,17 @@ import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/listening_phase.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/lesson/components/lesson_presentation.dart';
+import 'package:turna/views/lesson/components/listening_phase_header.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
+import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/core/ohos_target.dart';
@@ -145,32 +149,37 @@ class _NewLessonPageState extends State<NewLessonPage>
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) _onClosePressed(context);
           },
-          child: Scaffold(
-            // 画布比白卡低一档: 页面与卡面都是纯白时, 阴影是唯一分离线索.
-            backgroundColor: TurnaTheme.lessonCanvasBg(context),
-            appBar: _LessonTopBand(
-              vm: _vm,
-              onClose: () => _onClosePressed(context),
-              onAiHint: () => _openAiHint(context, _vm),
-            ),
-            body: _LessonBody(
-              vm: _vm,
-              renderers: _renderers,
-              loadFailed: _loadFailed,
-              lessonId: widget.lessonId,
-              onRetry: () {
-                setState(() => _loadFailed = false);
-                _openLesson();
-              },
-              onSubmit: (correct, {userAnswerText, reviewQuality}) {
-                _vm.submitInteraction(
-                  correct,
-                  userAnswerText: userAnswerText,
-                  reviewQuality: reviewQuality,
-                );
-              },
-              onAdvance: () => _vm.advance(),
-              scrollController: _lessonScroll,
+          // L0 环境层（ADR 0068）：沉浸作答页同样有天光，否则题面卡以下是
+          // 一整片平白，读作"没渲染完"。Scaffold 自身退成透明让光斑透上来。
+          child: AmbientBackdrop(
+            baseColor: TurnaTheme.lessonCanvasBg(context),
+            child: Scaffold(
+              // 画布比白卡低一档: 页面与卡面都是纯白时, 阴影是唯一分离线索.
+              backgroundColor: Colors.transparent,
+              appBar: _LessonTopBand(
+                vm: _vm,
+                onClose: () => _onClosePressed(context),
+                onAiHint: () => _openAiHint(context, _vm),
+              ),
+              body: _LessonBody(
+                vm: _vm,
+                renderers: _renderers,
+                loadFailed: _loadFailed,
+                lessonId: widget.lessonId,
+                onRetry: () {
+                  setState(() => _loadFailed = false);
+                  _openLesson();
+                },
+                onSubmit: (correct, {userAnswerText, reviewQuality}) {
+                  _vm.submitInteraction(
+                    correct,
+                    userAnswerText: userAnswerText,
+                    reviewQuality: reviewQuality,
+                  );
+                },
+                onAdvance: () => _vm.advance(),
+                scrollController: _lessonScroll,
+              ),
             ),
           ),
         ),
@@ -447,20 +456,23 @@ class _LessonTopBand extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(SessionProgressBand.bandHeight);
+  Size get preferredSize =>
+      const Size.fromHeight(SessionProgressBand.bandHeight);
 
   @override
   Widget build(BuildContext context) {
-    return Selector<LessonViewModel, ({bool aiEligible, int question, int total})>(
+    return Selector<LessonViewModel,
+        ({bool aiEligible, int question, int total, LessonTemplate template})>(
       selector: (context, vm) => (
         aiEligible: _aiEligible(vm),
         question: vm.currentQuestionNumber,
         total: vm.totalInteractionCount,
+        template: vm.lesson?.template ?? LessonTemplate.legacy,
       ),
       builder: (context, s, _) => SessionProgressBand(
         currentIndex: s.question,
         totalCount: s.total,
-        style: SessionProgressStyle.dots,
+        style: lessonPresentationProfile(s.template).progressStyle,
         onExit: onClose,
         exitTooltip: AppStrings.commonClose,
         actions: [
@@ -578,6 +590,9 @@ class _LessonBody extends StatelessWidget {
         final renderer = lookupRenderer(renderers, interaction);
         final readingPassage = lesson.content.readingPassage;
         final legacyPassage = lesson.content.passage;
+        final listeningPhase = listeningPhaseForStage(lesson, vm.currentStage);
+        final profile = lessonPresentationProfile(lesson.template);
+        final stage = _stageLabel(vm);
         final interactionId = vm.currentInteractionId;
         // 折叠卡自带 4 行上限, 不再需要 40% 视口的 ConstrainedBox —— 那个
         // 约束曾经和卡内的 SingleChildScrollView 一起构成双滚动区.
@@ -585,17 +600,23 @@ class _LessonBody extends StatelessWidget {
             ? LessonReadingPassageCard(passage: readingPassage)
             : legacyPassage.isNotEmpty
                 ? LessonLegacyReadingPassage(text: legacyPassage)
-                : null;
+                : listeningPhase != null &&
+                            listeningPhase.type == ListeningPhaseType.dialogue
+                        ? ListeningPhaseHeader(
+                            key: ValueKey('listening-${listeningPhase.id}'),
+                            phase: listeningPhase,
+                          )
+                        : null;
 
         return Column(
           children: [
             Expanded(
               child: PracticeSessionBody(
-                // 阶段条是顶带之外唯一的上下文行：阶段名 + （分段课程时）
-                // 小课序号「小课 k/n」。旧 AppBar 副标题的这两个数据接缝
-                // 都在这里续接，进度则由顶带的圆点与计数表达。
-                stageName: _stageLabel(vm),
+                stageName:
+                    stage == null ? profile.label : '${profile.label} · $stage',
                 stageAccent: TurnaTheme.brandTeal,
+                stageIcon: profile.icon,
+                maxWidth: profile.maxWidth,
                 header: header,
                 scrollController: scrollController,
                 interactionKey: ValueKey(interactionId),

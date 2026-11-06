@@ -7,14 +7,13 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/smart_speech.dart';
-import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/listening_audio_panel.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 
 /// Play audio, then type what was heard. Match is case-insensitive and
@@ -62,6 +61,7 @@ class _TypeTheWordBody extends StatefulWidget {
 
 class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   final TextEditingController _controller = TextEditingController();
+  bool _hasPlayed = false;
 
   /// 文本类题型的"能否提交"来自 controller, 输入变化不会重建父 widget ——
   /// 所以既要 build 时同步一次首帧, 也要监听输入变化.
@@ -99,7 +99,9 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   Future<void> _speak() async {
     final result =
         await getIt<AudioController>().speakWordWithResult(widget.audioAsset);
-    if (mounted) showTtsFailureFeedback(context, result);
+    if (!mounted) return;
+    setState(() => _hasPlayed = true);
+    showTtsFailureFeedback(context, result);
   }
 
   bool _matches(String input) =>
@@ -124,23 +126,12 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonTypeWhatYouHearCaption),
-          // 播放主控是视觉中心（§7.1 纯听）: 大号实底播放键在纸面画布上。
-          SessionRecallCanvas(
-            minHeight: 220,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.prompt,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.promptMd(context),
-                ),
-                const SizedBox(height: 20),
-                SpeakerHero(onPressed: _speak),
-              ],
-            ),
+          ListeningAudioPanel(
+            title: AppStrings.lessonTypeWhatYouHearCaption,
+            prompt: widget.prompt,
+            hasPlayed: _hasPlayed,
+            onPlay: _speak,
+            compact: true,
           ),
           const SizedBox(height: 24),
           // 大字号书写档与听写共用（interaction_fields 收口处）。

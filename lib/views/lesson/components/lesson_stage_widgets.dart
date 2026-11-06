@@ -9,11 +9,13 @@ import 'package:turna/l10n/app_strings.dart';
 class LessonStageBanner extends StatelessWidget {
   final String name;
   final Color accent;
+  final IconData? icon;
 
   const LessonStageBanner({
     super.key,
     required this.name,
     required this.accent,
+    this.icon,
   });
 
   @override
@@ -32,11 +34,14 @@ class LessonStageBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          ),
+          if (icon != null)
+            Icon(icon, size: 17, color: accent)
+          else
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -98,18 +103,35 @@ class _CollapsedPassage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      // ADR 0062：阶段说明卡走 amethyst 色相的 L1 玻璃。
-      decoration: TurnaTheme.glassDecoration(
+      margin: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+      decoration: TurnaTheme.flatPaperDecoration(
         context,
-        TurnaTheme.leagueAmethyst,
-        level: GlassLevel.l1,
         borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.menu_book_rounded,
+                size: 16,
+                color: TurnaTheme.brandTeal,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.lessonTemplateReading,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           if (title != null && title!.isNotEmpty) ...[
             Text(
               title!,

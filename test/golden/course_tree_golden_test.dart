@@ -79,8 +79,13 @@ void main() {
     // already open. Tapping the header here would COLLAPSE it and the golden
     // would silently capture the wrong state — assert the expanded state
     // instead of toggling.
+    //
+    // 断言用的课名不能是「下一课」那一课：底部继续条（`_ResumeBar`）会
+    // 把同一串名字再渲染一次，`find.text` 于是命中 2 个 widget，测试从此
+    // 常红（它被 `--exclude-tags golden` 挡在默认测试之外，红了很久没人
+    // 知道）。挑一个本单元里不是下一课的课名来断言。
     expect(
-      find.text('阅读：咖啡馆里的对话'),
+      find.text('复习本单元'),
       findsOneWidget,
       reason: 'the next-up unit should already be expanded',
     );

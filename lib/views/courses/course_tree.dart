@@ -28,6 +28,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/courses/components/section_bottom_sheet.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
 
 /// 课时行的复习注意标记（due = 该课有词待复习，weak = 有薄弱词）。
 enum LessonAttention { none, due, weak }
@@ -40,11 +41,11 @@ String? lessonAttentionText(LessonAttention attention) => switch (attention) {
 
 /// 学习页（课程树）——「湿地雾光」学习旅程版式（P1 定稿的紧凑稿）：
 ///
-/// 1. **紧凑章节头**：两行可点击卡（图标井 + 章节名 + 元信息 + 细进度
-///    条），点击打开章节切换底部弹层；随页滚动，不吸顶。
+/// 1. **轻量章节进度带**：几何图标 + 章节名 + 元信息 + 细进度条，
+///    点击打开章节切换底部弹层；随页滚动，不吸顶。
 /// 2. **三层目录**：吸顶单元条（序号块 + 名 + k/n，展开的单元钉在顶部）
 ///    → 课时行（46，状态符号）→ 子课行（40，芦苇缩进线）。未展开的
-///    单元只占一行摘要——目录再长也保持可扫读。
+///    单元以留白分隔的一行摘要呈现——目录再长也保持可扫读。
 /// 3. **底部常驻继续条**：列表再长，「继续学习」与当前位置始终可达。
 ///
 /// 数据管线不变：章节懒加载、due/weak 投影、每节独立的手风琴状态、
@@ -65,6 +66,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
   /// the learner lose the place they were working from.
   final Map<String, String?> _expandedUnitBySection = {};
   final Set<String> _userToggledSections = {};
+  final Map<String, GlobalKey> _unitHeaderKeys = {};
 
   /// 每个「section/unit」一把揭示控制器：目标单元 forward、收起单元
   /// reverse，两把同时跑即手风琴切换的并发双动画。控制器常驻本表、
@@ -139,9 +141,25 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
             ? _ResumeBar(section: section)
             : null;
 
+        // 页级主视觉位（R02）：半圆拱从底缘升起。
+        //
+        // 只包一层「视口」而不是整列——继续条本身是不透明纸面，包进去
+        // 就会把拱的直径线压到条下面，半圆又退化成土丘。
+        //
+        // 能看见它的只有「列表收尾 → 继续条」那条带，以及单元少时那片
+        // 空白：旅程行是不透明纸面（ADR 0065），会把拱整个盖住。这恰好
+        // 也决定了用法——它是地面的构图，不是背景纹理。
+        final archedViewport = TurnaGeometryBackdrop(
+          kind: TurnaGeometryKind.arch,
+          alignment: Alignment.bottomCenter,
+          size: (MediaQuery.sizeOf(context).width * 1.05).clamp(260.0, 480.0),
+          intensity: 0.8,
+          child: viewport,
+        );
+
         return Column(
           children: [
-            Expanded(child: viewport),
+            Expanded(child: archedViewport),
             if (resume != null) resume,
           ],
         );
@@ -227,8 +245,8 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
             onRetry: () => context.read<CourseProvider>().reloadCourse(),
           ),
         ),
-      // 紧凑章节头 + 细进度条：随页滚动，点击进章节切换弹层。
-      SliverToBoxAdapter(child: _SectionHeadCard(section: section)),
+      // 轻量章节进度带：随页滚动，点击进章节切换弹层。
+      SliverToBoxAdapter(child: _SectionHeadBand(section: section)),
     ];
 
     for (var u = 0; u < section.units.length; u++) {
@@ -251,6 +269,11 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
               dueLessonCount: status.dueCountByUnit[unit.id] ?? 0,
               weakLessonCount: status.weakCountByUnit[unit.id] ?? 0,
               expanded: expanded,
+              reduceMotion: reduceMotion,
+              headerKey: _unitHeaderKeys.putIfAbsent(
+                _unitKey(section.id, unit.id),
+                GlobalKey.new,
+              ),
               onToggle: () => _toggleUnit(
                 sectionId: section.id,
                 unitId: unit.id,
@@ -276,11 +299,16 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
           SliverToBoxAdapter(
             key: ValueKey<String>('unit-summary-${section.id}-${unit.id}'),
             child: _UnitStrip(
+              key: _unitHeaderKeys.putIfAbsent(
+                _unitKey(section.id, unit.id),
+                GlobalKey.new,
+              ),
               unitIndex: u + 1,
               unit: unit,
               dueLessonCount: status.dueCountByUnit[unit.id] ?? 0,
               weakLessonCount: status.weakCountByUnit[unit.id] ?? 0,
               expanded: false,
+              reduceMotion: reduceMotion,
               onToggle: () => _toggleUnit(
                 sectionId: section.id,
                 unitId: unit.id,
@@ -307,7 +335,6 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
       ],
     );
   }
-
 
   /// 一个展开单元的旅程行 Sliver：按「可玩节点」扁平化（ADR 0064），多
   /// 子课的课拆成组头行 + 每子课一行；帘式揭示保留。
@@ -440,7 +467,8 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
         return DirectoryLessonRow(
           status: status,
           title: lesson.name,
-          meta: attentionText ?? (isNextUp ? AppStrings.coursesNextLesson : null),
+          meta:
+              attentionText ?? (isNextUp ? AppStrings.coursesNextLesson : null),
           metaEmphasized: attentionText != null || isNextUp,
           showDivider: !item.isLast,
           onTap: () => _navigateToLesson(context, lesson, null),
@@ -823,6 +851,20 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
         reveal.forward(from: 0);
       }
     });
+
+    if (!expanded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _expandedUnitBySection[sectionId] != unitId) return;
+        final headerContext = _unitHeaderKeys[key]?.currentContext;
+        if (headerContext == null || !headerContext.mounted) return;
+        Scrollable.ensureVisible(
+          headerContext,
+          duration: TurnaMotion.scaled(TurnaMotion.smooth, reduceMotion),
+          curve: TurnaMotion.easeOut,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+        );
+      });
+    }
   }
 
   void _navigateToLesson(
@@ -899,9 +941,9 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
   }
 }
 
-/// 紧凑章节头：图标井 + 章节名 + 元信息 + 细进度条；点击进章节切换。
-class _SectionHeadCard extends StatelessWidget {
-  const _SectionHeadCard({required this.section});
+/// 轻量章节进度带：几何图标 + 章节名 + 细进度条；点击进章节切换。
+class _SectionHeadBand extends StatelessWidget {
+  const _SectionHeadBand({required this.section});
 
   final Section section;
 
@@ -924,92 +966,80 @@ class _SectionHeadCard extends StatelessWidget {
       builder: (context, progressValue, _) => Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.pageMargin,
-          AppSpacing.sm - 2,
+          AppSpacing.xs,
           AppSpacing.pageMargin,
-          0,
+          AppSpacing.md,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => showSectionBottomSheet(context),
-                borderRadius: TurnaTheme.cardBorderRadius,
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: TurnaTheme.flatPaperDecoration(
-                    context,
-                    borderRadius: TurnaTheme.cardBorderRadius,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => showSectionBottomSheet(context),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.background,
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusSmall),
+                    ),
+                    child: Icon(
+                      SectionVisuals.iconFor(section.id),
+                      size: 17,
+                      color: colors.foreground,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: colors.background,
-                          borderRadius:
-                              BorderRadius.circular(TurnaTheme.radiusMedium),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          section.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.sectionTitle(context)
+                              .copyWith(fontSize: 16, height: 1.2),
                         ),
-                        child: Icon(
-                          SectionVisuals.iconFor(section.id),
-                          size: 18,
-                          color: colors.foreground,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              section.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.sectionTitle(context)
-                                  .copyWith(fontSize: 18, height: 1.2),
-                            ),
-                            if ((section.level ?? '').trim().isNotEmpty) ...[
-                              const SizedBox(height: 3),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: SectionLevelLabel(section.level),
+                        if ((section.level ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          SectionLevelLabel(section.level),
+                        ],
+                        const SizedBox(height: AppSpacing.sm),
+                        Semantics(
+                          label: AppStrings.coursesSectionProgressSemantic(
+                            (progressValue * 100).round(),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progressValue,
+                              minHeight: 3,
+                              backgroundColor: TurnaTheme.dividerBg(context),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                TurnaTheme.brandTeal,
                               ),
-                            ],
-                          ],
+                            ),
+                          ),
                         ),
-                      ),
-                      Icon(
-                        Icons.expand_more_rounded,
-                        size: 16,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(
+                    Icons.expand_more_rounded,
+                    size: 18,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.sm + 1),
-            // 细进度条：章节整体完成度。
-            Semantics(
-              label: AppStrings.coursesSectionProgressSemantic(
-                (progressValue * 100).round(),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: progressValue,
-                  minHeight: 3,
-                  backgroundColor: TurnaTheme.dividerBg(context),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    TurnaTheme.brandTeal,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1025,6 +1055,8 @@ class _UnitStripDelegate extends SliverPersistentHeaderDelegate {
     required this.dueLessonCount,
     required this.weakLessonCount,
     required this.expanded,
+    required this.reduceMotion,
+    required this.headerKey,
     required this.onToggle,
   });
 
@@ -1034,9 +1066,11 @@ class _UnitStripDelegate extends SliverPersistentHeaderDelegate {
   final int dueLessonCount;
   final int weakLessonCount;
   final bool expanded;
+  final bool reduceMotion;
+  final GlobalKey headerKey;
   final VoidCallback onToggle;
 
-  static const double height = 46;
+  static const double height = 54;
 
   @override
   double get minExtent => height;
@@ -1051,11 +1085,13 @@ class _UnitStripDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return _UnitStrip(
+      key: headerKey,
       unitIndex: unitIndex,
       unit: unit,
       dueLessonCount: dueLessonCount,
       weakLessonCount: weakLessonCount,
       expanded: expanded,
+      reduceMotion: reduceMotion,
       onToggle: onToggle,
       pinned: true,
     );
@@ -1067,13 +1103,14 @@ class _UnitStripDelegate extends SliverPersistentHeaderDelegate {
       old.unit != unit ||
       old.unitIndex != unitIndex ||
       old.expanded != expanded ||
+      old.reduceMotion != reduceMotion ||
+      old.headerKey != headerKey ||
       old.dueLessonCount != dueLessonCount ||
       old.weakLessonCount != weakLessonCount;
 }
 
-/// 单元条：序号块 + 名 + k/n + 注意点 + 展开指示。展开单元钉在目录
-/// 顶部（[pinned] 底色画布色 + 底发丝线），未展开单元就是目录里的一行
-/// 摘要。
+/// 单元条：统一两种状态的几何尺寸，以组间留白、序号块和细线分层；
+/// 展开单元钉在目录顶部，只有当前焦点使用 teal 淡色底。
 class _UnitStrip extends StatelessWidget {
   const _UnitStrip({
     required this.unitIndex,
@@ -1081,8 +1118,10 @@ class _UnitStrip extends StatelessWidget {
     required this.dueLessonCount,
     required this.weakLessonCount,
     required this.expanded,
+    required this.reduceMotion,
     required this.onToggle,
     this.pinned = false,
+    super.key,
   });
 
   final int unitIndex;
@@ -1090,6 +1129,7 @@ class _UnitStrip extends StatelessWidget {
   final int dueLessonCount;
   final int weakLessonCount;
   final bool expanded;
+  final bool reduceMotion;
   final VoidCallback onToggle;
   final bool pinned;
 
@@ -1098,6 +1138,8 @@ class _UnitStrip extends StatelessWidget {
     final hasAttention = dueLessonCount > 0 || weakLessonCount > 0;
     final attentionColor =
         dueLessonCount > 0 ? TurnaTheme.warning : TurnaTheme.brandSky;
+    final duration = TurnaMotion.scaled(TurnaMotion.base, reduceMotion);
+    final borderRadius = BorderRadius.circular(TurnaTheme.radiusMedium);
 
     // 完成计数响应课级进度记录——目录里每个单元条的 k/n 都要跟着走，
     // 不能只在整树重建时算一遍。
@@ -1105,88 +1147,118 @@ class _UnitStrip extends StatelessWidget {
       selector: (_, progress) => countCompletedLessons(progress, unit),
       builder: (context, completedCount, _) => Material(
         color: pinned ? TurnaTheme.scaffoldBg(context) : Colors.transparent,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: AnimatedContainer(
+            duration: duration,
+            curve: TurnaMotion.easeOut,
+            decoration: BoxDecoration(
+              color: expanded
+                  ? TurnaTheme.brandTeal.withValues(alpha: 0.07)
+                  : Colors.transparent,
+              borderRadius: borderRadius,
+              border: Border(
+                bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
+              ),
             ),
-          ),
-          child: Semantics(
-            // 单元条语义契约：名字 + k/n 进度 + 展开态 + 点按（屏幕阅读器
-            // 靠它辨目录结构）。子树文字被排除，朗读稿只有这一份。
-            label: '${unit.name}，$completedCount/${unit.lessons.length}',
-            button: true,
-            expanded: expanded,
-            onTap: onToggle,
-            excludeSemantics: true,
-            child: InkWell(
+            child: Semantics(
+              label: '${unit.name}，$completedCount/${unit.lessons.length}',
+              button: true,
+              expanded: expanded,
               onTap: onToggle,
-              child: SizedBox(
-                height: _UnitStripDelegate.height,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.pageMargin,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 20,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '$unitIndex',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: TurnaTheme.brandTeal,
+              excludeSemantics: true,
+              child: InkWell(
+                onTap: onToggle,
+                borderRadius: borderRadius,
+                child: SizedBox(
+                  height: _UnitStripDelegate.height - AppSpacing.sm,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pageMargin,
+                    ),
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          width: 22,
+                          height: 22,
+                          alignment: Alignment.center,
+                          duration: duration,
+                          curve: TurnaMotion.easeOut,
+                          decoration: BoxDecoration(
+                            color: expanded
+                                ? TurnaTheme.brandTeal
+                                : TurnaTheme.brandTeal.withValues(alpha: 0.09),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: AnimatedDefaultTextStyle(
+                            duration: duration,
+                            curve: TurnaMotion.easeOut,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: expanded
+                                  ? TurnaTheme.textOnPrimary
+                                  : TurnaTheme.brandTeal,
+                            ),
+                            child: Text('$unitIndex'),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm + 2),
-                      Expanded(
-                        child: Text(
-                          unit.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyText(context).copyWith(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
+                        const SizedBox(width: AppSpacing.sm + 2),
+                        Expanded(
+                          child: AnimatedDefaultTextStyle(
+                            duration: duration,
+                            curve: TurnaMotion.easeOut,
+                            style: AppTextStyles.bodyText(context).copyWith(
+                              fontSize: 14,
+                              fontWeight:
+                                  expanded ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                            child: Text(
+                              unit.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                      ),
-                      if (hasAttention) ...[
+                        if (hasAttention) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: attentionColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                         const SizedBox(width: AppSpacing.sm),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: attentionColor,
-                            shape: BoxShape.circle,
+                        Text(
+                          '$completedCount/${unit.lessons.length}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: expanded
+                                ? TurnaTheme.brandTeal
+                                : TurnaTheme.textSecondaryColor(context),
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs + 2),
+                        AnimatedRotation(
+                          turns: expanded ? 0.5 : 0,
+                          duration: duration,
+                          curve: TurnaMotion.easeOut,
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: expanded
+                                ? TurnaTheme.brandTeal
+                                : TurnaTheme.textSecondaryColor(context),
                           ),
                         ),
                       ],
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        '$completedCount/${unit.lessons.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: TurnaTheme.textSecondaryColor(context),
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs + 2),
-                      Icon(
-                        expanded
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

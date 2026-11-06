@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -112,14 +113,34 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonShortAnswerCaption),
-          // 问题在纸面画布上, 与阅读原文（页面级折叠卡）明确接续（§7.1 阅读理解）。
           SessionRecallCanvas(
-            minHeight: 140,
+            minHeight: 110,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
-            child: Text(
-              widget.prompt,
-              style: AppTextStyles.promptMd(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.edit_note_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonShortAnswerCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  widget.prompt,
+                  style: AppTextStyles.promptMd(context),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),

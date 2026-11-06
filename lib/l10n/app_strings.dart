@@ -1494,6 +1494,7 @@ class AppStrings {
   static String get lessonTapToReturnFront => '点击卡片返回正面';
   static String get lessonHowWellDidYouKnow => '你对这个有多熟悉？';
   static String get lessonPlayAudioLabel => '播放音频';
+  static String get lessonAudioPlaying => '正在播放';
   static String get lessonAudioMissing => '音频文件缺失';
   static String get lessonAudioPlaybackFailed => '音频播放失败';
   static String get lessonSpeakLabel => '朗读';
@@ -1506,8 +1507,20 @@ class AppStrings {
   static String get lessonListenAndPickCaption => '听音选择';
   static String get lessonSummaryCaption => '概要';
   static String get lessonListenToSummary => '收听概要';
-  static String get lessonTapToReplay => '点击喇叭重播';
-  static String get lessonTapToListen => '点击喇叭收听';
+  static String get lessonListeningDialogue => '对话理解';
+  static String get lessonTapToReplay => '点击重播';
+  static String get lessonTapToListen => '点击收听';
+  static String get lessonTranscriptAfterListening => '听后可查看文本';
+  static String get lessonTranscriptAvailable => '文本已解锁';
+  static String get lessonShowTranscript => '查看听力原文';
+  static String get lessonHideTranscript => '收起听力原文';
+  static String get lessonTemplateIntro => '新词导学';
+  static String get lessonTemplatePractice => '巩固练习';
+  static String get lessonTemplateListening => '听力训练';
+  static String get lessonTemplateReading => '阅读理解';
+  static String get lessonTemplateReview => '混合复习';
+  static String get lessonTemplateMastery => '掌握检测';
+  static String get lessonTemplateLegacy => '课程练习';
 
   /// Single-answer MCQ caption (was misleadingly "多项选择").
   static String get lessonMultipleChoiceCaption => '单选题';

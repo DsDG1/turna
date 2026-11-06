@@ -284,6 +284,19 @@ class CoursePlanService:
             return False
         return self._store.delete_draft(plan.plan_id, section_id)
 
+    def preview_state(self, plan: CoursePlan, section_id: str) -> dict[str, Any]:
+        entry = plan.progress.get(section_id) or {}
+        value = entry.get("web_preview")
+        return dict(value) if isinstance(value, dict) else {}
+
+    def set_preview_state(
+        self, plan: CoursePlan, section_id: str, state: dict[str, Any]
+    ) -> None:
+        entry = dict(plan.progress.get(section_id) or {})
+        entry["web_preview"] = dict(state)
+        plan.progress[section_id] = entry
+        self._store.save_plan(plan)
+
     def mark_progress(
         self,
         plan: CoursePlan,

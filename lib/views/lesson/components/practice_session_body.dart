@@ -33,6 +33,7 @@ class PracticeSessionBody extends StatefulWidget {
     required this.child,
     this.stageName,
     this.stageAccent,
+    this.stageIcon,
     this.header,
     this.scrollController,
     this.interactionKey,
@@ -41,13 +42,16 @@ class PracticeSessionBody extends StatefulWidget {
     this.continueLabel,
     this.onAdvance,
     this.wrapRendererBoundary = false,
+    this.maxWidth = 720,
   });
 
   final Widget child;
   final String? stageName;
   final Color? stageAccent;
+  final IconData? stageIcon;
   final Widget? header;
   final ScrollController? scrollController;
+  final double maxWidth;
 
   /// 当前题的稳定标识. 变了就意味着换题, 草稿随之重置.
   final Key? interactionKey;
@@ -91,13 +95,35 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
     final Widget scrollChild = widget.interactionKey == null
         ? widget.child
         : _EnterTransition(key: widget.interactionKey, child: widget.child);
-    Widget scroller = SingleChildScrollView(
-      controller: widget.scrollController,
-      // 底部留白由 [InteractionBody] 的 24 承担, 这里只留 8 的呼吸位,
-      // 两处都写 32 会让最后一行和操作栏之间凭空多出半屏空白.
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
-      child: scrollChild,
-    );
+    Widget scrollerFor(double? minContentHeight) => SingleChildScrollView(
+          controller: widget.scrollController,
+          // 底部留白由 [InteractionBody] 的 24 承担, 这里只留 8 的呼吸位,
+          // 两处都写 32 会让最后一行和操作栏之间凭空多出半屏空白.
+          padding: const EdgeInsets.only(top: 8, bottom: 8),
+          child: minContentHeight == null
+              ? scrollChild
+              : ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: minContentHeight),
+                  child: Center(child: scrollChild),
+                ),
+        );
+
+    // 读卡类（无底栏）把内容在画布里垂直居中。
+    //
+    // 滚动的孩子拿到的最大高度是无穷大，所以 renderer 里自己写的 `Center`
+    // 从来没有生效过 —— 读卡永远贴在阶段行下面，画布下半截空着（实拍约
+    // 47% 屏高）。给滚动内容一个「至少一屏」的下限，居中才成立；内容超过
+    // 一屏时下限不起作用，滚动行为与之前完全一致。
+    //
+    // 只对 autoAdvance 生效：作答卡提交后会在卡下长出解析，居中会让整张卡
+    // 在每次提交时向上跳半个增量；读卡没有这种增长，位移风险为零。
+    Widget scroller = widget.autoAdvance
+        ? LayoutBuilder(
+            builder: (context, constraints) => scrollerFor(
+              (constraints.maxHeight - 16).clamp(0.0, double.infinity),
+            ),
+          )
+        : scrollerFor(null);
     if (widget.wrapRendererBoundary) {
       scroller = RepaintBoundary(child: scroller);
     }
@@ -108,6 +134,7 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
           LessonStageBanner(
             name: widget.stageName!,
             accent: widget.stageAccent ?? TurnaTheme.brandTeal,
+            icon: widget.stageIcon,
           ),
         if (widget.header != null) widget.header!,
         // 草稿契约在 scroller 之上注入, renderer 子树里任何 State 都能查到.
@@ -122,7 +149,7 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
       ],
     );
 
-    final content = TurnaPageContent(maxWidth: 720, child: body);
+    final content = TurnaPageContent(maxWidth: widget.maxWidth, child: body);
     // 安全区只收一次: 有底栏时由底栏自己吞底部 inset (它的底色要铺满),
     // 没有底栏时退回到整列. 两边都加就会在按钮上方凭空多出 34px 死区.
     if (!widget.autoAdvance) return content;

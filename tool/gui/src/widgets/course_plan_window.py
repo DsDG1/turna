@@ -283,6 +283,11 @@ class CoursePlanWindow(QWidget):
         self.view_draft_btn.setEnabled(False)
         self.view_draft_btn.clicked.connect(self._on_view_draft)
         bottom.addWidget(self.view_draft_btn)
+        self.web_preview_btn = QPushButton("网页预览 / 反馈")
+        self.web_preview_btn.setToolTip("发布当前节的静态题目链接；留言修订仍只保存为草稿")
+        self.web_preview_btn.setEnabled(False)
+        self.web_preview_btn.clicked.connect(self._on_web_preview)
+        bottom.addWidget(self.web_preview_btn)
         self.import_section_btn = QPushButton("导入本节")
         self.import_section_btn.setToolTip("作为新 section 导入当前课程；走校验/Undo，需再保存课程")
         self.import_section_btn.setEnabled(False)
@@ -441,8 +446,7 @@ class CoursePlanWindow(QWidget):
         self.sections_spin.setValue(int(values.get("section_count") or 6))
         self.lessons_spin.setValue(int(values.get("lessons_per_section") or 9))
         self.budget_spin.setValue(int(values.get("word_budget") or 0))
-        self.can_do_edit.setPlainText("
-".join(values.get("can_do") or []))
+        self.can_do_edit.setPlainText("\n".join(values.get("can_do") or []))
         self.constraints_edit.setPlainText(str(values.get("constraints") or ""))
         summary = str(payload.get("summary") or "教学纲领已解析。")
         warnings = list(payload.get("warnings") or [])
@@ -752,6 +756,7 @@ class CoursePlanWindow(QWidget):
             bool(sid) and self._plan is not None and not self._busy
         )
         self.view_draft_btn.setEnabled(draft is not None and not self._busy)
+        self.web_preview_btn.setEnabled(draft is not None and not self._busy)
         self.import_section_btn.setEnabled(
             draft is not None
             and self._import_fn is not None
@@ -869,6 +874,59 @@ class CoursePlanWindow(QWidget):
         row.addWidget(close)
         layout.addLayout(row)
         dialog.exec()
+
+    def _on_web_preview(self) -> None:
+        sid = self._selected_section_id()
+        if self._plan is None or not sid:
+            return
+        draft = self._service.load_draft(self._plan, sid)
+        if draft is None:
+            QMessageBox.information(self, "网页预览", "这一节还没有草稿。")
+            return
+        from src.widgets.course_preview_dialog import CoursePreviewDialog
+
+        def current_draft() -> dict | None:
+            if self._plan is None:
+                return None
+            return self._service.load_draft(self._plan, sid)
+
+        def validate(corrected: dict) -> list[dict]:
+            return self._adapter.validate_section_json(
+                corrected, check_existing_ids=False
+            )
+
+        def apply_revision(corrected: dict) -> None:
+            self._service.save_draft(self._plan, sid, corrected)
+            self._set_plan(self._plan)
+            self._select_section(sid)
+            self.status.setText(f"{sid} 修订已保存为草稿，正在更新网页预览。")
+
+        def save_state(state: dict) -> None:
+            self._service.set_preview_state(self._plan, sid, state)
+
+        context = {
+            "node_kind": "section",
+            "node_id": sid,
+            "language": self.lang_edit.text().strip() or "tr",
+            "existing_resource_ids": {
+                "vocab": [w.get("id") for w in self._adapter.vocab if w.get("id")],
+                "expressions": [e.get("id") for e in self._adapter.expressions if e.get("id")],
+                "grammar_points": [g.get("id") for g in self._adapter.grammar_points if g.get("id")],
+            },
+        }
+        dialog = CoursePreviewDialog(
+            draft_fn=current_draft,
+            preview_state=self._service.preview_state(self._plan, sid),
+            on_state_changed=save_state,
+            on_apply_revision=apply_revision,
+            validate=validate,
+            ai_config=self._config_fn(),
+            course_context=context,
+            parent=self,
+        )
+        dialog.exec()
+        self._set_plan(self._plan)
+        self._select_section(sid)
 
     def _on_import_section(self) -> None:
         sid = self._selected_section_id()

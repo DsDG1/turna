@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
@@ -159,17 +160,33 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonSelectAllCaption),
-          // 大题面（§7.1 选择族）: 纸面画布 + 紧凑编号行。
           SessionRecallCanvas(
-            minHeight: 140,
+            minHeight: 120,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.checklist_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        AppStrings.lessonSelectAllCaption,
+                        style: AppTextStyles.caption(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Text(
                   widget.prompt,
-                  textAlign: TextAlign.center,
                   style: AppTextStyles.promptLg(context).copyWith(
                     fontWeight: FontWeight.w600,
                   ),

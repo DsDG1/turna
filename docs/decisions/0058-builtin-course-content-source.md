@@ -8,7 +8,7 @@
 - 来源按 `(index.version, expressions.version)` 依次比较，先比较 index，再比较 expressions；同版采用内置内容。更新目录缺失或校验失败时回落内置内容。
 - 下载内容在选中前完整解析并复用 `validateCourse`；选中后缓存一套 JSON 快照。缺文件时拒绝该更新，不逐文件回落 assets，避免组成从未发布过的混合课程。
 - `DatabaseSeeder` 和课程等级补全读取同一来源。每门内置课程的清表、写入、版本记录在同一个数据库事务中完成，失败保留原有课程和版本。
-- 运行中应用更新，经 `CourseProvider.refreshBuiltinContent` 重选来源、按版本重播种、失效词汇与课程缓存并刷新页面；进度沿用 [ADR 0002](./0002-content-replacement-progress-policy.md) 的保留／重置选择。与课程切换串行，学习活动或远端备份期间不应用更新。
+- 运行中应用更新，经 `CourseProvider.refreshBuiltinContent` 重选来源、按版本重播种、失效词汇与课程缓存并刷新页面；进度沿用版本升级保留／重置选择契约（原 ADR 0002，已随文档精简删除）。与课程切换串行，学习活动或远端备份期间不应用更新。
 
 ## 理由
 

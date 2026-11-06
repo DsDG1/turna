@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -115,21 +116,38 @@ class _DictationBodyState extends State<_DictationBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppStrings.lessonTypeWhatYouHearCaption),
-          // 听写刻意不渲染文字题面（ADR 0057）: 画布里只有播放主控群。
           SessionRecallCanvas(
-            minHeight: 200,
+            minHeight: 160,
+            alignment: Alignment.centerLeft,
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.hearing_rounded,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.lessonTypeWhatYouHearCaption,
+                      style: AppTextStyles.caption(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Text(
                   AppStrings.lessonDictationPrompt,
                   textAlign: TextAlign.center,
                   style: AppTextStyles.promptMd(context),
                 ),
-                const SizedBox(height: 20),
-                AnkiMediaStrip(audioAssets: widget.audioAssets),
+                const SizedBox(height: 18),
+                Center(
+                  child: AnkiMediaStrip(audioAssets: widget.audioAssets),
+                ),
               ],
             ),
           ),

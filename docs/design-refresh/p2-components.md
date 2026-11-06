@@ -24,7 +24,7 @@
 | 组件 | 替换目标 |
 |---|---|
 | `SessionProgressBand`（`PreferredSizeWidget`，退出 + 进度 + 计数 + 上下文动作键） | `ReviewProgressHeader` + 语法页手写 `AppBar(actions)`；圆点 >16 题自动落回细条 |
-| `SessionRecallCanvas`（纸面回忆画布） | 复习主卡 / 课时大题面的中性容器；第三方卡片宿主不加包装（ADR 0066 保真边界） |
+| `SessionRecallCanvas`（纸面回忆画布） | 复习主卡 / 课时大题面的中性容器；第三方卡片宿主不加包装（ADR 0067 保真边界） |
 | `SessionActionBand` + `SessionPrimaryAction`（52 高 teal 主操作） | 各页手写的底部动作区与「显示答案」内联按钮（两份逐字段重复） |
 | `SessionRatingBand`（`outline` / `primary` 双调性 + 间隔小字） | `BinaryRecallBar` 与 `ReviewRatingBar` 两套平行评分条 |
 
@@ -57,6 +57,21 @@
 ### 外壳 `lib/views/home/components/`
 
 R01 决定的两件：`LightTopBar`（课程名 + 切换 + 连胜；状态数字离开顶栏）与 `TextTabBar`（水平文字导航 + 16×4 芦苇青受光短条，字号封顶 1.4）。接线在 P3 外壳重构：`StatAppBar` 状态胶囊退役、`BottomNavigator` 镜片动画退役、状态数字回各自页面概览区。
+
+### 卡面入口（一种材质只有一个出处）
+
+四个名字听起来像四条竞争路径，其实是三层次序。改材质参数只改 `glassSpec`（`lib/core/theme.dart`），下面每一层都读它。
+
+| 层 | 入口 | 什么时候用 |
+|---|---|---|
+| 参数表 | `TurnaTheme.glassSpec(level)` | 唯一真源。`l1` / `l1Subtle` / `l1Quiet` / `l2` / `l2Frost` / `badge` 六档，填充 / 描边 / 投影 / 深色基面全在这里 |
+| 装饰 | `glassDecoration` / `flatPaperDecoration` / `brandHeroDecoration` | 需要 `BoxDecoration` 的地方：`Ink` 的 decoration、`Container` 的 decoration。**不负责手势** |
+| 组件 | `GlassSurface`（`SoftCard` 是它的圆角 + 语义预设） | 页面上的卡。负责阴影分层、`Ink` 水波纹、`frost` 的模糊层与受光边 |
+
+- 静态卡优先 `GlassSurface`：它把「阴影挂外层、填充画内层」这套分层和 `frost` 一起封装了，页面自己拼 `Container + glassDecoration` 拿不到模糊。
+- 玻璃三档与纸面（`flatPaperDecoration`）的分工见 ADR 0065；`l2Frost` 的启用条件见 ADR 0068（每页至多两张主体卡）。
+- **品牌渐变只有一个出处**：`TurnaTheme.brandGradient`（纯渐变）与 `brandHeroDecoration`（渐变 + 同色投影）。练习台今日卡与记忆卡入口曾经各写一份，连投影数值都逐字相同。
+- 守卫：`test/architecture/card_material_guard_test.dart` 拦两条——视图里内联 teal→sky 渐变、以及四个预算外新增 `BackdropFilter`。
 
 ## 测试与预览
 
