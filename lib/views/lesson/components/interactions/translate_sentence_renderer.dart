@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/core/turkish_text.dart';
+import 'package:turna/core/course_answer.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
@@ -32,6 +32,7 @@ class TranslateSentenceRenderer extends InteractionRenderer {
     return _TranslateBody(
       source: i.source,
       expected: i.expected,
+      acceptedAnswers: i.acceptedAnswers,
       hints: i.hints,
       state: state,
       onSubmit: onSubmit,
@@ -42,6 +43,7 @@ class TranslateSentenceRenderer extends InteractionRenderer {
 class _TranslateBody extends StatefulWidget {
   final String source;
   final String expected;
+  final List<String> acceptedAnswers;
   final List<String> hints;
   final InteractionState state;
   final OnInteractionSubmit onSubmit;
@@ -49,6 +51,7 @@ class _TranslateBody extends StatefulWidget {
   const _TranslateBody({
     required this.source,
     required this.expected,
+    required this.acceptedAnswers,
     required this.hints,
     required this.state,
     required this.onSubmit,
@@ -93,21 +96,11 @@ class _TranslateBodyState extends State<_TranslateBody> {
     super.dispose();
   }
 
-  static final _punctuation = RegExp(r'[.,!?;:"]');
-  static final _whitespace = RegExp(r'\s+');
-
-  bool _matches(String input) {
-    final norm = foldTurkish(
-      input.replaceAll(_punctuation, '').trim().replaceAll(_whitespace, ' '),
-    );
-    final target = foldTurkish(
-      widget.expected
-          .replaceAll(_punctuation, '')
-          .trim()
-          .replaceAll(_whitespace, ' '),
-    );
-    return norm == target;
-  }
+  bool _matches(String input) => matchesCourseAnswer(
+        input,
+        widget.expected,
+        widget.acceptedAnswers,
+      );
 
   void _applyHint(String hint) {
     final current = _controller.text;

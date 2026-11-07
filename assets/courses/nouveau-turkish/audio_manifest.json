@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "status": "pending-generation-and-human-review",
+  "provider": "MiniMax",
+  "model": "configured-by-tool/generate_audio.py",
+  "assets": [
+    {
+      "asset": "nt-u1-listen-1-words",
+      "lessonId": "nt-u1-listen-1",
+      "text": "çay、kahve、su",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-1-dialogue",
+      "lessonId": "nt-u1-listen-1",
+      "text": "Ayşe: Merhaba!\nMüşteri: Merhaba! Bir çay lütfen.\nAyşe: Buyurun!\nMüşteri: Teşekkürler.",
+      "speakers": [
+        "Ayşe",
+        "learner"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-1-summary",
+      "lessonId": "nt-u1-listen-1",
+      "text": "问候、点茶、道谢。",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-2-words",
+      "lessonId": "nt-u1-listen-2",
+      "text": "Merhaba、lütfen、çay",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-2-dialogue",
+      "lessonId": "nt-u1-listen-2",
+      "text": "Ayşe: Ne istersiniz?\nMüşteri: Bir kahve lütfen.\nAyşe: Buyurun!",
+      "speakers": [
+        "Ayşe",
+        "learner"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-2-summary",
+      "lessonId": "nt-u1-listen-2",
+      "text": "听出饮品和礼貌点单。",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-3-words",
+      "lessonId": "nt-u1-listen-3",
+      "text": "Evet、Hayır、su",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-3-dialogue",
+      "lessonId": "nt-u1-listen-3",
+      "text": "Ayşe: Sıcak su?\nMüşteri: Evet, lütfen.\nAyşe: Buyurun!",
+      "speakers": [
+        "Ayşe",
+        "learner"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-3-summary",
+      "lessonId": "nt-u1-listen-3",
+      "text": "听出肯定回答。",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-4-words",
+      "lessonId": "nt-u1-listen-4",
+      "text": "Hoşça kal、Teşekkürler、Merhaba",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-4-dialogue",
+      "lessonId": "nt-u1-listen-4",
+      "text": "Müşteri: Teşekkürler. Hoşça kal!\nAyşe: Hoşça kal!",
+      "speakers": [
+        "Ayşe",
+        "learner"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    },
+    {
+      "asset": "nt-u1-listen-4-summary",
+      "lessonId": "nt-u1-listen-4",
+      "text": "道谢并告别。",
+      "speakers": [
+        "Ayşe"
+      ],
+      "voiceId": null,
+      "speed": 0.9,
+      "reviewStatus": "pending"
+    }
+  ]
+}

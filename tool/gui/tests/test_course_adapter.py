@@ -438,7 +438,7 @@ class PublishFlowTest(unittest.TestCase):
         for key in ("changes", "version_bump", "audio_manifest", "diff", "validation"):
             self.assertIn(key, report)
         self.assertTrue(report["changes"]["index"] or report["changes"]["sections"])
-        self.assertIn("index", report["version_bump"])
+        self.assertEqual(report["version_bump"], {})
         self.assertIn("ok", report["validation"])
 
     def test_no_changes_no_bump(self) -> None:

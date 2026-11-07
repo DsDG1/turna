@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "ota": "json-only; media requires an app release",
+  "assets": [
+    {"asset": "assets/images/ayse.png", "kind": "image", "alt": "咖啡馆店主 Ayşe", "source": "repository-existing", "generatedBy": "unknown", "reviewStatus": "existing-asset"},
+    {"asset": "assets/images/course/nt/cay.svg", "kind": "image", "alt": "郁金香形茶杯中的土耳其红茶", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"},
+    {"asset": "assets/images/course/nt/kahve.svg", "kind": "image", "alt": "带泡沫的土耳其咖啡杯", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"},
+    {"asset": "assets/images/course/nt/su.svg", "kind": "image", "alt": "透明玻璃杯中的饮用水", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"},
+    {"asset": "assets/images/course/nt/cafe.svg", "kind": "image", "alt": "Ayşe 在咖啡馆柜台后", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"},
+    {"asset": "assets/images/course/nt/story-ev.svg", "kind": "image", "alt": "家中的 Ayşe 与一杯茶", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"},
+    {"asset": "assets/images/course/nt/story-order.svg", "kind": "image", "alt": "咖啡馆里的点单对话", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"},
+    {"asset": "assets/images/course/nt/story-preferences.svg", "kind": "image", "alt": "一大杯茶与一小杯咖啡", "source": "turna-svg-illustration", "generatedBy": "AI-assisted SVG", "reviewStatus": "rendered-locally"}
+  ]
+}

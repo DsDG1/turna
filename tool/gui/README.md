@@ -10,13 +10,13 @@
 ## 核心功能特性
 
 - 🌳 **三级课程树**：`Section` → `Unit` → `Lesson`；拖拽排序、批量复制/移动、删除、预设套用。
-- 🎨 **可视化蓝图与表单引擎**：按课时模板（`intro` / `practice` / `listening` / `reading` / `review` / `mastery`）生成动态属性表单与编排蓝图。
+- 🎨 **可视化蓝图与表单引擎**：按课时模板（`intro` / `practice` / `listening` / `reading` / `review` / `dialogue` / `mastery`）生成动态属性表单与编排蓝图。
 - 🤖 **课程工坊（四阶段画布）**：非模态 AI 协同窗口；项目库 + 素材/知识/草稿/导入，各阶段占满整幅（草稿阶段是对话主场）；教材提取、Grounded 生成、局部重生成、幂等导入。
 - 📦 **语言资源独立建模**：词汇 (`vocab`)、固定表达 (`expressions`)、语法点 (`grammar_points`) 表格管理；CSV 导入导出、引用依赖检测。
 - 🛡️ **单一校验源与保存回滚**：不另定义校验规则，完全对接 `course_cli validate & lint`；保存校验失败自动恢复内存与磁盘文件。
 - 🎓 **教师预览与试做模式**：教师视图审查结构，对课时实时交互测试。
 - 🌐 **网页粗预览与反馈修订**：草稿经 SSH 发布私密题目链接，逐题留言后本地 AI + diff 修订，不自动导入课程。
-- 🚀 **发布工作流**：版本 Bump、音频 Manifest 挂载检查、Diff 比对、发布报告一键生成。
+- 🚀 **定稿工作流**：保存校验、媒体检查、同 ID 内容 Diff 与报告导出；对外版本由应用更新包工具分配。
 
 ---
 
@@ -30,7 +30,7 @@ pip install PySide6 PyPDF2 python-docx
 
 > ⚠️ **沙箱提示**：TRAE/VS Code 受限沙箱遇 `WinError 5` 装不上 PySide6 时，改用本机系统终端跑 GUI 与打包；后端核心无 PySide6 依赖，单元测试可在沙箱执行。
 
-项目根目录执行 `python -m tool.gui.src.main`，启动后点 **「课程仓库 → 打开课程目录」** 选本地课程目录（如主线课程 `assets/courses/nouveau-turkish/`；旧样板房 `assets/courses/turkish/` 仍可打开，但已不在 manifest 中）。
+项目根目录执行 `python -m tool.gui.src.main`，启动后点 **「课程仓库 → 打开课程目录」** 选本地课程目录（如主线课程 `assets/courses/nouveau-turkish/`；旧课程已迁为 `test/fixtures/turkish_course/` 测试夹具）。
 
 > 打开 / 新建 / 最近仓库切换时，若当前课程有未保存更改，先弹 **保存并打开 / 放弃更改 / 取消** 三选一；「保存并打开」走完整保存管线，保存失败则中止切换。
 
@@ -48,7 +48,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 | 入口 | 功能 | 快捷键 / 备注 |
 |---|---|---|
-| **应用菜单（≡）** | 打开/新建课程目录、最近仓库、发布、生成听力音频、**整门课程规划**、命令面板、设置 | 顶部菜单按钮 |
+| **应用菜单（≡）** | 打开/新建课程目录、最近仓库、定稿、生成听力音频、**整门课程规划**、命令面板、设置 | 顶部菜单按钮 |
 | **编辑视图（📁）** | 侧栏课程树 + 详情面板（编辑/预览/JSON 三 tab） | `Ctrl+1` |
 | **工坊（✨）** | 一站式 AI 协同创作（教材提取、AI 设计、审校到幂等导入） | `Ctrl+2`，非模态，可并行操作 |
 | **总览（🗺）** | 全局鸟瞰：Sections/Units/Lessons/空课时/校验错警 + 词汇·表达·语法覆盖率 + 课型分布；每 Section 题型构成行；按名称/ID 搜索；课型徽标互斥过滤；空课时灰边标记；导出 Markdown；点校验数跳转校验面板；**「课程体检」内嵌工作单**（空课/螺旋/阅读/听力/低质/资源冲突，只读扫描 → 逐条定位或执行） | `Ctrl+3`；角标红显校验错误数 |
@@ -59,7 +59,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 | **命令面板** | ⌘K 式派发：转到视图 / 执行动作 / 定位课程节点 | `Ctrl+K` |
 | **侧栏开关** | 编辑视图侧栏（搜索 + 课程树）显隐 | `Ctrl+B` |
 | **保存** | 写盘并触发 `course_cli validate` / `lint`，失败自动回滚；Ctrl+S / 菜单 / 命令面板 / 关闭四入口共用同一保存管线（含 Soft Autopilot 规则规范化与保存后黄标提示），大课程保存期间窗口可拖动 | `Ctrl+S` |
-| **发布** | 版本 Bump、音效 Manifest 挂载检查、Diff 生成与报告导出 | 应用菜单内 |
+| **定稿** | 保存校验、媒体检查、同 ID 内容 Diff 与报告导出；不分配 OTA 版本 | 应用菜单内 |
 
 布局持久化：上次视图、窗口状态、侧栏/Copilot 显隐经 QSettings 重启还原。
 
@@ -88,9 +88,9 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 ### 3. 课时编辑器与可视化蓝图 (Lesson Editor & Blueprint)
 
 1. **属性折叠条**：ID / 名称 / 描述 / 同层前置依赖 (`prerequisiteLessonIds`) / 关联语法点收进可折叠「属性」横条；课时默认收起让版面给内容编辑，Section/Unit 默认展开；手动选择按节点类别记忆，F2 重命名自动展开并聚焦名称框。
-2. **模板类型切换**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery` 间切换，系统自动纠正数据规范。
+2. **模板类型切换**：`intro` / `practice` / `listening` / `reading` / `review` / `dialogue` / `mastery` 间切换，系统自动纠正数据规范。
 3. **可视化蓝图 (Blueprint Editor)**：针对 `listening`、`reading`、`mastery` 等复杂功能课时提供流程蓝图，可拖拽或点击调整听力阶段 (`ListeningPhase`) 或阅读文章 (`ReadingPassage`) 段落顺序。
-4. **15 种互动题型列表与表单**（清单真源 `backend/lesson_content.py` 的 `INTERACTION_TYPES`）：动态增删题型卡片并拖拽排序；每种题型按 Schema 展现专用输入框（词汇下拉关联、多选选项定义、填空文本匹配、音频路径挂载等，含跟读与记忆卡片）。
+4. **15 种互动题型列表与表单**（清单真源 `backend/lesson_content.py` 的 `ALLOWED_RUNTIME_TYPES`）：动态增删题型卡片并拖拽排序；每种题型按 Schema 展现专用输入框（词汇下拉关联、多选选项定义、填空文本匹配、音频路径挂载等，含跟读与记忆卡片）。
 
 蓝图与「高级编辑」经一对分段按钮切换（选中态高亮）；功能课时默认蓝图、其余默认高级编辑。
 
@@ -307,12 +307,12 @@ tool/gui/
 
 ---
 
-## 版本发布与音频校验 (Publishing)
+## 定稿与媒体校验
 
-课程内容编辑完成准备上线时用工具栏 **「发布」**：版本 Bump → 扫描 `assets/sounds` 做 sound manifest 检查 → 校验全体 JSON 与资源文件完整性 → 渲染结果与 Checklist → 导出 Markdown 发布报告（汇总本次变更细节）。
+内容编辑完成后用 **「定稿」**：保存并校验全体 JSON，检查同 ID 内容 Diff 与媒体清单，导出检查报告；不分配对外 OTA 版本。生成应用更新包和远端上线走独立发布工具。
 
-1. **版本自动递增 (Version Bump)**：自动更新课程元数据版本号。
-2. **音频清单检测 (Audio Sound Manifest)**：核对题目引用的音频路径在 `assets/sounds` 下是否存在，生成音频资源补全清单。
+1. **内容 Diff**：新增、删除、同 ID 正文变化和真正未变化的条目分别列出。
+2. **媒体清单检测**：从仓库或作者工作区解析引用，缺失的真实音频/图片必须补齐。
 
 ### 听力音频生成（MiniMax TTS）
 
@@ -385,7 +385,7 @@ python tool/gui/build_gui.py --clean
 
 打包配置见 [`turna_gui.spec`](./turna_gui.spec)。也可让 CI 出包：推 `gui-v*` tag（或手动触发 `.github/workflows/gui_release.yml` 的 workflow_dispatch），GitHub Actions 在 windows-latest 上跑 ci 档测试门禁 + PyInstaller 打包，把 `turna-gui.exe` 挂到对应 GitHub Release（workflow_dispatch 只产出 artifact，不建 Release）。
 
-> 📌 **打包已知说明**：发布阶段的音效清单检测 (`sound-manifest`) 需要相对路径 `assets/sounds`。打包后的独立 exe 运行于非仓库根目录时音效检查可能提示路径缺失，但核心编辑、保存、校验与发布报告导出不受影响。推荐在仓库根目录环境下运行或打包。
+> 📌 **独立 exe 与媒体**：使用 `export_author_workspace.py` 导出的工作区，打开其中 `course/`。媒体解析以工作区为基准，不依赖 exe 的当前工作目录；只复制课程目录而漏掉媒体仍会报告缺失。
 
 ---
 
@@ -393,7 +393,7 @@ python tool/gui/build_gui.py --clean
 
 数据结构与交互逻辑围绕二语习得 (Second Language Acquisition, SLA) 核心规律构建：
 
-1. **6 大模板习得逻辑**：`intro`（新知引入 / 建立形式-意义映射，Nation 框架）、`practice`（受控操练 / 陈述性向程序性知识转化）、`listening`（听力解码 / 音位训练）、`reading`（语篇阅读 / 附带习得）、`review`（螺旋复习 / 抗遗忘）、`mastery`（综合精通 / 自动化产出）。
-2. **题型与认知梯度**（教学阶梯 12 种；另有 `ankiCard` / `ankiHtmlCard` 仅供导入牌组再编排，不进入生成阶梯，合计 14 种）：**识别层**（低认知负荷，如 `showWord` / `multipleChoice` / `listenAndPick`）、**回忆层**（中认知负荷，如 `fillBlank` / `typeTheWord`）、**产出层**（高认知负荷，如 `translateSentence` / `reorderSentence`）；遵循**支架式教学** (Scaffolding)，建立课时内难度阶梯。
+1. **7 大模板习得逻辑**：`intro`（新知引入）、`practice`（混合产出）、`listening`（听力解码）、`reading`（语篇阅读）、`review`（螺旋复习）、`dialogue`（真实互动）、`mastery`（综合精通）。
+2. **题型与认知梯度**（13 种普通教学/跟读题型；另有 `ankiCard` / `ankiHtmlCard` 仅供导入牌组再编排，合计 15 种）：**识别层**（低认知负荷，如 `showWord` / `multipleChoice` / `listenAndPick`）、**回忆层**（中认知负荷，如 `fillBlank` / `typeTheWord`）、**产出层**（高认知负荷，如 `translateSentence` / `reorderSentence`）；遵循**支架式教学** (Scaffolding)，建立课时内难度阶梯。
 3. **听力三段式 (`debut` → `main` → `fin`)**：对应 Pre-listening / While-listening / Post-listening 框架，主音频支持叠加场景背景音训练环境噪音中的语音感知能力。
 4. **资源独立解耦**：词汇 (`vocab`)、固定表达 (`expressions`)、语法点 (`grammar_points`) 独立建模与 ID 引用，实现跨课复用及语法点覆盖度统计。

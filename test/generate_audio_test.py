@@ -35,7 +35,7 @@ from generate_audio import (  # type: ignore
 
 def _write_listening_course(tmp_course: Path, phases: list[dict]) -> None:
     """Write a minimal course with one listening lesson containing `phases."""
-    src_course = PROJECT_ROOT / "assets" / "courses" / "turkish"
+    src_course = PROJECT_ROOT / "test" / "fixtures" / "turkish_course"
     shutil.copytree(src_course, tmp_course)
     # Seed a vocab entry so word-id exclusion (audioAsset == a vocab id) is
     # exercised — the scaffold ships an empty vocab by design.
@@ -220,7 +220,7 @@ class TestGenerateAudio(unittest.TestCase):
     def test_collect_entries_skips_non_listening_lessons(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_course = Path(tmp) / "turkish"
-            src_course = PROJECT_ROOT / "assets" / "courses" / "turkish"
+            src_course = PROJECT_ROOT / "test" / "fixtures" / "turkish_course"
             shutil.copytree(src_course, tmp_course)
             # A non-listening lesson carrying an audioAsset must not yield a
             # bundled-asset entry.

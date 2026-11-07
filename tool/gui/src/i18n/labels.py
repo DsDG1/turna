@@ -54,6 +54,7 @@ FIELD_LABELS: dict[str, str] = {
     "answer": "答案",
     "source": "原文",
     "expected": "期望译文",
+    "acceptedAnswers": "其他可接受答案",
     "hints": "提示",
     "scrambled": "打乱顺序",
     "correct": "正确顺序",

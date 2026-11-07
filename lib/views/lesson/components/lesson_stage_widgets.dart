@@ -2,9 +2,12 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/domain/course/reading_passage.dart';
+import 'package:turna/core/course_answer.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/courses/languages/language_content_store.dart';
+import 'package:turna/domain/course/reading_passage.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/cached_asset_image.dart';
 
 class LessonStageBanner extends StatelessWidget {
   final String name;
@@ -75,6 +78,7 @@ class LessonReadingPassageCard extends StatelessWidget {
     return _CollapsedPassage(
       title: passage.title,
       paragraphs: passage.paragraphs,
+      passage: passage,
     );
   }
 }
@@ -94,8 +98,13 @@ class LessonLegacyReadingPassage extends StatelessWidget {
 class _CollapsedPassage extends StatelessWidget {
   final String? title;
   final List<String> paragraphs;
+  final ReadingPassage? passage;
 
-  const _CollapsedPassage({required this.paragraphs, this.title});
+  const _CollapsedPassage({
+    required this.paragraphs,
+    this.title,
+    this.passage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +167,7 @@ class _CollapsedPassage extends StatelessWidget {
               context,
               title: title,
               paragraphs: paragraphs,
+              passage: passage,
             ),
           ),
         ],
@@ -214,6 +224,7 @@ Future<void> showReadingPassageSheet(
   BuildContext context, {
   String? title,
   required List<String> paragraphs,
+  ReadingPassage? passage,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -244,6 +255,13 @@ Future<void> showReadingPassageSheet(
               ),
             ),
           ),
+          if (passage?.imageAsset case final asset?) ...[
+            Semantics(
+              label: passage!.imageAlt,
+              child: RoundedCachedAssetImage(asset: asset, maxHeight: 220),
+            ),
+            const SizedBox(height: 16),
+          ],
           if (title != null && title.isNotEmpty) ...[
             Text(
               title,
@@ -255,18 +273,109 @@ Future<void> showReadingPassageSheet(
             const SizedBox(height: 16),
           ],
           for (final paragraph in paragraphs) ...[
-            Text(
-              paragraph,
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.75,
-                color: TurnaTheme.textPrimaryColor(context),
+            if (passage case final value?)
+              _InteractiveParagraph(text: paragraph, passage: value)
+            else
+              Text(
+                paragraph,
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.75,
+                  color: TurnaTheme.textPrimaryColor(context),
+                ),
               ),
-            ),
             const SizedBox(height: 16),
           ],
         ],
       ),
     ),
   );
+}
+
+class _InteractiveParagraph extends StatelessWidget {
+  final String text;
+  final ReadingPassage passage;
+
+  const _InteractiveParagraph({required this.text, required this.passage});
+
+  @override
+  Widget build(BuildContext context) {
+    final allowed = passage.linkedWordIds.toSet();
+    final forms = <String, String>{
+      for (final entry in passage.wordFormMap.entries)
+        normalizeCourseAnswer(entry.key): entry.value,
+    };
+    final direct = <String, String>{
+      for (final entry in vocabById.values)
+        if (allowed.isEmpty || allowed.contains(entry.id))
+          normalizeCourseAnswer(entry.term): entry.id,
+    };
+    final baseStyle = TextStyle(
+      fontSize: 16,
+      height: 1.75,
+      color: TurnaTheme.textPrimaryColor(context),
+    );
+    return Wrap(
+      children: [
+        for (final token in text.split(RegExp(r'(\s+)')))
+          if (token.trim().isEmpty)
+            Text(token, style: baseStyle)
+          else
+            _wordWidget(context, token, forms, direct, allowed, baseStyle),
+      ],
+    );
+  }
+
+  Widget _wordWidget(
+    BuildContext context,
+    String token,
+    Map<String, String> forms,
+    Map<String, String> direct,
+    Set<String> allowed,
+    TextStyle baseStyle,
+  ) {
+    final key = normalizeCourseAnswer(token);
+    final formId = forms[key];
+    final wordId = formId ?? direct[key];
+    final word = wordId == null ? null : vocabById[wordId];
+    if (word == null ||
+        wordId == null ||
+        (allowed.isNotEmpty && !allowed.contains(wordId) && formId == null)) {
+      return Text(token, style: baseStyle);
+    }
+    return Semantics(
+      button: true,
+      label: '${word.term}，${word.translation}',
+      child: InkWell(
+        onTap: () => _showWord(context, wordId),
+        child: Text(
+          token,
+          style: baseStyle.copyWith(
+            color: TurnaTheme.brandTeal,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showWord(BuildContext context, String wordId) {
+    final word = vocabById[wordId];
+    if (word == null) return;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(word.term),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(word.translation),
+            if (word.pronunciation case final pronunciation?)
+              Text(pronunciation),
+          ],
+        ),
+      ),
+    );
+  }
 }

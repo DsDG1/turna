@@ -448,6 +448,22 @@ void main() {
       await tester.pump();
       expect(isCheckEnabled(tester), isTrue);
     });
+
+    testWidgets('accepts a declared alternative short answer', (tester) async {
+      final renderer = ReadingShortAnswerRenderer();
+      const interaction = Interaction.readingShortAnswer(
+        id: 'rsa-accepted',
+        prompt: '顾客要什么？',
+        expectedAnswer: 'Bir çay lütfen',
+        acceptedAnswers: ['Çay lütfen'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await enterText(tester, 'Çay lütfen');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'Çay lütfen')]);
+    });
   });
 
   group('ReadingTrueFalseRenderer', () {
@@ -517,7 +533,25 @@ void main() {
       expect(harness.submissions, [(false, 'world hello')]);
     });
 
-    testWidgets('renders the source prompt above the word bank', (tester) async {
+    testWidgets('accepts a declared alternative token order', (tester) async {
+      final renderer = ReorderSentenceRenderer();
+      const interaction = Interaction.reorderSentence(
+        id: 'rs-accepted',
+        scrambled: ['world', 'hello'],
+        correct: ['hello', 'world'],
+        acceptedAnswers: ['world hello'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tapPoolChip(tester, 0);
+      await tapPoolChip(tester, 1);
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'world hello')]);
+    });
+
+    testWidgets('renders the source prompt above the word bank',
+        (tester) async {
       final renderer = ReorderSentenceRenderer();
       const interaction = Interaction.reorderSentence(
         id: 'rs-prompt',
@@ -683,6 +717,22 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pump();
       expect(isCheckEnabled(tester), isTrue);
+    });
+
+    testWidgets('accepts a declared alternative translation', (tester) async {
+      final renderer = TranslateSentenceRenderer();
+      const interaction = Interaction.translateSentence(
+        id: 'ts-accepted',
+        source: '一杯茶，谢谢',
+        expected: 'Bir çay lütfen',
+        acceptedAnswers: ['Çay lütfen'],
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await enterText(tester, 'Çay lütfen!');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'Çay lütfen!')]);
     });
   });
 

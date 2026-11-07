@@ -55,6 +55,7 @@ class ItemKey(StrEnum):
     HINTS = "hints"
     SOURCE = "source"
     EXPECTED = "expected"
+    ACCEPTED_ANSWERS = "acceptedAnswers"
     EXPECTED_ANSWER = "expectedAnswer"
     STATEMENT = "statement"
     SCRAMBLED = "scrambled"

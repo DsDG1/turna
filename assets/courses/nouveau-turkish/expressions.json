@@ -1,4 +1,53 @@
 {
   "version": 1,
-  "expressions": []
+  "expressions": [
+    {
+      "id": "nt-e-buyurun",
+      "term": "Buyurun!",
+      "translation": "您请；请进；请说",
+      "pronunciation": null,
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l2-dialogue",
+      "learningGoal": "recognition"
+    },
+    {
+      "id": "nt-e-ne-istersiniz",
+      "term": "Ne istersiniz?",
+      "translation": "您想要什么？",
+      "pronunciation": null,
+      "tags": [
+        "question"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l5-order-dialogue",
+      "learningGoal": "recognition"
+    },
+    {
+      "id": "nt-e-tesekkur-ederim",
+      "term": "Teşekkür ederim",
+      "translation": "谢谢您",
+      "pronunciation": null,
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l1",
+      "learningGoal": "recognition"
+    },
+    {
+      "id": "nt-e-rica-ederim",
+      "term": "Rica ederim",
+      "translation": "不客气",
+      "pronunciation": null,
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-p4-thanks",
+      "learningGoal": "production"
+    }
+  ]
 }

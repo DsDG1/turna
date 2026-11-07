@@ -90,7 +90,11 @@ class CourseHealthPanel(QFrame):
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(4)
-        left_layout.addWidget(QLabel("发现的问题"))
+        left_layout.addWidget(QLabel("课程完成度"))
+        self.completion = QLabel("尚未扫描")
+        self.completion.setWordWrap(True)
+        left_layout.addWidget(self.completion)
+        left_layout.addWidget(QLabel("技术健康问题"))
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["级别", "类型", "位置", "问题", "建议动作"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -163,8 +167,24 @@ class CourseHealthPanel(QFrame):
 
     def set_report(self, report: dict[str, Any] | None) -> None:
         self._report = dict(report or {})
-        findings = list(self._report.get("findings") or [])
+        all_findings = list(self._report.get("findings") or [])
+        if "technical_findings" in self._report:
+            findings = list(self._report.get("technical_findings") or [])
+        else:
+            findings = [
+                item for item in all_findings if item.get("kind") != "section_planned"
+            ]
+        completion = list(self._report.get("completion_findings") or [])
         steps = list(self._report.get("steps") or [])
+        coverage = self._report.get("coverage") or {}
+        total_sections = int(coverage.get("sections") or 0)
+        nonempty_sections = int(coverage.get("nonempty_sections") or 0)
+        planned_sections = int(coverage.get("planned_sections") or len(completion))
+        self.completion.setText(
+            f"章节有内容 {nonempty_sections}/{total_sections} · 待施工 {planned_sections}"
+            if total_sections
+            else "课程中还没有章节"
+        )
 
         self.table.setRowCount(0)
         for finding in findings:
@@ -186,7 +206,7 @@ class CourseHealthPanel(QFrame):
         counts = self._report.get("counts") or {}
         scanned_at = str(self._report.get("scanned_at") or "")
         self.summary.setText(
-            "错误 {e} · 警告 {w} · 提示 {i} · 修复计划 {n} 步 / 预计 {calls} 次 AI 调用"
+            "技术错误 {e} · 警告 {w} · 完成度提示 {i} · 修复计划 {n} 步 / 预计 {calls} 次 AI 调用"
             "{when}".format(
                 e=int(counts.get("error") or 0),
                 w=int(counts.get("warning") or 0),
@@ -197,7 +217,7 @@ class CourseHealthPanel(QFrame):
             )
         )
         if not findings:
-            self.summary.setText(self.summary.text() + " · 未发现结构性问题")
+            self.summary.setText(self.summary.text() + " · 未发现技术健康问题")
         self._update_buttons()
 
     def _append_finding(self, finding: dict[str, Any]) -> None:

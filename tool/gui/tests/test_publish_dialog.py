@@ -35,7 +35,7 @@ def _adapter_with_report(*, ok: bool = True, errors=None):
             "expressions": False,
             "grammar_points": False,
         },
-        "version_bump": {"index": (1, 2)},
+        "version_bump": {},
         "audio_manifest": [
             {"asset_id": "a1", "status": "ok"},
             {"asset_id": "a2", "status": "missing"},
@@ -85,7 +85,7 @@ class PublishDialogModeTest(unittest.TestCase):
         dlg = self._make_dlg(_adapter_with_report(), teacher_friendly=False)
         self.assertIsNotNone(dlg.diff_group)
         self.assertIsNotNone(dlg.bump_group)
-        self.assertEqual(self._ok_text(dlg), "确认发布")
+        self.assertEqual(self._ok_text(dlg), "确认定稿")
         self.assertEqual(dlg.handoff_btn.text(), "交给 App")
         # Expert changes label lists all five categories including sections.
         self.assertIn("section 内容", dlg.changes_label.text())
@@ -94,11 +94,10 @@ class PublishDialogModeTest(unittest.TestCase):
         dlg = self._make_dlg(_adapter_with_report(), teacher_friendly=True)
         self.assertFalse(hasattr(dlg, "diff_group"))
         self.assertFalse(hasattr(dlg, "bump_group"))
-        self.assertEqual(self._ok_text(dlg), "发布")
+        self.assertEqual(self._ok_text(dlg), "定稿")
         # Teacher changes label hides the raw "sections" category.
         self.assertNotIn("section 内容", dlg.changes_label.text())
-        # Version shown as an auto-update line (no raw filename).
-        self.assertIn("自动更新", dlg.version_label.text())
+        self.assertIn("生成应用更新包", dlg.version_label.text())
 
     def test_teacher_mode_humanizes_validation_failure(self) -> None:
         adapter = _adapter_with_report(ok=False, errors=[
@@ -149,7 +148,7 @@ class PublishDialogAsyncTest(unittest.TestCase):
             self.assertTrue(dlg._publishing)
             self.assertFalse(dlg.ok_btn.isEnabled())
             self.assertFalse(dlg.cancel_btn.isEnabled())
-            self.assertEqual(dlg.ok_btn.text(), "发布中…")
+            self.assertEqual(dlg.ok_btn.text(), "定稿中…")
             # Esc / close must not tear the dialog down mid-save.
             with patch.object(QDialog, "reject") as super_reject:
                 dlg.reject()
@@ -157,7 +156,7 @@ class PublishDialogAsyncTest(unittest.TestCase):
             self.assertTrue(_spin_until(lambda: dlg._publish_worker is None))
         self.assertFalse(dlg._publishing)
         self.assertEqual(dlg.result(), QDialog.DialogCode.Accepted)
-        adapter.apply_version_bump.assert_called_once()
+        adapter.apply_version_bump.assert_not_called()
         adapter.save.assert_called_once()
 
     def test_async_publish_failure_keeps_dialog_open(self) -> None:
@@ -174,18 +173,10 @@ class PublishDialogAsyncTest(unittest.TestCase):
         self.assertTrue(dlg.ok_btn.isEnabled())
         self.assertEqual(dlg.result(), 0)  # not accepted
 
-    def test_failed_publish_rolls_back_version_bump(self) -> None:
-        """#21: a failed save must not leave the bump applied — retrying
-        used to bump again on top (3 -> 4 -> 5 for one release)."""
+    def test_failed_finalize_never_changes_versions(self) -> None:
         adapter = _adapter_with_report()
         adapter.index = {"version": 3}
         adapter.expressions_version = 2
-
-        def _bump(plan):
-            adapter.index["version"] = 4
-            adapter.expressions_version = 3
-
-        adapter.apply_version_bump.side_effect = _bump
         adapter.save.return_value = MagicMock(ok=False, message="boom")
         dlg = PublishDialog(
             adapter, None, teacher_friendly=False, load_async=False
@@ -193,9 +184,9 @@ class PublishDialogAsyncTest(unittest.TestCase):
         with patch("src.widgets.publish_dialog.QMessageBox"):
             dlg._on_publish()
             self.assertTrue(_spin_until(lambda: dlg._publish_worker is None))
-        self.assertEqual(adapter.index.get("version"), 3)  # rolled back
+        self.assertEqual(adapter.index.get("version"), 3)
         self.assertEqual(adapter.expressions_version, 2)
-        adapter.release_report.assert_called()  # report rebuilt post-rollback
+        adapter.apply_version_bump.assert_not_called()
         dlg.deleteLater()
 
 

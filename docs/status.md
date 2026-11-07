@@ -117,9 +117,11 @@
 
 ## 7. 课程内容更新
 
-**当前内置课程**：`tr` 由 [`assets/courses/manifest.json`](../assets/courses/manifest.json) 指向 `assets/courses/nouveau-turkish/`（NouveauTurkish），它就是 app 运行时加载的主线课程。旧样板房 `assets/courses/turkish/` 已不在 manifest 中，只作为打包资产保留（部分测试经 rootBundle 读它的真实文件），不参与运行时选源。NouveauTurkish 目前只有第 1 章有内容，第 2–8 章是 `units: []` 空壳——课程树会显示对应的占位章节名，点进去是空状态页；实际内容规模以 [`content_inventory_current.md`](./content_inventory_current.md) 为准。
+**当前内置课程**：`tr` 由 [`assets/courses/manifest.json`](../assets/courses/manifest.json) 指向 `assets/courses/nouveau-turkish/`。旧 `turkish/` 已迁为 `test/fixtures/turkish_course/`，不再随 app 打包。第 1 章有首单元候选内容：1 个单元、24 课、27 个可玩节点、17 个词和 4 个固定表达；第 2–8 章只有真实主题/等级规划，仍为 `units: []`。实际指标以 [`content_inventory_current.md`](./content_inventory_current.md) 为准，课程地图见 [`authoring/nouveau-turkish-course-map.md`](./authoring/nouveau-turkish-course-map.md)。**12 条真实听力音频、人工语言审校、移动真机与学习效果验收尚未完成。**
 
-**对话与复习课能力**：`dialogue` 模板已接入角色轮次、学习者回应、逐句 TTS 与既有判分管线，第 1 单元已有《咖啡馆的第一句》；平铺复习课可用 `reviewPolicy` 做加权随机抽题，但尚未新增正式复习课。见 [ADR 0070](./decisions/0070-scenario-dialogue-lessons.md) 与 [ADR 0071](./decisions/0071-review-question-pool.md)。
+**对话与复习课能力**：`dialogue` 模板复用角色轮次、逐句 TTS 与既有判分管线；首单元现有 3 个对话课候选。平铺复习课 `reviewPolicy` 已用于正式候选复习池：18 题，抽取 15–16 题。见 [ADR 0070](./decisions/0070-scenario-dialogue-lessons.md) 与 [ADR 0071](./decisions/0071-review-question-pool.md)。
+
+**作者与发布契约**：题型结构、Phase Two 配方、资源元数据、替代答案、阅读词形和作者工作区已统一；GUI「定稿」不分配 OTA 版本，媒体随 app、课程 ZIP 仅 JSON。决策见 [ADR 0072](./decisions/0072-phase-two-authoring-and-release-contract.md)。
 
 **子课播放粒度**：多子课的课在课程树上按子课拆为独立节点，每节点一次独立会话、独立发奖（课级完成走结算门）；数据格式不变，`lessons` 表 v34 起携带 L1 子课摘要列。见 [ADR 0064](./decisions/0064-sub-lesson-tree-nodes-and-sessions.md)。
 

@@ -65,6 +65,7 @@ dependencies:
   webview_flutter: ^4.10.0
   timezone: ^0.10.1
   flutter_timezone: ^5.1.0
+  flutter_svg: ^2.3.2
 dev_dependencies:
   auto_route_generator: ^10.5.0
   build_runner: ^2.4.12
@@ -85,12 +86,7 @@ flutter:
     - assets/images/
     - assets/images/turna/
     - assets/courses/
-    - assets/courses/turkish/
-    - assets/courses/turkish/sections/
-    # 主线课程 NouveauTurkish（manifest 的 tr 语言指向这里）。旧的 turkish/
-    # 目录仍是打包资产：它是唯一完整的 8 章参照课程，部分 fixture 与
-    # turkish_enrichment_structure_test 经 rootBundle 读它的真实文件。
-    # 退包条件：把这些测试改为读 test/fixtures/ 之后，才能删上面两行。
+    # 旧 turkish/ 已迁为 test/fixtures/turkish_course，不再随 app 打包。
     - assets/courses/nouveau-turkish/
     - assets/courses/nouveau-turkish/sections/
     # 曾经有一门法语课程作为「多语言并存」的验收 fixture 打包在此。它已随

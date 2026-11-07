@@ -65,7 +65,11 @@ class PresetRegistryTest(unittest.TestCase):
 
 class PresetBuildTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.adapter = CourseAdapter()  # empty; validate with check_existing=False
+        self.adapter = CourseAdapter()
+        self.adapter.vocab = [
+            {"id": "w-example-merhaba", "term": "Merhaba", "translation": "你好"},
+            {"id": "w-example-tesekkurler", "term": "Teşekkürler", "translation": "谢谢"},
+        ]
 
     def _wrap_section(self, lesson: dict) -> dict:
         return {

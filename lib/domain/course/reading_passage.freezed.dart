@@ -29,6 +29,13 @@ mixin _$ReadingPassage {
   /// IDs of expressions highlighted in this passage.
   List<String> get linkedExpressionIds;
 
+  /// Surface-form overrides such as `evimde` → the `ev` vocabulary ID.
+  Map<String, String> get wordFormMap;
+
+  /// Optional course illustration and its accessibility description.
+  String? get imageAsset;
+  String get imageAlt;
+
   /// Create a copy of ReadingPassage
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -53,7 +60,13 @@ mixin _$ReadingPassage {
             const DeepCollectionEquality()
                 .equals(other.linkedWordIds, linkedWordIds) &&
             const DeepCollectionEquality()
-                .equals(other.linkedExpressionIds, linkedExpressionIds));
+                .equals(other.linkedExpressionIds, linkedExpressionIds) &&
+            const DeepCollectionEquality()
+                .equals(other.wordFormMap, wordFormMap) &&
+            (identical(other.imageAsset, imageAsset) ||
+                other.imageAsset == imageAsset) &&
+            (identical(other.imageAlt, imageAlt) ||
+                other.imageAlt == imageAlt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -64,11 +77,14 @@ mixin _$ReadingPassage {
       const DeepCollectionEquality().hash(paragraphs),
       difficulty,
       const DeepCollectionEquality().hash(linkedWordIds),
-      const DeepCollectionEquality().hash(linkedExpressionIds));
+      const DeepCollectionEquality().hash(linkedExpressionIds),
+      const DeepCollectionEquality().hash(wordFormMap),
+      imageAsset,
+      imageAlt);
 
   @override
   String toString() {
-    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds)';
+    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds, wordFormMap: $wordFormMap, imageAsset: $imageAsset, imageAlt: $imageAlt)';
   }
 }
 
@@ -83,7 +99,10 @@ abstract mixin class $ReadingPassageCopyWith<$Res> {
       List<String> paragraphs,
       int difficulty,
       List<String> linkedWordIds,
-      List<String> linkedExpressionIds});
+      List<String> linkedExpressionIds,
+      Map<String, String> wordFormMap,
+      String? imageAsset,
+      String imageAlt});
 }
 
 /// @nodoc
@@ -104,6 +123,9 @@ class _$ReadingPassageCopyWithImpl<$Res>
     Object? difficulty = null,
     Object? linkedWordIds = null,
     Object? linkedExpressionIds = null,
+    Object? wordFormMap = null,
+    Object? imageAsset = freezed,
+    Object? imageAlt = null,
   }) {
     return _then(_self.copyWith(
       title: null == title
@@ -126,6 +148,18 @@ class _$ReadingPassageCopyWithImpl<$Res>
           ? _self.linkedExpressionIds
           : linkedExpressionIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      wordFormMap: null == wordFormMap
+          ? _self.wordFormMap
+          : wordFormMap // ignore: cast_nullable_to_non_nullable
+              as Map<String, String>,
+      imageAsset: freezed == imageAsset
+          ? _self.imageAsset
+          : imageAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageAlt: null == imageAlt
+          ? _self.imageAlt
+          : imageAlt // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -223,16 +257,30 @@ extension ReadingPassagePatterns on ReadingPassage {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(String title, List<String> paragraphs, int difficulty,
-            List<String> linkedWordIds, List<String> linkedExpressionIds)?
+    TResult Function(
+            String title,
+            List<String> paragraphs,
+            int difficulty,
+            List<String> linkedWordIds,
+            List<String> linkedExpressionIds,
+            Map<String, String> wordFormMap,
+            String? imageAsset,
+            String imageAlt)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _ReadingPassage() when $default != null:
-        return $default(_that.title, _that.paragraphs, _that.difficulty,
-            _that.linkedWordIds, _that.linkedExpressionIds);
+        return $default(
+            _that.title,
+            _that.paragraphs,
+            _that.difficulty,
+            _that.linkedWordIds,
+            _that.linkedExpressionIds,
+            _that.wordFormMap,
+            _that.imageAsset,
+            _that.imageAlt);
       case _:
         return orElse();
     }
@@ -253,15 +301,29 @@ extension ReadingPassagePatterns on ReadingPassage {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(String title, List<String> paragraphs, int difficulty,
-            List<String> linkedWordIds, List<String> linkedExpressionIds)
+    TResult Function(
+            String title,
+            List<String> paragraphs,
+            int difficulty,
+            List<String> linkedWordIds,
+            List<String> linkedExpressionIds,
+            Map<String, String> wordFormMap,
+            String? imageAsset,
+            String imageAlt)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ReadingPassage():
-        return $default(_that.title, _that.paragraphs, _that.difficulty,
-            _that.linkedWordIds, _that.linkedExpressionIds);
+        return $default(
+            _that.title,
+            _that.paragraphs,
+            _that.difficulty,
+            _that.linkedWordIds,
+            _that.linkedExpressionIds,
+            _that.wordFormMap,
+            _that.imageAsset,
+            _that.imageAlt);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -281,15 +343,29 @@ extension ReadingPassagePatterns on ReadingPassage {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(String title, List<String> paragraphs, int difficulty,
-            List<String> linkedWordIds, List<String> linkedExpressionIds)?
+    TResult? Function(
+            String title,
+            List<String> paragraphs,
+            int difficulty,
+            List<String> linkedWordIds,
+            List<String> linkedExpressionIds,
+            Map<String, String> wordFormMap,
+            String? imageAsset,
+            String imageAlt)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ReadingPassage() when $default != null:
-        return $default(_that.title, _that.paragraphs, _that.difficulty,
-            _that.linkedWordIds, _that.linkedExpressionIds);
+        return $default(
+            _that.title,
+            _that.paragraphs,
+            _that.difficulty,
+            _that.linkedWordIds,
+            _that.linkedExpressionIds,
+            _that.wordFormMap,
+            _that.imageAsset,
+            _that.imageAlt);
       case _:
         return null;
     }
@@ -304,10 +380,14 @@ class _ReadingPassage implements ReadingPassage {
       final List<String> paragraphs = const <String>[],
       this.difficulty = 1,
       final List<String> linkedWordIds = const <String>[],
-      final List<String> linkedExpressionIds = const <String>[]})
+      final List<String> linkedExpressionIds = const <String>[],
+      final Map<String, String> wordFormMap = const <String, String>{},
+      this.imageAsset,
+      this.imageAlt = ''})
       : _paragraphs = paragraphs,
         _linkedWordIds = linkedWordIds,
-        _linkedExpressionIds = linkedExpressionIds;
+        _linkedExpressionIds = linkedExpressionIds,
+        _wordFormMap = wordFormMap;
   factory _ReadingPassage.fromJson(Map<String, dynamic> json) =>
       _$ReadingPassageFromJson(json);
 
@@ -357,6 +437,25 @@ class _ReadingPassage implements ReadingPassage {
     return EqualUnmodifiableListView(_linkedExpressionIds);
   }
 
+  /// Surface-form overrides such as `evimde` → the `ev` vocabulary ID.
+  final Map<String, String> _wordFormMap;
+
+  /// Surface-form overrides such as `evimde` → the `ev` vocabulary ID.
+  @override
+  @JsonKey()
+  Map<String, String> get wordFormMap {
+    if (_wordFormMap is EqualUnmodifiableMapView) return _wordFormMap;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_wordFormMap);
+  }
+
+  /// Optional course illustration and its accessibility description.
+  @override
+  final String? imageAsset;
+  @override
+  @JsonKey()
+  final String imageAlt;
+
   /// Create a copy of ReadingPassage
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -385,7 +484,13 @@ class _ReadingPassage implements ReadingPassage {
             const DeepCollectionEquality()
                 .equals(other._linkedWordIds, _linkedWordIds) &&
             const DeepCollectionEquality()
-                .equals(other._linkedExpressionIds, _linkedExpressionIds));
+                .equals(other._linkedExpressionIds, _linkedExpressionIds) &&
+            const DeepCollectionEquality()
+                .equals(other._wordFormMap, _wordFormMap) &&
+            (identical(other.imageAsset, imageAsset) ||
+                other.imageAsset == imageAsset) &&
+            (identical(other.imageAlt, imageAlt) ||
+                other.imageAlt == imageAlt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -396,11 +501,14 @@ class _ReadingPassage implements ReadingPassage {
       const DeepCollectionEquality().hash(_paragraphs),
       difficulty,
       const DeepCollectionEquality().hash(_linkedWordIds),
-      const DeepCollectionEquality().hash(_linkedExpressionIds));
+      const DeepCollectionEquality().hash(_linkedExpressionIds),
+      const DeepCollectionEquality().hash(_wordFormMap),
+      imageAsset,
+      imageAlt);
 
   @override
   String toString() {
-    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds)';
+    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds, wordFormMap: $wordFormMap, imageAsset: $imageAsset, imageAlt: $imageAlt)';
   }
 }
 
@@ -417,7 +525,10 @@ abstract mixin class _$ReadingPassageCopyWith<$Res>
       List<String> paragraphs,
       int difficulty,
       List<String> linkedWordIds,
-      List<String> linkedExpressionIds});
+      List<String> linkedExpressionIds,
+      Map<String, String> wordFormMap,
+      String? imageAsset,
+      String imageAlt});
 }
 
 /// @nodoc
@@ -438,6 +549,9 @@ class __$ReadingPassageCopyWithImpl<$Res>
     Object? difficulty = null,
     Object? linkedWordIds = null,
     Object? linkedExpressionIds = null,
+    Object? wordFormMap = null,
+    Object? imageAsset = freezed,
+    Object? imageAlt = null,
   }) {
     return _then(_ReadingPassage(
       title: null == title
@@ -460,6 +574,18 @@ class __$ReadingPassageCopyWithImpl<$Res>
           ? _self._linkedExpressionIds
           : linkedExpressionIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      wordFormMap: null == wordFormMap
+          ? _self._wordFormMap
+          : wordFormMap // ignore: cast_nullable_to_non_nullable
+              as Map<String, String>,
+      imageAsset: freezed == imageAsset
+          ? _self.imageAsset
+          : imageAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageAlt: null == imageAlt
+          ? _self.imageAlt
+          : imageAlt // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

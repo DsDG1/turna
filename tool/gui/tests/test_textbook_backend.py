@@ -217,14 +217,13 @@ class BuildSectionFromChapterTest(unittest.TestCase):
         lessons = section["units"][0]["lessons"]
         self.assertEqual(len(lessons), 1)
         self.assertEqual(lessons[0]["template"], "intro")
-        # Each word → one sub-lesson with 3 stages.
-        self.assertEqual(len(lessons[0]["content"]["subLessons"]), 2)
-        stages = lessons[0]["content"]["subLessons"][0]["stages"]
-        self.assertEqual([s["items"][0]["runtimeType"] for s in stages], [
-            "showWord",
-            "translateSentence",
-            "fillBlank",
-        ])
+        # Two words share one mixed 12-item sub-lesson.
+        self.assertEqual(len(lessons[0]["content"]["subLessons"]), 1)
+        items = lessons[0]["content"]["subLessons"][0]["stages"][0]["items"]
+        self.assertEqual(len(items), 12)
+        self.assertIn("showWord", {item["runtimeType"] for item in items})
+        self.assertIn("translateSentence", {item["runtimeType"] for item in items})
+        self.assertIn("fillBlank", {item["runtimeType"] for item in items})
 
     def test_practice_lesson_template(self) -> None:
         ch = _sample_chapter()

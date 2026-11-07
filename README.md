@@ -8,7 +8,7 @@
 
 ## 能做什么
 
-- **按课程学** —— 课程分 8 章，按 A1 到 B2 逐级推进。第 1 章《Merhaba》已完整写好（单词、语法、听力、阅读），第 2 章起仍在施工。
+- **按课程学** —— 课程规划 8 章，按 A1 到 B2 逐级推进。第 1 章已有首个完整单元候选内容；真实听力音频、语言审校和移动真机验收仍在推进，第 2 章起尚未施工。
 - **按记忆曲线复习** —— 用间隔重复算法安排复习时间，在快要忘记的时候让你回想一遍。算法用的是 [FSRS](https://pub.dev/packages/fsrs)，比老的 SM-2 更贴近真实遗忘规律。
 - **错题本** —— 做错的题会留下来，随时能重做，也能跳回对应的语法点。
 - **查词典** —— 输入土耳其语或中文都能查，支持离线。
@@ -81,8 +81,9 @@ python tool/build_release.py --version 0.9.0
 
 课程内容是 JSON 文件，放在 `assets/courses/` 里，由程序读进本地数据库。当前清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)（自动生成，不要手改）。
 
-- **土耳其语（NouveauTurkish）**：主线课程，规划 8 章。当前第 1 章有完整内容
-  （1 个单元 / 1 课 / 4 个词），第 2–8 章是空壳，随内容施工逐步填充。
+- **土耳其语（NouveauTurkish）**：主线课程，规划 8 章。第 1 章含首单元候选内容
+  （1 个单元 / 24 课 / 27 个可玩节点 / 17 个词），第 2–8 章只有真实主题规划、尚无课时。
+  课程地图见 [`docs/authoring/nouveau-turkish-course-map.md`](./docs/authoring/nouveau-turkish-course-map.md)。
 
 0.9 起不再随包分发第二门语言：原先作为「多语言并存」验收样例的法语课程已移入
 `test/fixtures/french_course/`，只作为测试 fixture 存在。多语言机制本身保留，

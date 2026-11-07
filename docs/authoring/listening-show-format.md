@@ -77,7 +77,7 @@
             "audioAsset": "listening/uX_prewords",
             "prompt": "Which words do you hear?",
             "options": ["market", "school", "money", "banana", "help"],
-            "correctAnswer": "market"
+            "correctIndex": 0
           }
         ]
       },
@@ -93,7 +93,7 @@
             "id": "main-detail-1",
             "prompt": "Where does the story happen?",
             "options": ["At school", "At the market", "At home"],
-            "correctAnswer": "At the market"
+            "correctIndex": 1
           },
           {
             "runtimeType": "multipleChoice",
@@ -104,7 +104,7 @@
               "A woman buys bananas",
               "A child goes to school"
             ],
-            "correctAnswer": "A man loses his money"
+            "correctIndex": 0
           }
         ]
       }

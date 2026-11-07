@@ -32,7 +32,7 @@ def _template_schema_block() -> str:
 可用课模板（template）及对应的 content 主键：
 - intro: 认识新词。content 主键为 subLessons。每个 subLesson 含 stages，每个 stage 含 items。
 - practice: 巩固练习。content 主键为 subLessons。
-- review: 复习。content 主键为 subLessons，可额外包含 stages。
+- review: 复习。使用平铺 stages + reviewPolicy；不要与子课混用。
 - listening: 听力训练。content 主键为 listeningPhases。每个 phase 可含 items（wordPairing/dialogue）或只听不答（summary）。
 - reading: 阅读理解。content 包含 readingPassage（title + paragraphs）和 stages（理解题）。
 - mastery: 综合测验。content 主键为 stages，一个 stage 即可。
@@ -43,14 +43,14 @@ def _template_schema_block() -> str:
 - multipleChoice: { prompt, options(4), correctIndex, audioAssets? } — 单选题。
 - multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections? } — 多选题。
 - fillBlank: { sentence（含 ____ 空白）, answer, hint?, audioAssets?, imageAssets? } — 填空。
-- translateSentence: { source（源语言句子）, expected（目标语言翻译）, hints? } — 翻译。
+- translateSentence: { source（源语言句子）, expected（目标语言翻译）, acceptedAnswers?, hints? } — 翻译。
 - listenAndPick: { audioAsset, prompt, options(4), correctIndex } — 听音选择。
 - typeTheWord: { audioAsset, prompt, expected } — 听写。
 - listenOnly: { audioAsset?, transcript?, prompt? } — 只听不答。
-- reorderSentence: { scrambled（打乱词数组）, correct（正确词数组） } — 排序。
+- reorderSentence: { scrambled（打乱词数组）, correct（正确词数组）, acceptedAnswers? } — 排序；替代答案写完整句子字符串。
 - readingMcq: { prompt, options(4), correctIndex } — 阅读选择。
 - readingTrueFalse: { statement, answer(true/false) } — 阅读判断。
-- readingShortAnswer: { prompt, expectedAnswer } — 阅读简答。
+- readingShortAnswer: { prompt, expectedAnswer, acceptedAnswers? } — 阅读简答。
 - ankiCard: { front, back, audioAssets?, imageAssets?, hint?, sourceNoteId? } — Anki 翻卡（仅限导入内容再编排，AI 不主动生成）。
 - ankiHtmlCard: { frontHtml, backHtml, css?, mediaBasePath?, allowJs?, audioAssets? } — Anki HTML 卡（同上，AI 不主动生成）。
 

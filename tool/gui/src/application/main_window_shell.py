@@ -100,7 +100,7 @@ def build_toolbar(host) -> None:
     host.resources_menu_btn.setMenu(host.resources_menu)
     host.resources_menu_btn.hide()
 
-    host.publish_action = QAction("发布", host)
+    host.publish_action = QAction("定稿", host)
     host.publish_action.setEnabled(False)
     host.publish_action.triggered.connect(host._on_publish)
 

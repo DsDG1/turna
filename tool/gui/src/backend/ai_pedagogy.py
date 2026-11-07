@@ -5,7 +5,8 @@ model produces more lesson-like gradients and better multiple-choice options.
 """
 from __future__ import annotations
 
-# Soft caps used only in prompt text (not enforced by the validator).
+from src.backend.api import course_pedagogy
+
 _LEVEL_GUIDE: dict[str, dict[str, str]] = {
     "A1": {
         "new_words": "每课新词建议 4–8 个",
@@ -92,11 +93,14 @@ def language_pack_block(language: str) -> str:
 
 
 def level_guide_block(level: str) -> str:
-    guide = _LEVEL_GUIDE[_normalize_level(level)]
+    normalized = _normalize_level(level)
+    guide = _LEVEL_GUIDE[normalized]
+    rules = course_pedagogy.LEVEL_RULES[normalized]
+    minimum, maximum = rules["new_words"]
     return (
-        f"CEFR {_normalize_level(level)} 约束（软性，尽量遵守）：\n"
-        f"- 词汇量：{guide['new_words']}\n"
-        f"- 句子：{guide['sentence']}\n"
+        f"CEFR {normalized} 约束（生成后由共享质量规则复核）：\n"
+        f"- 词汇量：每课新词 {minimum}–{maximum} 个\n"
+        f"- 句子：目标句不超过 {rules['sentence_words']} 词\n"
         f"- 重点：{guide['focus']}"
     )
 
@@ -125,5 +129,7 @@ def pedagogy_prompt_block(
         language_pack_block(language),
         "",
         "复现：本课新词应在至少一道练习题中再次出现（不仅 showWord）。",
+        "",
+        course_pedagogy.phase_two_prompt_block(),
     ]
     return "\n".join(parts)

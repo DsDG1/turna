@@ -87,21 +87,34 @@ class CourseReleaseService:
 
     @staticmethod
     def release_diff(adapter: Any) -> dict[str, dict[str, Any]]:
-        """Compare last-saved snapshot (before) vs current (after) by id sets."""
+        """Compare ids and canonical content against the last-saved snapshot."""
         snap = adapter._snapshot or adapter._deep_snapshot()
         result: dict[str, dict[str, Any]] = {}
         for key, snap_list, cur_list in [
             ("vocab", snap["vocab"], adapter.vocab),
             ("expressions", snap["expressions"], adapter.expressions),
             ("grammar_points", snap["grammar_points"], adapter.grammar_points),
-            ("sections", snap["index"].get("sections", []), adapter.index.get("sections", [])),
+            ("sections", snap["sections"], adapter.sections),
         ]:
-            before = {e.get("id", "") for e in snap_list if e.get("id")}
-            after = {e.get("id", "") for e in cur_list if e.get("id")}
+            before = {
+                e.get("id", ""): CourseReleaseService.state_hash(e)
+                for e in snap_list
+                if e.get("id")
+            }
+            after = {
+                e.get("id", ""): CourseReleaseService.state_hash(e)
+                for e in cur_list
+                if e.get("id")
+            }
+            common = before.keys() & after.keys()
+            changed = sorted(
+                entry_id for entry_id in common if before[entry_id] != after[entry_id]
+            )
             result[key] = {
-                "added": sorted(after - before),
-                "removed": sorted(before - after),
-                "unchanged_count": len(before & after),
+                "added": sorted(after.keys() - before.keys()),
+                "removed": sorted(before.keys() - after.keys()),
+                "changed": changed,
+                "unchanged_count": len(common) - len(changed),
             }
         return result
 
@@ -147,7 +160,7 @@ class CourseReleaseService:
     def release_report(cls, adapter: Any) -> dict[str, Any]:
         """Aggregate release checklist data for the publish dialog."""
         changes = cls.detect_changes(adapter)
-        version_bump = cls.version_bump_plan(adapter, changes)
+        version_bump: dict[str, tuple[int, int]] = {}
         audio_manifest = cls.audio_manifest_rows(adapter)
         diff = cls.release_diff(adapter)
         validate, lint = cls._validate_and_lint(adapter)

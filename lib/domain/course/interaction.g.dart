@@ -130,6 +130,10 @@ TranslateSentence _$TranslateSentenceFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String? ?? '',
       source: json['source'] as String,
       expected: json['expected'] as String,
+      acceptedAnswers: (json['acceptedAnswers'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       hints:
           (json['hints'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               const <String>[],
@@ -142,6 +146,7 @@ Map<String, dynamic> _$TranslateSentenceToJson(TranslateSentence instance) =>
       'id': instance.id,
       'source': instance.source,
       'expected': instance.expected,
+      'acceptedAnswers': instance.acceptedAnswers,
       'hints': instance.hints,
       'grammarPointId': instance.grammarPointId,
       'runtimeType': instance.$type,
@@ -215,6 +220,10 @@ ReorderSentence _$ReorderSentenceFromJson(Map<String, dynamic> json) =>
           (json['scrambled'] as List<dynamic>).map((e) => e as String).toList(),
       correct:
           (json['correct'] as List<dynamic>).map((e) => e as String).toList(),
+      acceptedAnswers: (json['acceptedAnswers'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       prompt: json['prompt'] as String?,
       grammarPointId: json['grammarPointId'] as String?,
       $type: json['runtimeType'] as String?,
@@ -225,6 +234,7 @@ Map<String, dynamic> _$ReorderSentenceToJson(ReorderSentence instance) =>
       'id': instance.id,
       'scrambled': instance.scrambled,
       'correct': instance.correct,
+      'acceptedAnswers': instance.acceptedAnswers,
       'prompt': instance.prompt,
       'grammarPointId': instance.grammarPointId,
       'runtimeType': instance.$type,
@@ -273,6 +283,10 @@ ReadingShortAnswer _$ReadingShortAnswerFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String? ?? '',
       prompt: json['prompt'] as String,
       expectedAnswer: json['expectedAnswer'] as String,
+      acceptedAnswers: (json['acceptedAnswers'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       grammarPointId: json['grammarPointId'] as String?,
       $type: json['runtimeType'] as String?,
     );
@@ -282,6 +296,7 @@ Map<String, dynamic> _$ReadingShortAnswerToJson(ReadingShortAnswer instance) =>
       'id': instance.id,
       'prompt': instance.prompt,
       'expectedAnswer': instance.expectedAnswer,
+      'acceptedAnswers': instance.acceptedAnswers,
       'grammarPointId': instance.grammarPointId,
       'runtimeType': instance.$type,
     };

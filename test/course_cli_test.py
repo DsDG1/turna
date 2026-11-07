@@ -40,7 +40,7 @@ class Args:
 
 class TestCourseCli(unittest.TestCase):
     def setUp(self) -> None:
-        self.course_dir = PROJECT_ROOT / "assets" / "courses" / "turkish"
+        self.course_dir = PROJECT_ROOT / "test" / "fixtures" / "turkish_course"
 
     def test_validate_passes_for_bundled_course(self) -> None:
         args = Args(course_dir=self.course_dir)

@@ -68,6 +68,8 @@ _LIST_FIELDS = {
 
 #: Editor-only columns appended past the CSV headers.
 _EXTRA_COLUMNS = {
+    "vocab": ["level", "introducedInLessonId", "learningGoal"],
+    "expressions": ["level", "introducedInLessonId", "learningGoal"],
     "grammar_points": ["practiceItems"],
 }
 

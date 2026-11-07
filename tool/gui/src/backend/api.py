@@ -22,6 +22,7 @@ if str(_TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(_TOOL_DIR))
 
 import course_cli
+import course_pedagogy
 
 #: Timeout for the validate/lint subprocess fallbacks (a hung child must not
 #: freeze the whole GUI; the in-process fast path needs no such guard).

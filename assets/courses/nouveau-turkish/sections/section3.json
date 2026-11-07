@@ -1,5 +1,7 @@
 {
   "id": "nt-s3",
-  "name": "预留 · 待施工",
+  "name": "Şehirde Yol Bulma",
+  "description": "A2 · Planlanan bölüm: Yol tarifi isteyin, yönlendirmeleri anlayın, ulaşım seçeneklerini değerlendirin ve yolculuk sırasında karşılaştığınız basit sorunları çözün. Henüz ders eklenmedi.",
+  "level": "A2",
   "units": []
 }

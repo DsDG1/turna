@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260">
+  <g id="background"><rect width="400" height="260" rx="24" fill="#4A95A8" fill-opacity="0.16"/></g>
+  <g id="table">
+    <ellipse cx="200" cy="221" rx="165" ry="18" fill="#19324A" fill-opacity="0.12"/>
+    <rect x="37" y="202" width="326" height="17" rx="8" fill="#19324A"/>
+  </g>
+  <g id="large-tea">
+    <ellipse cx="127" cy="199" rx="69" ry="13" fill="#B85C3F"/>
+    <path d="M76 63 H178 C172 101 169 119 173 145 C177 174 163 190 127 191 C91 190 77 174 81 145 C85 119 82 101 76 63 Z" fill="#FFFFFF" stroke="#19324A" stroke-width="4"/>
+    <path d="M83 111 H171 C166 128 167 146 169 157 C165 176 151 182 127 183 C103 182 89 176 85 157 C87 145 87 128 83 111 Z" fill="#B85C3F"/>
+    <ellipse cx="127" cy="63" rx="51" ry="12" fill="#9E3B24"/>
+    <path d="M106 44 C91 29 114 24 103 11 M145 44 C132 29 153 23 144 10" fill="none" stroke="#78C7B8" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g id="small-coffee">
+    <ellipse cx="282" cy="196" rx="53" ry="11" fill="#C89B6E"/>
+    <path d="M245 118 H307 L300 184 H254 Z" fill="#1F727E" stroke="#19324A" stroke-width="4"/>
+    <path d="M307 131 C333 127 334 157 303 158" fill="none" stroke="#1F727E" stroke-width="8"/>
+    <ellipse cx="276" cy="118" rx="31" ry="9" fill="#4A2C1D"/>
+    <ellipse cx="276" cy="117" rx="25" ry="5" fill="#C89B6E"/>
+  </g>
+  <g id="comparison-marks" fill="#FFD93D">
+    <circle cx="215" cy="81" r="7"/><circle cx="232" cy="61" r="4"/><circle cx="213" cy="45" r="3"/>
+  </g>
+</svg>

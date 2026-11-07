@@ -242,10 +242,15 @@ class ReadingViewRenderTest(unittest.TestCase):
         widget.show()
         self.assertGreaterEqual(len(widget.findChildren(QuestionCard)), 1)
         paras = widget.findChildren(QTextEdit)
-        self.assertEqual(len(paras), 1)
+        self.assertEqual(len(paras), 2)
         paras[0].setPlainText("New A\n\nNew B")
         self.assertEqual(
             lesson["content"]["readingPassage"]["paragraphs"], ["New A", "New B"]
+        )
+        paras[1].setPlainText("evimde=nt-w-ev")
+        self.assertEqual(
+            lesson["content"]["readingPassage"]["wordFormMap"],
+            {"evimde": "nt-w-ev"},
         )
 
 

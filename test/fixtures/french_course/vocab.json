@@ -21,14 +21,14 @@
       "term": "oui",
       "translation": "yes",
       "pronunciation": "wee",
-      "tags": ["basic"]
+      "tags": ["particle"]
     },
     {
       "id": "fr-w-non",
       "term": "non",
       "translation": "no",
       "pronunciation": "nohn",
-      "tags": ["basic"]
+      "tags": ["particle"]
     },
     {
       "id": "fr-w-au-revoir",

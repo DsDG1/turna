@@ -16,6 +16,9 @@ _WordEntry _$WordEntryFromJson(Map<String, dynamic> json) => _WordEntry(
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               const <String>[],
+      level: json['level'] as String?,
+      introducedInLessonId: json['introducedInLessonId'] as String?,
+      learningGoal: json['learningGoal'] as String? ?? 'production',
     );
 
 Map<String, dynamic> _$WordEntryToJson(_WordEntry instance) =>
@@ -27,4 +30,7 @@ Map<String, dynamic> _$WordEntryToJson(_WordEntry instance) =>
       'audioAsset': instance.audioAsset,
       'pos': instance.pos,
       'tags': instance.tags,
+      'level': instance.level,
+      'introducedInLessonId': instance.introducedInLessonId,
+      'learningGoal': instance.learningGoal,
     };

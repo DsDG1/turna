@@ -31,7 +31,7 @@ from src.backend.lesson_content import (  # noqa: E402
     new_lesson_from_template,
 )
 
-COURSE_SRC = ROOT / "assets" / "courses" / "turkish"
+COURSE_SRC = ROOT / "test" / "fixtures" / "turkish_course"
 _CLI = ROOT / "tool" / "course_cli.py"
 
 

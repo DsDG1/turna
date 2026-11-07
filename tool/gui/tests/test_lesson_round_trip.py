@@ -28,6 +28,29 @@ from src.backend.lesson_content import (
 )
 
 
+def _add_valid_item(stage: dict, runtime_type: str) -> dict:
+    item = add_item(stage, runtime_type)
+    if runtime_type in {"multipleChoice", "listenAndPick", "readingMcq"}:
+        item["prompt"] = "Question"
+        item["options"] = ["A", "B"]
+        item["correctIndex"] = 0
+    elif runtime_type == "translateSentence":
+        item["source"] = "Source"
+        item["expected"] = "Expected"
+    elif runtime_type == "fillBlank":
+        item["sentence"] = "_____"
+        item["answer"] = "A"
+    elif runtime_type == "readingTrueFalse":
+        item["statement"] = "True"
+        item["answer"] = True
+    elif runtime_type == "typeTheWord":
+        item["audioAsset"] = "sounds/example/q.mp3"
+        item["expected"] = "A"
+    elif runtime_type == "readAloud":
+        item["targetText"] = "Merhaba"
+    return item
+
+
 class NewLessonRoundTripTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="turna_m2_"))
@@ -52,7 +75,7 @@ class NewLessonRoundTripTest(unittest.TestCase):
         for item in stage["items"]:
             if item.get("runtimeType") == "showWord":
                 item["wordId"] = "w-merhaba"
-        add_item(stage, "translateSentence")
+        _add_valid_item(stage, "translateSentence")
         result = a.save()
         self.assertTrue(result.ok, f"{result.message} errors={result.errors}")
 
@@ -62,7 +85,7 @@ class NewLessonRoundTripTest(unittest.TestCase):
         unit = section["units"][0]
         lesson = new_lesson_from_template("mastery", unit)
         stage = lesson["content"]["stages"][0]
-        add_item(stage, "multipleChoice")
+        _add_valid_item(stage, "multipleChoice")
         result = a.save()
         self.assertTrue(result.ok, f"{result.message} errors={result.errors}")
 
@@ -72,7 +95,7 @@ class NewLessonRoundTripTest(unittest.TestCase):
         unit = section["units"][0]
         lesson = new_lesson_from_template("listening", unit)
         word_phase = lesson["content"]["listeningPhases"][0]
-        add_item(word_phase, "listenAndPick")["audioAsset"] = "sounds/example/test.mp3"
+        _add_valid_item(word_phase, "listenAndPick")["audioAsset"] = "sounds/example/test.mp3"
         result = a.save()
         self.assertTrue(result.ok, f"{result.message} errors={result.errors}")
 
@@ -84,8 +107,8 @@ class NewLessonRoundTripTest(unittest.TestCase):
         lesson["content"]["readingPassage"]["title"] = "Test passage"
         lesson["content"]["readingPassage"]["paragraphs"] = ["One.", "Two."]
         stage = lesson["content"]["stages"][0]
-        add_item(stage, "readingMcq")
-        add_item(stage, "readingTrueFalse")
+        _add_valid_item(stage, "readingMcq")
+        _add_valid_item(stage, "readingTrueFalse")
         result = a.save()
         self.assertTrue(result.ok, f"{result.message} errors={result.errors}")
 
@@ -113,13 +136,13 @@ class NewLessonRoundTripTest(unittest.TestCase):
 
         rename_sub_lesson(sub, "Renamed sub")
         rename_stage(stage, "Renamed stage")
-        item = add_item(stage, "multipleChoice")
+        item = _add_valid_item(stage, "multipleChoice")
         item["prompt"] = "Q1"
         item["options"] = ["A", "B"]
         item["correctIndex"] = 0
 
         new_stage = add_stage(sub, "Extra stage")
-        add_item(new_stage, "fillBlank")
+        _add_valid_item(new_stage, "fillBlank")
 
         move_item(stage, 0, 1)
         move_stage(sub, 1, 0)
@@ -132,7 +155,7 @@ class NewLessonRoundTripTest(unittest.TestCase):
         unit = a.sections[0]["units"][0]
         lesson = new_lesson_from_template("mastery", unit)
         stage = lesson["content"]["stages"][0]
-        item = add_item(stage, "multipleChoice")
+        item = _add_valid_item(stage, "multipleChoice")
         item["prompt"] = "Translate this"
         item["options"] = ["A", "B"]
         item["correctIndex"] = 0
@@ -151,7 +174,7 @@ class NewLessonRoundTripTest(unittest.TestCase):
         phase = add_listening_phase(lesson, "dialogue", "D")
         phase["audioAsset"] = "sounds/example/d.mp3"
         phase["transcript"] = "A: hello"
-        item = add_item(phase, "listenAndPick")
+        item = _add_valid_item(phase, "listenAndPick")
         item["audioAsset"] = "sounds/example/q.mp3"
         item["prompt"] = "What?"
         item["options"] = ["A", "B"]
@@ -167,7 +190,7 @@ class NewLessonRoundTripTest(unittest.TestCase):
         lesson["content"]["readingPassage"]["title"] = "Title"
         lesson["content"]["readingPassage"]["paragraphs"] = ["P1", "P2"]
         stage = lesson["content"]["stages"][0]
-        item = add_item(stage, "readingMcq")
+        item = _add_valid_item(stage, "readingMcq")
         item["prompt"] = "What?"
         item["options"] = ["A", "B"]
         item["correctIndex"] = 0

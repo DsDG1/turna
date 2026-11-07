@@ -4,6 +4,9 @@ import 'dart:io';
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Package imports:
+import 'package:flutter_svg/flutter_svg.dart';
+
 // Project imports:
 import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/core/theme.dart';
@@ -56,6 +59,7 @@ class _CachedAssetImageState extends State<CachedAssetImage> {
     final cacheWidth =
         (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr).round();
     final cacheHeight = (widget.maxHeight * dpr).round();
+    final isSvg = widget.asset.toLowerCase().endsWith('.svg');
     final packPath = _packPath;
     if (packPath != null) {
       return FutureBuilder<String?>(
@@ -63,6 +67,9 @@ class _CachedAssetImageState extends State<CachedAssetImage> {
         builder: (context, snapshot) {
           final path = snapshot.data;
           if (path == null) return const SizedBox.shrink();
+          if (isSvg) {
+            return SvgPicture.file(File(path), fit: BoxFit.cover);
+          }
           return Image.file(
             File(path),
             fit: BoxFit.cover,
@@ -72,6 +79,9 @@ class _CachedAssetImageState extends State<CachedAssetImage> {
           );
         },
       );
+    }
+    if (isSvg) {
+      return SvgPicture.asset(widget.asset, fit: BoxFit.cover);
     }
     return Image.asset(
       widget.asset,

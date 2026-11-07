@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from course_pedagogy import LEVEL_RULES, evaluate_lesson_pedagogy
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -222,6 +224,11 @@ def collect_word_ids(obj: Any) -> set[str]:
             ids.add(obj["wordId"])
         if "linkedWordIds" in obj:
             ids.update(obj["linkedWordIds"])
+        if "wordFormMap" in obj and isinstance(obj["wordFormMap"], dict):
+            ids.update(
+                value for value in obj["wordFormMap"].values()
+                if isinstance(value, str)
+            )
         for value in obj.values():
             ids.update(collect_word_ids(value))
     elif isinstance(obj, list):
@@ -489,6 +496,31 @@ def _validate_course(course_dir: Path) -> list[Problem]:
                     lesson, vocab_ids, expression_ids, grammar_ids, problems
                 )
 
+    for kind, entries in (("word", vocab), ("expression", expressions)):
+        for entry in entries:
+            entry_id = entry.get("id", "<unknown>")
+            level = entry.get("level")
+            if level is not None and level not in LEVEL_RULES:
+                problems.append(
+                    Problem("error", f"{kind} {entry_id} has unknown level {level!r}")
+                )
+            goal = entry.get("learningGoal", "production")
+            if goal not in {"recognition", "production"}:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"{kind} {entry_id} learningGoal must be recognition or production",
+                    )
+                )
+            introduced = entry.get("introducedInLessonId")
+            if introduced is not None and introduced not in lesson_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"{kind} {entry_id} has unknown introducedInLessonId {introduced}",
+                    )
+                )
+
     return problems
 
 
@@ -579,6 +611,30 @@ def _validate_lesson(
                 )
             )
             return
+
+    if isinstance(reading_passage, dict):
+        for word_id in collect_word_ids(reading_passage):
+            if word_id not in vocab_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Lesson {lid} readingPassage references missing wordId {word_id}",
+                    )
+                )
+        form_map = reading_passage.get("wordFormMap", {})
+        if not isinstance(form_map, dict) or any(
+            not isinstance(key, str)
+            or not key.strip()
+            or not isinstance(value, str)
+            or not value.strip()
+            for key, value in form_map.items()
+        ):
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} readingPassage wordFormMap must map non-empty surface forms to word ids",
+                )
+            )
 
     if has_stages:
         _validate_stages(lid, stages, vocab_ids, expression_ids, problems)
@@ -789,6 +845,238 @@ def _validate_review_policy(
             )
 
 
+_INTERACTION_REQUIRED_FIELDS: dict[str, tuple[tuple[str, str, bool], ...]] = {
+    "showWord": (("wordId", "string", True),),
+    "multipleChoice": (
+        ("prompt", "string", True),
+        ("options", "string_list", True),
+        ("correctIndex", "int", False),
+    ),
+    "multiSelect": (
+        ("prompt", "string", True),
+        ("options", "string_list", True),
+        ("correctIndices", "int_list", True),
+    ),
+    "fillBlank": (("sentence", "string", True), ("answer", "string", True)),
+    "translateSentence": (("source", "string", True), ("expected", "string", True)),
+    "listenAndPick": (
+        ("audioAsset", "string", True),
+        ("prompt", "string", True),
+        ("options", "string_list", True),
+        ("correctIndex", "int", False),
+    ),
+    "typeTheWord": (
+        ("audioAsset", "string", True),
+        ("prompt", "string", True),
+        ("expected", "string", True),
+    ),
+    "listenOnly": (),
+    "reorderSentence": (
+        ("scrambled", "string_list", True),
+        ("correct", "string_list", True),
+    ),
+    "readingMcq": (
+        ("prompt", "string", True),
+        ("options", "string_list", True),
+        ("correctIndex", "int", False),
+    ),
+    "readingTrueFalse": (
+        ("statement", "string", True),
+        ("answer", "bool", False),
+    ),
+    "readingShortAnswer": (
+        ("prompt", "string", True),
+        ("expectedAnswer", "string", True),
+    ),
+    "ankiCard": (("front", "string", True), ("back", "string", True)),
+    "ankiHtmlCard": (
+        ("frontHtml", "string", True),
+        ("backHtml", "string", True),
+        ("css", "string", False),
+        ("mediaBasePath", "string", False),
+    ),
+    "imageRecall": (
+        ("imageAssets", "string_list", True),
+        ("answerText", "string", True),
+    ),
+    "dictation": (("audioAssets", "string_list", True), ("expected", "string", True)),
+    "readAloud": (("targetText", "string", True),),
+}
+
+_INTERACTION_FIELD_KINDS = {
+    "id": "string",
+    "wordId": "string",
+    "context": "string",
+    "grammarPointId": "string",
+    "expressionId": "string",
+    "term": "string",
+    "translation": "string",
+    "pronunciation": "string",
+    "audioAsset": "string",
+    "imageAsset": "string",
+    "example": "string",
+    "prompt": "string",
+    "options": "string_list",
+    "correctIndex": "int",
+    "correctIndices": "int_list",
+    "minSelections": "int",
+    "maxSelections": "int",
+    "sentence": "string",
+    "hint": "string",
+    "choices": "string_list",
+    "audioAssets": "string_list",
+    "imageAssets": "string_list",
+    "source": "string",
+    "expected": "string",
+    "acceptedAnswers": "string_list",
+    "hints": "string_list",
+    "transcript": "string",
+    "scrambled": "string_list",
+    "correct": "string_list",
+    "statement": "string",
+    "expectedAnswer": "string",
+    "front": "string",
+    "back": "string",
+    "frontHtml": "string",
+    "backHtml": "string",
+    "css": "string",
+    "mediaBasePath": "string",
+    "allowJs": "bool",
+    "sourceNoteId": "string",
+    "sourceCardId": "string",
+    "answerText": "string",
+    "targetText": "string",
+}
+
+
+def _interaction_value_matches(value: Any, kind: str) -> bool:
+    if kind == "string":
+        return isinstance(value, str)
+    if kind == "int":
+        return type(value) is int
+    if kind == "bool":
+        return type(value) is bool
+    if kind == "string_list":
+        return isinstance(value, list) and all(isinstance(entry, str) for entry in value)
+    if kind == "int_list":
+        return isinstance(value, list) and all(type(entry) is int for entry in value)
+    return False
+
+
+def _validate_interaction(
+    lesson_id: str,
+    stage_id: str,
+    item: Any,
+    problems: list[Problem],
+    context_prefix: str = "",
+) -> None:
+    prefix = f"{context_prefix} / " if context_prefix else ""
+    if not isinstance(item, dict):
+        problems.append(
+            Problem("error", f"{prefix}Item in stage {stage_id} (lesson {lesson_id}) must be an object")
+        )
+        return
+    runtime_type = item.get("runtimeType")
+    item_id = item.get("id") or "<missing id>"
+    location = f"{prefix}{runtime_type or 'Interaction'} {item_id} in stage {stage_id} (lesson {lesson_id})"
+    if runtime_type not in _INTERACTION_REQUIRED_FIELDS:
+        problems.append(Problem("error", f"{location} has Unknown runtimeType {runtime_type!r}"))
+        return
+
+    required = _INTERACTION_REQUIRED_FIELDS[runtime_type]
+    required_names = {name for name, _kind, _non_empty in required}
+    for name, kind, non_empty in required:
+        if name not in item:
+            problems.append(Problem("error", f"{location} is missing required field {name}"))
+            continue
+        value = item[name]
+        if not _interaction_value_matches(value, kind):
+            problems.append(Problem("error", f"{location} field {name} must be {kind}"))
+        elif non_empty and (
+            (isinstance(value, str) and not value.strip())
+            or (isinstance(value, list) and not value)
+        ):
+            problems.append(Problem("error", f"{location} field {name} must not be empty"))
+
+    for name, value in item.items():
+        if name in required_names or name == "runtimeType":
+            continue
+        kind = _INTERACTION_FIELD_KINDS.get(name)
+        if kind is not None and not _interaction_value_matches(value, kind):
+            problems.append(Problem("error", f"{location} field {name} must be {kind}"))
+
+    if "correctAnswer" in item and "correctIndex" in required_names:
+        problems.append(
+            Problem("error", f"{location} uses unsupported correctAnswer; use correctIndex")
+        )
+
+    if runtime_type in {"multipleChoice", "listenAndPick", "readingMcq"}:
+        options = item.get("options")
+        correct_index = item.get("correctIndex")
+        if isinstance(options, list) and all(isinstance(option, str) for option in options):
+            if len(options) < 2:
+                problems.append(Problem("error", f"{location} needs at least two options"))
+            if len({option.strip().casefold() for option in options}) != len(options):
+                problems.append(Problem("error", f"{location} has duplicate options"))
+            if type(correct_index) is int and not 0 <= correct_index < len(options):
+                problems.append(Problem("error", f"{location} correctIndex is out of range"))
+
+    if runtime_type == "multiSelect":
+        options = item.get("options")
+        indices = item.get("correctIndices")
+        if isinstance(options, list) and all(isinstance(option, str) for option in options):
+            if len(options) < 2:
+                problems.append(Problem("error", f"{location} needs at least two options"))
+            if len({option.strip().casefold() for option in options}) != len(options):
+                problems.append(Problem("error", f"{location} has duplicate options"))
+            if isinstance(indices, list) and all(type(index) is int for index in indices):
+                if len(set(indices)) != len(indices):
+                    problems.append(Problem("error", f"{location} correctIndices must be unique"))
+                if any(index < 0 or index >= len(options) for index in indices):
+                    problems.append(Problem("error", f"{location} correctIndices are out of range"))
+                minimum = item.get("minSelections", 1)
+                maximum = item.get("maxSelections")
+                if type(minimum) is int and minimum < 1:
+                    problems.append(Problem("error", f"{location} minSelections must be at least 1"))
+                if type(minimum) is int and type(maximum) is int and minimum > maximum:
+                    problems.append(Problem("error", f"{location} minSelections exceeds maxSelections"))
+                if type(minimum) is int and len(indices) < minimum:
+                    problems.append(Problem("error", f"{location} has fewer correct answers than minSelections"))
+                if type(maximum) is int and len(indices) > maximum:
+                    problems.append(Problem("error", f"{location} has more correct answers than maxSelections"))
+
+    if runtime_type == "reorderSentence":
+        scrambled = item.get("scrambled")
+        correct = item.get("correct")
+        if (
+            isinstance(scrambled, list)
+            and isinstance(correct, list)
+            and all(isinstance(token, str) for token in [*scrambled, *correct])
+            and any(correct.count(token) > scrambled.count(token) for token in correct)
+        ):
+            problems.append(
+                Problem(
+                    "error",
+                    f"{location} correct tokens must be present in scrambled; extra decoys are allowed",
+                )
+            )
+        accepted = item.get("acceptedAnswers") or []
+        if (
+            isinstance(correct, list)
+            and all(isinstance(token, str) for token in correct)
+            and isinstance(accepted, list)
+            and all(isinstance(answer, str) for answer in accepted)
+        ):
+            for answer in accepted:
+                if sorted(answer.split()) != sorted(correct):
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"{location} acceptedAnswer must use the same word tokens as correct",
+                        )
+                    )
+
+
 def _validate_stages(
     lesson_id: str,
     stages: list[Any],
@@ -830,6 +1118,11 @@ def _validate_stages(
 
         item_ids: set[str] = set()
         for i, item in enumerate(items):
+            _validate_interaction(
+                lesson_id, sid, item, problems, context_prefix=context_prefix
+            )
+            if not isinstance(item, dict):
+                continue
             item_id = item.get("id", "")
             if not item_id:
                 problems.append(
@@ -869,19 +1162,6 @@ def _validate_stages(
                             f"{prefix}ShowWord {item_id} in stage {sid} "
                             f"(lesson {lesson_id}) references missing "
                             f"expressionId {expr_id}",
-                        )
-                    )
-            elif item.get("runtimeType") == "readAloud":
-                # Mirror of the Dart validator: readAloud is driven entirely
-                # by targetText (model audio is TTS), so an empty one leaves
-                # nothing to read or match against.
-                target_text = (item.get("targetText") or "").strip()
-                if not target_text:
-                    problems.append(
-                        Problem(
-                            "error",
-                            f"{prefix}ReadAloud {item_id} in stage {sid} "
-                            f"(lesson {lesson_id}) has empty targetText",
                         )
                     )
 
@@ -973,6 +1253,9 @@ def _validate_listening_phases(
 
         item_ids: set[str] = set()
         for i, item in enumerate(items):
+            _validate_interaction(lesson_id, pid, item, problems)
+            if not isinstance(item, dict):
+                continue
             item_id = item.get("id", "")
             if not item_id:
                 problems.append(
@@ -1012,16 +1295,6 @@ def _validate_listening_phases(
                             f"ShowWord {item_id} in listeningPhase {pid} "
                             f"(lesson {lesson_id}) references missing "
                             f"expressionId {expr_id}",
-                        )
-                    )
-            elif item.get("runtimeType") == "readAloud":
-                target_text = (item.get("targetText") or "").strip()
-                if not target_text:
-                    problems.append(
-                        Problem(
-                            "error",
-                            f"ReadAloud {item_id} in listeningPhase {pid} "
-                            f"(lesson {lesson_id}) has empty targetText",
                         )
                     )
 
@@ -1214,6 +1487,15 @@ def _build_entry(
     }
 
 
+def _vocab_id_prefix(existing_by_id: dict[str, dict[str, Any]]) -> str:
+    prefixes = {
+        entry_id[: entry_id.index("w-") + 2]
+        for entry_id in existing_by_id
+        if "w-" in entry_id
+    }
+    return prefixes.pop() if len(prefixes) == 1 else ""
+
+
 def merge_csv_rows(
     row_type: str,
     existing_entries: list[dict[str, Any]],
@@ -1293,9 +1575,13 @@ def _validate_import_row(
                 Problem("error", f"Row {eid or '?'} has empty translation")
             )
 
-    if row_type == "vocab" and eid and not eid.startswith("w-"):
+    expected_prefix = _vocab_id_prefix(existing_by_id) if row_type == "vocab" else ""
+    if row_type == "vocab" and eid and expected_prefix and not eid.startswith(expected_prefix):
         problems.append(
-            Problem("warning", f"Vocab id {eid} does not start with 'w-'")
+            Problem(
+                "warning",
+                f"Vocab id {eid} does not match this course's prefix '{expected_prefix}'",
+            )
         )
 
     if row_type == "grammar_points":
@@ -1523,6 +1809,16 @@ def cmd_lint(args: argparse.Namespace) -> int:
                 lid = lesson.get("id", "")
                 loc = f"{section_id}/{unit.get('id', '')}/{lid}"
                 content = lesson.get("content", {})
+                for finding in evaluate_lesson_pedagogy(
+                    lesson, level=str(section.get("level") or "A1")
+                ):
+                    problems.append(
+                        Problem(
+                            finding.severity,
+                            f"{finding.message} [{loc}]",
+                            path=f"{loc}/{finding.code}",
+                        )
+                    )
                 for wid in collect_word_ids(content):
                     if wid and wid not in vocab_ids:
                         problems.append(
@@ -1622,12 +1918,11 @@ def cmd_lint(args: argparse.Namespace) -> int:
 def _audio_asset_path(asset: str, kind: str, course_dir: Path | None = None) -> Path:
     """Return the filesystem path for an authored audio ref.
 
-    ``media/…`` is resolved under ``course_dir``. ``assets/…`` is resolved
-    from the process working directory (the repo root when tests and the
-    editor run there). Bare listening ids stay ``assets/sounds/listening/<id>.mp3``.
-    ``kind`` is retained for call-site compatibility.
+    ``media/…`` is resolved under ``course_dir``. ``assets/…`` works from
+    either a repository checkout or an exported author workspace, independent
+    of the process working directory. Bare listening ids stay bundled sounds.
     """
-    del kind  # listening is the only bundled kind; signature stays stable
+    del kind
     normalized = asset.replace("\\", "/").strip()
     if normalized.startswith("media/"):
         relative = normalized[len("media/"):]
@@ -1636,6 +1931,14 @@ def _audio_asset_path(asset: str, kind: str, course_dir: Path | None = None) -> 
             return base / "__unsafe_media_ref__"
         return base / "media" / relative
     if normalized.startswith("assets/"):
+        if course_dir is not None:
+            workspace = course_dir.parent
+            if (workspace / "workspace.json").is_file():
+                return workspace / normalized
+            for parent in (course_dir, *course_dir.parents):
+                candidate = parent / normalized
+                if candidate.is_file():
+                    return candidate
         return Path(normalized)
     return (SOUNDS_DIR / "listening" / f"{asset}.mp3").resolve()
 
@@ -1704,39 +2007,60 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 
 
-def _id_set(course_dir: Path, loader: Any, key: str) -> set[str]:
+def _content_map(course_dir: Path, key: str) -> dict[str, str]:
     data = load_json(course_dir / f"{key}.json")
-    if key == "vocab":
-        entries = data.get("words", [])
-    elif key == "expressions":
-        entries = data.get("expressions", []) or []
-    elif key == "grammar_points":
-        entries = data.get("grammarPoints", [])
-    else:
-        entries = []
-    return {e.get("id", "") for e in entries if e.get("id")}
+    entries = {
+        "vocab": data.get("words", []),
+        "expressions": data.get("expressions", []) or [],
+        "grammar_points": data.get("grammarPoints", []),
+    }.get(key, [])
+    return {
+        str(entry["id"]): json.dumps(
+            entry, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("id")
+    }
 
 
-def _section_ids(course_dir: Path) -> set[str]:
+def _section_content_map(course_dir: Path) -> dict[str, str]:
     index = load_index(course_dir)
-    return {s.get("id", "") for s in index.get("sections", []) if s.get("id")}
+    result = {}
+    for entry in index.get("sections", []):
+        if not entry.get("id"):
+            continue
+        section = load_json(course_dir / entry["file"])
+        result[str(entry["id"])] = json.dumps(
+            {"index": entry, "section": section},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    return result
 
 
-def _diff_sets(
-    before: set[str],
-    after: set[str],
+def _diff_maps(
+    before: dict[str, str],
+    after: dict[str, str],
     label: str,
 ) -> list[str]:
-    added = after - before
-    removed = before - after
-    changed = before & after
+    added = after.keys() - before.keys()
+    removed = before.keys() - after.keys()
+    changed = {
+        entry_id
+        for entry_id in before.keys() & after.keys()
+        if before[entry_id] != after[entry_id]
+    }
+    unchanged = before.keys() & after.keys() - changed
     lines: list[str] = []
     if added:
         lines.append(f"  added ({label}): {', '.join(sorted(added))}")
     if removed:
         lines.append(f"  removed ({label}): {', '.join(sorted(removed))}")
     if changed:
-        lines.append(f"  unchanged ({label}): {len(changed)} id(s)")
+        lines.append(f"  changed content ({label}): {', '.join(sorted(changed))}")
+    if unchanged:
+        lines.append(f"  unchanged content ({label}): {len(unchanged)} id(s)")
     return lines
 
 
@@ -1750,17 +2074,17 @@ def cmd_diff(args: argparse.Namespace) -> int:
         ("expressions", "expressions"),
         ("grammar_points", "grammar_points"),
     ]:
-        before_ids = _id_set(before_dir, load_json, key)
-        after_ids = _id_set(after_dir, load_json, key)
-        lines = _diff_sets(before_ids, after_ids, label)
+        lines = _diff_maps(
+            _content_map(before_dir, key), _content_map(after_dir, key), label
+        )
         if lines:
             print(f"\n{label}:")
             for line in lines:
                 print(line)
 
-    before_sections = _section_ids(before_dir)
-    after_sections = _section_ids(after_dir)
-    lines = _diff_sets(before_sections, after_sections, "sections")
+    lines = _diff_maps(
+        _section_content_map(before_dir), _section_content_map(after_dir), "sections"
+    )
     if lines:
         print("\nsections:")
         for line in lines:

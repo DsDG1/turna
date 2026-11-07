@@ -24,7 +24,7 @@ repository root.
 
 ### `index.json`
 
-- `version` (int): bump on any semantic course change that should reseed.
+- `version` (int): 对外内容发布号，由 `tool/publish_course.py` 按已部署 feed 的下一版分配；GUI 定稿不推进它。
 - `sections[]`: `{ id, name, description, level?, prerequisiteSectionIds, file }`
 - `file` is relative to the course dir (e.g. `sections/section1.json`).
 
@@ -96,11 +96,13 @@ Also: `flutter test` runs Dart validators so Python/Dart rules stay aligned.
 
 ## Export checklist (GUI or human)
 
-1. Edit only the touched `sections/*.json` (and vocab/expressions/grammar if needed).
-2. Run `validate` + `lint`.
-3. **Bump** `index.json` `version` (and `expressions.json` version if that file changed).
-4. Optional: `python tool/export_content_inventory.py` for scale report.
-5. Commit; app users reseed via the content-update prompt when the composite version changes.
+1. 修改相关课程 JSON 与资源元数据，不改已发布 ID。
+2. 运行 `validate` 与 `lint --strict`；待生成媒体必须先真实交付，不能用占位文件消除警告。
+3. 用 `python tool/export_content_inventory.py` 更新内容与质量清单。
+4. GUI 执行「定稿」：保存、校验、导出报告，不推进对外版本。
+5. 需要交付作者时，用 `python tool/export_author_workspace.py --course-dir <course> --output <workspace>` 导出课程及引用媒体。
+6. 生成应用更新包时，由 `python tool/publish_course.py --previous-feed <deployed-feed> --bump --strict` 分配下一 index 版本。媒体随 app 发布，ZIP 仍只含 JSON。
+7. 上线时先上传 ZIP，最后更新远端稳定 feed；本地产物不等于远端已发布。
 
 ## Forbidden
 

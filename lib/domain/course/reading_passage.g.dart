@@ -22,6 +22,12 @@ _ReadingPassage _$ReadingPassageFromJson(Map<String, dynamic> json) =>
               ?.map((e) => e as String)
               .toList() ??
           const <String>[],
+      wordFormMap: (json['wordFormMap'] as Map<String, dynamic>?)?.map(
+            (k, e) => MapEntry(k, e as String),
+          ) ??
+          const <String, String>{},
+      imageAsset: json['imageAsset'] as String?,
+      imageAlt: json['imageAlt'] as String? ?? '',
     );
 
 Map<String, dynamic> _$ReadingPassageToJson(_ReadingPassage instance) =>
@@ -31,4 +37,7 @@ Map<String, dynamic> _$ReadingPassageToJson(_ReadingPassage instance) =>
       'difficulty': instance.difficulty,
       'linkedWordIds': instance.linkedWordIds,
       'linkedExpressionIds': instance.linkedExpressionIds,
+      'wordFormMap': instance.wordFormMap,
+      'imageAsset': instance.imageAsset,
+      'imageAlt': instance.imageAlt,
     };

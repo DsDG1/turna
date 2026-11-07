@@ -18,6 +18,9 @@ abstract class WordEntry with _$WordEntry {
     /// Closed POS tag (`noun`, `verb`, …), or null when the course omits it.
     String? pos,
     @Default(<String>[]) List<String> tags,
+    String? level,
+    String? introducedInLessonId,
+    @Default('production') String learningGoal,
   }) = _WordEntry;
 
   factory WordEntry.fromJson(Map<String, dynamic> json) =>

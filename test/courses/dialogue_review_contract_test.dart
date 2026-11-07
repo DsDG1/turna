@@ -113,6 +113,64 @@ void main() {
     });
   });
 
+  group('first complete unit candidate', () {
+    test('real content has the intended recipe and metadata', () {
+      final section = parseSection(
+        File('assets/courses/nouveau-turkish/sections/section1.json')
+            .readAsStringSync(),
+      );
+      final lessons = section.units.single.lessons;
+      final playableNodes = lessons.fold<int>(
+        0,
+        (total, lesson) =>
+            total +
+            (lesson.content.subLessons.isEmpty
+                ? 1
+                : lesson.content.subLessons.length),
+      );
+      expect(lessons, hasLength(24));
+      expect(playableNodes, 27);
+
+      final l2 = lessons.firstWhere((lesson) => lesson.id == 'nt-u1-l3-order');
+      expect(
+        l2.content.subLessons.map(
+          (sub) =>
+              sub.stages.fold<int>(0, (n, stage) => n + stage.items.length),
+        ),
+        [12, 12],
+      );
+      final review = lessons.firstWhere(
+        (lesson) => lesson.id == 'nt-u1-review-random',
+      );
+      expect(review.content.reviewPolicy?.minItems, 15);
+      expect(review.content.reviewPolicy?.maxItems, 16);
+      expect(review.content.stages.single.items, hasLength(18));
+
+      final reading = lessons.firstWhere(
+        (lesson) => lesson.id == 'nt-u1-read-1',
+      );
+      expect(
+        reading.content.readingPassage?.wordFormMap['evde'],
+        'nt-w-ev',
+      );
+      expect(reading.content.readingPassage?.imageAlt, isNotEmpty);
+
+      final vocab = parseVocabulary(
+        File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync(),
+      );
+      expect(vocab, hasLength(17));
+      expect(vocab.every((word) => word.level == 'A1'), isTrue);
+      expect(
+        vocab.every((word) => word.introducedInLessonId?.isNotEmpty == true),
+        isTrue,
+      );
+      expect(
+        vocab.firstWhere((word) => word.id == 'nt-w-cay').learningGoal,
+        'production',
+      );
+    });
+  });
+
   group('reviewPolicy validation', () {
     test('accepts a bounded gradable pool', () {
       expect(

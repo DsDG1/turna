@@ -163,9 +163,9 @@ ACTIONS: dict[str, ActionSpec] = {
     "goal.run": ActionSpec(
         "goal.run", "Goal 沙箱预演并合并", needs_confirm=True
     ),
-    # K-04：发布 Brief / 打开发布对话框（结构红仍由发布路径阻断）。
+    # K-04：定稿 Brief / 打开定稿对话框（结构红仍由定稿路径阻断）。
     "publish.brief": ActionSpec(
-        "publish.brief", "发布 Brief / 打开发布", needs_confirm=False
+        "publish.brief", "定稿 Brief / 打开定稿", needs_confirm=False
     ),
     # K-24：只读 git skill。读当前工作树 diff → request_chat 生成提交信息 / 解释。
     # 不写课程树、不删 id、无 sandbox；结果进只读预览 + 剪贴板。无 dangerous。

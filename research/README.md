@@ -9,7 +9,7 @@
 | 文件 | 是什么 | 状态 |
 |---|---|---|
 | `duolingo-path-proficiency-drr-24-04.pdf` | Duolingo 研究报告 DRR-24-04《Duolingo Path Meets Expectations for Proficiency Outcomes》（Jiang, Hopman, Reuveni & Kittredge, 2024-04-26，17 页）。2022 年线性 path 改版后，学完 A2 内容的学习者四项能力（读/听/写/说）标准化测评 + 学习行为与成绩的相关性分析。**课程结构设计的主要参照。** | 已读，要点见下 |
-| `turkce-ogretimi-programi-2baski.pdf` | 土耳其 Maarif 基金会《Türkçenin Yabancı Dil Olarak Öğretimi Programı（作为外语的土耳其语教学大纲）》第 2 版，405 页。土方官方对外土耳其语课程框架（含成人课程框架）。 | 暂缓，等课程扩容到需要官方大纲对表时再读 |
+| `turkce-ogretimi-programi-2baski.pdf` | 土耳其 Maarif 基金会《Türkçenin Yabancı Dil Olarak Öğretimi Programı（作为外语的土耳其语教学大纲）》第 2 版，405 页。土方官方对外土耳其语课程框架（含成人课程框架）。 | 已对表成人级别、主题和单元设计（PDF 第 394–400 页）；映射见 [`../docs/authoring/nouveau-turkish-course-map.md`](../docs/authoring/nouveau-turkish-course-map.md)。未宣称逐页审校全书 |
 
 ## 重新下载
 

@@ -122,7 +122,9 @@ class LessonViewModel extends ChangeNotifier {
     this._grammarReviewProvider,
     this._completionCoordinator, {
     LessonProgressProvider? progressProvider,
-    Random? reviewRandom,
+    // 不经 GetIt 解析（Random 未注册，见 ai_engine.dart 的同款处理）；
+    // 生产路径走 `?? Random()` 兜底，测试仍可注入固定种子。
+    @ignoreParam Random? reviewRandom,
   })  : _progressProvider = progressProvider,
         _reviewRandom = reviewRandom ?? Random(),
         _srsUndoStack = LessonSrsUndoLog(

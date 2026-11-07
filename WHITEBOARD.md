@@ -17,10 +17,9 @@
 
 ## 现在（保持一行）
 
-NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题型口径」重做；
-情景对话模板与首课《咖啡馆的第一句》已落地，复习课 `reviewPolicy` 随机题池已可用
-（尚未新增正式复习课），课程 validate + lint 绿。
-下一步：装到设备上试学问候与对话课，反馈进收件箱；然后施工 L2。
+NouveauTurkish **首单元候选已施工**：24 课、27 个可玩节点、17 个词和 4 个固定表达，
+L2、正式随机复习、听力/阅读/开口结构与 SVG 已落地；validate 通过。
+下一步：真实音频、语言审校和移动真机试学；反馈进收件箱后再定稿。
 
 ## 已定（定稿区——改之前先想想当初为什么这么定）
 
@@ -32,7 +31,7 @@ NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题�
    不是语法大纲优先。
 3. **语法散着教**：不集中讲规则，以「多次训练 / 模式识别」的形式反复出现，
    第一次见面只留印象。一个单元可以有一个专属语法点，也可以没有。
-4. **单词不重复、不超纲**。（配套的词表级别标注 + lint 检查还没做，见「欠账」。）
+4. **单词不重复、不超纲**。词条已有 level、首次教学课和识别/产出目标，CLI 与质量报表检查引用和复现。
 5. **故事初期可以幼稚，但必须有插图。**
 6. **练得准 > 练得多**：Duolingo 的研究说，答题正确率和学习效果正相关，
    总耗时反而负相关——把题的质量和通过门槛做高，不追求刷量。
@@ -63,29 +62,19 @@ NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题�
 | 听力 | 4 | 听不同的声音、语速和说法 |
 | 情景对话 | 3 | 点单、询问、回应这类真实场景（`dialogue` 模板已落地，section1 已有首课；见 ADR 0070） |
 | 小故事 | 3 | 用学过的词读懂新情节 |
-| 主动开口 | 2 | 看图说话、跟着语音回应（课型还没有，要新建；核心识别能力已落地为 `readAloud` 题型——平台识别 + 词面匹配，[ADR 0061](./docs/decisions/0061-read-aloud-word-matching.md)，section1 已有示例题，正式的主动开口课开建时直接用） |
+| 主动开口 | 2 | 看图说话、跟着语音回应（首单元已有 2 个候选课，使用 `readAloud` 平台识别 + 词面匹配，[ADR 0061](./docs/decisions/0061-read-aloud-word-matching.md)；真机识别仍待验） |
 | 单元测试 | 1 | 不给提示，完成一个真实的小任务 |
 
 ### 新旧内容怎么相处（NouveauTurkish 方案）
 
-主线课程是**全新的一集**：`assets/courses/nouveau-turkish/`，和样板房
-`turkish/` 并存。教学界面语言用**中文**（样板房是英文文案，那是给旧用户看的）。
+主线课程是 `assets/courses/nouveau-turkish/`，教学界面语言用**中文**。
 
-- 新课程骨架：8 个 section、`nt-` 前缀 id；section1 有内容，
-  section2–8 是空壳（`units: []`，validator 认可），将来每个 section 的
-  unit 数量保持一致。
-- **旧 `turkish/` 一概不动**：它已不是 app 注册的课程，但是唯一完整的 8 章参照
-  课程，引擎与多处测试仍拿它当活数据（`turkish_enrichment_structure_test`、
-  `bundled_media_paths_test`、课程 CLI 的样例 fixture）。
-- **已切进 app（2026-10-30）**：manifest（`assets/courses/manifest.json`）的
-  `tr` 语言 `dir` 已指向 `nouveau-turkish`，pubspec 已注册它的资产目录，
-  app 打开就是 NouveauTurkish。旧 `turkish/` 资产仍打包（部分测试经
-  rootBundle 读它的真实文件），何时退包等主线内容成形再说。
-- 切换时连带修的：7 个写死旧课程 id 的测试已换成 `nt-` 锚点
-  （loader / round-trip / coexistence / provider / ai_write），全绿；
-  `tool/export_content_inventory.py` 改为跟随 manifest 取目录，清单已重新生成。
-  注意 `CourseLoader.baseDir` 走 LanguageRegistry，manifest 没加载完时
-  回落到旧目录——读文件前先 seed。
+- 课程骨架：8 个 section、`nt-` 前缀 id；section1 有首单元候选内容，
+  section2–8 只有真实主题与等级规划，`units: []` 仍表示尚未施工。
+- 旧 `turkish/` 已迁为 `test/fixtures/turkish_course/`，不再随 app 打包；
+  需要它的测试直接读取 fixture。
+- manifest 的 `tr` 指向 `nouveau-turkish`，pubspec 注册其资产目录。
+  `CourseLoader.baseDir` 走 LanguageRegistry；读取真实资产前先完成 seed。
 - 施工与校验完全独立：`python tool/course_cli.py --course-dir
   assets/courses/nouveau-turkish validate`（注意 `--course-dir` 在子命令前面）
   和 `lint`。
@@ -121,9 +110,9 @@ NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题�
 - 好处：普通课最能扛设备 TTS 的音质瑕疵；音质敏感的长对话火力集中在一条管线，
   将来换厂商或上真人录音只动一处。
 
-### 前两课设计（L1 已按题型口径施工，L2 待施工）
+### 前两课设计（L1、L2 均有候选内容，待真实试学）
 
-**L1《Merhaba!》**（2 个子课，已施工，sl1 13 题 / sl2 14 题）
+**L1《Merhaba!》**（2 个子课，已施工，sl1 13 题 / sl2 13 题）
 
 - 子课 1「欢迎来到土耳其语的世界」（13 题）：
   欢迎卡（8000 多万人说这门语言）→「你已经会的土耳其语」（döner、yoğurt
@@ -131,13 +120,13 @@ NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题�
   「我要一杯咖啡」，按中文语序给的词表正好拼错、倒过来才对；②词像火车：
   ev 词卡 + **选择填空** ev→evim→_____；③字母 ş 念 sh：读音辨认选择题）→
   见面礼 Merhaba（词卡→词认义→**对话补全选择填空**→第一次打字拼写）。
-- 子课 2「Merhaba & Teşekkürler」（14 题）：
+- 子课 2「Merhaba & Teşekkürler」（13 题）：
   Merhaba：词卡→**对话补全**（— Merhaba! — _____）→打字拼写→跟读；
   Teşekkürler：词卡→词认义→**选择填空产出**（「谢谢」= _____）→
   **拼句** Teşekkür ederim（正式版只认不说）→打字拼写；
   收尾：**两句先后拼句**（Merhaba! → Teşekkürler!）+ 拼写辨认×2 + 跟读。
 
-**L2《Bir çay lütfen》**（2 个子课）
+**L2《Bir çay lütfen》**（候选已施工，2 个子课各 12 题；下方保留设计意图）
 
 - 子课 1「三个饮品」（约 12 题）：çay（茶，国饮，郁金香杯）、kahve（咖啡，
   Türk kahvesi）、su（水）——每词走「展示→听选→看图选」三连（看图靠插图），
@@ -156,13 +145,12 @@ NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题�
   放到本单元第一节听力课「咖啡馆的声音」（排在 L3–L5 之间）：先铺已学词的
   听辨，再放 Ayşe 和顾客的完整咖啡馆对话（MiniMax，两个声音）——
   学习者「居然全听得懂」的成就感课，角色互动从这里首秀。
-- affedersiniz（劳驾）已在词表里，但押后到情景对话课再教。
+- affedersiniz（劳驾）仍不在词表里，押后；需要时先新增稳定资源 ID 再教。
 - 贯穿角色：店主 **Ayşe**。
-- 词表：merhaba / teşekkürler / çay / kahve / su / lütfen / bir 这些词表里
-  **都已经有了**，直接复用现成 id；真正要新增的目前只有 buyurun（「您请」，
-  听力课听懂即可）和后面听力课的 ne istersiniz（「您要什么」）。
+- L2 的 çay / kahve / su / lütfen / bir 已补齐 `nt-w-*` 资源；
+  buyurun / ne istersiniz 等固定表达在 `expressions.json`，只要求识别。
   döner / yoğurt 只做破冰展示，**不进词表**。
-- 插图第一单：郁金香茶杯、土耳其咖啡杯、水杯、咖啡馆场景、Ayşe 形象。
+- 茶杯、咖啡杯、水杯、咖啡馆和三篇故事插图已交付 SVG；本地渲染已核对。
 
 ## 收件箱（新反馈加在最上面，消化一条删一条）
 
@@ -174,19 +162,14 @@ NouveauTurkish **已切进 app**：第 1 课《Merhaba!》两小节已按「题�
 
 ## 下一步（按施工顺序）
 
-1. **施工 L2《Bir çay lütfen》**（设计见上），之后按「学一小节 → 反馈 → 改 →
-   下一小节」的节奏推进。
-2. **插图 SVG 第一单**：郁金香茶杯、土耳其咖啡杯、水杯、咖啡馆场景。
-3. **听力课「咖啡馆的声音」对话脚本**（MiniMax 订单）。
-4. **搭第一个完整 26 节单元**：情景对话与随机复习引擎已备好；继续逼出
-   「主动开口」课型，并编写第一节真实复习课。
-5. **通用拖拽分类题型**（元音和谐首例）。
+1. **移动真机试学 L1 + L2 + 首单元候选**：课程树、子课进度、对话、TTS、点读、跟读与降级；反馈先记下来再修。
+2. **生成并人工试听 12 条听力音频**：需要 MiniMax 凭据；未交付前对应内容不定稿。
+3. **土耳其语/中文审校与教师可用性实测**：使用真实作者工作区，不由开发者代填教师结果。
+4. **根据反馈修订首单元**：当前 27 个可玩节点是配方候选，不为凑数扩章；通过后再施工下一章。
+5. **通用拖拽分类题型**（元音和谐首例，仍未施工）。
 
-欠账（已想到、还没设计的）：
+欠账（已想到、还没完成验收的）：
 
-- 词表加级别标注 + lint 超纲/重复检查（原则 4 的配套）。
-- 阅读课点词释义的词形还原方案（土耳其语黏后缀，句子里认不出原形）。
-- 听力课「角色互动感」的具体界面形态。
+- 真实设备上的听力角色感、识别质量和完成流程。
 - 复习课穿插游戏题的具体做法。
-- SVG 插图的资产目录、命名约定、是否要注册 pubspec（音频有
-  `assets/sounds/turkish/` 的约定，插图还没有对应物）。
+- 学习指标需要用户同意导出的真实记录；当前没有数据，不报告学习效果。

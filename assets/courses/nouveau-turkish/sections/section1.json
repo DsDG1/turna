@@ -1,7 +1,7 @@
 {
   "id": "nt-s1",
-  "name": "起步 · Merhaba",
-  "description": "A1 起步：问候、点单、道谢，以及和土耳其语的第一次见面。",
+  "name": "Merhaba! · İlk Adımlar",
+  "description": "A1 · İlk ünite taslağı: Selamlaşın, sipariş verin, teşekkür edin ve vedalaşın.",
   "units": [
     {
       "id": "nt-u1",
@@ -35,29 +35,49 @@
                         "runtimeType": "multipleChoice",
                         "id": "mc-turkce",
                         "prompt": "Türkçe 是什么意思？",
-                        "options": ["土耳其语", "英语", "法语"],
-                        "correctIndex": 0
+                        "options": [
+                          "法语",
+                          "土耳其语",
+                          "英语"
+                        ],
+                        "correctIndex": 1
                       },
                       {
                         "runtimeType": "multipleChoice",
                         "id": "mc-doner",
                         "prompt": "烤肉店里的 döner kebab，döner 的本义是？",
-                        "options": ["转", "肉", "火"],
+                        "options": [
+                          "转",
+                          "火",
+                          "肉"
+                        ],
                         "correctIndex": 0
                       },
                       {
                         "runtimeType": "multipleChoice",
                         "id": "mc-yogurt",
                         "prompt": "「酸奶」这个词原本来自哪种语言？",
-                        "options": ["土耳其语", "法语", "日语"],
-                        "correctIndex": 0
+                        "options": [
+                          "日语",
+                          "法语",
+                          "土耳其语"
+                        ],
+                        "correctIndex": 2
                       },
                       {
                         "runtimeType": "multiSelect",
                         "id": "ms-cognates",
                         "prompt": "下面哪些土耳其语词，你看着眼熟？（提示：有一个和中文的「茶」是亲戚，有一个听起来像「咖啡」）",
-                        "options": ["çay", "kahve", "döner", "su"],
-                        "correctIndices": [0, 1]
+                        "options": [
+                          "çay",
+                          "kahve",
+                          "döner",
+                          "su"
+                        ],
+                        "correctIndices": [
+                          0,
+                          1
+                        ]
                       }
                     ]
                   },
@@ -69,8 +89,16 @@
                         "runtimeType": "reorderSentence",
                         "id": "rs-word-order",
                         "prompt": "「我要一杯咖啡」（istiyorum=我要，bir=一，kahve=咖啡）",
-                        "scrambled": ["kahve", "istiyorum", "bir"],
-                        "correct": ["bir", "kahve", "istiyorum"]
+                        "scrambled": [
+                          "kahve",
+                          "istiyorum",
+                          "bir"
+                        ],
+                        "correct": [
+                          "bir",
+                          "kahve",
+                          "istiyorum"
+                        ]
                       },
                       {
                         "runtimeType": "showWord",
@@ -83,18 +111,22 @@
                         "id": "fb-ev-derivative",
                         "sentence": "ev（房子）→ evim（我的房子）→ _____（在我的房子里）",
                         "answer": "evimde",
-                        "choices": ["evimde", "evim", "ev"]
+                        "choices": [
+                          "evimde",
+                          "evim",
+                          "ev"
+                        ]
                       },
                       {
                         "runtimeType": "multipleChoice",
                         "id": "mc-letter-s",
                         "prompt": "土耳其语字母 ş 念什么？",
                         "options": [
-                          "sh（像英语 show 的开头）",
                           "s（像英语 see 的开头）",
+                          "sh（像英语 show 的开头）",
                           "ch（像英语 child 的开头）"
                         ],
-                        "correctIndex": 0
+                        "correctIndex": 1
                       }
                     ]
                   },
@@ -112,7 +144,11 @@
                         "runtimeType": "multipleChoice",
                         "id": "mc-merhaba",
                         "prompt": "merhaba 是什么意思？",
-                        "options": ["你好", "再见", "谢谢"],
+                        "options": [
+                          "你好",
+                          "再见",
+                          "谢谢"
+                        ],
                         "correctIndex": 0
                       },
                       {
@@ -120,14 +156,21 @@
                         "id": "fb-merhaba-first",
                         "sentence": "店员：Merhaba!\n你：_____",
                         "answer": "Merhaba!",
-                        "choices": ["Merhaba!", "Teşekkürler!", "Türkçe!"]
+                        "choices": [
+                          "Merhaba!",
+                          "Teşekkürler!",
+                          "Türkçe!"
+                        ]
                       },
                       {
                         "runtimeType": "translateSentence",
                         "id": "tr-merhaba",
                         "source": "你好",
                         "expected": "merhaba",
-                        "hints": ["全小写", "7 个字母"]
+                        "hints": [
+                          "全小写",
+                          "7 个字母"
+                        ]
                       }
                     ]
                   }
@@ -152,14 +195,21 @@
                         "id": "fb-sl2-reply",
                         "sentence": "— Merhaba!\n— _____",
                         "answer": "Merhaba!",
-                        "choices": ["Teşekkürler!", "Merhaba!", "Türkçe!"]
+                        "choices": [
+                          "Teşekkürler!",
+                          "Merhaba!",
+                          "Türkçe!"
+                        ]
                       },
                       {
                         "runtimeType": "translateSentence",
                         "id": "tr-sl2-mer",
                         "source": "你好",
                         "expected": "merhaba",
-                        "hints": ["全小写", "7 个字母"]
+                        "hints": [
+                          "全小写",
+                          "7 个字母"
+                        ]
                       },
                       {
                         "runtimeType": "readAloud",
@@ -183,29 +233,47 @@
                         "runtimeType": "multipleChoice",
                         "id": "mc-sl2-meaning",
                         "prompt": "teşekkürler 是什么意思？",
-                        "options": ["谢谢", "你好", "再见"],
-                        "correctIndex": 0
+                        "options": [
+                          "你好",
+                          "再见",
+                          "谢谢"
+                        ],
+                        "correctIndex": 2
                       },
                       {
                         "runtimeType": "fillBlank",
                         "id": "fb-sl2-produce",
                         "sentence": "「谢谢」= _____",
                         "answer": "Teşekkürler",
-                        "choices": ["Teşekkürler", "Merhaba", "Türkçe"]
+                        "choices": [
+                          "Teşekkürler",
+                          "Merhaba",
+                          "Türkçe"
+                        ]
                       },
                       {
                         "runtimeType": "reorderSentence",
                         "id": "rs-sl2-formal",
                         "prompt": "更客气的一版：「谢谢您」",
-                        "scrambled": ["ederim", "Teşekkür"],
-                        "correct": ["Teşekkür", "ederim"]
+                        "scrambled": [
+                          "ederim",
+                          "Teşekkür"
+                        ],
+                        "correct": [
+                          "Teşekkür",
+                          "ederim"
+                        ]
                       },
                       {
                         "runtimeType": "translateSentence",
                         "id": "tr-sl2-tes",
                         "source": "谢谢",
                         "expected": "teşekkürler",
-                        "hints": ["全小写", "11 个字母", "有两个字母带点：ş 和 ü"]
+                        "hints": [
+                          "全小写",
+                          "11 个字母",
+                          "ş 下面有软音符，ü 上面有双点"
+                        ]
                       }
                     ]
                   },
@@ -217,21 +285,35 @@
                         "runtimeType": "reorderSentence",
                         "id": "rs-sl2-combo",
                         "prompt": "走进咖啡馆时说的一句 → 接过咖啡时说的一句",
-                        "scrambled": ["Teşekkürler!", "Merhaba!"],
-                        "correct": ["Merhaba!", "Teşekkürler!"]
+                        "scrambled": [
+                          "Teşekkürler!",
+                          "Merhaba!"
+                        ],
+                        "correct": [
+                          "Merhaba!",
+                          "Teşekkürler!"
+                        ]
                       },
                       {
                         "runtimeType": "multipleChoice",
                         "id": "mc-sl2-spell-mer",
                         "prompt": "「你好」的正确拼写是？",
-                        "options": ["merhaba", "merhabba", "merheba"],
-                        "correctIndex": 0
+                        "options": [
+                          "merheba",
+                          "merhaba",
+                          "merhabba"
+                        ],
+                        "correctIndex": 1
                       },
                       {
                         "runtimeType": "multipleChoice",
                         "id": "mc-sl2-spell-tes",
-                        "prompt": "「谢谢」的正确拼写是？（注意 ş 和 ü 头上的点，还有双 k）",
-                        "options": ["teşekkürler", "teşekürler", "teşekkuler"],
+                        "prompt": "「谢谢」的正确拼写是？（注意 ş 下面的软音符、ü 上面的双点，还有双 k）",
+                        "options": [
+                          "teşekkürler",
+                          "teşekürler",
+                          "teşekkuler"
+                        ],
                         "correctIndex": 0
                       },
                       {
@@ -253,7 +335,9 @@
           "description": "走进 Ayşe 的咖啡馆，亲自回应问候，并在接过饮品时道谢。Buyurun 只需听懂，不要求产出。",
           "type": "dialogue",
           "template": "dialogue",
-          "prerequisiteLessonIds": ["nt-u1-l1"],
+          "prerequisiteLessonIds": [
+            "nt-u1-l1"
+          ],
           "content": {
             "dialogueScene": {
               "id": "nt-scene-cafe-welcome",
@@ -317,27 +401,2815 @@
                     "id": "nt-dialogue-reply-merhaba",
                     "sentence": "— Merhaba!\n— _____",
                     "answer": "Merhaba!",
-                    "choices": ["Merhaba!", "Teşekkürler!", "Türkçe!"]
+                    "choices": [
+                      "Merhaba!",
+                      "Teşekkürler!",
+                      "Türkçe!"
+                    ]
                   },
                   {
                     "runtimeType": "reorderSentence",
                     "id": "nt-dialogue-formal-thanks",
                     "prompt": "接过饮品，用更客气的一版说「谢谢您」",
-                    "scrambled": ["ederim", "Teşekkür"],
-                    "correct": ["Teşekkür", "ederim"]
+                    "scrambled": [
+                      "ederim",
+                      "Teşekkür"
+                    ],
+                    "correct": [
+                      "Teşekkür",
+                      "ederim"
+                    ]
                   },
                   {
                     "runtimeType": "translateSentence",
                     "id": "nt-dialogue-type-thanks",
                     "source": "谢谢",
                     "expected": "teşekkürler",
-                    "hints": ["全小写", "注意 ş、ü 和双 k"]
+                    "hints": [
+                      "全小写",
+                      "注意 ş、ü 和双 k"
+                    ]
                   },
                   {
                     "runtimeType": "readAloud",
                     "id": "nt-dialogue-read-thanks",
                     "targetText": "Teşekkürler!",
                     "prompt": "把最后这句道谢说出口"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-l3-order",
+          "name": "Bir çay lütfen",
+          "description": "认识三种饮品，并说出第一句点单。",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "nt-u1-l2-dialogue"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-l3-sl1",
+                "name": "三个饮品",
+                "stages": [
+                  {
+                    "id": "nt-u1-l3-sl1-stage",
+                    "name": "三个饮品",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l3-sw-cay",
+                        "wordId": "nt-w-cay",
+                        "context": "çay 是茶；土耳其红茶常用郁金香形小杯。",
+                        "imageAsset": "assets/images/course/nt/cay.svg"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l3-mc-cay",
+                        "prompt": "çay 是什么意思？",
+                        "options": [
+                          "咖啡",
+                          "茶",
+                          "水"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l3-fb-cay",
+                        "sentence": "「茶」= _____",
+                        "answer": "çay",
+                        "choices": [
+                          "çay",
+                          "kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l3-sw-kahve",
+                        "wordId": "nt-w-kahve",
+                        "context": "kahve 是咖啡。",
+                        "imageAsset": "assets/images/course/nt/kahve.svg"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l3-mc-kahve",
+                        "prompt": "kahve 是什么意思？",
+                        "options": [
+                          "咖啡",
+                          "茶",
+                          "水"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l3-fb-kahve",
+                        "sentence": "「咖啡」= _____",
+                        "answer": "kahve",
+                        "choices": [
+                          "su",
+                          "kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l3-sw-su",
+                        "wordId": "nt-w-su",
+                        "context": "su 是水。",
+                        "imageAsset": "assets/images/course/nt/su.svg"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l3-mc-su",
+                        "prompt": "su 是什么意思？",
+                        "options": [
+                          "茶",
+                          "咖啡",
+                          "水"
+                        ],
+                        "correctIndex": 2
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l3-fb-su",
+                        "sentence": "「水」= _____",
+                        "answer": "su",
+                        "choices": [
+                          "çay",
+                          "su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l3-tr-cay",
+                        "source": "茶",
+                        "expected": "çay"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l3-tr-kahve",
+                        "source": "咖啡",
+                        "expected": "kahve"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l3-tr-su",
+                        "source": "水",
+                        "expected": "su"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-l3-sl2",
+                "name": "第一句点单",
+                "stages": [
+                  {
+                    "id": "nt-u1-l3-sl2-stage",
+                    "name": "第一句点单",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l3-sw-lutfen",
+                        "wordId": "nt-w-lutfen",
+                        "context": "lütfen 是「请」，让请求更礼貌。"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l3-fb-lutfen",
+                        "sentence": "「请」= _____",
+                        "answer": "lütfen",
+                        "choices": [
+                          "lütfen",
+                          "bir"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l3-tr-lutfen",
+                        "source": "请",
+                        "expected": "lütfen"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l3-mc-lutfen",
+                        "prompt": "点单末尾的 lütfen 表示什么？",
+                        "options": [
+                          "谢谢",
+                          "请",
+                          "一"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l3-sw-bir",
+                        "wordId": "nt-w-bir",
+                        "context": "bir 是「一」，这里也可理解为「一杯」。"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l3-fb-bir",
+                        "sentence": "「一」= _____",
+                        "answer": "bir",
+                        "choices": [
+                          "bir",
+                          "su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l3-tr-bir",
+                        "source": "一",
+                        "expected": "bir"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l3-mc-bir",
+                        "prompt": "bir 是什么意思？",
+                        "options": [
+                          "一",
+                          "水",
+                          "请"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-l3-rs-cay",
+                        "prompt": "请给我一杯茶",
+                        "scrambled": [
+                          "çay",
+                          "lütfen",
+                          "Bir"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "çay",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-l3-rs-kahve",
+                        "prompt": "请给我一杯咖啡",
+                        "scrambled": [
+                          "kahve",
+                          "lütfen",
+                          "Bir"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "kahve",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l3-fb-water-order",
+                        "sentence": "Bir su _____",
+                        "answer": "lütfen",
+                        "choices": [
+                          "lütfen",
+                          "bir"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l3-tr-water-order",
+                        "source": "请给我一杯水",
+                        "expected": "Bir su lütfen",
+                        "acceptedAnswers": [
+                          "Su lütfen"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p2-drinks",
+          "name": "饮品练习",
+          "description": "围绕「饮品练习」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-l3-order"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p2-drinks-sl",
+                "name": "饮品练习",
+                "stages": [
+                  {
+                    "id": "nt-u1-p2-drinks-sl-stage",
+                    "name": "饮品练习",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p2-drinks-i1",
+                        "source": "茶",
+                        "expected": "çay"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p2-drinks-i2",
+                        "sentence": "「咖啡」= _____",
+                        "answer": "kahve",
+                        "choices": [
+                          "kahve",
+                          "su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p2-drinks-i3",
+                        "sentence": "「水」= _____",
+                        "answer": "su",
+                        "choices": [
+                          "su",
+                          "çay"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p2-drinks-i4",
+                        "prompt": "「茶」用土耳其语怎么说？",
+                        "options": [
+                          "çay",
+                          "kahve",
+                          "su"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p2-drinks-i5",
+                        "source": "咖啡",
+                        "expected": "kahve"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p2-drinks-i6",
+                        "sentence": "「水」= _____",
+                        "answer": "su",
+                        "choices": [
+                          "su",
+                          "çay"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p2-drinks-i7",
+                        "sentence": "「茶」= _____",
+                        "answer": "çay",
+                        "choices": [
+                          "çay",
+                          "kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p2-drinks-i8",
+                        "prompt": "「咖啡」用土耳其语怎么说？",
+                        "options": [
+                          "çay",
+                          "kahve",
+                          "su"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p2-drinks-i9",
+                        "source": "水",
+                        "expected": "su"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p2-drinks-i10",
+                        "sentence": "「茶」= _____",
+                        "answer": "çay",
+                        "choices": [
+                          "çay",
+                          "kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p2-drinks-i11",
+                        "sentence": "「咖啡」= _____",
+                        "answer": "kahve",
+                        "choices": [
+                          "kahve",
+                          "su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p2-drinks-i12",
+                        "prompt": "「水」用土耳其语怎么说？",
+                        "options": [
+                          "çay",
+                          "kahve",
+                          "su"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p3-order",
+          "name": "点单练习",
+          "description": "围绕「点单练习」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-l3-order"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p3-order-sl",
+                "name": "点单练习",
+                "stages": [
+                  {
+                    "id": "nt-u1-p3-order-sl-stage",
+                    "name": "点单练习",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p3-order-i1",
+                        "source": "请给我一杯茶",
+                        "expected": "Bir çay lütfen"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p3-order-i2",
+                        "sentence": "「请给我一杯咖啡」= _____",
+                        "answer": "Bir kahve lütfen",
+                        "choices": [
+                          "Bir kahve lütfen",
+                          "Bir su lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p3-order-i3",
+                        "prompt": "请给我一杯水",
+                        "scrambled": [
+                          "su",
+                          "lütfen",
+                          "Bir"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "su",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p3-order-i4",
+                        "prompt": "「请给我一杯茶」用土耳其语怎么说？",
+                        "options": [
+                          "Bir çay lütfen",
+                          "Bir kahve lütfen",
+                          "Bir su lütfen"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p3-order-i5",
+                        "source": "请给我一杯咖啡",
+                        "expected": "Bir kahve lütfen"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p3-order-i6",
+                        "sentence": "「请给我一杯水」= _____",
+                        "answer": "Bir su lütfen",
+                        "choices": [
+                          "Bir su lütfen",
+                          "Bir çay lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p3-order-i7",
+                        "prompt": "请给我一杯茶",
+                        "scrambled": [
+                          "çay",
+                          "lütfen",
+                          "Bir"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "çay",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p3-order-i8",
+                        "prompt": "「请给我一杯咖啡」用土耳其语怎么说？",
+                        "options": [
+                          "Bir su lütfen",
+                          "Bir kahve lütfen",
+                          "Bir çay lütfen"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p3-order-i9",
+                        "source": "请给我一杯水",
+                        "expected": "Bir su lütfen"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p3-order-i10",
+                        "sentence": "「请给我一杯茶」= _____",
+                        "answer": "Bir çay lütfen",
+                        "choices": [
+                          "Bir çay lütfen",
+                          "Bir kahve lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p3-order-i11",
+                        "prompt": "请给我一杯咖啡",
+                        "scrambled": [
+                          "kahve",
+                          "lütfen",
+                          "Bir"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "kahve",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p3-order-i12",
+                        "prompt": "「请给我一杯水」用土耳其语怎么说？",
+                        "options": [
+                          "Bir çay lütfen",
+                          "Bir kahve lütfen",
+                          "Bir su lütfen"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-l5-order-dialogue",
+          "name": "点单的一刻",
+          "description": "听懂店员提问，选择饮品并完成点单。",
+          "type": "dialogue",
+          "template": "dialogue",
+          "prerequisiteLessonIds": [
+            "nt-u1-p3-order"
+          ],
+          "content": {
+            "dialogueScene": {
+              "id": "nt-scene-order",
+              "title": "点单的一刻",
+              "characters": [
+                {
+                  "id": "ayse",
+                  "name": "Ayşe",
+                  "imageAsset": "assets/images/ayse.png"
+                },
+                {
+                  "id": "learner",
+                  "name": "你"
+                }
+              ],
+              "turns": [
+                {
+                  "id": "nt-order-t1",
+                  "speakerId": "ayse",
+                  "text": "Merhaba!"
+                },
+                {
+                  "id": "nt-order-t2",
+                  "speakerId": "learner",
+                  "interactionId": "nt-order-r1"
+                },
+                {
+                  "id": "nt-order-t3",
+                  "speakerId": "ayse",
+                  "text": "Buyurun! Ne istersiniz?"
+                },
+                {
+                  "id": "nt-order-t4",
+                  "speakerId": "learner",
+                  "interactionId": "nt-order-r2"
+                },
+                {
+                  "id": "nt-order-t5",
+                  "speakerId": "ayse",
+                  "text": "Buyurun!"
+                },
+                {
+                  "id": "nt-order-t6",
+                  "speakerId": "learner",
+                  "interactionId": "nt-order-r3"
+                },
+                {
+                  "id": "nt-order-t7",
+                  "speakerId": "learner",
+                  "interactionId": "nt-order-r4"
+                }
+              ]
+            },
+            "stages": [
+              {
+                "id": "nt-u1-l5-order-dialogue-stage",
+                "name": "完成对话",
+                "items": [
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-order-r1",
+                    "sentence": "— Merhaba!\n— _____",
+                    "answer": "Merhaba",
+                    "choices": [
+                      "Merhaba",
+                      "Hoşça kal"
+                    ]
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "nt-order-r2",
+                    "prompt": "请给我一杯茶",
+                    "scrambled": [
+                      "çay",
+                      "lütfen",
+                      "Bir"
+                    ],
+                    "correct": [
+                      "Bir",
+                      "çay",
+                      "lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-order-r3",
+                    "source": "谢谢",
+                    "expected": "Teşekkürler"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-order-r4",
+                    "targetText": "Bir çay lütfen",
+                    "prompt": "这次不看词块，直接说出点单句"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-l4-politeness",
+          "name": "再认识几句",
+          "description": "补充日常问候、告别、肯定和饮品偏好。",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "nt-u1-l3-order"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-l4-sl1",
+                "name": "问候与回应",
+                "stages": [
+                  {
+                    "id": "nt-u1-l4-sl1-stage",
+                    "name": "问候与回应",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-gunaydin",
+                        "wordId": "nt-w-gunaydin",
+                        "context": "Günaydın 是「早上好」。"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l4-mc-gunaydin",
+                        "prompt": "Günaydın 是什么意思？",
+                        "options": [
+                          "是",
+                          "早上好",
+                          "再见"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l4-tr-gunaydin",
+                        "source": "早上好",
+                        "expected": "Günaydın"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-hoscakal",
+                        "wordId": "nt-w-hoscakal",
+                        "context": "Hoşça kal 是告别时说的「再见」。"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l4-fb-hoscakal",
+                        "sentence": "「再见」= _____",
+                        "answer": "Hoşça kal",
+                        "choices": [
+                          "Hoşça kal",
+                          "Merhaba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l4-tr-hoscakal",
+                        "source": "再见",
+                        "expected": "Hoşça kal"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-evet",
+                        "wordId": "nt-w-evet",
+                        "context": "Evet 是「是 / 对」。"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l4-mc-evet",
+                        "prompt": "Evet 是什么意思？",
+                        "options": [
+                          "是",
+                          "请",
+                          "不是"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l4-fb-evet",
+                        "sentence": "肯定回答：_____",
+                        "answer": "Evet",
+                        "choices": [
+                          "Evet",
+                          "Hayır"
+                        ]
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-hayir",
+                        "wordId": "nt-w-hayir",
+                        "context": "Hayır 是「不 / 不是」。"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l4-tr-hayir",
+                        "source": "不",
+                        "expected": "Hayır"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l4-mc-hayir",
+                        "prompt": "Hayır 是什么意思？",
+                        "options": [
+                          "是",
+                          "谢谢",
+                          "不"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-l4-sl2",
+                "name": "大小与冷热",
+                "stages": [
+                  {
+                    "id": "nt-u1-l4-sl2-stage",
+                    "name": "大小与冷热",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-buyuk",
+                        "wordId": "nt-w-buyuk",
+                        "context": "büyük 是「大的」。"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l4-mc-buyuk",
+                        "prompt": "büyük 是什么意思？",
+                        "options": [
+                          "热的",
+                          "大的",
+                          "小的"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l4-fb-buyuk",
+                        "sentence": "「大的」= _____",
+                        "answer": "büyük",
+                        "choices": [
+                          "büyük",
+                          "küçük"
+                        ]
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-kucuk",
+                        "wordId": "nt-w-kucuk",
+                        "context": "küçük 是「小的」。"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l4-tr-kucuk",
+                        "source": "小的",
+                        "expected": "küçük"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l4-mc-kucuk",
+                        "prompt": "küçük 是什么意思？",
+                        "options": [
+                          "小的",
+                          "大的",
+                          "冷的"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-sicak",
+                        "wordId": "nt-w-sicak",
+                        "context": "sıcak 是「热的」。"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-l4-fb-sicak",
+                        "sentence": "「热的」= _____",
+                        "answer": "sıcak",
+                        "choices": [
+                          "sıcak",
+                          "soğuk"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l4-tr-sicak",
+                        "source": "热的",
+                        "expected": "sıcak"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "nt-l4-sw-soguk",
+                        "wordId": "nt-w-soguk",
+                        "context": "soğuk 是「冷的」。"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-l4-mc-soguk",
+                        "prompt": "soğuk 是什么意思？",
+                        "options": [
+                          "热的",
+                          "大的",
+                          "冷的"
+                        ],
+                        "correctIndex": 2
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-l4-tr-soguk",
+                        "source": "冷的",
+                        "expected": "soğuk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p1-greetings",
+          "name": "问候练习",
+          "description": "围绕「问候练习」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-l4-politeness"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p1-greetings-sl",
+                "name": "问候练习",
+                "stages": [
+                  {
+                    "id": "nt-u1-p1-greetings-sl-stage",
+                    "name": "问候练习",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p1-greetings-i1",
+                        "source": "你好",
+                        "expected": "Merhaba"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p1-greetings-i2",
+                        "sentence": "「早上好」= _____",
+                        "answer": "Günaydın",
+                        "choices": [
+                          "Günaydın",
+                          "Hoşça kal"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p1-greetings-i3",
+                        "prompt": "再见",
+                        "scrambled": [
+                          "kal",
+                          "Hoşça"
+                        ],
+                        "correct": [
+                          "Hoşça",
+                          "kal"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p1-greetings-i4",
+                        "prompt": "「你好」用土耳其语怎么说？",
+                        "options": [
+                          "Merhaba",
+                          "Günaydın",
+                          "Hoşça kal"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p1-greetings-i5",
+                        "source": "早上好",
+                        "expected": "Günaydın"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p1-greetings-i6",
+                        "sentence": "「再见」= _____",
+                        "answer": "Hoşça kal",
+                        "choices": [
+                          "Hoşça kal",
+                          "Merhaba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p1-greetings-i7",
+                        "sentence": "「你好」= _____",
+                        "answer": "Merhaba",
+                        "choices": [
+                          "Merhaba",
+                          "Günaydın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p1-greetings-i8",
+                        "prompt": "「早上好」用土耳其语怎么说？",
+                        "options": [
+                          "Merhaba",
+                          "Günaydın",
+                          "Hoşça kal"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p1-greetings-i9",
+                        "source": "再见",
+                        "expected": "Hoşça kal"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p1-greetings-i10",
+                        "sentence": "「你好」= _____",
+                        "answer": "Merhaba",
+                        "choices": [
+                          "Merhaba",
+                          "Günaydın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p1-greetings-i11",
+                        "sentence": "「早上好」= _____",
+                        "answer": "Günaydın",
+                        "choices": [
+                          "Günaydın",
+                          "Hoşça kal"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p1-greetings-i12",
+                        "prompt": "「再见」用土耳其语怎么说？",
+                        "options": [
+                          "Günaydın",
+                          "Merhaba",
+                          "Hoşça kal"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p4-thanks",
+          "name": "道谢练习",
+          "description": "围绕「道谢练习」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-l2-dialogue"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p4-thanks-sl",
+                "name": "道谢练习",
+                "stages": [
+                  {
+                    "id": "nt-u1-p4-thanks-sl-stage",
+                    "name": "道谢练习",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p4-thanks-i1",
+                        "source": "谢谢",
+                        "expected": "Teşekkürler"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p4-thanks-i2",
+                        "sentence": "「谢谢您」= _____",
+                        "answer": "Teşekkür ederim",
+                        "choices": [
+                          "Teşekkür ederim",
+                          "Rica ederim"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p4-thanks-i3",
+                        "prompt": "不客气",
+                        "scrambled": [
+                          "ederim",
+                          "Rica"
+                        ],
+                        "correct": [
+                          "Rica",
+                          "ederim"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p4-thanks-i4",
+                        "prompt": "「谢谢」用土耳其语怎么说？",
+                        "options": [
+                          "Teşekkürler",
+                          "Rica ederim",
+                          "Teşekkür ederim"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p4-thanks-i5",
+                        "source": "谢谢您",
+                        "expected": "Teşekkür ederim"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p4-thanks-i6",
+                        "sentence": "「不客气」= _____",
+                        "answer": "Rica ederim",
+                        "choices": [
+                          "Rica ederim",
+                          "Teşekkürler"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p4-thanks-i7",
+                        "sentence": "「谢谢」= _____",
+                        "answer": "Teşekkürler",
+                        "choices": [
+                          "Teşekkürler",
+                          "Teşekkür ederim"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p4-thanks-i8",
+                        "prompt": "「谢谢您」用土耳其语怎么说？",
+                        "options": [
+                          "Rica ederim",
+                          "Teşekkür ederim",
+                          "Teşekkürler"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p4-thanks-i9",
+                        "source": "不客气",
+                        "expected": "Rica ederim"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p4-thanks-i10",
+                        "sentence": "「谢谢」= _____",
+                        "answer": "Teşekkürler",
+                        "choices": [
+                          "Teşekkürler",
+                          "Teşekkür ederim"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p4-thanks-i11",
+                        "prompt": "谢谢您",
+                        "scrambled": [
+                          "ederim",
+                          "Teşekkür"
+                        ],
+                        "correct": [
+                          "Teşekkür",
+                          "ederim"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p4-thanks-i12",
+                        "prompt": "「不客气」用土耳其语怎么说？",
+                        "options": [
+                          "Teşekkürler",
+                          "Teşekkür ederim",
+                          "Rica ederim"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p5-answers",
+          "name": "肯定与否定",
+          "description": "围绕「肯定与否定」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-l4-politeness"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p5-answers-sl",
+                "name": "肯定与否定",
+                "stages": [
+                  {
+                    "id": "nt-u1-p5-answers-sl-stage",
+                    "name": "肯定与否定",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p5-answers-i1",
+                        "source": "是",
+                        "expected": "Evet"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p5-answers-i2",
+                        "sentence": "「不」= _____",
+                        "answer": "Hayır",
+                        "choices": [
+                          "Hayır",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p5-answers-i3",
+                        "sentence": "「请」= _____",
+                        "answer": "lütfen",
+                        "choices": [
+                          "lütfen",
+                          "Evet"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p5-answers-i4",
+                        "prompt": "「是」用土耳其语怎么说？",
+                        "options": [
+                          "Evet",
+                          "Hayır",
+                          "lütfen"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p5-answers-i5",
+                        "source": "不",
+                        "expected": "Hayır"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p5-answers-i6",
+                        "sentence": "「请」= _____",
+                        "answer": "lütfen",
+                        "choices": [
+                          "lütfen",
+                          "Evet"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p5-answers-i7",
+                        "sentence": "「是」= _____",
+                        "answer": "Evet",
+                        "choices": [
+                          "Evet",
+                          "Hayır"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p5-answers-i8",
+                        "prompt": "「不」用土耳其语怎么说？",
+                        "options": [
+                          "Evet",
+                          "Hayır",
+                          "lütfen"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p5-answers-i9",
+                        "source": "请",
+                        "expected": "lütfen"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p5-answers-i10",
+                        "sentence": "「是」= _____",
+                        "answer": "Evet",
+                        "choices": [
+                          "Evet",
+                          "Hayır"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p5-answers-i11",
+                        "sentence": "「不」= _____",
+                        "answer": "Hayır",
+                        "choices": [
+                          "Hayır",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p5-answers-i12",
+                        "prompt": "「请」用土耳其语怎么说？",
+                        "options": [
+                          "Hayır",
+                          "Evet",
+                          "lütfen"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p6-preferences",
+          "name": "饮品偏好",
+          "description": "围绕「饮品偏好」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-l4-politeness"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p6-preferences-sl",
+                "name": "饮品偏好",
+                "stages": [
+                  {
+                    "id": "nt-u1-p6-preferences-sl-stage",
+                    "name": "饮品偏好",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p6-preferences-i1",
+                        "source": "大杯茶",
+                        "expected": "Büyük çay"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p6-preferences-i2",
+                        "sentence": "「小杯咖啡」= _____",
+                        "answer": "Küçük kahve",
+                        "choices": [
+                          "Küçük kahve",
+                          "Sıcak su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p6-preferences-i3",
+                        "prompt": "热水",
+                        "scrambled": [
+                          "su",
+                          "Sıcak"
+                        ],
+                        "correct": [
+                          "Sıcak",
+                          "su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p6-preferences-i4",
+                        "prompt": "「大杯茶」用土耳其语怎么说？",
+                        "options": [
+                          "Büyük çay",
+                          "Küçük kahve",
+                          "Sıcak su"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p6-preferences-i5",
+                        "source": "小杯咖啡",
+                        "expected": "Küçük kahve"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p6-preferences-i6",
+                        "sentence": "「热水」= _____",
+                        "answer": "Sıcak su",
+                        "choices": [
+                          "Sıcak su",
+                          "Büyük çay"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p6-preferences-i7",
+                        "prompt": "大杯茶",
+                        "scrambled": [
+                          "çay",
+                          "Büyük"
+                        ],
+                        "correct": [
+                          "Büyük",
+                          "çay"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p6-preferences-i8",
+                        "prompt": "「小杯咖啡」用土耳其语怎么说？",
+                        "options": [
+                          "Büyük çay",
+                          "Küçük kahve",
+                          "Sıcak su"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p6-preferences-i9",
+                        "source": "热水",
+                        "expected": "Sıcak su"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p6-preferences-i10",
+                        "sentence": "「大杯茶」= _____",
+                        "answer": "Büyük çay",
+                        "choices": [
+                          "Büyük çay",
+                          "Küçük kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p6-preferences-i11",
+                        "prompt": "小杯咖啡",
+                        "scrambled": [
+                          "kahve",
+                          "Küçük"
+                        ],
+                        "correct": [
+                          "Küçük",
+                          "kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p6-preferences-i12",
+                        "prompt": "「热水」用土耳其语怎么说？",
+                        "options": [
+                          "Büyük çay",
+                          "Küçük kahve",
+                          "Sıcak su"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-l6-preference-dialogue",
+          "name": "大杯还是小杯",
+          "description": "在点单时表达大小与冷热偏好。",
+          "type": "dialogue",
+          "template": "dialogue",
+          "prerequisiteLessonIds": [
+            "nt-u1-p6-preferences"
+          ],
+          "content": {
+            "dialogueScene": {
+              "id": "nt-scene-preferences",
+              "title": "大杯还是小杯",
+              "characters": [
+                {
+                  "id": "ayse",
+                  "name": "Ayşe",
+                  "imageAsset": "assets/images/ayse.png"
+                },
+                {
+                  "id": "learner",
+                  "name": "你"
+                }
+              ],
+              "turns": [
+                {
+                  "id": "nt-pref-t1",
+                  "speakerId": "ayse",
+                  "text": "Merhaba! Ne istersiniz?"
+                },
+                {
+                  "id": "nt-pref-t2",
+                  "speakerId": "learner",
+                  "interactionId": "nt-pref-r1"
+                },
+                {
+                  "id": "nt-pref-t3",
+                  "speakerId": "ayse",
+                  "text": "Büyük mü?"
+                },
+                {
+                  "id": "nt-pref-t4",
+                  "speakerId": "learner",
+                  "interactionId": "nt-pref-r2"
+                },
+                {
+                  "id": "nt-pref-t5",
+                  "speakerId": "ayse",
+                  "text": "Buyurun!"
+                },
+                {
+                  "id": "nt-pref-t6",
+                  "speakerId": "learner",
+                  "interactionId": "nt-pref-r3"
+                },
+                {
+                  "id": "nt-pref-t7",
+                  "speakerId": "learner",
+                  "interactionId": "nt-pref-r4"
+                }
+              ]
+            },
+            "stages": [
+              {
+                "id": "nt-u1-l6-preference-dialogue-stage",
+                "name": "完成对话",
+                "items": [
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-pref-r1",
+                    "sentence": "请给我一杯咖啡：_____",
+                    "answer": "Bir kahve lütfen",
+                    "choices": [
+                      "Bir kahve lütfen",
+                      "Bir su lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-pref-r2",
+                    "sentence": "回答「大杯吗？」：_____",
+                    "answer": "Evet",
+                    "choices": [
+                      "Evet",
+                      "Hayır"
+                    ]
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-pref-r3",
+                    "source": "谢谢",
+                    "expected": "Teşekkürler"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-pref-r4",
+                    "targetText": "Büyük kahve lütfen",
+                    "prompt": "说出你的大杯咖啡请求"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-p7-task",
+          "name": "完整咖啡馆任务",
+          "description": "围绕「完整咖啡馆任务」进行句子产出和主动回忆。",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "nt-u1-p3-order"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "nt-u1-p7-task-sl",
+                "name": "完整咖啡馆任务",
+                "stages": [
+                  {
+                    "id": "nt-u1-p7-task-sl-stage",
+                    "name": "完整咖啡馆任务",
+                    "items": [
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p7-task-i1",
+                        "source": "你好",
+                        "expected": "Merhaba"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p7-task-i2",
+                        "sentence": "「请给我一杯茶」= _____",
+                        "answer": "Bir çay lütfen",
+                        "choices": [
+                          "Bir çay lütfen",
+                          "Teşekkürler"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p7-task-i3",
+                        "sentence": "「谢谢」= _____",
+                        "answer": "Teşekkürler",
+                        "choices": [
+                          "Teşekkürler",
+                          "Merhaba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p7-task-i4",
+                        "prompt": "「你好」用土耳其语怎么说？",
+                        "options": [
+                          "Merhaba",
+                          "Bir çay lütfen",
+                          "Teşekkürler"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p7-task-i5",
+                        "source": "请给我一杯茶",
+                        "expected": "Bir çay lütfen"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p7-task-i6",
+                        "sentence": "「谢谢」= _____",
+                        "answer": "Teşekkürler",
+                        "choices": [
+                          "Teşekkürler",
+                          "Merhaba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p7-task-i7",
+                        "sentence": "「你好」= _____",
+                        "answer": "Merhaba",
+                        "choices": [
+                          "Merhaba",
+                          "Bir çay lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p7-task-i8",
+                        "prompt": "「请给我一杯茶」用土耳其语怎么说？",
+                        "options": [
+                          "Merhaba",
+                          "Bir çay lütfen",
+                          "Teşekkürler"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "nt-u1-p7-task-i9",
+                        "source": "谢谢",
+                        "expected": "Teşekkürler"
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "nt-u1-p7-task-i10",
+                        "sentence": "「你好」= _____",
+                        "answer": "Merhaba",
+                        "choices": [
+                          "Merhaba",
+                          "Bir çay lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "nt-u1-p7-task-i11",
+                        "prompt": "请给我一杯茶",
+                        "scrambled": [
+                          "çay",
+                          "lütfen",
+                          "Bir"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "çay",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "nt-u1-p7-task-i12",
+                        "prompt": "「谢谢」用土耳其语怎么说？",
+                        "options": [
+                          "Bir çay lütfen",
+                          "Merhaba",
+                          "Teşekkürler"
+                        ],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-review-random",
+          "name": "随机复习：咖啡馆",
+          "description": "只复习本单元已经学过的词句，每次抽取不同组合。",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "nt-u1-p7-task"
+          ],
+          "content": {
+            "reviewPolicy": {
+              "minItems": 15,
+              "maxItems": 16,
+              "typeWeights": {
+                "translateSentence": 1.0,
+                "fillBlank": 1.0,
+                "reorderSentence": 1.0,
+                "multipleChoice": 1.0
+              }
+            },
+            "stages": [
+              {
+                "id": "nt-u1-review-stage",
+                "name": "复习题池",
+                "items": [
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-review-i1",
+                    "source": "你好",
+                    "expected": "Merhaba"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i2",
+                    "sentence": "「请给我一杯茶」= _____",
+                    "answer": "Bir çay lütfen",
+                    "choices": [
+                      "Bir çay lütfen",
+                      "Teşekkürler"
+                    ]
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i3",
+                    "sentence": "「谢谢」= _____",
+                    "answer": "Teşekkürler",
+                    "choices": [
+                      "Teşekkürler",
+                      "su"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-review-i4",
+                    "prompt": "「水」用土耳其语怎么说？",
+                    "options": [
+                      "su",
+                      "Hoşça kal",
+                      "Evet"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-review-i5",
+                    "source": "再见",
+                    "expected": "Hoşça kal"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i6",
+                    "sentence": "「是」= _____",
+                    "answer": "Evet",
+                    "choices": [
+                      "Evet",
+                      "Merhaba"
+                    ]
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i7",
+                    "sentence": "「你好」= _____",
+                    "answer": "Merhaba",
+                    "choices": [
+                      "Merhaba",
+                      "Bir çay lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-review-i8",
+                    "prompt": "「请给我一杯茶」用土耳其语怎么说？",
+                    "options": [
+                      "Teşekkürler",
+                      "Bir çay lütfen",
+                      "su"
+                    ],
+                    "correctIndex": 1
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-review-i9",
+                    "source": "谢谢",
+                    "expected": "Teşekkürler"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i10",
+                    "sentence": "「水」= _____",
+                    "answer": "su",
+                    "choices": [
+                      "su",
+                      "Hoşça kal"
+                    ]
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "nt-u1-review-i11",
+                    "prompt": "再见",
+                    "scrambled": [
+                      "kal",
+                      "Hoşça"
+                    ],
+                    "correct": [
+                      "Hoşça",
+                      "kal"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-review-i12",
+                    "prompt": "「是」用土耳其语怎么说？",
+                    "options": [
+                      "Bir çay lütfen",
+                      "Merhaba",
+                      "Evet"
+                    ],
+                    "correctIndex": 2
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-review-i13",
+                    "source": "你好",
+                    "expected": "Merhaba"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i14",
+                    "sentence": "「请给我一杯茶」= _____",
+                    "answer": "Bir çay lütfen",
+                    "choices": [
+                      "Bir çay lütfen",
+                      "Teşekkürler"
+                    ]
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i15",
+                    "sentence": "「谢谢」= _____",
+                    "answer": "Teşekkürler",
+                    "choices": [
+                      "Teşekkürler",
+                      "su"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-review-i16",
+                    "prompt": "「水」用土耳其语怎么说？",
+                    "options": [
+                      "su",
+                      "Hoşça kal",
+                      "Evet"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-review-i17",
+                    "source": "再见",
+                    "expected": "Hoşça kal"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-review-i18",
+                    "sentence": "「是」= _____",
+                    "answer": "Evet",
+                    "choices": [
+                      "Evet",
+                      "Merhaba"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-listen-1",
+          "name": "咖啡馆的声音",
+          "description": "先听关键词，再听咖啡馆对话，最后回顾。",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "nt-u1-review-random"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "nt-u1-listen-1-words-phase",
+                "name": "听关键词",
+                "type": "wordPairing",
+                "audioAsset": "nt-u1-listen-1-words",
+                "transcript": "çay、kahve、su",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "nt-u1-listen-1-word-pick",
+                    "prompt": "你听到了哪个词？",
+                    "options": [
+                      "su",
+                      "çay",
+                      "kahve"
+                    ],
+                    "correctIndex": 1,
+                    "audioAsset": "nt-u1-listen-1-words"
+                  },
+                  {
+                    "runtimeType": "typeTheWord",
+                    "id": "nt-u1-listen-1-word-type",
+                    "audioAsset": "nt-u1-listen-1-words",
+                    "prompt": "听音频，写出你听到的最后一个词",
+                    "expected": "su"
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-1-dialogue-phase",
+                "name": "听对话",
+                "type": "dialogue",
+                "audioAsset": "nt-u1-listen-1-dialogue",
+                "transcript": "Ayşe: Merhaba!\nMüşteri: Merhaba! Bir çay lütfen.\nAyşe: Buyurun!\nMüşteri: Teşekkürler.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-listen-1-dialogue-meaning",
+                    "prompt": "这段对话主要包含什么？",
+                    "options": [
+                      "点饮品",
+                      "回应请求",
+                      "告别"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-listen-1-dialogue-fill",
+                    "sentence": "顾客用哪一句点单？",
+                    "answer": "Bir çay lütfen",
+                    "choices": [
+                      "Bir çay lütfen",
+                      "Hoşça kal"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-1-summary-phase",
+                "name": "听后回顾",
+                "type": "summary",
+                "audioAsset": "nt-u1-listen-1-summary",
+                "transcript": "问候、点茶、道谢。",
+                "items": [
+                  {
+                    "runtimeType": "listenOnly",
+                    "id": "nt-u1-listen-1-listen-only",
+                    "audioAsset": "nt-u1-listen-1-summary",
+                    "transcript": "问候、点茶、道谢。",
+                    "prompt": "再听一遍总结"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-listen-2",
+          "name": "想喝什么",
+          "description": "先听关键词，再听咖啡馆对话，最后回顾。",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "nt-u1-review-random"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "nt-u1-listen-2-words-phase",
+                "name": "听关键词",
+                "type": "wordPairing",
+                "audioAsset": "nt-u1-listen-2-words",
+                "transcript": "Merhaba、lütfen、çay",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "nt-u1-listen-2-word-pick",
+                    "prompt": "你听到了哪个词？",
+                    "options": [
+                      "çay",
+                      "Merhaba",
+                      "lütfen"
+                    ],
+                    "correctIndex": 1,
+                    "audioAsset": "nt-u1-listen-2-words"
+                  },
+                  {
+                    "runtimeType": "typeTheWord",
+                    "id": "nt-u1-listen-2-word-type",
+                    "audioAsset": "nt-u1-listen-2-words",
+                    "prompt": "听音频，写出你听到的最后一个词",
+                    "expected": "çay"
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-2-dialogue-phase",
+                "name": "听对话",
+                "type": "dialogue",
+                "audioAsset": "nt-u1-listen-2-dialogue",
+                "transcript": "Ayşe: Ne istersiniz?\nMüşteri: Bir kahve lütfen.\nAyşe: Buyurun!",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-listen-2-dialogue-meaning",
+                    "prompt": "这段对话主要包含什么？",
+                    "options": [
+                      "点饮品",
+                      "告别",
+                      "回应请求"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-listen-2-dialogue-fill",
+                    "sentence": "顾客用哪一句点单？",
+                    "answer": "Bir kahve lütfen",
+                    "choices": [
+                      "Bir kahve lütfen",
+                      "Hoşça kal"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-2-summary-phase",
+                "name": "听后回顾",
+                "type": "summary",
+                "audioAsset": "nt-u1-listen-2-summary",
+                "transcript": "听出饮品和礼貌点单。",
+                "items": [
+                  {
+                    "runtimeType": "listenOnly",
+                    "id": "nt-u1-listen-2-listen-only",
+                    "audioAsset": "nt-u1-listen-2-summary",
+                    "transcript": "听出饮品和礼貌点单。",
+                    "prompt": "再听一遍总结"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-listen-3",
+          "name": "肯定与否定",
+          "description": "先听关键词，再听咖啡馆对话，最后回顾。",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "nt-u1-review-random"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "nt-u1-listen-3-words-phase",
+                "name": "听关键词",
+                "type": "wordPairing",
+                "audioAsset": "nt-u1-listen-3-words",
+                "transcript": "Evet、Hayır、su",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "nt-u1-listen-3-word-pick",
+                    "prompt": "你听到了哪个词？",
+                    "options": [
+                      "su",
+                      "Evet",
+                      "Hayır"
+                    ],
+                    "correctIndex": 1,
+                    "audioAsset": "nt-u1-listen-3-words"
+                  },
+                  {
+                    "runtimeType": "typeTheWord",
+                    "id": "nt-u1-listen-3-word-type",
+                    "audioAsset": "nt-u1-listen-3-words",
+                    "prompt": "听音频，写出你听到的最后一个词",
+                    "expected": "su"
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-3-dialogue-phase",
+                "name": "听对话",
+                "type": "dialogue",
+                "audioAsset": "nt-u1-listen-3-dialogue",
+                "transcript": "Ayşe: Sıcak su?\nMüşteri: Evet, lütfen.\nAyşe: Buyurun!",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-listen-3-dialogue-meaning",
+                    "prompt": "这段对话主要包含什么？",
+                    "options": [
+                      "回应请求",
+                      "点饮品",
+                      "告别"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-listen-3-dialogue-fill",
+                    "sentence": "哪一句是肯定回答？",
+                    "answer": "Evet",
+                    "choices": [
+                      "Evet",
+                      "Hayır"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-3-summary-phase",
+                "name": "听后回顾",
+                "type": "summary",
+                "audioAsset": "nt-u1-listen-3-summary",
+                "transcript": "听出肯定回答。",
+                "items": [
+                  {
+                    "runtimeType": "listenOnly",
+                    "id": "nt-u1-listen-3-listen-only",
+                    "audioAsset": "nt-u1-listen-3-summary",
+                    "transcript": "听出肯定回答。",
+                    "prompt": "再听一遍总结"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-listen-4",
+          "name": "告别之前",
+          "description": "先听关键词，再听咖啡馆对话，最后回顾。",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "nt-u1-review-random"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "nt-u1-listen-4-words-phase",
+                "name": "听关键词",
+                "type": "wordPairing",
+                "audioAsset": "nt-u1-listen-4-words",
+                "transcript": "Hoşça kal、Teşekkürler、Merhaba",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "nt-u1-listen-4-word-pick",
+                    "prompt": "你听到了哪个词？",
+                    "options": [
+                      "Teşekkürler",
+                      "Hoşça kal",
+                      "Merhaba"
+                    ],
+                    "correctIndex": 1,
+                    "audioAsset": "nt-u1-listen-4-words"
+                  },
+                  {
+                    "runtimeType": "typeTheWord",
+                    "id": "nt-u1-listen-4-word-type",
+                    "audioAsset": "nt-u1-listen-4-words",
+                    "prompt": "听音频，写出你听到的最后一个词",
+                    "expected": "Merhaba"
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-4-dialogue-phase",
+                "name": "听对话",
+                "type": "dialogue",
+                "audioAsset": "nt-u1-listen-4-dialogue",
+                "transcript": "Müşteri: Teşekkürler. Hoşça kal!\nAyşe: Hoşça kal!",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-listen-4-dialogue-meaning",
+                    "prompt": "这段对话主要包含什么？",
+                    "options": [
+                      "告别",
+                      "点饮品",
+                      "回应请求"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-listen-4-dialogue-fill",
+                    "sentence": "告别时说了什么？",
+                    "answer": "Hoşça kal",
+                    "choices": [
+                      "Hoşça kal",
+                      "Merhaba"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "nt-u1-listen-4-summary-phase",
+                "name": "听后回顾",
+                "type": "summary",
+                "audioAsset": "nt-u1-listen-4-summary",
+                "transcript": "道谢并告别。",
+                "items": [
+                  {
+                    "runtimeType": "listenOnly",
+                    "id": "nt-u1-listen-4-listen-only",
+                    "audioAsset": "nt-u1-listen-4-summary",
+                    "transcript": "道谢并告别。",
+                    "prompt": "再听一遍总结"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-read-1",
+          "name": "Evde çay",
+          "description": "读一篇短故事，点词查看释义，再回答问题。",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "nt-u1-listen-1"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Evde çay",
+              "paragraphs": [
+                "Ayşe evde. Merhaba, Ayşe!",
+                "Bir çay lütfen. Teşekkürler, Ayşe."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "nt-w-ev",
+                "nt-w-merhaba",
+                "nt-w-tesekkurler",
+                "nt-w-cay",
+                "nt-w-kahve",
+                "nt-w-su",
+                "nt-w-lutfen",
+                "nt-w-bir",
+                "nt-w-gunaydin",
+                "nt-w-hoscakal",
+                "nt-w-evet",
+                "nt-w-hayir",
+                "nt-w-buyuk",
+                "nt-w-kucuk",
+                "nt-w-sicak",
+                "nt-w-soguk"
+              ],
+              "linkedExpressionIds": [
+                "nt-e-tesekkur-ederim"
+              ],
+              "wordFormMap": {
+                "evde": "nt-w-ev",
+                "evimde": "nt-w-ev"
+              },
+              "imageAsset": "assets/images/course/nt/story-ev.svg",
+              "imageAlt": "家中的 Ayşe 与一杯茶"
+            },
+            "stages": [
+              {
+                "id": "nt-u1-read-1-stage",
+                "name": "读懂故事",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "nt-read1-mc",
+                    "prompt": "Ayşe 在哪里？",
+                    "options": [
+                      "在店里",
+                      "在家",
+                      "在学校"
+                    ],
+                    "correctIndex": 1
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "nt-read1-tf",
+                    "statement": "有人想要一杯茶。",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingShortAnswer",
+                    "id": "nt-read1-short",
+                    "prompt": "来访者怎样道谢？",
+                    "expectedAnswer": "Teşekkürler",
+                    "acceptedAnswers": [
+                      "Teşekkür ederim"
+                    ]
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-read1-tr",
+                    "source": "请给我一杯茶",
+                    "expected": "Bir çay lütfen"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-read-2",
+          "name": "Bir kahve lütfen",
+          "description": "读一篇短故事，点词查看释义，再回答问题。",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "nt-u1-listen-2"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Bir kahve lütfen",
+              "paragraphs": [
+                "Ayşe: Merhaba! Ne istersiniz?",
+                "Müşteri: Bir kahve lütfen. Ayşe: Buyurun! Müşteri: Teşekkürler."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "nt-w-ev",
+                "nt-w-merhaba",
+                "nt-w-tesekkurler",
+                "nt-w-cay",
+                "nt-w-kahve",
+                "nt-w-su",
+                "nt-w-lutfen",
+                "nt-w-bir",
+                "nt-w-gunaydin",
+                "nt-w-hoscakal",
+                "nt-w-evet",
+                "nt-w-hayir",
+                "nt-w-buyuk",
+                "nt-w-kucuk",
+                "nt-w-sicak",
+                "nt-w-soguk"
+              ],
+              "linkedExpressionIds": [
+                "nt-e-buyurun",
+                "nt-e-ne-istersiniz"
+              ],
+              "wordFormMap": {},
+              "imageAsset": "assets/images/course/nt/story-order.svg",
+              "imageAlt": "咖啡馆里的点单对话"
+            },
+            "stages": [
+              {
+                "id": "nt-u1-read-2-stage",
+                "name": "读懂故事",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "nt-read2-mc",
+                    "prompt": "顾客想要什么？",
+                    "options": [
+                      "咖啡",
+                      "水",
+                      "茶"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "nt-read2-tf",
+                    "statement": "顾客没有使用 lütfen。",
+                    "answer": false
+                  },
+                  {
+                    "runtimeType": "readingShortAnswer",
+                    "id": "nt-read2-short",
+                    "prompt": "点单句是什么？",
+                    "expectedAnswer": "Bir kahve lütfen",
+                    "acceptedAnswers": [
+                      "Kahve lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-read2-tr",
+                    "source": "谢谢",
+                    "expected": "Teşekkürler"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-read-3",
+          "name": "Büyük çay",
+          "description": "读一篇短故事，点词查看释义，再回答问题。",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "nt-u1-listen-3"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Büyük çay",
+              "paragraphs": [
+                "Merhaba! Bir büyük çay, lütfen.",
+                "Ayşe: Buyurun! Müşteri: Teşekkürler. Hoşça kal!"
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "nt-w-ev",
+                "nt-w-merhaba",
+                "nt-w-tesekkurler",
+                "nt-w-cay",
+                "nt-w-kahve",
+                "nt-w-su",
+                "nt-w-lutfen",
+                "nt-w-bir",
+                "nt-w-gunaydin",
+                "nt-w-hoscakal",
+                "nt-w-evet",
+                "nt-w-hayir",
+                "nt-w-buyuk",
+                "nt-w-kucuk",
+                "nt-w-sicak",
+                "nt-w-soguk"
+              ],
+              "linkedExpressionIds": [
+                "nt-e-rica-ederim"
+              ],
+              "wordFormMap": {},
+              "imageAsset": "assets/images/course/nt/story-preferences.svg",
+              "imageAlt": "一大杯茶与礼貌告别"
+            },
+            "stages": [
+              {
+                "id": "nt-u1-read-3-stage",
+                "name": "读懂故事",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "nt-read3-mc",
+                    "prompt": "顾客要哪种茶？",
+                    "options": [
+                      "冷茶",
+                      "小杯茶",
+                      "大杯茶"
+                    ],
+                    "correctIndex": 2
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "nt-read3-tf",
+                    "statement": "顾客最后告别了。",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingShortAnswer",
+                    "id": "nt-read3-short",
+                    "prompt": "顾客要的是什么？",
+                    "expectedAnswer": "Bir büyük çay",
+                    "acceptedAnswers": [
+                      "Büyük çay"
+                    ]
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-read3-tr",
+                    "source": "再见",
+                    "expected": "Hoşça kal"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-speak-1",
+          "name": "主动开口：问候与点单",
+          "description": "用已经学过的句子完成真实开口任务。",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [
+            "nt-u1-read-2"
+          ],
+          "content": {
+            "stages": [
+              {
+                "id": "nt-u1-speak-1-stage",
+                "name": "主动开口",
+                "items": [
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-1",
+                    "targetText": "Merhaba",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-2",
+                    "targetText": "Günaydın",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-3",
+                    "targetText": "Bir çay lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-4",
+                    "targetText": "Bir kahve lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-5",
+                    "targetText": "Bir su lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-6",
+                    "targetText": "Teşekkürler",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-7",
+                    "targetText": "Teşekkür ederim",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-1-read-8",
+                    "targetText": "Hoşça kal",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-speak-2",
+          "name": "主动开口：我的选择",
+          "description": "用已经学过的句子完成真实开口任务。",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [
+            "nt-u1-read-3"
+          ],
+          "content": {
+            "stages": [
+              {
+                "id": "nt-u1-speak-2-stage",
+                "name": "主动开口",
+                "items": [
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-1",
+                    "targetText": "Evet",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-2",
+                    "targetText": "Hayır",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-3",
+                    "targetText": "Büyük çay lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-4",
+                    "targetText": "Küçük kahve lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-5",
+                    "targetText": "Soğuk su lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-6",
+                    "targetText": "Bir çay lütfen",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-7",
+                    "targetText": "Teşekkürler",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  },
+                  {
+                    "runtimeType": "readAloud",
+                    "id": "nt-u1-speak-2-read-8",
+                    "targetText": "Hoşça kal",
+                    "prompt": "看图或读题后，把这句话说出口"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "nt-u1-mastery",
+          "name": "单元任务：走进咖啡馆",
+          "description": "不引入新内容，完成问候、点单和道谢。",
+          "type": "challenge",
+          "template": "mastery",
+          "prerequisiteLessonIds": [
+            "nt-u1-speak-2"
+          ],
+          "content": {
+            "stages": [
+              {
+                "id": "nt-u1-mastery-stage",
+                "name": "真实任务",
+                "items": [
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-mastery-i1",
+                    "source": "请给我一杯茶",
+                    "expected": "Bir çay lütfen"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-mastery-i2",
+                    "sentence": "「请给我一杯咖啡」= _____",
+                    "answer": "Bir kahve lütfen",
+                    "choices": [
+                      "Bir kahve lütfen",
+                      "Teşekkürler"
+                    ]
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-mastery-i3",
+                    "sentence": "「谢谢」= _____",
+                    "answer": "Teşekkürler",
+                    "choices": [
+                      "Teşekkürler",
+                      "Bir çay lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-mastery-i4",
+                    "prompt": "「请给我一杯茶」用土耳其语怎么说？",
+                    "options": [
+                      "Bir çay lütfen",
+                      "Bir kahve lütfen",
+                      "Teşekkürler"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-mastery-i5",
+                    "source": "请给我一杯咖啡",
+                    "expected": "Bir kahve lütfen"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-mastery-i6",
+                    "sentence": "「谢谢」= _____",
+                    "answer": "Teşekkürler",
+                    "choices": [
+                      "Teşekkürler",
+                      "Bir çay lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "nt-u1-mastery-i7",
+                    "prompt": "请给我一杯茶",
+                    "scrambled": [
+                      "çay",
+                      "lütfen",
+                      "Bir"
+                    ],
+                    "correct": [
+                      "Bir",
+                      "çay",
+                      "lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-mastery-i8",
+                    "prompt": "「请给我一杯咖啡」用土耳其语怎么说？",
+                    "options": [
+                      "Teşekkürler",
+                      "Bir kahve lütfen",
+                      "Bir çay lütfen"
+                    ],
+                    "correctIndex": 1
+                  },
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "nt-u1-mastery-i9",
+                    "source": "谢谢",
+                    "expected": "Teşekkürler"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "nt-u1-mastery-i10",
+                    "sentence": "「请给我一杯茶」= _____",
+                    "answer": "Bir çay lütfen",
+                    "choices": [
+                      "Bir çay lütfen",
+                      "Bir kahve lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "nt-u1-mastery-i11",
+                    "prompt": "请给我一杯咖啡",
+                    "scrambled": [
+                      "kahve",
+                      "lütfen",
+                      "Bir"
+                    ],
+                    "correct": [
+                      "Bir",
+                      "kahve",
+                      "lütfen"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "nt-u1-mastery-i12",
+                    "prompt": "「谢谢」用土耳其语怎么说？",
+                    "options": [
+                      "Bir çay lütfen",
+                      "Bir kahve lütfen",
+                      "Teşekkürler"
+                    ],
+                    "correctIndex": 2
                   }
                 ]
               }

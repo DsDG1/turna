@@ -6,28 +6,217 @@
       "term": "Türkçe",
       "translation": "土耳其语",
       "pronunciation": "türk-çe",
-      "tags": ["noun"]
+      "tags": [
+        "noun"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l1",
+      "learningGoal": "recognition"
     },
     {
       "id": "nt-w-ev",
       "term": "ev",
       "translation": "房子",
       "pronunciation": "ev",
-      "tags": ["noun"]
+      "tags": [
+        "noun"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l1",
+      "learningGoal": "recognition"
     },
     {
       "id": "nt-w-merhaba",
       "term": "merhaba",
       "translation": "你好",
       "pronunciation": "mer-ha-ba",
-      "tags": ["greeting"]
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l1",
+      "learningGoal": "production"
     },
     {
       "id": "nt-w-tesekkurler",
       "term": "teşekkürler",
       "translation": "谢谢",
       "pronunciation": "te-şek-kür-ler",
-      "tags": ["greeting"]
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l1",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-cay",
+      "term": "çay",
+      "translation": "茶",
+      "pronunciation": null,
+      "pos": "noun",
+      "tags": [
+        "noun"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l3-order",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-kahve",
+      "term": "kahve",
+      "translation": "咖啡",
+      "pronunciation": null,
+      "pos": "noun",
+      "tags": [
+        "noun"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l3-order",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-su",
+      "term": "su",
+      "translation": "水",
+      "pronunciation": null,
+      "pos": "noun",
+      "tags": [
+        "noun"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l3-order",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-lutfen",
+      "term": "lütfen",
+      "translation": "请",
+      "pronunciation": null,
+      "pos": "interjection",
+      "tags": [
+        "particle"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l3-order",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-bir",
+      "term": "bir",
+      "translation": "一",
+      "pronunciation": null,
+      "pos": "numeral",
+      "tags": [
+        "number"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l3-order",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-gunaydin",
+      "term": "Günaydın",
+      "translation": "早上好",
+      "pronunciation": null,
+      "pos": "interjection",
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-hoscakal",
+      "term": "Hoşça kal",
+      "translation": "再见",
+      "pronunciation": null,
+      "pos": "interjection",
+      "tags": [
+        "greeting"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-evet",
+      "term": "Evet",
+      "translation": "是；对",
+      "pronunciation": null,
+      "pos": "interjection",
+      "tags": [
+        "particle"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-hayir",
+      "term": "Hayır",
+      "translation": "不；不是",
+      "pronunciation": null,
+      "pos": "interjection",
+      "tags": [
+        "particle"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-buyuk",
+      "term": "büyük",
+      "translation": "大的",
+      "pronunciation": null,
+      "pos": "adjective",
+      "tags": [
+        "adjective"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-kucuk",
+      "term": "küçük",
+      "translation": "小的",
+      "pronunciation": null,
+      "pos": "adjective",
+      "tags": [
+        "adjective"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-sicak",
+      "term": "sıcak",
+      "translation": "热的",
+      "pronunciation": null,
+      "pos": "adjective",
+      "tags": [
+        "adjective"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
+    },
+    {
+      "id": "nt-w-soguk",
+      "term": "soğuk",
+      "translation": "冷的",
+      "pronunciation": null,
+      "pos": "adjective",
+      "tags": [
+        "adjective"
+      ],
+      "level": "A1",
+      "introducedInLessonId": "nt-u1-l4-politeness",
+      "learningGoal": "production"
     }
   ]
 }

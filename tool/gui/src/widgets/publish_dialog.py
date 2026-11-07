@@ -1,16 +1,8 @@
-"""Publish dialog: release checklist for both expert and teacher views.
+"""Finalize dialog: validation, content diff, media checks, and save.
 
-Expert mode (``teacher_friendly=False``) shows the full release-engineer
-checklist: per-file version-bump checkboxes (cancelable), audio manifest
-totals, id-set diff, and raw validate/lint status. Teacher mode
-(``teacher_friendly=True``) hides the version concept (auto-applied, no raw
-filenames), the id-set diff, and lint warnings, and humanizes validate
-errors - the teacher sees "改了什么 / 缺什么 / 点发布".
-
-Both modes reuse the CourseAdapter release_report + apply_version_bump +
-save pipeline; validate failures disable the publish button (guiplan
-§15.9; §12 risk table requires showing the version change and keeping the
-ability to cancel in expert mode).
+Finalizing never advances an OTA version. ``tool/publish_course.py`` owns
+public release numbers against the deployed feed. Teacher mode humanizes
+validation errors and hides engineering details.
 
 The report fetch and the publish save both run on an ``AiRequestWorker``
 (same pattern as ``save_host.run_async_direct_save``) so opening or
@@ -55,7 +47,7 @@ class PublishDialog(TurnaDialog):
         teacher_friendly: bool = False,
         load_async: bool = True,
     ) -> None:
-        super().__init__(parent, title="准备发布")
+        super().__init__(parent, title="准备定稿")
         if teacher_friendly:
             self.resize(520, 560)
         else:
@@ -96,7 +88,7 @@ class PublishDialog(TurnaDialog):
         self.validation_label.setWordWrap(True)
         layout.addWidget(self.validation_label)
 
-        # Footer: export pinned left (before the stretch), then Cancel/发布.
+        # Footer: export pinned left (before the stretch), then Cancel/定稿.
         self.export_btn = self.add_button(
             "导出报告", variant="ghost", slot=self._on_export
         )
@@ -109,7 +101,7 @@ class PublishDialog(TurnaDialog):
         self._footer.insertWidget(1, self.handoff_btn)
         self.cancel_btn = self.add_button("取消", slot=self.reject)
         self.ok_btn = self.add_button(
-            "发布" if self.teacher_friendly else "确认发布",
+            "定稿" if self.teacher_friendly else "确认定稿",
             variant="primary",
             slot=self._on_publish,
             default=True,
@@ -156,7 +148,7 @@ class PublishDialog(TurnaDialog):
     # --- load / render -----------------------------------------------------
 
     def _show_loading_state(self) -> None:
-        self.changes_label.setText("正在生成发布报告…")
+        self.changes_label.setText("正在生成定稿报告…")
         self.ok_btn.setEnabled(False)
         self.export_btn.setEnabled(False)
         self.handoff_btn.setEnabled(False)
@@ -179,7 +171,7 @@ class PublishDialog(TurnaDialog):
 
     def _on_report_error(self, message: str) -> None:
         self._load_worker = None
-        self.validation_label.setText(f"✗ 发布报告生成失败：{message}")
+        self.validation_label.setText(f"✗ 定稿报告生成失败：{message}")
         self.validation_label.setProperty("textRole", "error")
 
     def _load_report(self) -> None:
@@ -254,8 +246,10 @@ class PublishDialog(TurnaDialog):
 
     def _render_version(self) -> None:
         plan = self._report["version_bump"]
+        if hasattr(self, "bump_group"):
+            self.bump_group.setVisible(bool(plan))
         if not plan:
-            self.version_label.setText("版本号：无需更新")
+            self.version_label.setText("对外版本将在生成应用更新包时分配")
             return
         changes = self._report["changes"]
         parts = []
@@ -312,7 +306,7 @@ class PublishDialog(TurnaDialog):
         v = self._report["validation"]
         if self.teacher_friendly:
             if v["ok"]:
-                self.validation_label.setText("✓ 校验通过，可以发布")
+                self.validation_label.setText("✓ 校验通过，可以定稿")
                 self.validation_label.setProperty("textRole", "success")
                 self.ok_btn.setEnabled(True)
             else:
@@ -342,29 +336,12 @@ class PublishDialog(TurnaDialog):
         if not v["ok"]:
             if not self.teacher_friendly:
                 QMessageBox.warning(
-                    self, "无法发布", "校验未通过，请先修复错误再发布。"
+                    self, "无法定稿", "校验未通过，请先修复错误再定稿。"
                 )
             return
-        if self.teacher_friendly:
-            real_plan: dict[str, tuple[int, int]] = dict(self._report["version_bump"])
-        else:
-            real_plan = {
-                key: self._report["version_bump"][key]
-                for key, cb in self._bump_checks.items()
-                if cb.isChecked()
-            }
         self._set_publishing_busy(True)
 
-        # #21: snapshot the version fields so a failed save can roll the
-        # bump back — otherwise every retry bumped again on top and the
-        # planned-vs-applied numbers drifted apart.
-        self._version_snapshot = (
-            self.adapter.index.get("version"),
-            getattr(self.adapter, "expressions_version", None),
-        )
-
         def _do_publish() -> SaveResult:
-            self.adapter.apply_version_bump(real_plan)
             return self.adapter.save()
 
         from src.application.ai_request_worker import AiRequestWorker
@@ -409,16 +386,16 @@ class PublishDialog(TurnaDialog):
         for btn in (self.ok_btn, self.export_btn, self.handoff_btn, self.cancel_btn):
             btn.setEnabled(not busy)
         if busy:
-            self.ok_btn.setText(ok_text or "发布中…")
+            self.ok_btn.setText(ok_text or "定稿中…")
         else:
-            self.ok_btn.setText("发布" if self.teacher_friendly else "确认发布")
+            self.ok_btn.setText("定稿" if self.teacher_friendly else "确认定稿")
 
     def _on_publish_result(self, result: SaveResult) -> None:
         self._publish_worker = None
         if not result.ok:
             self._set_publishing_busy(False)
             self._restore_version_snapshot()
-            QMessageBox.critical(self, "发布失败", result.message)
+            QMessageBox.critical(self, "定稿失败", result.message)
             return
         self._version_snapshot = None
         self._set_publishing_busy(False)
@@ -435,9 +412,8 @@ class PublishDialog(TurnaDialog):
                 mark()
         QMessageBox.information(
             self,
-            "发布成功",
-            "内容已保存并校验通过。" if self.teacher_friendly
-            else "版本号已 bump 并保存校验通过。",
+            "定稿成功",
+            "内容已保存并校验通过。对外版本由应用更新包工具分配。",
         )
         self.accept()
 
@@ -445,7 +421,7 @@ class PublishDialog(TurnaDialog):
         self._publish_worker = None
         self._set_publishing_busy(False)
         self._restore_version_snapshot()
-        QMessageBox.critical(self, "发布失败", message)
+        QMessageBox.critical(self, "定稿失败", message)
 
     def _on_handoff(self) -> None:
         """Register an in-repo course, or write a .turnapack for an external one."""
@@ -551,7 +527,7 @@ class PublishDialog(TurnaDialog):
 
     def _on_export(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出发布报告", "release_report.txt", "Text Files (*.txt)"
+            self, "导出定稿报告", "release_report.txt", "Text Files (*.txt)"
         )
         if not path:
             return
@@ -568,7 +544,7 @@ class PublishDialog(TurnaDialog):
     def _report_text(self) -> str:
         r = self._report
         if self.teacher_friendly:
-            lines = ["Turna 发布报告", "=" * 30, ""]
+            lines = ["Turna 定稿报告", "=" * 30, ""]
             lines.append("[改动]")
             for k, v in r["changes"].items():
                 if v:
@@ -587,7 +563,7 @@ class PublishDialog(TurnaDialog):
             for e in v["errors"]:
                 lines.append(f"  ERROR: {humanize_problem(e)}")
             return "\n".join(lines) + "\n"
-        lines: list[str] = ["Turna 发布报告", "=" * 40, ""]
+        lines: list[str] = ["Turna 定稿报告", "=" * 40, ""]
         lines.append("[改动检测]")
         for k, v in r["changes"].items():
             lines.append(f"  {k}: {'改动' if v else '无'}")

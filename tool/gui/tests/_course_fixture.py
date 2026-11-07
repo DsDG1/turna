@@ -1,7 +1,7 @@
 """Shared course fixture helper for tests.
 
-Copies the built-in ``assets/courses/turkish`` course into a destination
-directory (the caller's tmp dir). Centralizes the ``shutil.copytree`` pattern
+Copies ``test/fixtures/turkish_course`` into a destination directory
+(the caller's tmp dir). Centralizes the ``shutil.copytree`` pattern
 that was duplicated across ~14 test files.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from src.backend.course_adapter import CourseAdapter
 
 # tool/gui/tests/_course_fixture.py -> tool/gui -> repo root
 _REPO = Path(__file__).resolve().parents[3]
-COURSE_SRC = _REPO / "assets" / "courses" / "turkish"
+COURSE_SRC = _REPO / "test" / "fixtures" / "turkish_course"
 
 
 def copy_turkish_course(dst: Path) -> Path:

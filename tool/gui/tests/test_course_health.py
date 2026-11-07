@@ -1,6 +1,7 @@
 """P0-1: course health audit + repair worklist (pure Python)."""
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -150,6 +151,26 @@ class AuditCourseTest(unittest.TestCase):
         self.assertIn("duplicate_term", kinds)
         self.assertIn("term_conflict", kinds)
 
+    def test_global_vocab_is_used_without_mutating_source_sections(self) -> None:
+        section = _section()
+        section.pop("words")
+        findings = audit_course(
+            [section],
+            vocab=[{"id": "w1", "term": "kitap", "translation": "书"}],
+            default_level="A1",
+        )
+        self.assertIn("spiral_gap", {finding.kind for finding in findings})
+        self.assertNotIn("words", section)
+
+    def test_empty_section_is_a_completion_finding(self) -> None:
+        findings = audit_course(
+            [{"id": "s-empty", "name": "规划中", "units": []}],
+            default_level="A1",
+        )
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].kind, "section_planned")
+        self.assertEqual(findings[0].severity, "info")
+
 
 class RepairPlanTest(unittest.TestCase):
     def test_plan_maps_to_existing_actions(self) -> None:
@@ -236,6 +257,23 @@ class CourseHealthServiceTest(unittest.TestCase):
         self.assertTrue(report["findings"])
         for step in report["steps"]:
             self.assertTrue(step["action_title"])
+
+    def test_real_main_course_reports_coverage_and_global_vocab(self) -> None:
+        root = _GUI.parents[1] / "assets" / "courses" / "nouveau-turkish"
+        index = json.loads((root / "index.json").read_text(encoding="utf-8"))
+        sections = [
+            json.loads((root / entry["file"]).read_text(encoding="utf-8"))
+            for entry in index["sections"]
+        ]
+        adapter = _Adapter(sections)
+        adapter.vocab = json.loads((root / "vocab.json").read_text(encoding="utf-8"))["words"]
+        report = CourseHealthService(adapter).build_report()
+
+        self.assertEqual(report["coverage"]["sections"], 8)
+        self.assertEqual(report["coverage"]["nonempty_sections"], 1)
+        self.assertEqual(len(report["completion_findings"]), 7)
+        self.assertNotIn("spiral_gap", {item["kind"] for item in report["technical_findings"]})
+        self.assertTrue(all("words" not in section for section in sections))
 
     def test_empty_course_reports_clean(self) -> None:
         report = CourseHealthService(_Adapter([])).build_report()

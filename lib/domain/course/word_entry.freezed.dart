@@ -23,6 +23,9 @@ mixin _$WordEntry {
   /// Closed POS tag (`noun`, `verb`, …), or null when the course omits it.
   String? get pos;
   List<String> get tags;
+  String? get level;
+  String? get introducedInLessonId;
+  String get learningGoal;
 
   /// Create a copy of WordEntry
   /// with the given fields replaced by the non-null parameter values.
@@ -48,7 +51,12 @@ mixin _$WordEntry {
             (identical(other.audioAsset, audioAsset) ||
                 other.audioAsset == audioAsset) &&
             (identical(other.pos, pos) || other.pos == pos) &&
-            const DeepCollectionEquality().equals(other.tags, tags));
+            const DeepCollectionEquality().equals(other.tags, tags) &&
+            (identical(other.level, level) || other.level == level) &&
+            (identical(other.introducedInLessonId, introducedInLessonId) ||
+                other.introducedInLessonId == introducedInLessonId) &&
+            (identical(other.learningGoal, learningGoal) ||
+                other.learningGoal == learningGoal));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -61,11 +69,14 @@ mixin _$WordEntry {
       pronunciation,
       audioAsset,
       pos,
-      const DeepCollectionEquality().hash(tags));
+      const DeepCollectionEquality().hash(tags),
+      level,
+      introducedInLessonId,
+      learningGoal);
 
   @override
   String toString() {
-    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, pos: $pos, tags: $tags)';
+    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, pos: $pos, tags: $tags, level: $level, introducedInLessonId: $introducedInLessonId, learningGoal: $learningGoal)';
   }
 }
 
@@ -81,7 +92,10 @@ abstract mixin class $WordEntryCopyWith<$Res> {
       String? pronunciation,
       String? audioAsset,
       String? pos,
-      List<String> tags});
+      List<String> tags,
+      String? level,
+      String? introducedInLessonId,
+      String learningGoal});
 }
 
 /// @nodoc
@@ -103,6 +117,9 @@ class _$WordEntryCopyWithImpl<$Res> implements $WordEntryCopyWith<$Res> {
     Object? audioAsset = freezed,
     Object? pos = freezed,
     Object? tags = null,
+    Object? level = freezed,
+    Object? introducedInLessonId = freezed,
+    Object? learningGoal = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -133,6 +150,18 @@ class _$WordEntryCopyWithImpl<$Res> implements $WordEntryCopyWith<$Res> {
           ? _self.tags
           : tags // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      level: freezed == level
+          ? _self.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as String?,
+      introducedInLessonId: freezed == introducedInLessonId
+          ? _self.introducedInLessonId
+          : introducedInLessonId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      learningGoal: null == learningGoal
+          ? _self.learningGoal
+          : learningGoal // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -237,15 +266,27 @@ extension WordEntryPatterns on WordEntry {
             String? pronunciation,
             String? audioAsset,
             String? pos,
-            List<String> tags)?
+            List<String> tags,
+            String? level,
+            String? introducedInLessonId,
+            String learningGoal)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _WordEntry() when $default != null:
-        return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.pos, _that.tags);
+        return $default(
+            _that.id,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.pos,
+            _that.tags,
+            _that.level,
+            _that.introducedInLessonId,
+            _that.learningGoal);
       case _:
         return orElse();
     }
@@ -273,14 +314,26 @@ extension WordEntryPatterns on WordEntry {
             String? pronunciation,
             String? audioAsset,
             String? pos,
-            List<String> tags)
+            List<String> tags,
+            String? level,
+            String? introducedInLessonId,
+            String learningGoal)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _WordEntry():
-        return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.pos, _that.tags);
+        return $default(
+            _that.id,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.pos,
+            _that.tags,
+            _that.level,
+            _that.introducedInLessonId,
+            _that.learningGoal);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -307,14 +360,26 @@ extension WordEntryPatterns on WordEntry {
             String? pronunciation,
             String? audioAsset,
             String? pos,
-            List<String> tags)?
+            List<String> tags,
+            String? level,
+            String? introducedInLessonId,
+            String learningGoal)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _WordEntry() when $default != null:
-        return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.pos, _that.tags);
+        return $default(
+            _that.id,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.pos,
+            _that.tags,
+            _that.level,
+            _that.introducedInLessonId,
+            _that.learningGoal);
       case _:
         return null;
     }
@@ -331,7 +396,10 @@ class _WordEntry implements WordEntry {
       this.pronunciation,
       this.audioAsset,
       this.pos,
-      final List<String> tags = const <String>[]})
+      final List<String> tags = const <String>[],
+      this.level,
+      this.introducedInLessonId,
+      this.learningGoal = 'production'})
       : _tags = tags;
   factory _WordEntry.fromJson(Map<String, dynamic> json) =>
       _$WordEntryFromJson(json);
@@ -358,6 +426,14 @@ class _WordEntry implements WordEntry {
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_tags);
   }
+
+  @override
+  final String? level;
+  @override
+  final String? introducedInLessonId;
+  @override
+  @JsonKey()
+  final String learningGoal;
 
   /// Create a copy of WordEntry
   /// with the given fields replaced by the non-null parameter values.
@@ -388,7 +464,12 @@ class _WordEntry implements WordEntry {
             (identical(other.audioAsset, audioAsset) ||
                 other.audioAsset == audioAsset) &&
             (identical(other.pos, pos) || other.pos == pos) &&
-            const DeepCollectionEquality().equals(other._tags, _tags));
+            const DeepCollectionEquality().equals(other._tags, _tags) &&
+            (identical(other.level, level) || other.level == level) &&
+            (identical(other.introducedInLessonId, introducedInLessonId) ||
+                other.introducedInLessonId == introducedInLessonId) &&
+            (identical(other.learningGoal, learningGoal) ||
+                other.learningGoal == learningGoal));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -401,11 +482,14 @@ class _WordEntry implements WordEntry {
       pronunciation,
       audioAsset,
       pos,
-      const DeepCollectionEquality().hash(_tags));
+      const DeepCollectionEquality().hash(_tags),
+      level,
+      introducedInLessonId,
+      learningGoal);
 
   @override
   String toString() {
-    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, pos: $pos, tags: $tags)';
+    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, pos: $pos, tags: $tags, level: $level, introducedInLessonId: $introducedInLessonId, learningGoal: $learningGoal)';
   }
 }
 
@@ -424,7 +508,10 @@ abstract mixin class _$WordEntryCopyWith<$Res>
       String? pronunciation,
       String? audioAsset,
       String? pos,
-      List<String> tags});
+      List<String> tags,
+      String? level,
+      String? introducedInLessonId,
+      String learningGoal});
 }
 
 /// @nodoc
@@ -446,6 +533,9 @@ class __$WordEntryCopyWithImpl<$Res> implements _$WordEntryCopyWith<$Res> {
     Object? audioAsset = freezed,
     Object? pos = freezed,
     Object? tags = null,
+    Object? level = freezed,
+    Object? introducedInLessonId = freezed,
+    Object? learningGoal = null,
   }) {
     return _then(_WordEntry(
       id: null == id
@@ -476,6 +566,18 @@ class __$WordEntryCopyWithImpl<$Res> implements _$WordEntryCopyWith<$Res> {
           ? _self._tags
           : tags // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      level: freezed == level
+          ? _self.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as String?,
+      introducedInLessonId: freezed == introducedInLessonId
+          ? _self.introducedInLessonId
+          : introducedInLessonId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      learningGoal: null == learningGoal
+          ? _self.learningGoal
+          : learningGoal // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

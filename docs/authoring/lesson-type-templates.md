@@ -51,7 +51,7 @@
 - 一节课包含 n 个子课（n ≥ 2，常见 2–5），n 由单元主题的材料量决定，不是
   固定值。
 - 子课 id 必须全局唯一且不可变更：小课级完成进度以 `lessonId::subLessonId`
-  持久化，改名会丢进度。
+  持久化，改 id 会丢进度；子课 name 只是显示标题，可以修改。
 - 子课 name 即瓦片标题，直接面向学习者：建议 ≤ 12 字、能独立表意，避免同质
   的单词名连排（一排单词瓦片会失去课的定位感）。
 
@@ -121,7 +121,7 @@
                 "id": "mc-merhaba",
                 "prompt": "What does 'Merhaba' mean?",
                 "options": ["Hello", "Goodbye", "Thanks"],
-                "correctAnswer": "Hello"
+                "correctIndex": 0
               }
             ]
           }
@@ -205,7 +205,7 @@
             "audioAsset": "sounds/turkish/merhaba.mp3",
             "prompt": "What do you hear?",
             "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
-            "correctAnswer": "Merhaba"
+            "correctIndex": 0
           }
         ]
       },
@@ -221,7 +221,7 @@
             "id": "lp-diag-1",
             "prompt": "What is the dialogue about?",
             "options": ["Greetings", "Food", "Family"],
-            "correctAnswer": "Greetings"
+            "correctIndex": 0
           }
         ]
       },
@@ -297,7 +297,7 @@
             "id": "rq-1",
             "prompt": "Where does Anna go?",
             "options": ["To school", "To the market", "To the hospital"],
-            "correctAnswer": "To the market"
+            "correctIndex": 1
           },
           {
             "runtimeType": "readingTrueFalse",
@@ -393,7 +393,7 @@
                 "id": "rv-1",
                 "prompt": "How do you say 'Thank you'?",
                 "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
-                "correctAnswer": "Teşekkürler"
+                "correctIndex": 1
               }
             ]
           }
@@ -512,8 +512,8 @@
   "runtimeType": "multipleChoice",
   "id": "mc-verb",
   "prompt": "Choose the correct verb form.",
-  "options": ["..."],
-  "correctAnswer": "...",
+  "options": ["gelir", "gider"],
+  "correctIndex": 0,
   "grammarPointId": "gp-present-tense"
 }
 ```
@@ -521,6 +521,13 @@
 对应的 `grammarPointId` 必须已在 `grammar_points.json` 中定义。
 
 课时级注册走 `content.linkedGrammarPointIds`（打开课时时写入语法 SRS）。词汇 `pos` 与 `showWord` 的内联覆盖字段（`term` / `translation` / `pronunciation` / `audioAsset` / `imageAsset` / `example`）可空；非空时覆盖词表默认显示。
+
+### 替代答案与阅读词形
+
+- `translateSentence`、`readingShortAnswer` 可用 `acceptedAnswers: []` 声明其他正确答案；`expected` / `expectedAnswer` 仍是答错后展示的规范答案。
+- `reorderSentence` 的 `acceptedAnswers` 每项写完整句子字符串，例如 `"world hello"`；它必须与 `correct` 使用相同词块，只允许不同的排列。
+- 判分统一折叠土耳其语大小写、支持的变音符号、连续空白与常见标点，不调用运行时 LLM。
+- `readingPassage.wordFormMap` 用「文中词形 → vocab id」处理黏着词形，例如 `"evimde": "nt-w-ev"`；`linkedWordIds` 控制普通词形的点词范围，`imageAsset` 与 `imageAlt` 提供插图及无障碍文本。
 
 ---
 

@@ -15,6 +15,9 @@ _Expression _$ExpressionFromJson(Map<String, dynamic> json) => _Expression(
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               const <String>[],
+      level: json['level'] as String?,
+      introducedInLessonId: json['introducedInLessonId'] as String?,
+      learningGoal: json['learningGoal'] as String? ?? 'production',
     );
 
 Map<String, dynamic> _$ExpressionToJson(_Expression instance) =>
@@ -25,4 +28,7 @@ Map<String, dynamic> _$ExpressionToJson(_Expression instance) =>
       'pronunciation': instance.pronunciation,
       'audioAsset': instance.audioAsset,
       'tags': instance.tags,
+      'level': instance.level,
+      'introducedInLessonId': instance.introducedInLessonId,
+      'learningGoal': instance.learningGoal,
     };

@@ -17,17 +17,18 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from course_quality_report import build_quality_report, render_quality_markdown
+
 REPO = Path(__file__).resolve().parent.parent
 
 
 def _packed_course_dir() -> Path:
     """The course dir the app actually ships, per the language manifest.
 
-    Falls back to the historical `turkish/` directory when the manifest is
-    missing or malformed.
+    Falls back to NouveauTurkish when the manifest is missing or malformed.
     """
     manifest = REPO / "assets" / "courses" / "manifest.json"
-    dir_name = "turkish"
+    dir_name = "nouveau-turkish"
     try:
         with manifest.open("r", encoding="utf-8") as f:
             languages = json.load(f).get("languages", [])
@@ -333,6 +334,8 @@ def main() -> None:
         section_stats=section_stats,
         refs=refs,
     )
+    quality = build_quality_report(COURSE_DIR)
+    rendered = f"{rendered}\n{render_quality_markdown(quality)}"
     # Atomic write: tmp + os.replace so a crash mid-write cannot truncate
     # the inventory report (P8).
     tmp = OUTPUT.with_suffix(OUTPUT.suffix + ".tmp")

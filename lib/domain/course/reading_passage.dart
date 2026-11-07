@@ -22,6 +22,13 @@ abstract class ReadingPassage with _$ReadingPassage {
 
     /// IDs of expressions highlighted in this passage.
     @Default(<String>[]) List<String> linkedExpressionIds,
+
+    /// Surface-form overrides such as `evimde` → the `ev` vocabulary ID.
+    @Default(<String, String>{}) Map<String, String> wordFormMap,
+
+    /// Optional course illustration and its accessibility description.
+    String? imageAsset,
+    @Default('') String imageAlt,
   }) = _ReadingPassage;
 
   factory ReadingPassage.fromJson(Map<String, dynamic> json) =>

@@ -27,6 +27,9 @@ abstract class Expression with _$Expression {
 
     /// Optional tags for grouping/filtering (e.g. "greeting", "travel").
     @Default(<String>[]) List<String> tags,
+    String? level,
+    String? introducedInLessonId,
+    @Default('production') String learningGoal,
   }) = _Expression;
 
   factory Expression.fromJson(Map<String, dynamic> json) =>

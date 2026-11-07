@@ -1,6 +1,6 @@
 # Turna 项目指南（架构与设计）
 
-> README 给概览和快速上手，本文只给各子系统的设计与决策依据。本文只写还在的代码，已删掉或被取代的实现去看 Git 历史；状态数字现场查证：schema 版本看 `lib/data/course_database.dart` 的 `kSchemaVersion`，内容版本看 `assets/courses/turkish/index.json` 的 `version`，测试计数看 `test/BASELINE.md` 顶条。
+> README 给概览和快速上手，本文只给各子系统的设计与决策依据。本文只写还在的代码，已删掉或被取代的实现去看 Git 历史；状态数字现场查证：schema 版本看 `lib/data/course_database.dart` 的 `kSchemaVersion`，内容版本看 `assets/courses/nouveau-turkish/index.json` 的 `version`，测试计数看 `test/BASELINE.md` 顶条。
 >
 > 本文是架构与设计叙述的真源，不覆盖另外两类文档：[`AGENTS.md`](../AGENTS.md) 是行为规范；[`docs/status.md`](./status.md) 是子系统状态（含 Anki 内核迁移）的唯一来源。
 
@@ -186,7 +186,7 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 
 ## 11. GUI 课程编辑器（作者工具）
 
-在 [`tool/gui/`](../tool/gui/)，基于 **PySide6**，复用 `tool/course_cli.py` 的校验和归一化逻辑。题型 schema 的唯一真相源是 `tool/gui/src/backend/lesson_content.py` 的 `INTERACTION_SCHEMA`，lint/validate 规则只进 `tool/course_cli.py`，GUI 不新增自有校验规则；`normalize_item` 按 schema 白名单重建 dict，所以每个 App 支持的字段都必须进 schema，否则「打开→不动→保存」会静默丢字段。重新播种触发器是组合版本 `"$indexVersion+$expressionsVersion"`，vocab-only 变更要靠 bump expressions 版本触发客户端重建。
+在 [`tool/gui/`](../tool/gui/)，基于 **PySide6**，复用 `tool/course_cli.py` 的校验和归一化逻辑。题型 schema 的唯一真相源是 `tool/gui/src/backend/lesson_content.py` 的 `INTERACTION_SCHEMA`，lint/validate 规则只进 `tool/course_cli.py`，GUI 不新增自有校验规则；`normalize_item` 按 schema 白名单重建 dict，所以每个 App 支持的字段都必须进 schema，否则「打开→不动→保存」会静默丢字段。Phase Two 配方由 `tool/course_pedagogy.py` 共享给 CLI、GUI 与 AI。重新播种触发器是组合版本 `"$indexVersion+$expressionsVersion"`；GUI「定稿」不推进对外发布号，应用更新包由 `publish_course.py` 按已部署 feed 分配下一 index 版本。
 
 已有课程目录可经 `tool/course_preview.py publish-course` 发布为网站课程目录，生成后也可显式调用同一 hook；单节作者草稿仍可从 GUI 发布为私密网页。VPS 保存课程到预览的稳定映射、不可变修订与逐题反馈，本地通过 SSH 发布/取回，AI 修订经校验和 diff 确认后才保存草稿；不会自动导入课程或写 App 数据库。操作与部署契约见 [`../tool/gui/docs/course-web-preview.md`](../tool/gui/docs/course-web-preview.md)，决策见 [ADR 0069](./decisions/0069-course-draft-web-preview.md)。
 

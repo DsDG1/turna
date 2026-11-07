@@ -90,8 +90,28 @@ class CourseHealthService:
             data["action_title"] = _action_title(step.action_id)
             step_dicts.append(data)
 
+        completion_findings = [
+            item for item in finding_dicts if item.get("kind") == "section_planned"
+        ]
+        completion_ids = {
+            (item.get("section_id"), item.get("finding_id"))
+            for item in completion_findings
+        }
+        technical_findings = [
+            item
+            for item in finding_dicts
+            if (item.get("section_id"), item.get("finding_id")) not in completion_ids
+        ]
+        nonempty_sections = sum(bool(section.get("units")) for section in sections)
         return {
             "findings": finding_dicts,
+            "technical_findings": technical_findings,
+            "completion_findings": completion_findings,
+            "coverage": {
+                "sections": len(sections),
+                "nonempty_sections": nonempty_sections,
+                "planned_sections": len(sections) - nonempty_sections,
+            },
             "steps": step_dicts,
             "counts": counts,
             "estimated_calls": sum(step.estimated_calls for step in steps),

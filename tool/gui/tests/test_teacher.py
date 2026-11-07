@@ -49,12 +49,13 @@ class LessonWizardTest(unittest.TestCase):
         self.assertEqual(lesson["template"], "intro")
         self.assertEqual(lesson["type"], "normal")
         subs = lesson["content"]["subLessons"]
-        self.assertEqual(len(subs), 2)
-        for sl in subs:
-            stages = sl["stages"]
-            self.assertEqual(len(stages), 3)
-            rts = [st["items"][0]["runtimeType"] for st in stages]
-            self.assertEqual(rts, ["showWord", "translateSentence", "fillBlank"])
+        self.assertEqual(len(subs), 1)
+        items = subs[0]["stages"][0]["items"]
+        self.assertEqual(len(items), 12)
+        self.assertEqual(
+            {item["runtimeType"] for item in items},
+            {"showWord", "multipleChoice", "translateSentence", "fillBlank"},
+        )
 
     def test_generated_intro_lesson_validates(self) -> None:
         """The wizard output must pass course_cli validate after save (§15.13)."""

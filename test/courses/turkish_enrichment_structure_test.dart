@@ -1,9 +1,8 @@
-// Structural gates for the retired sample course (`assets/courses/turkish`).
+// Structural gates for the retired sample course (`test/fixtures/turkish_course`).
 //
 // This tree is no longer the course the app ships: `assets/courses/manifest.json`
-// points `tr` at `nouveau-turkish/`. It stays packed because it is the only
-// complete 8-section reference course (and several fixtures read its real
-// files), so the gates below guard it against accidental edits — they describe
+// points `tr` at `nouveau-turkish/`. The retired tree is a file-backed test
+// fixture, not an app asset, so the gates below guard it against accidental edits — they describe
 // the legacy tree, not current product content. Shipped-content coverage lives
 // in `course_loader_test.dart`, `seeder_round_trip_test.dart`, and
 // `docs/content_inventory_current.md`.
@@ -17,7 +16,7 @@ import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
 
 List<Section> _loadAllSections() {
-  final dir = Directory('assets/courses/turkish/sections');
+  final dir = Directory('test/fixtures/turkish_course/sections');
   final files = dir
       .listSync()
       .whereType<File>()
@@ -41,16 +40,16 @@ void main() {
   setUpAll(() {
     sections = _loadAllSections();
     index =
-        jsonDecode(File('assets/courses/turkish/index.json').readAsStringSync())
+        jsonDecode(File('test/fixtures/turkish_course/index.json').readAsStringSync())
             as Map<String, dynamic>;
     words = (jsonDecode(
-            File('assets/courses/turkish/vocab.json').readAsStringSync())
+            File('test/fixtures/turkish_course/vocab.json').readAsStringSync())
         as Map<String, dynamic>)['words'] as List<dynamic>;
     expressions = (jsonDecode(
-            File('assets/courses/turkish/expressions.json').readAsStringSync())
+            File('test/fixtures/turkish_course/expressions.json').readAsStringSync())
         as Map<String, dynamic>)['expressions'] as List<dynamic>;
     grammarPoints = (jsonDecode(
-            File('assets/courses/turkish/grammar_points.json')
+            File('test/fixtures/turkish_course/grammar_points.json')
                 .readAsStringSync()) as Map<String, dynamic>)['grammarPoints']
         as List<dynamic>;
   });

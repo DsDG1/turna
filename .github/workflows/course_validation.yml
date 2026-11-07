@@ -6,16 +6,20 @@ on:
       - master
     paths:
       - "assets/courses/**"
-      - "tool/course_cli.py"
-      - "test/course_cli_test.py"
+      - "docs/authoring/**"
+      - "tool/course_*.py"
+      - "tool/export_author_workspace.py"
+      - "test/*_cli_test.py"
       - ".github/workflows/course_validation.yml"
   pull_request:
     branches:
       - master
     paths:
       - "assets/courses/**"
-      - "tool/course_cli.py"
-      - "test/course_cli_test.py"
+      - "docs/authoring/**"
+      - "tool/course_*.py"
+      - "tool/export_author_workspace.py"
+      - "test/*_cli_test.py"
       - ".github/workflows/course_validation.yml"
 
 permissions:
@@ -38,8 +42,8 @@ jobs:
         run: python tool/course_cli.py validate
 
       - name: Lint course content
-        # Not --strict yet: Phase 15/16 will clear audioAsset warnings first.
+        # Strict mode is enabled after the pending real listening audio is delivered.
         run: python tool/course_cli.py lint
 
-      - name: Run Python CLI tests
+      - name: Run Python CLI and authoring-contract tests
         run: python -m unittest discover -s test -p "*_cli_test.py"

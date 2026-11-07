@@ -1,6 +1,7 @@
 """Unit tests for CourseReleaseService."""
 from __future__ import annotations
 
+import copy
 import unittest
 from unittest.mock import MagicMock
 
@@ -29,13 +30,15 @@ class DummyAdapter:
         }
 
     def _deep_snapshot(self):
-        return {
-            "index": dict(self.index),
-            "sections": list(self.sections),
-            "vocab": list(self.vocab),
-            "expressions": list(self.expressions),
-            "grammar_points": list(self.grammar_points),
-        }
+        return copy.deepcopy(
+            {
+                "index": self.index,
+                "sections": self.sections,
+                "vocab": self.vocab,
+                "expressions": self.expressions,
+                "grammar_points": self.grammar_points,
+            }
+        )
 
 
 class TestCourseReleaseService(unittest.TestCase):
@@ -110,6 +113,11 @@ class TestCourseReleaseService(unittest.TestCase):
         self.assertEqual(diff["vocab"]["removed"], [])
         self.assertEqual(diff["vocab"]["unchanged_count"], 1)
 
+        adapter.vocab[0]["term"] = "edited"
+        diff = CourseReleaseService.release_diff(adapter)
+        self.assertEqual(diff["vocab"]["changed"], ["w-1"])
+        self.assertEqual(diff["vocab"]["unchanged_count"], 0)
+
         self.assertEqual(diff["expressions"]["added"], [])
         self.assertEqual(diff["expressions"]["removed"], ["e-1"])
         self.assertEqual(diff["expressions"]["unchanged_count"], 0)
@@ -119,7 +127,7 @@ class TestCourseReleaseService(unittest.TestCase):
         adapter._snapshot = adapter._deep_snapshot()
         report = CourseReleaseService.release_report(adapter)
         self.assertIn("changes", report)
-        self.assertIn("version_bump", report)
+        self.assertEqual(report["version_bump"], {})
         self.assertIn("diff", report)
         self.assertIn("validation", report)
 

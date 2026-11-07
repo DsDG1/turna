@@ -3,32 +3,11 @@
   "name": "Greetings",
   "description": "A1 greetings",
   "words": [
-    {
-      "id": "w-merhaba",
-      "term": "Merhaba",
-      "translation": "你好",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": ["greeting"]
-    },
-    {
-      "id": "w-gunaydin",
-      "term": "Günaydın",
-      "translation": "早上好",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": ["greeting"]
-    }
+    {"id": "w-merhaba", "term": "Merhaba", "translation": "你好", "pronunciation": null, "audioAsset": null, "tags": ["greeting"]},
+    {"id": "w-gunaydin", "term": "Günaydın", "translation": "早上好", "pronunciation": null, "audioAsset": null, "tags": ["greeting"]}
   ],
   "expressions": [
-    {
-      "id": "e-nasilsin",
-      "term": "Nasılsın?",
-      "translation": "你好吗？",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": []
-    }
+    {"id": "e-nasilsin", "term": "Nasılsın?", "translation": "你好吗？", "pronunciation": null, "audioAsset": null, "tags": []}
   ],
   "grammarPoints": [],
   "units": [
@@ -50,24 +29,18 @@
                     "id": "ai-greetings-u1-l1-st1",
                     "name": "Meet",
                     "items": [
-                      {
-                        "runtimeType": "showWord",
-                        "id": "ai-greetings-i1",
-                        "wordId": "w-merhaba"
-                      },
-                      {
-                        "runtimeType": "multipleChoice",
-                        "id": "ai-greetings-i2",
-                        "prompt": "「你好」怎么说？",
-                        "options": ["Merhaba", "Günaydın", "Teşekkürler", "Rica ederim"],
-                        "correctIndex": 0
-                      },
-                      {
-                        "runtimeType": "translateSentence",
-                        "id": "ai-greetings-i3",
-                        "source": "你好",
-                        "expected": "Merhaba"
-                      }
+                      {"runtimeType": "showWord", "id": "ai-greetings-i1", "wordId": "w-merhaba"},
+                      {"runtimeType": "multipleChoice", "id": "ai-greetings-i2", "prompt": "「你好」怎么说？", "options": ["Günaydın", "Merhaba", "Teşekkürler", "Rica ederim"], "correctIndex": 1},
+                      {"runtimeType": "translateSentence", "id": "ai-greetings-i3", "source": "你好", "expected": "Merhaba"},
+                      {"runtimeType": "fillBlank", "id": "ai-greetings-i4", "sentence": "「你好」= _____", "answer": "Merhaba"},
+                      {"runtimeType": "showWord", "id": "ai-greetings-i5", "wordId": "w-gunaydin"},
+                      {"runtimeType": "multipleChoice", "id": "ai-greetings-i6", "prompt": "「早上好」怎么说？", "options": ["Günaydın", "Merhaba", "Teşekkürler", "Rica ederim"], "correctIndex": 0},
+                      {"runtimeType": "translateSentence", "id": "ai-greetings-i7", "source": "早上好", "expected": "Günaydın"},
+                      {"runtimeType": "fillBlank", "id": "ai-greetings-i8", "sentence": "「早上好」= _____", "answer": "Günaydın"},
+                      {"runtimeType": "fillBlank", "id": "ai-greetings-i9", "sentence": "见面时说：_____", "answer": "Merhaba", "choices": ["Merhaba", "Günaydın"]},
+                      {"runtimeType": "translateSentence", "id": "ai-greetings-i10", "source": "你好", "expected": "Merhaba"},
+                      {"runtimeType": "translateSentence", "id": "ai-greetings-i11", "source": "早上好", "expected": "Günaydın"},
+                      {"runtimeType": "multipleChoice", "id": "ai-greetings-i12", "prompt": "Merhaba 是什么意思？", "options": ["早上好", "谢谢", "你好", "再见"], "correctIndex": 2}
                     ]
                   }
                 ]

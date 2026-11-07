@@ -14,7 +14,10 @@
       ],
       "difficulty": 1,
       "linkedWordIds": [],
-      "linkedExpressionIds": []
+      "linkedExpressionIds": [],
+      "wordFormMap": {},
+      "imageAsset": "",
+      "imageAlt": ""
     },
     "stages": [
       {

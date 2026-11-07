@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -250,71 +251,84 @@ class ContentTreeTest(unittest.TestCase):
 
 
 class LessonBuilderTest(unittest.TestCase):
-    def test_build_intro_lesson_validates(self) -> None:
-        words = [
-            {"id": "w-hello", "term": "hello", "translation": "你好"},
-            {"id": "w-thanks", "term": "thanks", "translation": "谢谢"},
-        ]
-        lesson = build_intro_lesson("问候", "认识问候语", words)
-        self.assertEqual(lesson["template"], "intro")
-        self.assertEqual(len(lesson["content"]["subLessons"]), 2)
+    words: ClassVar[list[dict[str, str]]] = [
+        {"id": "w-hello", "term": "hello", "translation": "你好"},
+        {"id": "w-thanks", "term": "thanks", "translation": "谢谢"},
+    ]
 
-        vocab_ids = {w["id"] for w in words}
-        problems = api.validate_lesson(lesson, vocab_ids, set(), set())
+    def assert_valid(self, lesson: dict, expressions: list[dict] | None = None) -> None:
+        expressions = expressions or []
+        problems = api.validate_lesson(
+            lesson,
+            {w["id"] for w in self.words},
+            {e["id"] for e in expressions},
+            set(),
+        )
         self.assertEqual(problems, [])
+
+    def test_build_intro_lesson_validates(self) -> None:
+        lesson = build_intro_lesson("问候", "认识问候语", self.words)
+        self.assertEqual(lesson["template"], "intro")
+        sub_lessons = lesson["content"]["subLessons"]
+        self.assertEqual(len(sub_lessons), 1)
+        items = sub_lessons[0]["stages"][0]["items"]
+        self.assertEqual(len(items), 12)
+        self.assertEqual(
+            {item["wordId"] for item in items if item["runtimeType"] == "showWord"},
+            {"w-hello", "w-thanks"},
+        )
+        self.assert_valid(lesson)
+
+    def test_generated_choice_answers_keep_the_correct_value_and_vary_position(self) -> None:
+        lesson = build_intro_lesson("问候", "", self.words)
+        items = lesson["content"]["subLessons"][0]["stages"][0]["items"]
+        choices = [item for item in items if item["runtimeType"] == "multipleChoice"]
+        self.assertGreaterEqual(len(choices), 2)
+        self.assertNotEqual({item["correctIndex"] for item in choices}, {0})
+        for item in choices:
+            self.assertIn(item["options"][item["correctIndex"]], {"hello", "thanks"})
 
     def test_build_practice_lesson_default_mix(self) -> None:
-        words = [
-            {"id": "w-hello", "term": "hello", "translation": "你好"},
-            {"id": "w-thanks", "term": "thanks", "translation": "谢谢"},
-        ]
-        lesson = build_practice_lesson("练习", "巩固练习", words)
+        lesson = build_practice_lesson("练习", "巩固练习", self.words)
         self.assertEqual(lesson["template"], "practice")
-        self.assertEqual(len(lesson["content"]["subLessons"]), 2)
-
-        # Each word becomes one sub-lesson with two stages by default.
-        for sub in lesson["content"]["subLessons"]:
-            self.assertEqual(len(sub["stages"]), 2)
-            rts = {stage["items"][0]["runtimeType"] for stage in sub["stages"]}
-            self.assertIn("multipleChoice", rts)
-            self.assertIn("fillBlank", rts)
-
-        vocab_ids = {w["id"] for w in words}
-        problems = api.validate_lesson(lesson, vocab_ids, set(), set())
-        self.assertEqual(problems, [])
+        sub_lessons = lesson["content"]["subLessons"]
+        self.assertEqual(len(sub_lessons), 1)
+        items = sub_lessons[0]["stages"][0]["items"]
+        self.assertEqual(len(items), 12)
+        self.assertIn("multipleChoice", {item["runtimeType"] for item in items})
+        self.assertIn("fillBlank", {item["runtimeType"] for item in items})
+        self.assert_valid(lesson)
 
     def test_build_practice_lesson_custom_mix(self) -> None:
-        words = [{"id": "w-hello", "term": "hello", "translation": "你好"}]
-        lesson = build_practice_lesson("练习", "", words, ("translateSentence",))
-        sub = lesson["content"]["subLessons"][0]
-        self.assertEqual(len(sub["stages"]), 1)
-        self.assertEqual(sub["stages"][0]["items"][0]["runtimeType"], "translateSentence")
+        lesson = build_practice_lesson(
+            "练习", "", self.words[:1], ("translateSentence",)
+        )
+        items = lesson["content"]["subLessons"][0]["stages"][0]["items"]
+        self.assertEqual(len(items), 12)
+        self.assertEqual({item["runtimeType"] for item in items}, {"translateSentence"})
 
     def test_build_practice_lesson_fallback_when_empty_mix(self) -> None:
-        words = [{"id": "w-hello", "term": "hello", "translation": "你好"}]
-        lesson = build_practice_lesson("练习", "", words, ())
-        sub = lesson["content"]["subLessons"][0]
-        self.assertEqual(sub["stages"][0]["items"][0]["runtimeType"], "fillBlank")
+        lesson = build_practice_lesson("练习", "", self.words[:1], ())
+        items = lesson["content"]["subLessons"][0]["stages"][0]["items"]
+        self.assertEqual(len(items), 12)
+        self.assertEqual({item["runtimeType"] for item in items}, {"fillBlank"})
 
     def test_build_review_lesson_with_words(self) -> None:
-        words = [
-            {"id": "w-hello", "term": "hello", "translation": "你好"},
-            {"id": "w-thanks", "term": "thanks", "translation": "谢谢"},
-        ]
         expressions = [{"id": "e-hi", "term": "hi", "translation": "嗨"}]
-        lesson = build_review_lesson("复习", "复习本单元", words, expressions)
+        lesson = build_review_lesson("复习", "复习本单元", self.words, expressions)
         self.assertEqual(lesson["template"], "review")
-        self.assertEqual(len(lesson["content"]["subLessons"]), 3)
-
-        vocab_ids = {w["id"] for w in words}
-        expression_ids = {e["id"] for e in expressions}
-        problems = api.validate_lesson(lesson, vocab_ids, expression_ids, set())
-        self.assertEqual(problems, [])
+        self.assertNotIn("subLessons", lesson["content"])
+        items = lesson["content"]["stages"][0]["items"]
+        self.assertEqual(len(items), 18)
+        self.assertEqual(lesson["content"]["reviewPolicy"]["minItems"], 15)
+        self.assertEqual(lesson["content"]["reviewPolicy"]["maxItems"], 16)
+        self.assert_valid(lesson, expressions)
 
     def test_build_review_lesson_empty_inputs(self) -> None:
         lesson = build_review_lesson("复习", "", [])
         self.assertEqual(lesson["template"], "review")
-        self.assertEqual(lesson["content"]["subLessons"], [])
+        self.assertEqual(lesson["content"]["stages"], [])
+        self.assertNotIn("reviewPolicy", lesson["content"])
 
 
 class DialogueReviewSchemaTest(unittest.TestCase):

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260">
+  <g id="background"><rect width="400" height="260" rx="24" fill="#78C7B8" fill-opacity="0.22"/></g>
+  <g id="house">
+    <path d="M46 126 L148 43 L250 126 Z" fill="#B85C3F"/>
+    <path d="M65 113 H231 V226 H65 Z" fill="#EAD9B8"/>
+    <path d="M46 126 L148 43 L250 126" fill="none" stroke="#19324A" stroke-width="6" stroke-linejoin="round"/>
+    <rect x="88" y="137" width="47" height="45" rx="6" fill="#4A95A8"/>
+    <path d="M111 137 V182 M88 159 H135" stroke="#FFFFFF" stroke-width="4"/>
+    <rect x="161" y="151" width="43" height="75" rx="8" fill="#1F727E"/>
+    <circle cx="192" cy="190" r="4" fill="#FFD93D"/>
+  </g>
+  <g id="table">
+    <ellipse cx="298" cy="219" rx="75" ry="13" fill="#19324A" fill-opacity="0.12"/>
+    <rect x="244" y="181" width="110" height="13" rx="6" fill="#19324A"/>
+    <rect x="257" y="191" width="10" height="40" fill="#19324A"/>
+    <rect x="333" y="191" width="10" height="40" fill="#19324A"/>
+  </g>
+  <g id="tea">
+    <ellipse cx="299" cy="182" rx="33" ry="7" fill="#B85C3F"/>
+    <path d="M279 119 H319 C316 136 315 146 317 157 C316 171 308 176 299 176 C289 176 281 171 281 157 C283 146 281 135 279 119 Z" fill="#FFFFFF"/>
+    <path d="M283 140 H315 L314 159 C311 169 305 171 299 171 C292 171 286 167 284 159 Z" fill="#B85C3F"/>
+    <ellipse cx="299" cy="119" rx="20" ry="5" fill="#9E3B24"/>
+    <path d="M291 106 C283 96 298 90 291 80 M308 106 C300 96 314 91 308 81" fill="none" stroke="#78C7B8" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

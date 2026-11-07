@@ -649,6 +649,27 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
         paragraphs_edit.textChanged.connect(self._on_passage_paragraphs_changed)
         layout.addWidget(paragraphs_edit)
 
+        for label, field in (("插图资源：", "imageAsset"), ("插图替代文本：", "imageAlt")):
+            layout.addWidget(QLabel(label))
+            edit = QLineEdit(str(passage.get(field) or ""))
+            edit._passage_ref = passage
+            edit._passage_field = field
+            edit.textChanged.connect(self._on_passage_field_changed)
+            layout.addWidget(edit)
+
+        layout.addWidget(QLabel("词形映射（每行：文中词形=词库编号）："))
+        forms_edit = QTextEdit()
+        forms_edit.setPlainText(
+            "\n".join(
+                f"{surface}={word_id}"
+                for surface, word_id in (passage.get("wordFormMap") or {}).items()
+            )
+        )
+        forms_edit.setMaximumHeight(100)
+        forms_edit._passage_ref = passage
+        forms_edit.textChanged.connect(self._on_passage_forms_changed)
+        layout.addWidget(forms_edit)
+
         stage = self._stage()
         if stage is not None:
             layout.addWidget(QLabel(stage.get('name', ' comprehension')))
@@ -673,6 +694,28 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
                 passage["paragraphs"] = [
                     para.strip() for para in edit.toPlainText().split("\n\n") if para.strip()
                 ]
+
+    def _on_passage_field_changed(self, text: str) -> None:
+        edit = self.sender()
+        if isinstance(edit, QLineEdit):
+            passage = getattr(edit, "_passage_ref", None)
+            field = getattr(edit, "_passage_field", "")
+            if isinstance(passage, dict) and field:
+                passage[field] = text
+
+    def _on_passage_forms_changed(self) -> None:
+        edit = self.sender()
+        if not isinstance(edit, QTextEdit):
+            return
+        passage = getattr(edit, "_passage_ref", None)
+        if not isinstance(passage, dict):
+            return
+        forms: dict[str, str] = {}
+        for line in edit.toPlainText().splitlines():
+            surface, separator, word_id = line.partition("=")
+            if separator and surface.strip() and word_id.strip():
+                forms[surface.strip()] = word_id.strip()
+        passage["wordFormMap"] = forms
 
     def _stage(self) -> dict[str, Any] | None:
         stages = self.lesson.get("content", {}).get("stages", []) or []

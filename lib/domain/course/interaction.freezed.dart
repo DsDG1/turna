@@ -395,8 +395,13 @@ extension InteractionPatterns on Interaction {
             List<String> imageAssets,
             String? grammarPointId)?
         fillBlank,
-    TResult Function(String id, String source, String expected,
-            List<String> hints, String? grammarPointId)?
+    TResult Function(
+            String id,
+            String source,
+            String expected,
+            List<String> acceptedAnswers,
+            List<String> hints,
+            String? grammarPointId)?
         translateSentence,
     TResult Function(String id, String audioAsset, String prompt,
             List<String> options, int correctIndex, String? grammarPointId)?
@@ -407,8 +412,13 @@ extension InteractionPatterns on Interaction {
     TResult Function(String id, String? audioAsset, String transcript,
             String prompt, String? grammarPointId)?
         listenOnly,
-    TResult Function(String id, List<String> scrambled, List<String> correct,
-            String? prompt, String? grammarPointId)?
+    TResult Function(
+            String id,
+            List<String> scrambled,
+            List<String> correct,
+            List<String> acceptedAnswers,
+            String? prompt,
+            String? grammarPointId)?
         reorderSentence,
     TResult Function(String id, String prompt, List<String> options,
             int correctIndex, String? grammarPointId)?
@@ -417,7 +427,7 @@ extension InteractionPatterns on Interaction {
             String id, String statement, bool answer, String? grammarPointId)?
         readingTrueFalse,
     TResult Function(String id, String prompt, String expectedAnswer,
-            String? grammarPointId)?
+            List<String> acceptedAnswers, String? grammarPointId)?
         readingShortAnswer,
     TResult Function(
             String id,
@@ -501,7 +511,7 @@ extension InteractionPatterns on Interaction {
             _that.grammarPointId);
       case TranslateSentence() when translateSentence != null:
         return translateSentence(_that.id, _that.source, _that.expected,
-            _that.hints, _that.grammarPointId);
+            _that.acceptedAnswers, _that.hints, _that.grammarPointId);
       case ListenAndPick() when listenAndPick != null:
         return listenAndPick(_that.id, _that.audioAsset, _that.prompt,
             _that.options, _that.correctIndex, _that.grammarPointId);
@@ -513,7 +523,7 @@ extension InteractionPatterns on Interaction {
             _that.prompt, _that.grammarPointId);
       case ReorderSentence() when reorderSentence != null:
         return reorderSentence(_that.id, _that.scrambled, _that.correct,
-            _that.prompt, _that.grammarPointId);
+            _that.acceptedAnswers, _that.prompt, _that.grammarPointId);
       case ReadingMcq() when readingMcq != null:
         return readingMcq(_that.id, _that.prompt, _that.options,
             _that.correctIndex, _that.grammarPointId);
@@ -521,8 +531,8 @@ extension InteractionPatterns on Interaction {
         return readingTrueFalse(
             _that.id, _that.statement, _that.answer, _that.grammarPointId);
       case ReadingShortAnswer() when readingShortAnswer != null:
-        return readingShortAnswer(
-            _that.id, _that.prompt, _that.expectedAnswer, _that.grammarPointId);
+        return readingShortAnswer(_that.id, _that.prompt, _that.expectedAnswer,
+            _that.acceptedAnswers, _that.grammarPointId);
       case AnkiCard() when ankiCard != null:
         return ankiCard(
             _that.id,
@@ -619,8 +629,13 @@ extension InteractionPatterns on Interaction {
             List<String> imageAssets,
             String? grammarPointId)
         fillBlank,
-    required TResult Function(String id, String source, String expected,
-            List<String> hints, String? grammarPointId)
+    required TResult Function(
+            String id,
+            String source,
+            String expected,
+            List<String> acceptedAnswers,
+            List<String> hints,
+            String? grammarPointId)
         translateSentence,
     required TResult Function(String id, String audioAsset, String prompt,
             List<String> options, int correctIndex, String? grammarPointId)
@@ -631,8 +646,13 @@ extension InteractionPatterns on Interaction {
     required TResult Function(String id, String? audioAsset, String transcript,
             String prompt, String? grammarPointId)
         listenOnly,
-    required TResult Function(String id, List<String> scrambled,
-            List<String> correct, String? prompt, String? grammarPointId)
+    required TResult Function(
+            String id,
+            List<String> scrambled,
+            List<String> correct,
+            List<String> acceptedAnswers,
+            String? prompt,
+            String? grammarPointId)
         reorderSentence,
     required TResult Function(String id, String prompt, List<String> options,
             int correctIndex, String? grammarPointId)
@@ -641,7 +661,7 @@ extension InteractionPatterns on Interaction {
             String id, String statement, bool answer, String? grammarPointId)
         readingTrueFalse,
     required TResult Function(String id, String prompt, String expectedAnswer,
-            String? grammarPointId)
+            List<String> acceptedAnswers, String? grammarPointId)
         readingShortAnswer,
     required TResult Function(
             String id,
@@ -724,7 +744,7 @@ extension InteractionPatterns on Interaction {
             _that.grammarPointId);
       case TranslateSentence():
         return translateSentence(_that.id, _that.source, _that.expected,
-            _that.hints, _that.grammarPointId);
+            _that.acceptedAnswers, _that.hints, _that.grammarPointId);
       case ListenAndPick():
         return listenAndPick(_that.id, _that.audioAsset, _that.prompt,
             _that.options, _that.correctIndex, _that.grammarPointId);
@@ -736,7 +756,7 @@ extension InteractionPatterns on Interaction {
             _that.prompt, _that.grammarPointId);
       case ReorderSentence():
         return reorderSentence(_that.id, _that.scrambled, _that.correct,
-            _that.prompt, _that.grammarPointId);
+            _that.acceptedAnswers, _that.prompt, _that.grammarPointId);
       case ReadingMcq():
         return readingMcq(_that.id, _that.prompt, _that.options,
             _that.correctIndex, _that.grammarPointId);
@@ -744,8 +764,8 @@ extension InteractionPatterns on Interaction {
         return readingTrueFalse(
             _that.id, _that.statement, _that.answer, _that.grammarPointId);
       case ReadingShortAnswer():
-        return readingShortAnswer(
-            _that.id, _that.prompt, _that.expectedAnswer, _that.grammarPointId);
+        return readingShortAnswer(_that.id, _that.prompt, _that.expectedAnswer,
+            _that.acceptedAnswers, _that.grammarPointId);
       case AnkiCard():
         return ankiCard(
             _that.id,
@@ -839,8 +859,13 @@ extension InteractionPatterns on Interaction {
             List<String> imageAssets,
             String? grammarPointId)?
         fillBlank,
-    TResult? Function(String id, String source, String expected,
-            List<String> hints, String? grammarPointId)?
+    TResult? Function(
+            String id,
+            String source,
+            String expected,
+            List<String> acceptedAnswers,
+            List<String> hints,
+            String? grammarPointId)?
         translateSentence,
     TResult? Function(String id, String audioAsset, String prompt,
             List<String> options, int correctIndex, String? grammarPointId)?
@@ -851,8 +876,13 @@ extension InteractionPatterns on Interaction {
     TResult? Function(String id, String? audioAsset, String transcript,
             String prompt, String? grammarPointId)?
         listenOnly,
-    TResult? Function(String id, List<String> scrambled, List<String> correct,
-            String? prompt, String? grammarPointId)?
+    TResult? Function(
+            String id,
+            List<String> scrambled,
+            List<String> correct,
+            List<String> acceptedAnswers,
+            String? prompt,
+            String? grammarPointId)?
         reorderSentence,
     TResult? Function(String id, String prompt, List<String> options,
             int correctIndex, String? grammarPointId)?
@@ -861,7 +891,7 @@ extension InteractionPatterns on Interaction {
             String id, String statement, bool answer, String? grammarPointId)?
         readingTrueFalse,
     TResult? Function(String id, String prompt, String expectedAnswer,
-            String? grammarPointId)?
+            List<String> acceptedAnswers, String? grammarPointId)?
         readingShortAnswer,
     TResult? Function(
             String id,
@@ -944,7 +974,7 @@ extension InteractionPatterns on Interaction {
             _that.grammarPointId);
       case TranslateSentence() when translateSentence != null:
         return translateSentence(_that.id, _that.source, _that.expected,
-            _that.hints, _that.grammarPointId);
+            _that.acceptedAnswers, _that.hints, _that.grammarPointId);
       case ListenAndPick() when listenAndPick != null:
         return listenAndPick(_that.id, _that.audioAsset, _that.prompt,
             _that.options, _that.correctIndex, _that.grammarPointId);
@@ -956,7 +986,7 @@ extension InteractionPatterns on Interaction {
             _that.prompt, _that.grammarPointId);
       case ReorderSentence() when reorderSentence != null:
         return reorderSentence(_that.id, _that.scrambled, _that.correct,
-            _that.prompt, _that.grammarPointId);
+            _that.acceptedAnswers, _that.prompt, _that.grammarPointId);
       case ReadingMcq() when readingMcq != null:
         return readingMcq(_that.id, _that.prompt, _that.options,
             _that.correctIndex, _that.grammarPointId);
@@ -964,8 +994,8 @@ extension InteractionPatterns on Interaction {
         return readingTrueFalse(
             _that.id, _that.statement, _that.answer, _that.grammarPointId);
       case ReadingShortAnswer() when readingShortAnswer != null:
-        return readingShortAnswer(
-            _that.id, _that.prompt, _that.expectedAnswer, _that.grammarPointId);
+        return readingShortAnswer(_that.id, _that.prompt, _that.expectedAnswer,
+            _that.acceptedAnswers, _that.grammarPointId);
       case AnkiCard() when ankiCard != null:
         return ankiCard(
             _that.id,
@@ -1734,10 +1764,12 @@ class TranslateSentence implements Interaction {
       {this.id = '',
       required this.source,
       required this.expected,
+      final List<String> acceptedAnswers = const <String>[],
       final List<String> hints = const <String>[],
       this.grammarPointId,
       final String? $type})
-      : _hints = hints,
+      : _acceptedAnswers = acceptedAnswers,
+        _hints = hints,
         $type = $type ?? 'translateSentence';
   factory TranslateSentence.fromJson(Map<String, dynamic> json) =>
       _$TranslateSentenceFromJson(json);
@@ -1747,6 +1779,14 @@ class TranslateSentence implements Interaction {
   final String id;
   final String source;
   final String expected;
+  final List<String> _acceptedAnswers;
+  @JsonKey()
+  List<String> get acceptedAnswers {
+    if (_acceptedAnswers is EqualUnmodifiableListView) return _acceptedAnswers;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_acceptedAnswers);
+  }
+
   final List<String> _hints;
   @JsonKey()
   List<String> get hints {
@@ -1784,6 +1824,8 @@ class TranslateSentence implements Interaction {
             (identical(other.source, source) || other.source == source) &&
             (identical(other.expected, expected) ||
                 other.expected == expected) &&
+            const DeepCollectionEquality()
+                .equals(other._acceptedAnswers, _acceptedAnswers) &&
             const DeepCollectionEquality().equals(other._hints, _hints) &&
             (identical(other.grammarPointId, grammarPointId) ||
                 other.grammarPointId == grammarPointId));
@@ -1791,12 +1833,18 @@ class TranslateSentence implements Interaction {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, source, expected,
-      const DeepCollectionEquality().hash(_hints), grammarPointId);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      source,
+      expected,
+      const DeepCollectionEquality().hash(_acceptedAnswers),
+      const DeepCollectionEquality().hash(_hints),
+      grammarPointId);
 
   @override
   String toString() {
-    return 'Interaction.translateSentence(id: $id, source: $source, expected: $expected, hints: $hints, grammarPointId: $grammarPointId)';
+    return 'Interaction.translateSentence(id: $id, source: $source, expected: $expected, acceptedAnswers: $acceptedAnswers, hints: $hints, grammarPointId: $grammarPointId)';
   }
 }
 
@@ -1812,6 +1860,7 @@ abstract mixin class $TranslateSentenceCopyWith<$Res>
       {String id,
       String source,
       String expected,
+      List<String> acceptedAnswers,
       List<String> hints,
       String? grammarPointId});
 }
@@ -1832,6 +1881,7 @@ class _$TranslateSentenceCopyWithImpl<$Res>
     Object? id = null,
     Object? source = null,
     Object? expected = null,
+    Object? acceptedAnswers = null,
     Object? hints = null,
     Object? grammarPointId = freezed,
   }) {
@@ -1848,6 +1898,10 @@ class _$TranslateSentenceCopyWithImpl<$Res>
           ? _self.expected
           : expected // ignore: cast_nullable_to_non_nullable
               as String,
+      acceptedAnswers: null == acceptedAnswers
+          ? _self._acceptedAnswers
+          : acceptedAnswers // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       hints: null == hints
           ? _self._hints
           : hints // ignore: cast_nullable_to_non_nullable
@@ -2267,11 +2321,13 @@ class ReorderSentence implements Interaction {
       {this.id = '',
       required final List<String> scrambled,
       required final List<String> correct,
+      final List<String> acceptedAnswers = const <String>[],
       this.prompt,
       this.grammarPointId,
       final String? $type})
       : _scrambled = scrambled,
         _correct = correct,
+        _acceptedAnswers = acceptedAnswers,
         $type = $type ?? 'reorderSentence';
   factory ReorderSentence.fromJson(Map<String, dynamic> json) =>
       _$ReorderSentenceFromJson(json);
@@ -2291,6 +2347,14 @@ class ReorderSentence implements Interaction {
     if (_correct is EqualUnmodifiableListView) return _correct;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_correct);
+  }
+
+  final List<String> _acceptedAnswers;
+  @JsonKey()
+  List<String> get acceptedAnswers {
+    if (_acceptedAnswers is EqualUnmodifiableListView) return _acceptedAnswers;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_acceptedAnswers);
   }
 
   final String? prompt;
@@ -2323,6 +2387,8 @@ class ReorderSentence implements Interaction {
             const DeepCollectionEquality()
                 .equals(other._scrambled, _scrambled) &&
             const DeepCollectionEquality().equals(other._correct, _correct) &&
+            const DeepCollectionEquality()
+                .equals(other._acceptedAnswers, _acceptedAnswers) &&
             (identical(other.prompt, prompt) || other.prompt == prompt) &&
             (identical(other.grammarPointId, grammarPointId) ||
                 other.grammarPointId == grammarPointId));
@@ -2335,12 +2401,13 @@ class ReorderSentence implements Interaction {
       id,
       const DeepCollectionEquality().hash(_scrambled),
       const DeepCollectionEquality().hash(_correct),
+      const DeepCollectionEquality().hash(_acceptedAnswers),
       prompt,
       grammarPointId);
 
   @override
   String toString() {
-    return 'Interaction.reorderSentence(id: $id, scrambled: $scrambled, correct: $correct, prompt: $prompt, grammarPointId: $grammarPointId)';
+    return 'Interaction.reorderSentence(id: $id, scrambled: $scrambled, correct: $correct, acceptedAnswers: $acceptedAnswers, prompt: $prompt, grammarPointId: $grammarPointId)';
   }
 }
 
@@ -2356,6 +2423,7 @@ abstract mixin class $ReorderSentenceCopyWith<$Res>
       {String id,
       List<String> scrambled,
       List<String> correct,
+      List<String> acceptedAnswers,
       String? prompt,
       String? grammarPointId});
 }
@@ -2376,6 +2444,7 @@ class _$ReorderSentenceCopyWithImpl<$Res>
     Object? id = null,
     Object? scrambled = null,
     Object? correct = null,
+    Object? acceptedAnswers = null,
     Object? prompt = freezed,
     Object? grammarPointId = freezed,
   }) {
@@ -2391,6 +2460,10 @@ class _$ReorderSentenceCopyWithImpl<$Res>
       correct: null == correct
           ? _self._correct
           : correct // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      acceptedAnswers: null == acceptedAnswers
+          ? _self._acceptedAnswers
+          : acceptedAnswers // ignore: cast_nullable_to_non_nullable
               as List<String>,
       prompt: freezed == prompt
           ? _self.prompt
@@ -2659,9 +2732,11 @@ class ReadingShortAnswer implements Interaction {
       {this.id = '',
       required this.prompt,
       required this.expectedAnswer,
+      final List<String> acceptedAnswers = const <String>[],
       this.grammarPointId,
       final String? $type})
-      : $type = $type ?? 'readingShortAnswer';
+      : _acceptedAnswers = acceptedAnswers,
+        $type = $type ?? 'readingShortAnswer';
   factory ReadingShortAnswer.fromJson(Map<String, dynamic> json) =>
       _$ReadingShortAnswerFromJson(json);
 
@@ -2670,6 +2745,14 @@ class ReadingShortAnswer implements Interaction {
   final String id;
   final String prompt;
   final String expectedAnswer;
+  final List<String> _acceptedAnswers;
+  @JsonKey()
+  List<String> get acceptedAnswers {
+    if (_acceptedAnswers is EqualUnmodifiableListView) return _acceptedAnswers;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_acceptedAnswers);
+  }
+
   final String? grammarPointId;
 
   @JsonKey(name: 'runtimeType')
@@ -2699,18 +2782,20 @@ class ReadingShortAnswer implements Interaction {
             (identical(other.prompt, prompt) || other.prompt == prompt) &&
             (identical(other.expectedAnswer, expectedAnswer) ||
                 other.expectedAnswer == expectedAnswer) &&
+            const DeepCollectionEquality()
+                .equals(other._acceptedAnswers, _acceptedAnswers) &&
             (identical(other.grammarPointId, grammarPointId) ||
                 other.grammarPointId == grammarPointId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, prompt, expectedAnswer, grammarPointId);
+  int get hashCode => Object.hash(runtimeType, id, prompt, expectedAnswer,
+      const DeepCollectionEquality().hash(_acceptedAnswers), grammarPointId);
 
   @override
   String toString() {
-    return 'Interaction.readingShortAnswer(id: $id, prompt: $prompt, expectedAnswer: $expectedAnswer, grammarPointId: $grammarPointId)';
+    return 'Interaction.readingShortAnswer(id: $id, prompt: $prompt, expectedAnswer: $expectedAnswer, acceptedAnswers: $acceptedAnswers, grammarPointId: $grammarPointId)';
   }
 }
 
@@ -2726,6 +2811,7 @@ abstract mixin class $ReadingShortAnswerCopyWith<$Res>
       {String id,
       String prompt,
       String expectedAnswer,
+      List<String> acceptedAnswers,
       String? grammarPointId});
 }
 
@@ -2745,6 +2831,7 @@ class _$ReadingShortAnswerCopyWithImpl<$Res>
     Object? id = null,
     Object? prompt = null,
     Object? expectedAnswer = null,
+    Object? acceptedAnswers = null,
     Object? grammarPointId = freezed,
   }) {
     return _then(ReadingShortAnswer(
@@ -2760,6 +2847,10 @@ class _$ReadingShortAnswerCopyWithImpl<$Res>
           ? _self.expectedAnswer
           : expectedAnswer // ignore: cast_nullable_to_non_nullable
               as String,
+      acceptedAnswers: null == acceptedAnswers
+          ? _self._acceptedAnswers
+          : acceptedAnswers // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       grammarPointId: freezed == grammarPointId
           ? _self.grammarPointId
           : grammarPointId // ignore: cast_nullable_to_non_nullable

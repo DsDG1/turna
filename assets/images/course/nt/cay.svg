@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <g id="bg-aura"><circle cx="120" cy="120" r="98" fill="#EAD9B8" fill-opacity="0.55"/></g>
+  <g id="steam" fill="none" stroke="#78C7B8" stroke-width="5" stroke-linecap="round">
+    <path d="M101 57 C88 43 110 35 99 20"/><path d="M136 57 C124 42 145 36 136 22"/>
+  </g>
+  <g id="saucer">
+    <ellipse cx="120" cy="192" rx="77" ry="18" fill="#19324A" fill-opacity="0.12"/>
+    <ellipse cx="120" cy="184" rx="73" ry="17" fill="#B85C3F"/>
+    <ellipse cx="120" cy="181" rx="61" ry="12" fill="#EAD9B8"/>
+  </g>
+  <g id="cup-body">
+    <path d="M79 76 H161 C158 100 151 116 154 137 C157 155 149 174 120 176 C91 174 83 155 86 137 C89 116 82 100 79 76 Z" fill="#FFFFFF" fill-opacity="0.72" stroke="#19324A" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M85 106 H155 C151 119 151 131 153 143 C151 159 141 167 120 169 C99 167 89 159 87 143 C89 131 89 119 85 106 Z" fill="#B85C3F"/>
+    <path d="M91 112 H149 L145 143 C142 155 135 161 120 162 C105 161 98 155 95 143 Z" fill="#D46548"/>
+  </g>
+  <g id="cup-rim">
+    <ellipse cx="120" cy="77" rx="42" ry="10" fill="#FFFFFF" stroke="#19324A" stroke-width="4"/>
+    <ellipse cx="120" cy="78" rx="35" ry="6" fill="#9E3B24"/>
+    <path d="M88 88 C91 97 94 101 94 110" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.75"/>
+  </g>
+</svg>

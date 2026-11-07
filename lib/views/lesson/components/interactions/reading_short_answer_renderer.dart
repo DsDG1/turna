@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/core/turkish_text.dart';
+import 'package:turna/core/course_answer.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
@@ -33,6 +33,7 @@ class ReadingShortAnswerRenderer extends InteractionRenderer {
     return _ReadingShortAnswerBody(
       prompt: i.prompt,
       expectedAnswer: i.expectedAnswer,
+      acceptedAnswers: i.acceptedAnswers,
       state: state,
       onSubmit: onSubmit,
     );
@@ -42,12 +43,14 @@ class ReadingShortAnswerRenderer extends InteractionRenderer {
 class _ReadingShortAnswerBody extends StatefulWidget {
   final String prompt;
   final String expectedAnswer;
+  final List<String> acceptedAnswers;
   final InteractionState state;
   final OnInteractionSubmit onSubmit;
 
   const _ReadingShortAnswerBody({
     required this.prompt,
     required this.expectedAnswer,
+    required this.acceptedAnswers,
     required this.state,
     required this.onSubmit,
   });
@@ -92,8 +95,11 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
     super.dispose();
   }
 
-  bool _matches(String input) =>
-      foldTurkish(input.trim()) == foldTurkish(widget.expectedAnswer.trim());
+  bool _matches(String input) => matchesCourseAnswer(
+        input,
+        widget.expectedAnswer,
+        widget.acceptedAnswers,
+      );
 
   void _trySubmit() {
     final text = _controller.text;

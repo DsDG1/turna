@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from src.backend.api import course_pedagogy
 from src.backend.ai_bench import (
     count_empty_translations,
     count_mcq_duplicate_options,
@@ -47,18 +48,13 @@ _DIMENSIONS: tuple[Dimension, ...] = (
     "resource_hygiene",
 )
 
-# Soft CEFR caps (prompt-aligned with ai_pedagogy; not hard validators).
-_LEVEL_WORD_CAP: dict[str, int] = {
-    "A1": 10,
-    "A2": 14,
-    "B1": 18,
-    "B2": 24,
+_LEVEL_WORD_CAP = {
+    level: rules["new_words"][1]
+    for level, rules in course_pedagogy.LEVEL_RULES.items()
 }
-_LEVEL_SENTENCE_WORDS: dict[str, int] = {
-    "A1": 12,
-    "A2": 16,
-    "B1": 22,
-    "B2": 30,
+_LEVEL_SENTENCE_WORDS = {
+    level: rules["sentence_words"]
+    for level, rules in course_pedagogy.LEVEL_RULES.items()
 }
 
 _PRACTICE_TYPES = frozenset(
@@ -548,9 +544,25 @@ def _score_level_fit(
 
     long_hits = 0
     checked = 0
+    target_fields = {
+        "translateSentence": ("expected",),
+        "fillBlank": ("answer",),
+        "readingShortAnswer": ("expectedAnswer",),
+        "readAloud": ("targetText",),
+        "typeTheWord": ("expected",),
+        "dictation": ("expected",),
+        "listenOnly": ("transcript",),
+    }
     for lesson, item, path in _iter_items_with_path(section):
-        for fname in ("prompt", "source", "expected", "sentence", "text"):
-            val = item.get(fname)
+        runtime_type = item.get("runtimeType")
+        if runtime_type == "reorderSentence":
+            candidates = [("correct", " ".join(item.get("correct") or []))]
+        else:
+            candidates = [
+                (field, item.get(field))
+                for field in target_fields.get(str(runtime_type), ())
+            ]
+        for fname, val in candidates:
             if not isinstance(val, str) or not val.strip():
                 continue
             checked += 1
@@ -563,7 +575,7 @@ def _score_level_fit(
                         ContentQualityIssue(
                             level="warning",
                             dimension="level_fit",
-                            message=f"文本约 {n} 词，偏长于 {lvl} 建议（≤{sent_cap}）",
+                            message=f"目标句约 {n} 词，偏长于 {lvl} 建议（≤{sent_cap}）",
                             path=f"{path}/items/{iid}/{fname}",
                             lesson_id=str(lesson.get("id") or "?"),
                             item_id=iid,
@@ -593,6 +605,14 @@ def _score_audio_ready(
             transcript = item.get(ItemKey.TRANSCRIPT) or item.get("text")
             has_audio = isinstance(audio, str) and audio.strip()
             has_transcript = isinstance(transcript, str) and transcript.strip()
+            if not has_transcript and has_audio:
+                phases = (lesson.get("content") or {}).get("listeningPhases") or []
+                has_transcript = any(
+                    phase.get("audioAsset") == audio
+                    and isinstance(phase.get("transcript"), str)
+                    and phase["transcript"].strip()
+                    for phase in phases
+                )
             if not has_audio and not has_transcript:
                 missing_audio += 1
                 iid = str(item.get("id") or "?")
@@ -767,6 +787,21 @@ def score_section(
     scores["distractor"] = _score_distractor(section, issues)
     scores["level_fit"] = _score_level_fit(section, level=level, issues=issues)
     scores["audio_ready"] = _score_audio_ready(section, issues)
+    for _unit, lesson in _iter_lessons(section):
+        for finding in course_pedagogy.evaluate_lesson_pedagogy(lesson, level=level):
+            issues.append(
+                ContentQualityIssue(
+                    level="warning",
+                    dimension=(
+                        "level_fit"
+                        if finding.code.startswith("level_")
+                        else "balance"
+                    ),
+                    message=finding.message,
+                    path=f"lessons/{lesson.get('id', '')}/{finding.code}",
+                    lesson_id=str(lesson.get("id") or ""),
+                )
+            )
     hygiene_score, hygiene = _score_resource_hygiene(
         section,
         resource_pool=resource_pool,
@@ -992,6 +1027,11 @@ def evaluate_unit_spiral(section: dict[str, Any]) -> dict[str, Any]:
         w_obj = word_map[wid]
         term = str(w_obj.get("term") or w_obj.get("word") or "").strip().lower()
         for idx in range(intro_idx + 1, len(ordered_lessons)):
+            lesson = ordered_lessons[idx]
+            passage = (lesson.get("content") or {}).get("readingPassage") or {}
+            if wid in (passage.get("wordFormMap") or {}).values():
+                surfaced.add(wid)
+                break
             items = lesson_items[idx]
             found = False
             for it in items:
@@ -1000,9 +1040,26 @@ def evaluate_unit_spiral(section: dict[str, Any]) -> dict[str, Any]:
                     found = True
                     break
                 if term:
-                    opts = [str(o).strip().lower() for o in (it.get("options") or [])]
-                    exp = str(it.get("expected") or it.get("expectedAnswer") or "").strip().lower()
-                    if term in opts or term == exp:
+                    values = [
+                        str(value).strip().lower()
+                        for field in ("options", "choices", "scrambled", "correct")
+                        for value in (it.get(field) or [])
+                    ]
+                    values.extend(
+                        str(it.get(field) or "").strip().lower()
+                        for field in (
+                            "expected",
+                            "expectedAnswer",
+                            "answer",
+                            "targetText",
+                            "prompt",
+                            "sentence",
+                        )
+                    )
+                    if any(
+                        value == term or (len(term) > 2 and term in value)
+                        for value in values
+                    ):
                         found = True
                         break
             if found:

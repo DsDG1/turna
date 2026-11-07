@@ -30,6 +30,9 @@ mixin _$Expression {
 
   /// Optional tags for grouping/filtering (e.g. "greeting", "travel").
   List<String> get tags;
+  String? get level;
+  String? get introducedInLessonId;
+  String get learningGoal;
 
   /// Create a copy of Expression
   /// with the given fields replaced by the non-null parameter values.
@@ -54,17 +57,31 @@ mixin _$Expression {
                 other.pronunciation == pronunciation) &&
             (identical(other.audioAsset, audioAsset) ||
                 other.audioAsset == audioAsset) &&
-            const DeepCollectionEquality().equals(other.tags, tags));
+            const DeepCollectionEquality().equals(other.tags, tags) &&
+            (identical(other.level, level) || other.level == level) &&
+            (identical(other.introducedInLessonId, introducedInLessonId) ||
+                other.introducedInLessonId == introducedInLessonId) &&
+            (identical(other.learningGoal, learningGoal) ||
+                other.learningGoal == learningGoal));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, term, translation,
-      pronunciation, audioAsset, const DeepCollectionEquality().hash(tags));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      term,
+      translation,
+      pronunciation,
+      audioAsset,
+      const DeepCollectionEquality().hash(tags),
+      level,
+      introducedInLessonId,
+      learningGoal);
 
   @override
   String toString() {
-    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
+    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags, level: $level, introducedInLessonId: $introducedInLessonId, learningGoal: $learningGoal)';
   }
 }
 
@@ -80,7 +97,10 @@ abstract mixin class $ExpressionCopyWith<$Res> {
       String translation,
       String? pronunciation,
       String? audioAsset,
-      List<String> tags});
+      List<String> tags,
+      String? level,
+      String? introducedInLessonId,
+      String learningGoal});
 }
 
 /// @nodoc
@@ -101,6 +121,9 @@ class _$ExpressionCopyWithImpl<$Res> implements $ExpressionCopyWith<$Res> {
     Object? pronunciation = freezed,
     Object? audioAsset = freezed,
     Object? tags = null,
+    Object? level = freezed,
+    Object? introducedInLessonId = freezed,
+    Object? learningGoal = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -127,6 +150,18 @@ class _$ExpressionCopyWithImpl<$Res> implements $ExpressionCopyWith<$Res> {
           ? _self.tags
           : tags // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      level: freezed == level
+          ? _self.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as String?,
+      introducedInLessonId: freezed == introducedInLessonId
+          ? _self.introducedInLessonId
+          : introducedInLessonId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      learningGoal: null == learningGoal
+          ? _self.learningGoal
+          : learningGoal // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -224,16 +259,32 @@ extension ExpressionPatterns on Expression {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(String id, String term, String translation,
-            String? pronunciation, String? audioAsset, List<String> tags)?
+    TResult Function(
+            String id,
+            String term,
+            String translation,
+            String? pronunciation,
+            String? audioAsset,
+            List<String> tags,
+            String? level,
+            String? introducedInLessonId,
+            String learningGoal)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _Expression() when $default != null:
-        return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.tags);
+        return $default(
+            _that.id,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.tags,
+            _that.level,
+            _that.introducedInLessonId,
+            _that.learningGoal);
       case _:
         return orElse();
     }
@@ -254,15 +305,31 @@ extension ExpressionPatterns on Expression {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(String id, String term, String translation,
-            String? pronunciation, String? audioAsset, List<String> tags)
+    TResult Function(
+            String id,
+            String term,
+            String translation,
+            String? pronunciation,
+            String? audioAsset,
+            List<String> tags,
+            String? level,
+            String? introducedInLessonId,
+            String learningGoal)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Expression():
-        return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.tags);
+        return $default(
+            _that.id,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.tags,
+            _that.level,
+            _that.introducedInLessonId,
+            _that.learningGoal);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -282,15 +349,31 @@ extension ExpressionPatterns on Expression {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(String id, String term, String translation,
-            String? pronunciation, String? audioAsset, List<String> tags)?
+    TResult? Function(
+            String id,
+            String term,
+            String translation,
+            String? pronunciation,
+            String? audioAsset,
+            List<String> tags,
+            String? level,
+            String? introducedInLessonId,
+            String learningGoal)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Expression() when $default != null:
-        return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.tags);
+        return $default(
+            _that.id,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.tags,
+            _that.level,
+            _that.introducedInLessonId,
+            _that.learningGoal);
       case _:
         return null;
     }
@@ -306,7 +389,10 @@ class _Expression implements Expression {
       required this.translation,
       this.pronunciation,
       this.audioAsset,
-      final List<String> tags = const <String>[]})
+      final List<String> tags = const <String>[],
+      this.level,
+      this.introducedInLessonId,
+      this.learningGoal = 'production'})
       : _tags = tags;
   factory _Expression.fromJson(Map<String, dynamic> json) =>
       _$ExpressionFromJson(json);
@@ -342,6 +428,14 @@ class _Expression implements Expression {
     return EqualUnmodifiableListView(_tags);
   }
 
+  @override
+  final String? level;
+  @override
+  final String? introducedInLessonId;
+  @override
+  @JsonKey()
+  final String learningGoal;
+
   /// Create a copy of Expression
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -370,17 +464,31 @@ class _Expression implements Expression {
                 other.pronunciation == pronunciation) &&
             (identical(other.audioAsset, audioAsset) ||
                 other.audioAsset == audioAsset) &&
-            const DeepCollectionEquality().equals(other._tags, _tags));
+            const DeepCollectionEquality().equals(other._tags, _tags) &&
+            (identical(other.level, level) || other.level == level) &&
+            (identical(other.introducedInLessonId, introducedInLessonId) ||
+                other.introducedInLessonId == introducedInLessonId) &&
+            (identical(other.learningGoal, learningGoal) ||
+                other.learningGoal == learningGoal));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, term, translation,
-      pronunciation, audioAsset, const DeepCollectionEquality().hash(_tags));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      term,
+      translation,
+      pronunciation,
+      audioAsset,
+      const DeepCollectionEquality().hash(_tags),
+      level,
+      introducedInLessonId,
+      learningGoal);
 
   @override
   String toString() {
-    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
+    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags, level: $level, introducedInLessonId: $introducedInLessonId, learningGoal: $learningGoal)';
   }
 }
 
@@ -398,7 +506,10 @@ abstract mixin class _$ExpressionCopyWith<$Res>
       String translation,
       String? pronunciation,
       String? audioAsset,
-      List<String> tags});
+      List<String> tags,
+      String? level,
+      String? introducedInLessonId,
+      String learningGoal});
 }
 
 /// @nodoc
@@ -419,6 +530,9 @@ class __$ExpressionCopyWithImpl<$Res> implements _$ExpressionCopyWith<$Res> {
     Object? pronunciation = freezed,
     Object? audioAsset = freezed,
     Object? tags = null,
+    Object? level = freezed,
+    Object? introducedInLessonId = freezed,
+    Object? learningGoal = null,
   }) {
     return _then(_Expression(
       id: null == id
@@ -445,6 +559,18 @@ class __$ExpressionCopyWithImpl<$Res> implements _$ExpressionCopyWith<$Res> {
           ? _self._tags
           : tags // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      level: freezed == level
+          ? _self.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as String?,
+      introducedInLessonId: freezed == introducedInLessonId
+          ? _self.introducedInLessonId
+          : introducedInLessonId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      learningGoal: null == learningGoal
+          ? _self.learningGoal
+          : learningGoal // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

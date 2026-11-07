@@ -2,69 +2,13 @@
   "version": 3,
   "language": "tr",
   "sections": [
-    {
-      "id": "nt-s1",
-      "name": "起步 · Merhaba",
-      "description": "A1 起步：问候、点单、道谢，以及和土耳其语的第一次见面。",
-      "level": "A1",
-      "prerequisiteSectionIds": [],
-      "file": "sections/section1.json"
-    },
-    {
-      "id": "nt-s2",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s1"
-      ],
-      "file": "sections/section2.json"
-    },
-    {
-      "id": "nt-s3",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s2"
-      ],
-      "file": "sections/section3.json"
-    },
-    {
-      "id": "nt-s4",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s3"
-      ],
-      "file": "sections/section4.json"
-    },
-    {
-      "id": "nt-s5",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s4"
-      ],
-      "file": "sections/section5.json"
-    },
-    {
-      "id": "nt-s6",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s5"
-      ],
-      "file": "sections/section6.json"
-    },
-    {
-      "id": "nt-s7",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s6"
-      ],
-      "file": "sections/section7.json"
-    },
-    {
-      "id": "nt-s8",
-      "name": "预留 · 待施工",
-      "prerequisiteSectionIds": [
-        "nt-s7"
-      ],
-      "file": "sections/section8.json"
-    }
+    {"id": "nt-s1", "name": "Merhaba! · İlk Adımlar", "description": "A1 · İlk ünite taslağı: Selamlaşın, sipariş verin, teşekkür edin ve vedalaşın.", "level": "A1", "prerequisiteSectionIds": [], "file": "sections/section1.json"},
+    {"id": "nt-s2", "name": "Ev ve Günlük Yaşam", "description": "A1 · Planlanan bölüm: Ailenizi ve evinizi tanıtın, eşyaları tanımlayın ve günlük rutinlerinizden söz edin. Henüz ders eklenmedi.", "level": "A1", "prerequisiteSectionIds": ["nt-s1"], "file": "sections/section2.json"},
+    {"id": "nt-s3", "name": "Şehirde Yol Bulma", "description": "A2 · Planlanan bölüm: Yol tarifi isteyin, yönlendirmeleri anlayın, ulaşım seçeneklerini değerlendirin ve yolculuk sırasında karşılaştığınız basit sorunları çözün. Henüz ders eklenmedi.", "level": "A2", "prerequisiteSectionIds": ["nt-s2"], "file": "sections/section3.json"},
+    {"id": "nt-s4", "name": "Alışveriş ve Günlük İşler", "description": "A2 · Planlanan bölüm: Fiyat sorun, ürünleri karşılaştırın, değişim ve iade işlemlerini yönetin, randevu alın ve günlük işlerinizi halledin. Henüz ders eklenmedi.", "level": "A2", "prerequisiteSectionIds": ["nt-s3"], "file": "sections/section4.json"},
+    {"id": "nt-s5", "name": "Seyahat ve Deneyimler", "description": "B1 · Planlanan bölüm: Seyahat planları yapın, deneyimlerinizi anlatın, konaklamayla ilgili işleri halledin ve kültürel farklılıklar üzerine konuşun. Henüz ders eklenmedi.", "level": "B1", "prerequisiteSectionIds": ["nt-s4"], "file": "sections/section5.json"},
+    {"id": "nt-s6", "name": "Eğitim, İş ve Gelecek Planları", "description": "B1–B1+ · Planlanan bölüm: Eğitim ve iş deneyimlerinizden söz edin, geleceğe yönelik planlarınızı açıklayın, gerekçeler sunun ve geri bildirim verin. Henüz ders eklenmedi.", "level": "B1", "prerequisiteSectionIds": ["nt-s5"], "file": "sections/section6.json"},
+    {"id": "nt-s7", "name": "Kültür, Medya ve Toplum", "description": "B2 · Planlanan bölüm: Kültürel olguları, medyadaki bilgileri ve toplumsal konuları tartışın; görüşlerinizi gerekçeleriyle ifade edin. Henüz ders eklenmedi.", "level": "B2", "prerequisiteSectionIds": ["nt-s6"], "file": "sections/section7.json"},
+    {"id": "nt-s8", "name": "Gelecek ve Sürdürülebilir Yaşam", "description": "B2 · Planlanan bölüm: Teknoloji, çevre ve kamu politikalarını tartışın; geleceğe yönelik çözümleri ve farklı seçeneklerin artılarıyla eksilerini karşılaştırın. Henüz ders eklenmedi.", "level": "B2", "prerequisiteSectionIds": ["nt-s7"], "file": "sections/section8.json"}
   ]
 }

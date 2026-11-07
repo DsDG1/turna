@@ -7,6 +7,15 @@
 
 ---
 
+### 2026-11-07 Phase Two 作者契约与首单元候选
+
+- **性质**：课程 schema、作者工具、阅读交互、真实内容、媒体与发布边界批次；**测试数 +8**（答案规范化 2、阅读点词 1、SVG 渲染 1、真实首单元 1、替代答案 3）。非 golden 全量 **2643 passed / 0 failed**。
+- **改动**：统一逐题型校验与共享教学配方；重做 intro/practice/review 生成器和预设；课程体检区分技术健康与完成度；加入资源教学元数据、替代答案、阅读词形映射与插图；首单元候选为 24 课 / 27 个可玩节点 / 17 词 / 4 个固定表达；旧 turkish 树迁至测试 fixture；作者工作区与 GUI 定稿不再分配 OTA 版本。决策见 ADR 0072。
+- **验证**：`flutter analyze` 无问题；Python 工具全量 **137 passed / 0 failed / 1 skipped**；GUI 全量 **215/216 个模块通过**，唯一失败是未改动文件中的既有匿名 signal 检查；文档卫生 12 例、SVG 静态校验 7 文件、Dart 真实课程解析和 SVG 运行时测试通过；`flutter build apk --debug` 成功，产物 `build/app/outputs/flutter-apk/app-debug.apk`；release smoke 的 arm64 APK 与 AAB 均构建成功（首次缺 `apkanalyzer`，补齐临时 cmdline-tools 视图后通过，临时工具与 smoke 副本已清理）。本地 v3 JSON-only 候选 ZIP 的哈希、24 课和内容快照一致；作者工作区实际打开并校验通过。
+- **未验 / 阻塞**：12 条 MiniMax 听力音频因本机无凭据未生成，人工试听与语言审校未做，因此 strict lint 仍被真实缺媒体警告阻断；无 Android/iOS 移动设备，未做移动真机 TTS、跟读、课程与 OTA 验收；未邀请外部教师，未上传远端，未证明学习效果。GUI 全量另有一项既有 signal 失败，不计作本批通过。
+
+---
+
 ### 2026-11-07 情景对话与复习随机题池
 
 - **性质**：课程领域模型、课时 UI、真实内容与作者工具批次；**测试数 +17**（抽题 5、真实课程与校验 5、对话组件 6、真实对话课宿主端到端 1）。非 golden 全量 **2635 passed / 0 failed**。

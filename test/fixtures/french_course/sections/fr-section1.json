@@ -14,7 +14,7 @@
         {
           "id": "fr-s1-l1",
           "name": "Bonjour",
-          "description": "Meet common French greetings.",
+          "description": "Meet common French greetings and answers.",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
@@ -26,19 +26,14 @@
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
-                  {
-                    "runtimeType": "showWord",
-                    "id": "fr-sw-bonjour",
-                    "wordId": "fr-w-bonjour",
-                    "context": "bonjour — hello"
-                  },
-                  {
-                    "runtimeType": "multipleChoice",
-                    "id": "fr-mc-bonjour",
-                    "prompt": "What does \"Bonjour\" mean?",
-                    "options": ["Hello", "Goodbye", "Please", "Sorry"],
-                    "correctIndex": 0
-                  }
+                  {"runtimeType": "showWord", "id": "fr-sw-bonjour", "wordId": "fr-w-bonjour", "expressionId": "fr-e-bonjour", "context": "bonjour — hello"},
+                  {"runtimeType": "showWord", "id": "fr-sw-merci", "wordId": "fr-w-merci", "expressionId": "fr-e-merci", "context": "merci — thank you"},
+                  {"runtimeType": "showWord", "id": "fr-sw-oui", "wordId": "fr-w-oui", "expressionId": "fr-e-ca-va", "context": "Ça va ? — oui"},
+                  {"runtimeType": "showWord", "id": "fr-sw-non", "wordId": "fr-w-non", "context": "non — no"},
+                  {"runtimeType": "showWord", "id": "fr-sw-au-revoir", "wordId": "fr-w-au-revoir", "context": "au revoir — goodbye"},
+                  {"runtimeType": "multipleChoice", "id": "fr-mc-bonjour", "prompt": "What does \"Bonjour\" mean?", "options": ["Goodbye", "Hello", "Please", "Sorry"], "correctIndex": 1},
+                  {"runtimeType": "readingTrueFalse", "id": "fr-tf-etre", "statement": "Être：Je suis 是现在时形式。", "answer": true, "grammarPointId": "fr-g-etre"},
+                  {"runtimeType": "readingTrueFalse", "id": "fr-tf-articles", "statement": "le livre 使用定冠词 le。", "answer": true, "grammarPointId": "fr-g-articles"}
                 ]
               }
             ],

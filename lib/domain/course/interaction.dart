@@ -96,6 +96,7 @@ sealed class Interaction with _$Interaction {
     @Default('') String id,
     required String source,
     required String expected,
+    @Default(<String>[]) List<String> acceptedAnswers,
     @Default(<String>[]) List<String> hints,
     String? grammarPointId,
   }) = TranslateSentence;
@@ -139,6 +140,7 @@ sealed class Interaction with _$Interaction {
     @Default('') String id,
     required List<String> scrambled,
     required List<String> correct,
+    @Default(<String>[]) List<String> acceptedAnswers,
     String? prompt,
     String? grammarPointId,
   }) = ReorderSentence;
@@ -166,6 +168,7 @@ sealed class Interaction with _$Interaction {
     @Default('') String id,
     required String prompt,
     required String expectedAnswer,
+    @Default(<String>[]) List<String> acceptedAnswers,
     String? grammarPointId,
   }) = ReadingShortAnswer;
 

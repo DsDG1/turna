@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/smart_speech.dart';
+import 'package:turna/core/course_answer.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -50,6 +51,7 @@ class ReorderSentenceRenderer extends InteractionRenderer {
       prompt: i.prompt,
       scrambled: i.scrambled,
       correct: i.correct,
+      acceptedAnswers: i.acceptedAnswers,
       state: state,
       onSubmit: onSubmit,
     );
@@ -80,6 +82,7 @@ class _ReorderBody extends StatefulWidget {
   final String? prompt;
   final List<String> scrambled;
   final List<String> correct;
+  final List<String> acceptedAnswers;
   final InteractionState state;
   final OnInteractionSubmit onSubmit;
 
@@ -87,6 +90,7 @@ class _ReorderBody extends StatefulWidget {
     required this.prompt,
     required this.scrambled,
     required this.correct,
+    required this.acceptedAnswers,
     required this.state,
     required this.onSubmit,
   });
@@ -150,7 +154,8 @@ class _ReorderBodyState extends State<_ReorderBody>
     _poolKeys.clear();
     _answerKeys.clear();
     _pool = [
-      for (var i = 0; i < widget.scrambled.length; i++) _Token(i, widget.scrambled[i]),
+      for (var i = 0; i < widget.scrambled.length; i++)
+        _Token(i, widget.scrambled[i]),
     ];
     _picked = <_Token>[];
     _inFlight.clear();
@@ -275,7 +280,8 @@ class _ReorderBodyState extends State<_ReorderBody>
     required Rect to,
     required VoidCallback onLanded,
   }) {
-    final controller = AnimationController(vsync: this, duration: _flightDuration);
+    final controller =
+        AnimationController(vsync: this, duration: _flightDuration);
     late final _GhostFlight flight;
     final entry = OverlayEntry(
       opaque: false,
@@ -312,13 +318,11 @@ class _ReorderBodyState extends State<_ReorderBody>
     }
   }
 
-  bool _matches() {
-    if (_picked.length != widget.correct.length) return false;
-    for (var i = 0; i < widget.correct.length; i++) {
-      if (_picked[i].text != widget.correct[i]) return false;
-    }
-    return true;
-  }
+  bool _matches() => matchesCourseAnswer(
+        _formatAnswer(),
+        widget.correct.join(' '),
+        widget.acceptedAnswers,
+      );
 
   String _formatAnswer() => [for (final t in _picked) t.text].join(' ');
 
@@ -412,7 +416,8 @@ class _ReorderBodyState extends State<_ReorderBody>
               child: Text(
                 AppStrings.lessonTapWordToStart,
                 style: TextStyle(
-                  color: TurnaTheme.textHintColor(context).withValues(alpha: 0.7),
+                  color:
+                      TurnaTheme.textHintColor(context).withValues(alpha: 0.7),
                   fontSize: 14,
                 ),
               ),
@@ -467,9 +472,7 @@ class _ReorderBodyState extends State<_ReorderBody>
                     key: ValueKey('picked-${token.id}'),
                     label: token.text,
                     selected: true,
-                    onTap: widget.state.submitted
-                        ? null
-                        : () => _unpick(token),
+                    onTap: widget.state.submitted ? null : () => _unpick(token),
                   ),
                 ),
         );
@@ -539,9 +542,7 @@ class _ReorderBodyState extends State<_ReorderBody>
       child: WordChip(
         key: ValueKey('pool-${token.id}'),
         label: token.text,
-        onTap: (widget.state.submitted || placed)
-            ? null
-            : () => _pick(token),
+        onTap: (widget.state.submitted || placed) ? null : () => _pick(token),
       ),
     );
   }

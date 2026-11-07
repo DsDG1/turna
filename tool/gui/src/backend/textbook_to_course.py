@@ -118,7 +118,7 @@ def build_section_from_chapter(
     - ``id`` = ``ch-{slug}-{idx}`` — deterministic so re-importing the same
       chapter routes through the merge path (same id → ``plan_section_merge``).
     - One unit holding one intro lesson built from ``kp.words`` via
-      ``build_intro_lesson`` (showWord → translateSentence → fillBlank per word).
+      ``build_intro_lesson`` using the shared mixed-sublesson recipe.
       All structural ids (unit/lesson/subLesson/stage/item) are rewritten
       deterministically from the section id by ``_rewrite_ids_deterministic``,
       so re-import is idempotent at every level of the tree.

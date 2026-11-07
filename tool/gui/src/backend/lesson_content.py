@@ -12,6 +12,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from src.backend.api import course_pedagogy
 from src.backend.schema_constants import (
     KEY_EXPRESSIONS,
     KEY_GRAMMAR,
@@ -170,6 +171,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("id", False, "string", ""),
         FieldSpec("source", True, "string", ""),
         FieldSpec("expected", True, "string", ""),
+        FieldSpec("acceptedAnswers", False, "string_list", []),
         FieldSpec("hints", False, "string_list", []),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
@@ -199,6 +201,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("id", False, "string", ""),
         FieldSpec("scrambled", True, "string_list", []),
         FieldSpec("correct", True, "string_list", []),
+        FieldSpec("acceptedAnswers", False, "string_list", []),
         FieldSpec("prompt", False, "string", ""),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
@@ -219,6 +222,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("id", False, "string", ""),
         FieldSpec("prompt", True, "string", ""),
         FieldSpec("expectedAnswer", True, "string", ""),
+        FieldSpec("acceptedAnswers", False, "string_list", []),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
     # Anki deck imports (app side: interaction.dart AnkiCard / AnkiHtmlCard).
@@ -335,14 +339,95 @@ def _empty_reading_passage() -> dict[str, Any]:
         "difficulty": 1,
         "linkedWordIds": [],
         "linkedExpressionIds": [],
+        "wordFormMap": {},
+        "imageAsset": "",
+        "imageAlt": "",
     }
 
 
 def _mcq_options(term: str, pool: list[str]) -> list[str]:
-    """Return [term, distractor1, distractor2] using other terms from pool."""
-    others = [t for t in pool if t != term]
+    others = [value for value in pool if value != term]
     distractors = [*others, f"{term}-alt1", f"{term}-alt2"][:2]
     return [term, *distractors]
+
+
+def _word_groups(words: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    return [words[start : start + 4] for start in range(0, len(words), 4)]
+
+
+def _word_item(
+    runtime_type: str,
+    word: dict[str, Any],
+    terms: list[str],
+    sequence: int,
+) -> dict[str, Any]:
+    wid = word["id"]
+    term = word.get("term", wid)
+    translation = word.get("translation", "")
+    item: dict[str, Any] = {"runtimeType": runtime_type, "id": short_id(runtime_type[:2])}
+    if runtime_type == "multipleChoice":
+        options, correct_index = course_pedagogy.arrange_choice(
+            _mcq_options(term, terms),
+            0,
+            seed=f"{wid}:{sequence}",
+            preferred_index=sequence,
+        )
+        item.update(
+            {
+                "prompt": f"{translation} 是什么意思？",
+                "options": options,
+                "correctIndex": correct_index,
+                "imageAsset": "",
+                "grammarPointId": "",
+            }
+        )
+    elif runtime_type == "fillBlank":
+        item.update(
+            {
+                "sentence": f"请写出「{translation}」：_____",
+                "answer": term,
+                "hint": "",
+                "grammarPointId": "",
+            }
+        )
+    elif runtime_type == "typeTheWord" and word.get("audioAsset"):
+        item.update(
+            {
+                "audioAsset": word["audioAsset"],
+                "prompt": translation,
+                "expected": term,
+                "grammarPointId": "",
+            }
+        )
+    elif runtime_type == "reorderSentence" and len(term.split()) > 1:
+        correct = term.split()
+        item.update(
+            {
+                "prompt": translation,
+                "scrambled": list(reversed(correct)),
+                "correct": correct,
+                "grammarPointId": "",
+            }
+        )
+    else:
+        item.update(
+            {
+                "runtimeType": "translateSentence",
+                "source": translation,
+                "expected": term,
+                "hints": [],
+                "grammarPointId": "",
+            }
+        )
+    return item
+
+
+def _sub_lesson(name: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "id": short_id("sl"),
+        "name": name,
+        "stages": [{"id": short_id("st"), "name": name, "items": items}],
+    }
 
 
 def build_intro_lesson(
@@ -350,68 +435,40 @@ def build_intro_lesson(
     description: str,
     words: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Generate an intro lesson from selected vocab words.
-
-    Each word becomes one sub-lesson with three stages:
-    1. showWord - present the new word
-    2. translateSentence - translate the word's meaning
-    3. fillBlank - reinforce with a fill-in-the-blank
-    """
     sub_lessons: list[dict[str, Any]] = []
-    for w in words:
-        wid = w["id"]
-        term = w.get("term", wid)
-        translation = w.get("translation", "")
-        sub_lessons.append(
-            {
-                "id": short_id("sl"),
-                "name": f"认识 {term}",
-                "stages": [
-                    {
-                        "id": short_id("st"),
-                        "name": "展示",
-                        "items": [
-                            {
-                                "runtimeType": "showWord",
-                                "id": short_id("sw"),
-                                "wordId": wid,
-                                "context": "",
-                                "grammarPointId": "",
-                                "expressionId": "",
-                            }
-                        ],
-                    },
-                    {
-                        "id": short_id("st"),
-                        "name": "翻译",
-                        "items": [
-                            {
-                                "runtimeType": "translateSentence",
-                                "id": short_id("ts"),
-                                "source": translation,
-                                "expected": term,
-                                "hints": [],
-                                "grammarPointId": "",
-                            }
-                        ],
-                    },
-                    {
-                        "id": short_id("st"),
-                        "name": "填空",
-                        "items": [
-                            {
-                                "runtimeType": "fillBlank",
-                                "id": short_id("fb"),
-                                "sentence": f"___ -> {translation}",
-                                "answer": term,
-                                "hint": "",
-                                "grammarPointId": "",
-                            }
-                        ],
-                    },
-                ],
-            }
-        )
+    for group_index, group in enumerate(_word_groups(words)):
+        terms = [word.get("term", word["id"]) for word in group]
+        items: list[dict[str, Any]] = []
+        for word in group:
+            items.append(
+                {
+                    "runtimeType": "showWord",
+                    "id": short_id("sw"),
+                    "wordId": word["id"],
+                    "context": word.get("example", ""),
+                    "grammarPointId": "",
+                    "expressionId": "",
+                }
+            )
+            exercise_types = (
+                ("fillBlank", "translateSentence")
+                if len(group) == 4
+                else ("multipleChoice", "fillBlank", "translateSentence")
+            )
+            for runtime_type in exercise_types:
+                items.append(_word_item(runtime_type, word, terms, len(items)))
+        target = 15 if len(group) == 4 else course_pedagogy.MIN_SUB_LESSON_ITEMS
+        while len(items) < target:
+            index = len(items)
+            word = group[index % len(group)]
+            runtime_type = ("translateSentence", "multipleChoice", "fillBlank")[
+                index % 3
+            ]
+            items.append(_word_item(runtime_type, word, terms, index))
+        sub_name = name or "认识新词"
+        if len(_word_groups(words)) > 1:
+            sub_name = f"{sub_name} {group_index + 1}"
+        sub_lessons.append(_sub_lesson(sub_name, items))
     return {
         "id": short_id("l"),
         "name": name or "新认识新词课",
@@ -429,77 +486,28 @@ def build_practice_lesson(
     words: list[dict[str, Any]],
     mix_types: tuple[str, ...] = ("multipleChoice", "fillBlank"),
 ) -> dict[str, Any]:
-    """Generate a practice lesson from selected words.
-
-    Each word becomes one sub-lesson. Stages are created for each selected
-    ``mix_types`` in order. Supported types: multipleChoice, fillBlank,
-    translateSentence, typeTheWord.
-    """
-    allowed = {"multipleChoice", "fillBlank", "translateSentence", "typeTheWord"}
-    types = [t for t in mix_types if t in allowed]
-    if not types:
-        types = ["fillBlank"]
-
-    terms = [w.get("term", w["id"]) for w in words]
+    allowed = {
+        "multipleChoice",
+        "fillBlank",
+        "translateSentence",
+        "typeTheWord",
+        "reorderSentence",
+    }
+    types = [value for value in mix_types if value in allowed] or ["fillBlank"]
     sub_lessons: list[dict[str, Any]] = []
-    for w in words:
-        wid = w["id"]
-        term = w.get("term", wid)
-        translation = w.get("translation", "")
-        stages: list[dict[str, Any]] = []
-        for rt in types:
-            item: dict[str, Any] = {"runtimeType": rt, "id": short_id(rt[:2])}
-            if rt == "multipleChoice":
-                item.update(
-                    {
-                        "prompt": f"{translation} 是什么意思？",
-                        "options": _mcq_options(term, terms),
-                        "correctIndex": 0,
-                        "imageAsset": "",
-                        "grammarPointId": "",
-                    }
-                )
-            elif rt == "fillBlank":
-                item.update(
-                    {
-                        "sentence": f"___ -> {translation}",
-                        "answer": term,
-                        "hint": "",
-                        "grammarPointId": "",
-                    }
-                )
-            elif rt == "translateSentence":
-                item.update(
-                    {
-                        "source": translation,
-                        "expected": term,
-                        "hints": [],
-                        "grammarPointId": "",
-                    }
-                )
-            elif rt == "typeTheWord":
-                item.update(
-                    {
-                        "audioAsset": "",
-                        "prompt": translation,
-                        "expected": term,
-                        "grammarPointId": "",
-                    }
-                )
-            stages.append(
-                {
-                    "id": short_id("st"),
-                    "name": INTERACTION_LABELS.get(rt, rt),
-                    "items": [item],
-                }
-            )
-        sub_lessons.append(
-            {
-                "id": short_id("sl"),
-                "name": f"练习 {term}",
-                "stages": stages,
-            }
-        )
+    groups = _word_groups(words)
+    for group_index, group in enumerate(groups):
+        terms = [word.get("term", word["id"]) for word in group]
+        items: list[dict[str, Any]] = []
+        while len(items) < course_pedagogy.MIN_SUB_LESSON_ITEMS:
+            index = len(items)
+            runtime_type = types[index % len(types)]
+            word = group[(index // len(types)) % len(group)]
+            items.append(_word_item(runtime_type, word, terms, index))
+        sub_name = name or "巩固练习"
+        if len(groups) > 1:
+            sub_name = f"{sub_name} {group_index + 1}"
+        sub_lessons.append(_sub_lesson(sub_name, items))
     return {
         "id": short_id("l"),
         "name": name or "新巩固练习课",
@@ -517,106 +525,55 @@ def build_review_lesson(
     source_words: list[dict[str, Any]],
     source_expressions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Generate a review lesson from previously seen words/expressions.
-
-    Creates one sub-lesson per word with a mixed set of recognition and recall
-    stages, plus one sub-lesson per expression for translation practice.
-    """
     expressions = source_expressions or []
-    terms = [w.get("term", w["id"]) for w in source_words]
-    sub_lessons: list[dict[str, Any]] = []
-
-    for w in source_words:
-        wid = w["id"]
-        term = w.get("term", wid)
-        translation = w.get("translation", "")
-        sub_lessons.append(
-            {
-                "id": short_id("sl"),
-                "name": f"复习 {term}",
-                "stages": [
-                    {
-                        "id": short_id("st"),
-                        "name": "再看一眼",
-                        "items": [
-                            {
-                                "runtimeType": "showWord",
-                                "id": short_id("sw"),
-                                "wordId": wid,
-                                "context": "",
-                                "grammarPointId": "",
-                                "expressionId": "",
-                            }
-                        ],
-                    },
-                    {
-                        "id": short_id("st"),
-                        "name": "选择",
-                        "items": [
-                            {
-                                "runtimeType": "multipleChoice",
-                                "id": short_id("mc"),
-                                "prompt": f"{translation} 是什么意思？",
-                                "options": _mcq_options(term, terms),
-                                "correctIndex": 0,
-                                "imageAsset": "",
-                                "grammarPointId": "",
-                            }
-                        ],
-                    },
-                    {
-                        "id": short_id("st"),
-                        "name": "填空",
-                        "items": [
-                            {
-                                "runtimeType": "fillBlank",
-                                "id": short_id("fb"),
-                                "sentence": f"___ -> {translation}",
-                                "answer": term,
-                                "hint": "",
-                                "grammarPointId": "",
-                            }
-                        ],
-                    },
-                ],
-            }
-        )
-
-    for e in expressions:
-        eid = e["id"]
-        term = e.get("term", eid)
-        translation = e.get("translation", "")
-        sub_lessons.append(
-            {
-                "id": short_id("sl"),
-                "name": f"复习表达 {term}",
-                "stages": [
-                    {
-                        "id": short_id("st"),
-                        "name": "翻译",
-                        "items": [
-                            {
-                                "runtimeType": "translateSentence",
-                                "id": short_id("ts"),
-                                "source": translation,
-                                "expected": term,
-                                "hints": [],
-                                "grammarPointId": "",
-                            }
-                        ],
-                    }
-                ],
-            }
-        )
-
+    resources: list[tuple[str, dict[str, Any]]] = [
+        *[("word", word) for word in source_words]
+    ]
+    resources.extend(("expression", expression) for expression in expressions)
+    if not resources:
+        content: dict[str, Any] = {"stages": []}
+    else:
+        terms = [word.get("term", word["id"]) for word in source_words]
+        items: list[dict[str, Any]] = []
+        runtime_types = ("multipleChoice", "fillBlank", "translateSentence")
+        for index in range(course_pedagogy.REVIEW_POOL_SIZE):
+            kind, resource = resources[index % len(resources)]
+            if kind == "word":
+                items.append(
+                    _word_item(
+                        runtime_types[index % len(runtime_types)], resource, terms, index
+                    )
+                )
+                continue
+            term = resource.get("term", resource["id"])
+            items.append(
+                _word_item(
+                    "reorderSentence" if index % 2 else "translateSentence",
+                    {"id": resource["id"], "term": term, "translation": resource.get("translation", "")},
+                    terms,
+                    index,
+                )
+            )
+        content = {
+            "reviewPolicy": {
+                "minItems": course_pedagogy.REVIEW_MIN_ITEMS,
+                "maxItems": course_pedagogy.REVIEW_MAX_ITEMS,
+                "typeWeights": dict.fromkeys(
+                    sorted({item["runtimeType"] for item in items}), 1.0
+                ),
+            },
+            "stages": [
+                {"id": short_id("st"), "name": "混合复习题池", "items": items}
+            ],
+        }
     return {
         "id": short_id("l"),
         "name": name or "新复习课",
         "description": description,
-        "type": "normal",
+        "type": "review",
         "template": "review",
         "prerequisiteLessonIds": [],
-        "content": {"subLessons": sub_lessons},
+        "content": content,
     }
 
 

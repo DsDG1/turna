@@ -75,6 +75,7 @@ flutter pub run build_runner build --delete-conflicting-outputs
 | `Dependency requires at least JVM runtime version 11` | `JAVA_HOME` 指向过旧 JDK | 设为 JDK 17 并重启终端 |
 | `sdk.dir` / Android SDK 找不到 | 本地 `android/local.properties` 未配置 | Android Studio 打开工程一次，或手写 `sdk.dir=` |
 | `LICENSE` / NDK 相关 | SDK 组件未装全 | `sdkmanager` 安装 platform-tools / build-tools / NDK（按 `android/app/build.gradle` 要求） |
+| `Release app bundle failed to strip debug symbols` 且日志提示缺 cmdline-tools | Flutter 构建后找不到 `apkanalyzer`，并非一定要重编原生库 | 安装 Android SDK `cmdline-tools`，确认 `cmdline-tools/latest/bin/apkanalyzer.bat` 可运行；不要跳过 AAB 验证 |
 | `file_picker` / notifications 行为异常 | 旧 OHOS Git override 残留 | 确认 `pubspec.yaml` **无** OHOS community Git `dependency_overrides`；删 `pubspec.lock` 后重跑 `flutter pub get` |
 
 ---

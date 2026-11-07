@@ -56,6 +56,7 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 | 文档 | 说明 |
 |---|---|
 | [`content_inventory_current.md`](./content_inventory_current.md) | 主线土耳其语课程（NouveauTurkish）的内容清单（**自动生成，勿手改**；用 `python tool/export_content_inventory.py` 重新生成，目录跟随 `assets/courses/manifest.json`） |
+| [`authoring/nouveau-turkish-course-map.md`](./authoring/nouveau-turkish-course-map.md) | 8 章真实主题、CEFR、can-do、词量预算与官方大纲参照 |
 | [`authoring/course-layout.md`](./authoring/course-layout.md) | Section / Unit / Lesson 的层级与字段 |
 | [`authoring/course-pack-format.md`](./authoring/course-pack-format.md) | 外部课程包 `.turnapack` 的 v1 / v2 格式 |
 | [`authoring/lesson-type-templates.md`](./authoring/lesson-type-templates.md) | 课时模板、情景对话、复习题池与题型的写法 |
@@ -101,6 +102,7 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 | [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 | [0067](./decisions/0067-memory-card-returns-to-course-domain.md) | 记忆卡回归课程域：牌组即课程，练习台无记忆卡入口 |
 | [0068](./decisions/0068-ambient-light-and-frosted-glass.md) | L0 环境天光与真毛玻璃档 | [0069](./decisions/0069-course-draft-web-preview.md) | 课程网页目录、草稿预览与反馈修订 |
 | [0070](./decisions/0070-scenario-dialogue-lessons.md) | 情景对话场景与既有题型组合 | [0071](./decisions/0071-review-question-pool.md) | 复习题池与课内错题权重 |
+| [0072](./decisions/0072-phase-two-authoring-and-release-contract.md) | Phase Two 作者契约、媒体与版本边界 | — | — |
 
 ## 其它位置
 

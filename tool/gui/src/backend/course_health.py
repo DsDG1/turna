@@ -72,6 +72,7 @@ _KIND_LABELS: dict[str, str] = {
     "term_conflict": "词条冲突",
     "prereq_invalid": "前置依赖异常",
     "read_aloud_empty_target": "跟读缺目标句",
+    "section_planned": "待施工章节",
 }
 
 
@@ -236,6 +237,16 @@ def _audit_section(
     out: list[Finding] = []
     lessons = list(_iter_lessons(section))
     empty_count = 0
+    if not section.get("units"):
+        out.append(
+            _finding(
+                "section_planned",
+                SEVERITY_INFO,
+                section_id=sid,
+                title=f"待施工章节：{section.get('name') or sid}",
+                detail="该章节尚无单元或课时；它属于课程完成度，不是技术校验错误。",
+            )
+        )
 
     for unit, lesson in lessons:
         uid = str(unit.get("id") or "")
@@ -398,6 +409,35 @@ def _audit_section(
     return out
 
 
+def _with_global_resources(
+    sections: Sequence[dict[str, Any]],
+    vocab: Sequence[dict[str, Any]],
+    expressions: Sequence[dict[str, Any]],
+    grammar_points: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    pools = {
+        "word": {str(entry.get("id")): entry for entry in vocab if isinstance(entry, dict) and entry.get("id")},
+        "expression": {str(entry.get("id")): entry for entry in expressions if isinstance(entry, dict) and entry.get("id")},
+        "grammar": {str(entry.get("id")): entry for entry in grammar_points if isinstance(entry, dict) and entry.get("id")},
+    }
+    result: list[dict[str, Any]] = []
+    for section in sections:
+        refs: dict[str, set[str]] = {"word": set(), "expression": set(), "grammar": set()}
+        for _unit, lesson in _iter_lessons(section):
+            for kind, ref_id in _safe_refs(lesson):
+                if kind in refs:
+                    refs[kind].add(ref_id)
+        analysis = dict(section)
+        if not analysis.get("words"):
+            analysis["words"] = [pools["word"][ref_id] for ref_id in sorted(refs["word"]) if ref_id in pools["word"]]
+        if not analysis.get("expressions"):
+            analysis["expressions"] = [pools["expression"][ref_id] for ref_id in sorted(refs["expression"]) if ref_id in pools["expression"]]
+        if not analysis.get("grammarPoints"):
+            analysis["grammarPoints"] = [pools["grammar"][ref_id] for ref_id in sorted(refs["grammar"]) if ref_id in pools["grammar"]]
+        result.append(analysis)
+    return result
+
+
 def audit_course(
     sections: Sequence[dict[str, Any]],
     *,
@@ -416,7 +456,12 @@ def audit_course(
     It performs no I/O and no network calls.
     """
     findings: list[Finding] = []
-    clean_sections = [s for s in (sections or []) if isinstance(s, dict)]
+    clean_sections = _with_global_resources(
+        [s for s in (sections or []) if isinstance(s, dict)],
+        vocab or [],
+        expressions or [],
+        grammar_points or [],
+    )
 
     for section in clean_sections:
         try:

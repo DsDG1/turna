@@ -61,9 +61,6 @@ class $AssetsCoursesGen {
   $AssetsCoursesNouveauTurkishGen get nouveauTurkish =>
       const $AssetsCoursesNouveauTurkishGen();
 
-  /// Directory path: assets/courses/turkish
-  $AssetsCoursesTurkishGen get turkish => const $AssetsCoursesTurkishGen();
-
   /// List of all assets
   List<String> get values => [manifest];
 }
@@ -83,6 +80,9 @@ class $AssetsImagesGen {
   AssetGenImage get appLogoStore216 =>
       const AssetGenImage('assets/images/app_logo_store_216.png');
 
+  /// File path: assets/images/ayse.png
+  AssetGenImage get ayse => const AssetGenImage('assets/images/ayse.png');
+
   /// File path: assets/images/offFire.png
   AssetGenImage get offFire => const AssetGenImage('assets/images/offFire.png');
 
@@ -91,7 +91,7 @@ class $AssetsImagesGen {
 
   /// List of all assets
   List<AssetGenImage> get values =>
-      [appLogo, appLogoStore1024, appLogoStore216, offFire];
+      [appLogo, appLogoStore1024, appLogoStore216, ayse, offFire];
 }
 
 class $AssetsSoundsGen {
@@ -139,6 +139,10 @@ class $AssetsAnkiReviewerMathjaxGen {
 class $AssetsCoursesNouveauTurkishGen {
   const $AssetsCoursesNouveauTurkishGen();
 
+  /// File path: assets/courses/nouveau-turkish/audio_manifest.json
+  String get audioManifest =>
+      'assets/courses/nouveau-turkish/audio_manifest.json';
+
   /// File path: assets/courses/nouveau-turkish/expressions.json
   String get expressions => 'assets/courses/nouveau-turkish/expressions.json';
 
@@ -149,6 +153,10 @@ class $AssetsCoursesNouveauTurkishGen {
   /// File path: assets/courses/nouveau-turkish/index.json
   String get index => 'assets/courses/nouveau-turkish/index.json';
 
+  /// File path: assets/courses/nouveau-turkish/media_manifest.json
+  String get mediaManifest =>
+      'assets/courses/nouveau-turkish/media_manifest.json';
+
   /// Directory path: assets/courses/nouveau-turkish/sections
   $AssetsCoursesNouveauTurkishSectionsGen get sections =>
       const $AssetsCoursesNouveauTurkishSectionsGen();
@@ -157,34 +165,8 @@ class $AssetsCoursesNouveauTurkishGen {
   String get vocab => 'assets/courses/nouveau-turkish/vocab.json';
 
   /// List of all assets
-  List<String> get values => [expressions, grammarPoints, index, vocab];
-}
-
-class $AssetsCoursesTurkishGen {
-  const $AssetsCoursesTurkishGen();
-
-  /// File path: assets/courses/turkish/.gitignore
-  String get aGitignore => 'assets/courses/turkish/.gitignore';
-
-  /// File path: assets/courses/turkish/expressions.json
-  String get expressions => 'assets/courses/turkish/expressions.json';
-
-  /// File path: assets/courses/turkish/grammar_points.json
-  String get grammarPoints => 'assets/courses/turkish/grammar_points.json';
-
-  /// File path: assets/courses/turkish/index.json
-  String get index => 'assets/courses/turkish/index.json';
-
-  /// Directory path: assets/courses/turkish/sections
-  $AssetsCoursesTurkishSectionsGen get sections =>
-      const $AssetsCoursesTurkishSectionsGen();
-
-  /// File path: assets/courses/turkish/vocab.json
-  String get vocab => 'assets/courses/turkish/vocab.json';
-
-  /// List of all assets
   List<String> get values =>
-      [aGitignore, expressions, grammarPoints, index, vocab];
+      [audioManifest, expressions, grammarPoints, index, mediaManifest, vocab];
 }
 
 class $AssetsImagesTurnaGen {
@@ -236,46 +218,6 @@ class $AssetsCoursesNouveauTurkishSectionsGen {
   /// File path: assets/courses/nouveau-turkish/sections/section8.json
   String get section8 =>
       'assets/courses/nouveau-turkish/sections/section8.json';
-
-  /// List of all assets
-  List<String> get values => [
-        section1,
-        section2,
-        section3,
-        section4,
-        section5,
-        section6,
-        section7,
-        section8
-      ];
-}
-
-class $AssetsCoursesTurkishSectionsGen {
-  const $AssetsCoursesTurkishSectionsGen();
-
-  /// File path: assets/courses/turkish/sections/section1.json
-  String get section1 => 'assets/courses/turkish/sections/section1.json';
-
-  /// File path: assets/courses/turkish/sections/section2.json
-  String get section2 => 'assets/courses/turkish/sections/section2.json';
-
-  /// File path: assets/courses/turkish/sections/section3.json
-  String get section3 => 'assets/courses/turkish/sections/section3.json';
-
-  /// File path: assets/courses/turkish/sections/section4.json
-  String get section4 => 'assets/courses/turkish/sections/section4.json';
-
-  /// File path: assets/courses/turkish/sections/section5.json
-  String get section5 => 'assets/courses/turkish/sections/section5.json';
-
-  /// File path: assets/courses/turkish/sections/section6.json
-  String get section6 => 'assets/courses/turkish/sections/section6.json';
-
-  /// File path: assets/courses/turkish/sections/section7.json
-  String get section7 => 'assets/courses/turkish/sections/section7.json';
-
-  /// File path: assets/courses/turkish/sections/section8.json
-  String get section8 => 'assets/courses/turkish/sections/section8.json';
 
   /// List of all assets
   List<String> get values => [
