@@ -134,8 +134,15 @@ class FlutterTtsSpeechBackend implements SpeechBackend {
     final failure = Completer<Object?>();
     _playbackFailure = failure;
     try {
+      // focus: false — the plugin requests GAIN_TRANSIENT_MAY_DUCK on every
+      // speak with a no-op focus listener, so repeated requests dispatch
+      // focus-loss (-3) to the earlier request, and OEM audio policies
+      // (e.g. ColorOS) attenuate the focus holder's stream until short
+      // utterances are inaudible while the plugin still reports success.
+      // Staying out of the audio-focus system avoids that whole class; the
+      // trade-off is that background audio is no longer ducked while speaking.
       final result = await Future.any<dynamic>([
-        _tts.speak(text, focus: true),
+        _tts.speak(text, focus: false),
         failure.future,
       ]).timeout(
         _playbackTimeout,
