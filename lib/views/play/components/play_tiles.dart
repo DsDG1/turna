@@ -76,7 +76,9 @@ class TodayHeroCard extends StatelessWidget {
                         height: 48,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(
+                            TurnaTheme.cardRadius,
+                          ),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.24),
                             width: 1,

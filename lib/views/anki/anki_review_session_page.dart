@@ -730,8 +730,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
                   )
                 : _error != null
                     ? PracticeEmptyState(
-                        icon: Icons.error_outline_rounded,
-                        accentColor: TurnaTheme.error,
                         title: _error == FormalReviewLauncher.failClosedMessage
                             ? AppStrings.officialAnkiError(
                                 FormalReviewLauncher.failClosedMessage,
@@ -776,8 +774,6 @@ class _AnkiFormalReviewEmptyPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return PracticeEmptyState(
       key: const Key('anki-formal-review-empty'),
-      icon: Icons.style_outlined,
-      accentColor: TurnaTheme.textHintColor(context),
       title: AppStrings.ankiNoCardsDue,
       message: AppStrings.ankiFormalReviewEmptyHint,
       actionLabel: onClose != null ? AppStrings.commonDone : null,

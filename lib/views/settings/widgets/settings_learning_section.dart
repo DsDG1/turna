@@ -201,7 +201,7 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                 ),
                 child: const Icon(
                   Icons.record_voice_over_rounded,
@@ -296,7 +296,7 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                 ),
                 child: const Icon(
                   Icons.auto_graph_rounded,
@@ -429,7 +429,7 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                 ),
                 child: const Icon(
                   Icons.psychology_rounded,

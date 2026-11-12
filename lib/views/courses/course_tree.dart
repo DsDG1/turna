@@ -986,7 +986,7 @@ class _SectionHeadBand extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: colors.background,
                       borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusSmall),
+                          BorderRadius.circular(TurnaTheme.cardRadius),
                     ),
                     child: Icon(
                       SectionVisuals.iconFor(section.id),
@@ -1455,12 +1455,6 @@ class _EmptyMessage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book_rounded,
-            size: 64,
-            color: TurnaTheme.textHintColor(context).withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
           Text(
             AppStrings.coursesNoUnitsAvailable,
             style: TextStyle(

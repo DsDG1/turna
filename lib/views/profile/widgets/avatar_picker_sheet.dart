@@ -180,10 +180,10 @@ class _AvatarTile extends StatelessWidget {
       label: avatar.name,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             color: selected
                 ? TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.18 : 0.10)
                 : Colors.transparent,

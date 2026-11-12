@@ -291,8 +291,6 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.auto_awesome_rounded, size: 44),
-              const SizedBox(height: 12),
               Text(text, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               TextButton(

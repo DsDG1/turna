@@ -168,8 +168,6 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
       appBar: _buildAppBar(context),
       body: _blockedMessage != null
           ? PracticeEmptyState(
-              icon: Icons.cloud_off_outlined,
-              accentColor: TurnaTheme.textHint,
               title: _blockedMessage!,
               actionLabel: AppStrings.commonBack,
               onAction: () => Navigator.of(context).maybePop(),

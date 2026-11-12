@@ -566,7 +566,7 @@ class DirectoryLinkRow extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.softTint(context, iconTone, alpha: 0.12),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                 ),
                 child: Icon(
                   icon,

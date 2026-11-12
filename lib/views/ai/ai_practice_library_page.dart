@@ -254,12 +254,6 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
         vertical: AppSpacing.xxxl,
       ),
       children: [
-        Icon(
-          Icons.auto_awesome_rounded,
-          size: 44,
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
-        ),
-        const SizedBox(height: AppSpacing.md + 2),
         Text(
           complete
               ? AppStrings.aiPracticeSectionEmpty

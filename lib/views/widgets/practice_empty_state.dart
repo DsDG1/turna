@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/widgets/turna_geometry.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
 class PracticeEmptyState extends StatelessWidget {
-  final IconData icon;
-  final Color? accentColor;
   final String title;
   final String? message;
   final String? actionLabel;
@@ -13,8 +10,6 @@ class PracticeEmptyState extends StatelessWidget {
 
   const PracticeEmptyState({
     super.key,
-    this.icon = Icons.check_circle_rounded,
-    this.accentColor,
     required this.title,
     this.message,
     this.actionLabel,
@@ -23,8 +18,6 @@ class PracticeEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = accentColor ?? TurnaTheme.brandTeal;
-
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -33,12 +26,6 @@ class PracticeEmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TurnaGeometryBadge(
-                icon: icon,
-                accent: accent,
-                kind: TurnaGeometryKind.achievement,
-              ),
-              const SizedBox(height: 20),
               Text(
                 title,
                 textAlign: TextAlign.center,

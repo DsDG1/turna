@@ -60,7 +60,7 @@ class AccentIconChip extends StatelessWidget {
     required this.color,
     this.size = 26,
     this.padding = 10,
-    this.radius = 12,
+    this.radius = TurnaTheme.cardRadius,
     super.key,
   });
 

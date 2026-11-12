@@ -407,7 +407,7 @@ class _ItemPreview extends StatelessWidget {
                     .withValues(alpha: 0.45),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
         border: Border.all(color: TurnaTheme.textPrimaryColor(context)),
       ),
       child: Icon(item.icon, color: Colors.white),

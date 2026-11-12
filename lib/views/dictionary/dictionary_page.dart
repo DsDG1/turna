@@ -167,8 +167,6 @@ class _DictionaryPageState extends State<DictionaryPage> {
                         flex: 6,
                         child: selected == null
                             ? PracticeEmptyState(
-                                icon: Icons.menu_book_rounded,
-                                accentColor: TurnaTheme.brandSky,
                                 title: AppStrings.dictionaryPickPrompt,
                               )
                             : DictionaryEntryDetail(
@@ -207,8 +205,6 @@ class _EntryDirectory extends StatelessWidget {
   Widget build(BuildContext context) {
     if (hits.isEmpty) {
       return PracticeEmptyState(
-        icon: browsing ? Icons.menu_book_rounded : Icons.search_off_rounded,
-        accentColor: TurnaTheme.brandSky,
         title: browsing
             ? AppStrings.dictionarySearchEmpty
             : AppStrings.dictionaryNoMatches,

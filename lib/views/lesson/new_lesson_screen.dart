@@ -535,8 +535,6 @@ class _LessonBody extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 48),
-              const SizedBox(height: 12),
               Text(
                 AppStrings.lessonCouldNotLoadLesson,
                 style: Theme.of(context).textTheme.titleMedium,
@@ -656,12 +654,6 @@ class _LessonBody extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book_rounded,
-            size: 48,
-            color: TurnaTheme.textHint.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 12),
           Text(
             AppStrings.lessonNoContent,
             style: const TextStyle(

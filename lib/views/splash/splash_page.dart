@@ -248,8 +248,6 @@ class _SplashPageState extends State<SplashPage> {
             padding: const EdgeInsets.all(24),
             child: bootFailed
                 ? PracticeEmptyState(
-                    icon: Icons.cloud_off_rounded,
-                    accentColor: TurnaTheme.error,
                     title: AppStrings.splashCourseLoadFailed,
                     actionLabel: AppStrings.commonRetry,
                     onAction: () => continueTurnaStartup(retrySeed: true),

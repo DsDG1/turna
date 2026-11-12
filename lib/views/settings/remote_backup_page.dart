@@ -432,7 +432,6 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
           children: [
             if (!_supported) ...[
               SettingsEmptyCard(
-                icon: Icons.cloud_off_outlined,
                 message: AppStrings.remoteBackupUnsupportedPlatform,
               ),
               const SizedBox(height: 20),

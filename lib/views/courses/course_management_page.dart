@@ -705,7 +705,7 @@ class _CourseCardIcon extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: isActive ? TurnaTheme.brandHeroGradient : null,
         color: isActive ? null : accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
       ),
       child: Icon(
         entry.isBuiltin ? Icons.language_rounded : Icons.style_rounded,

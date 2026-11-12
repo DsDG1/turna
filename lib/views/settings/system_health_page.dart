@@ -71,7 +71,6 @@ class SystemHealthPage extends StatelessWidget {
           const SizedBox(height: 8),
           if (event.topGroups.isEmpty)
             SettingsEmptyCard(
-              icon: Icons.check_circle_outline,
               message: AppStrings.systemHealthAllClear,
             )
           else

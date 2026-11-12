@@ -175,13 +175,11 @@ class SettingsEmptyCard extends StatelessWidget {
   const SettingsEmptyCard({
     super.key,
     required this.message,
-    this.icon = Icons.inbox_outlined,
     this.actionLabel,
     this.onAction,
   });
 
   final String message;
-  final IconData icon;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -194,20 +192,6 @@ class SettingsEmptyCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: TurnaTheme.brandTeal,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 12),
               Text(
                 message,
                 textAlign: TextAlign.center,

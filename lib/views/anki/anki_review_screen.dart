@@ -344,8 +344,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
   Widget _buildEmptyState(BuildContext context) {
     return PracticeEmptyState(
-      icon: Icons.layers_outlined,
-      accentColor: TurnaTheme.brandTeal,
       title: AppStrings.ankiNoDecksTitle,
       message: AppStrings.ankiNoDecksSubtitle,
       actionLabel: AppStrings.ankiImportDeck,
@@ -516,13 +514,6 @@ class _AnkiCaughtUpCard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: Row(
           children: [
-            AccentIconChip(
-              icon: Icons.check_circle_rounded,
-              color: TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal),
-              size: 24,
-              padding: 10,
-            ),
-            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,7 +561,7 @@ class _AnkiDueHeroHeader extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.24),
             ),

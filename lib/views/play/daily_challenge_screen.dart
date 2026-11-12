@@ -115,8 +115,6 @@ class _DailyChallengePageState extends State<DailyChallengePage>
           builder: (context, vm, _) {
             if (_blockedMessage != null) {
               return PracticeEmptyState(
-                icon: Icons.cloud_off_outlined,
-                accentColor: TurnaTheme.textHint,
                 title: _blockedMessage!,
                 actionLabel: AppStrings.commonBack,
                 onAction: () => Navigator.of(context).maybePop(),
@@ -149,8 +147,6 @@ class _DailyChallengePageState extends State<DailyChallengePage>
 
   Widget _buildEmptyDeck() {
     return PracticeEmptyState(
-      icon: Icons.quiz_rounded,
-      accentColor: TurnaTheme.textHint,
       title: AppStrings.playDailyNoQuestions,
       message: AppStrings.playDailyCompleteFewLessons,
       actionLabel: AppStrings.commonBack,

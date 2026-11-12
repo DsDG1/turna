@@ -90,7 +90,7 @@ class SettingsVersionFooter extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
                 ),
                 child: const Icon(
                   Icons.info_outline,

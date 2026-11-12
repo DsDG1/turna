@@ -141,7 +141,7 @@ class SettingsTile extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
             ),
             child: Icon(
               icon,

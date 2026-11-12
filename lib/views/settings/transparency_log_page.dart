@@ -663,12 +663,6 @@ class _EmptyLine extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            size: 16,
-            color: TurnaTheme.brandTeal,
-          ),
-          const SizedBox(width: 8),
           Text(
             text,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
