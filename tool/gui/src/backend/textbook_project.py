@@ -37,6 +37,9 @@ def _empty_design() -> dict[str, Any]:
     return {"chat_history": [], "params": {}, "draft_sections": [], "explanation": ""}
 
 
+_CHECKSUM_CACHE_MIN_BYTES = 64 * 1024
+
+
 def _checksum(path: Path | None) -> str | None:
     if path is None or not path.exists():
         return None
@@ -44,20 +47,30 @@ def _checksum(path: Path | None) -> str | None:
         stat = path.stat()
     except OSError:
         return None
-    # Cache by (mtime, size): autosave serializes the project per chapter,
-    # and re-hashing a multi-MB source file every time is wasted work.
+    # Cache by (mtime_ns, size) for larger files: autosave serializes the
+    # project per chapter, and re-hashing a multi-MB source file every time is
+    # wasted work. Small files hash in microseconds and skip the stat cache
+    # so rapid consecutive edits within one filesystem mtime tick are never missed.
     key = str(path)
-    cached = _CHECKSUM_CACHE.get(key)
-    if cached is not None and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
-        return cached[2]
+    if stat.st_size >= _CHECKSUM_CACHE_MIN_BYTES:
+        cached = _CHECKSUM_CACHE.get(key)
+        if (
+            cached is not None
+            and cached[0] == stat.st_mtime_ns
+            and cached[1] == stat.st_size
+        ):
+            return cached[2]
     h = hashlib.sha256()
     h.update(path.read_bytes())
     digest = h.hexdigest()
-    _CHECKSUM_CACHE[key] = (stat.st_mtime, stat.st_size, digest)
+    if stat.st_size >= _CHECKSUM_CACHE_MIN_BYTES:
+        _CHECKSUM_CACHE[key] = (stat.st_mtime_ns, stat.st_size, digest)
+    else:
+        _CHECKSUM_CACHE.pop(key, None)
     return digest
 
 
-_CHECKSUM_CACHE: dict[str, tuple[float, int, str | None]] = {}
+_CHECKSUM_CACHE: dict[str, tuple[int, int, str | None]] = {}
 
 
 @dataclass

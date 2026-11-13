@@ -163,9 +163,7 @@ def _looks_like_heading_text(text: str) -> bool:
     stripped = text.strip()
     if not stripped or len(stripped) > _MAX_PLAIN_HEADING_CHARS:
         return False
-    if stripped.endswith(_SENTENCE_ENDINGS):
-        return False
-    return True
+    return not stripped.endswith(_SENTENCE_ENDINGS)
 
 
 def _plain_heading_candidates(md: str) -> list[tuple[int, str, str]]:

@@ -170,18 +170,20 @@ class CircuitBreaker:
                         action_id,
                         error,
                     )
-                elif self._failure_count >= self._failure_threshold:
-                    if self._state != CircuitState.OPEN:
-                        self._state = CircuitState.OPEN
-                        self._last_state_change = now
-                        tripped = True
-                        logger.warning(
-                            "CircuitBreaker tripped to OPEN on %s (failure count %d >= %d): %s",
-                            action_id,
-                            self._failure_count,
-                            self._failure_threshold,
-                            error,
-                        )
+                elif (
+                    self._failure_count >= self._failure_threshold
+                    and self._state != CircuitState.OPEN
+                ):
+                    self._state = CircuitState.OPEN
+                    self._last_state_change = now
+                    tripped = True
+                    logger.warning(
+                        "CircuitBreaker tripped to OPEN on %s (failure count %d >= %d): %s",
+                        action_id,
+                        self._failure_count,
+                        self._failure_threshold,
+                        error,
+                    )
                 return tripped
         except Exception as exc:
             logger.debug("CircuitBreaker.record_failure best-effort failed: %s", exc)
