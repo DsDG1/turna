@@ -166,7 +166,7 @@ def _is_speaker_line(line: str) -> bool:
 
 def _structural_signals(text: str, style: str, units: int) -> dict[str, float]:
     """Structure-based nudges that keyword counts cannot see."""
-    scores: dict[str, float] = {kind: 0.0 for kind in DOCUMENT_KINDS}
+    scores: dict[str, float] = dict.fromkeys(DOCUMENT_KINDS, 0.0)
     lines = [line for line in text.splitlines() if line.strip()]
     if not lines:
         return scores

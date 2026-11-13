@@ -317,11 +317,10 @@ class AiEditController:
 
             reveal_edit_view(window)
             window.tree.select_section(sid)
-        elif kind in ("unit", "lesson"):
-            if not self._apply_node_edit(
-                window, kind, node_id, section.get("id", ""), section, new_section
-            ):
-                return
+        elif kind in ("unit", "lesson") and not self._apply_node_edit(
+            window, kind, node_id, section.get("id", ""), section, new_section
+        ):
+            return
 
         telemetry.record_event("ai.edit.applied", payload={"kind": kind, "node_id": node_id})
         current_ref = getattr(window, "_current_node_ref", None)
