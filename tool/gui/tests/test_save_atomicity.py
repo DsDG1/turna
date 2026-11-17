@@ -32,7 +32,7 @@ class SaveAtomicityTest(unittest.TestCase):
         result = adapter.save()
         self.assertTrue(result.ok, f"save failed: {result.message}")
 
-        backups = list((self.course_dir / ".varnamala-backup").iterdir())
+        backups = list((self.course_dir / ".turna-backup").iterdir())
         self.assertEqual(len(backups), 1)
         backup_dir = backups[0]
         self.assertTrue((backup_dir / "index.json").exists())
@@ -45,10 +45,10 @@ class SaveAtomicityTest(unittest.TestCase):
         adapter.sections[0]["name"] = "Edit 2"
         self.assertTrue(adapter.save().ok)
 
-        backups = sorted((self.course_dir / ".varnamala-backup").iterdir())
+        backups = sorted((self.course_dir / ".turna-backup").iterdir())
         self.assertEqual(len(backups), 2)
         # The second backup must not recursively contain the first backup.
-        nested_backups = list(backups[1].rglob(".varnamala-backup"))
+        nested_backups = list(backups[1].rglob(".turna-backup"))
         self.assertEqual(nested_backups, [])
 
     def test_rollback_keeps_original_files_on_replace_failure(self) -> None:

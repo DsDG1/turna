@@ -109,6 +109,8 @@ class TtsAvailabilityChecker {
   /// flutter_tts Android plugin and crashes with "Reply already submitted".
   Future<void>? _configureInFlight;
   List<String>? _engineNamesCache;
+  Future<List<String>>? _enginesInFlight;
+  int _diagnosticsGeneration = 0;
   final Map<String, String> _resolvedLanguageCache = <String, String>{};
   final Map<String, Future<String?>> _languageInFlight =
       <String, Future<String?>>{};
@@ -118,6 +120,7 @@ class TtsAvailabilityChecker {
   /// Drops successful probes after the user changes system voice settings or
   /// an engine fails. Failed probes are never cached.
   void invalidateDiagnostics() {
+    _diagnosticsGeneration++;
     _engineNamesCache = null;
     _resolvedLanguageCache.clear();
   }
@@ -152,17 +155,33 @@ class TtsAvailabilityChecker {
   }
 
   /// Engine package names currently reported by the platform (Android).
-  Future<List<String>> listEngineNames() async {
+  Future<List<String>> listEngineNames() {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      return const [];
+      return Future<List<String>>.value(const []);
     }
     final cached = _engineNamesCache;
-    if (cached != null) return cached;
+    if (cached != null) return Future<List<String>>.value(cached);
+    final active = _enginesInFlight;
+    if (active != null) return active;
+
+    final gen = _diagnosticsGeneration;
+    final future = _fetchEngineNames(gen);
+    _enginesInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_enginesInFlight, future)) {
+        _enginesInFlight = null;
+      }
+    });
+  }
+
+  Future<List<String>> _fetchEngineNames(int gen) async {
     try {
       final engines = await _tts.getEngines;
       if (engines is! List) return const [];
       final names = engines.map(_engineName).toList(growable: false);
-      if (names.isNotEmpty) _engineNamesCache = names;
+      if (names.isNotEmpty && gen == _diagnosticsGeneration) {
+        _engineNamesCache = names;
+      }
       return names;
     } catch (e, st) {
       logger.w('TtsAvailabilityChecker: listEngineNames failed: $e\n$st');
@@ -196,21 +215,40 @@ class TtsAvailabilityChecker {
     final active = _languageInFlight[key];
     if (active != null) return active;
 
-    final future = _resolveLanguageCode(languageCode);
+    final gen = _diagnosticsGeneration;
+    final future = _resolveLanguageCode(languageCode, gen);
     _languageInFlight[key] = future;
-    return future.then((resolved) {
-      if (resolved != null) _resolvedLanguageCache[key] = resolved;
-      return resolved;
-    }).whenComplete(() {
+    return future.whenComplete(() {
       if (identical(_languageInFlight[key], future)) {
         _languageInFlight.remove(key);
       }
     });
   }
 
-  Future<String?> _resolveLanguageCode(String languageCode) async {
+  Future<String?> _resolveLanguageCode(String languageCode, int gen) async {
+    final result = await _resolveLanguageCodeResult(languageCode);
+    final locale = result.locale;
+    if (locale != null &&
+        result.shouldCache &&
+        gen == _diagnosticsGeneration) {
+      final key = languageCode.trim().replaceAll('_', '-').toLowerCase();
+      _resolvedLanguageCache[key] = locale;
+    }
+    return locale;
+  }
+
+  Future<({String? locale, bool shouldCache})> _resolveLanguageCodeResult(
+    String languageCode,
+  ) async {
     try {
       await configureSystemEngine();
+      // Do not query a broken/uninitialized engine after a failed setEngine or
+      // empty getEngines; leave the probe uncached so the next call retries.
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          !_engineConfigured) {
+        return (locale: null, shouldCache: false);
+      }
 
       final candidates = languageCandidates(languageCode);
       String? firstAvailable;
@@ -229,7 +267,7 @@ class TtsAvailabilityChecker {
               'TtsAvailabilityChecker: resolved installed language '
               '"$candidate" for "$languageCode"',
             );
-            return candidate;
+            return (locale: candidate, shouldCache: true);
           }
           if (installed == false) {
             logger.d(
@@ -243,29 +281,31 @@ class TtsAvailabilityChecker {
         logger.d(
           'TtsAvailabilityChecker: resolved language "$candidate" for "$languageCode"',
         );
-        return candidate;
+        return (locale: candidate, shouldCache: true);
       }
 
       // No installed pack found: if something was merely available, still
-      // return it so callers can attempt speak (network voice / OEM quirks).
+      // return it so callers can attempt speak (network voice / OEM quirks),
+      // but do not cache it — Google TTS cold-bind can report empty voices
+      // momentarily before hydrating the region-tagged pack (e.g. tr-TR).
       if (firstAvailable != null) {
         logger.d(
           'TtsAvailabilityChecker: using available-but-maybe-uninstalled '
           'locale "$firstAvailable" for "$languageCode"',
         );
-        return firstAvailable;
+        return (locale: firstAvailable, shouldCache: false);
       }
 
       logger.d(
         'TtsAvailabilityChecker: no available locale for "$languageCode" '
         '(candidates=$candidates)',
       );
-      return null;
+      return (locale: null, shouldCache: false);
     } catch (e, st) {
       logger.w(
         'TtsAvailabilityChecker: failed to resolve language: $e\n$st',
       );
-      return null;
+      return (locale: null, shouldCache: false);
     }
   }
 

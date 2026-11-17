@@ -519,7 +519,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
           decoration: const BoxDecoration(
             border: Border(
               left: BorderSide(
-                color: Color(0x6678C7B8),
+                color: TurnaTheme.subLessonIndentGuide,
                 width: 2,
               ),
             ),

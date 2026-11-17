@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';

@@ -34,8 +34,7 @@ export default class EntryAbility extends FlutterAbility {
     // declare, and `GeneratedPluginRegistrant` is regenerated from that list.
     flutterEngine.getPlugins()?.add(new SherpaTtsPlugin(this.context));
     // Official Anki reviewer channel. `startAbility` is an ability-level call
-    // and cannot be served by an ApplicationContext. The step 5b probe methods
-    // stay on the plugin, but nothing invokes them during startup.
+    // and cannot be served by an ApplicationContext.
     flutterEngine.getPlugins()?.add(new AnkiReviewerPlugin(this.context));
   }
 }

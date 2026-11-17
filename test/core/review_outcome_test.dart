@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/core/fsrs_engine.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 void main() {

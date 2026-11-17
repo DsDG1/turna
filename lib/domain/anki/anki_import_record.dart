@@ -11,8 +11,6 @@ class AnkiImportRecord {
   final String notetypesJson;
   final bool aiEnhanced;
   final int version;
-  final int? dailyNewLimit;
-  final int? dailyReviewLimit;
   final String status;
   final int sourceCardCount;
   final bool importedScheduling;
@@ -30,8 +28,6 @@ class AnkiImportRecord {
     this.notetypesJson = '{}',
     this.aiEnhanced = false,
     this.version = 1,
-    this.dailyNewLimit,
-    this.dailyReviewLimit,
     this.status = 'pending',
     this.sourceCardCount = 0,
     this.importedScheduling = false,

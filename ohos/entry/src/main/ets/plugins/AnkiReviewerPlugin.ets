@@ -22,7 +22,6 @@ import MethodChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodC
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { Want, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { probeReviewerAssets } from '../probe/AnkiReviewerAssetProbe';
 import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
 import {
   reviewerSession,
@@ -45,8 +44,6 @@ import {
   METHOD_NOTIFY_REVIEWER_FAILURE,
   METHOD_OPEN_REVIEWER,
   METHOD_PRESENT_REVIEWER,
-  METHOD_PROBE_REVIEWER_ASSETS,
-  METHOD_PROBE_REVIEWER_CAPABILITIES,
   RENDER_ERROR,
 } from '../anki/AnkiReviewerProtocol';
 import hilog from '@ohos.hilog';
@@ -56,16 +53,6 @@ const TAG = "AnkiReviewerPlugin";
 /// Shell load budget. One timer, not a poll: `markShellReady` wakes waiters.
 const REVIEWER_READY_TIMEOUT_MS: number = 8000;
 
-// The probe's ability. Renamed with the probe when step 5b lands the real
-// reviewer; the Dart-visible channel name is already the final one so this
-// rename stays invisible to Dart.
-const PROBE_ABILITY = "AnkiReviewerProbeAbility";
-
-// The reviewer. Distinct from the probe ability on purpose: the probe is a
-// diagnostic that opens a synthetic page, and this one is the product's card
-// surface. Keeping them apart means a reviewer regression cannot be mistaken
-// for the probe failing — they have different code, different origins and
-// different failure modes.
 const REVIEWER_ABILITY = "AnkiReviewerAbility";
 
 export default class AnkiReviewerPlugin implements FlutterPlugin {
@@ -102,11 +89,7 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
         // the method names are the wire contract, so they come from
         // AnkiReviewerProtocol.ets, whose mirror the protocol guard test
         // pins against the Dart side.
-        if (call.method === METHOD_PROBE_REVIEWER_CAPABILITIES) {
-          this.probeReviewerCapabilities(result);
-        } else if (call.method === METHOD_PROBE_REVIEWER_ASSETS) {
-          this.probeReviewerAssets(result);
-        } else if (call.method === METHOD_OPEN_REVIEWER) {
+        if (call.method === METHOD_OPEN_REVIEWER) {
           this.openReviewer(result, call);
         } else if (call.method === METHOD_PRESENT_REVIEWER) {
           this.presentReviewer(result, call);
@@ -129,68 +112,6 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
     attachReviewerOutbound(null);
     this.channel?.setMethodCallHandler(null);
     this.channel = null;
-  }
-
-  // Receipt R0 for step 5b: a Flutter plugin can put a native page on screen
-  // and get an answer back out. Returns the ability's verdict verbatim — no
-  // interpretation here, because the reader needs the raw transcript and not a
-  // summary this file chose the terms of.
-  private probeReviewerCapabilities(result: MethodResult): void {
-    // The Want mirrors exactly what `aa start -a … -b … -m …` puts on the wire.
-    // Naming only `abilityName` answers `16000001 "The specified ability does
-    // not exist"` for an ability the system has registered — verified on device
-    // against `bm dump`, which listed it while the launch still failed, and
-    // `aa start` with all three fields succeeded on the same build. So the
-    // declaration was never in question; the addressing was.
-    const info = this.context.abilityInfo;
-    const want: Want = {
-      bundleName: info.bundleName,
-      moduleName: info.moduleName,
-      abilityName: PROBE_ABILITY,
-    };
-    this.context
-      .startAbilityForResult(want)
-      .then((abilityResult: common.AbilityResult): void => {
-        result.success(extractVerdict(abilityResult));
-      })
-      .catch((error: BusinessError): void => {
-        // The code, not the message: it is the only thing that distinguishes a
-        // bad address from a refused launch. Echoed through the Dart error
-        // because this app's ArkTS hilog does not reach the device log.
-        result.error(
-          'PROBE_LAUNCH_FAILED',
-          'want=' + String(want.bundleName) + '/' + String(want.moduleName) + '/' +
-            String(want.abilityName) + ' code=' + String(error.code) + ' ' + error.message,
-          null,
-        );
-      });
-  }
-
-  /**
-   * Whether the reviewer ability's asset source actually reads on this platform.
-   *
-   * Separate from `probeReviewerCapabilities` because it answers a different
-   * question and needs no screen: the capabilities probe says the `Web` component
-   * can host the CSP-pinned card frame, this says whether the bytes that frame
-   * asks for can be produced at all. A reviewer built on a wrong answer here
-   * renders an empty page and no amount of `Web` capability compensates.
-   *
-   * The answer comes back raw — per-asset `name=bytes` or `name!err<code>` —
-   * because the reader has to tell "everything is missing" apart from "only the
-   * 2.27 MB MathJax is missing", and a summary chosen here would erase that.
-   */
-  private probeReviewerAssets(result: MethodResult): void {
-    probeReviewerAssets(this.context)
-      .then((report: string) => {
-        result.success(report);
-      })
-      .catch((error: BusinessError): void => {
-        result.error(
-          'ASSET_PROBE_FAILED',
-          'code=' + String(error.code) + ' ' + error.message,
-          null,
-        );
-      });
   }
 
   /**
@@ -359,21 +280,4 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
     session.notifyFailure(code.length > 0 ? code : RENDER_ERROR);
     result.success('');
   }
-}
-
-// `want` and `parameters` are both optional, and the verdict is untyped
-// `Object` because that is what `Want` carries across the ability boundary.
-// Reading it defensively matters more than usual here: a launch that fails
-// part-way is exactly the case this probe exists to surface, and it must not
-// surface as a null dereference.
-function extractVerdict(abilityResult: common.AbilityResult): string {
-  const want: Want | undefined = abilityResult.want;
-  if (want === undefined || want.parameters === undefined) {
-    return 'verdict=missing resultCode=' + String(abilityResult.resultCode);
-  }
-  const raw: Object = want.parameters['verdict'];
-  if (raw === undefined) {
-    return 'verdict=missing resultCode=' + String(abilityResult.resultCode);
-  }
-  return String(raw);
 }

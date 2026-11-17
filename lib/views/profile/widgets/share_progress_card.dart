@@ -17,13 +17,13 @@ import 'package:turna/views/widgets/turna_geometry.dart';
 ///
 /// Poster accent palette — the card always renders under
 /// [TurnaTheme.lightTheme], so these accents are constants rather than
-/// context-derived theme lookups.
-const Color _shareTitleGradientTop = Color(0xFFEAFBF5);
-const Color _shareTitleGradientBottom = Color(0xFF8FE8D3);
-const Color _shareXpBoltAmber = Color(0xFFFFD54F);
-const Color _shareStreakFlame = Color(0xFFFF9D5C);
-const Color _shareGemBlue = Color(0xFF8FD8F0);
-const Color _shareLessonGreen = Color(0xFF9CE8A8);
+/// context-derived theme lookups (hex values live in [TurnaTheme]).
+const Color _shareTitleGradientTop = TurnaTheme.sharePosterTitleTop;
+const Color _shareTitleGradientBottom = TurnaTheme.sharePosterTitleBottom;
+const Color _shareXpBoltAmber = TurnaTheme.sharePosterStreak;
+const Color _shareStreakFlame = TurnaTheme.sharePosterFlame;
+const Color _shareGemBlue = TurnaTheme.sharePosterXp;
+const Color _shareLessonGreen = TurnaTheme.sharePosterMastered;
 
 class ShareProgressCard extends StatelessWidget {
   final LocalUser user;

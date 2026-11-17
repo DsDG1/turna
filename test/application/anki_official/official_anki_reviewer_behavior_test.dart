@@ -11,8 +11,6 @@ import 'package:turna/application/anki_official/render/official_anki_media_resol
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_router.dart';
-import 'package:turna/application/anki_official/render/official_anki_body_class.dart';
-import 'package:turna/application/anki_official/render/official_anki_typed_answer.dart';
 import 'package:turna/application/anki_official/render/official_anki_typed_answer_controller.dart';
 
 void main() {
@@ -334,35 +332,6 @@ void main() {
     expect(typed.frozen, isFalse);
     typed.updateProvided('retry');
     expect(typed.provided, 'retry');
-  });
-
-  test('FrontSide answer rule stays before comparison HTML', () {
-    const html = 'Front text<hr id=answer>Back [[type:Back]]';
-    final applied = OfficialAnkiTypedAnswerHtml.apply(
-      html: html,
-      comparisonHtml: '<code id=typeans>ok</code>',
-    );
-    expect(OfficialAnkiTypedAnswerHtml.hasFrontSideAnswerRule(html), isTrue);
-    expect(applied.indexOf('<hr id=answer>'),
-        lessThan(applied.indexOf('typeans')));
-    expect(applied.contains('[[type:'), isFalse);
-  });
-
-  test(
-      'body class replaces previous cardN and never adds desktop platform classes',
-      () {
-    final first = OfficialAnkiBodyClass.apply(
-      current: {'stale', 'card', 'card1'},
-      templateOrdinal: 1,
-      night: true,
-    );
-    expect(
-        first,
-        containsAll(
-            <String>['card', 'card2', 'nightMode', 'night_mode', 'stale']));
-    expect(first.contains('card1'), isFalse);
-    expect(first.contains('isWin'), isFalse);
-    expect(OfficialAnkiBodyClass.fromNative(templateOrdinal: 0), 'card card1');
   });
 
   test('reviewer view uses HCPP then HC for Android platform views', () {

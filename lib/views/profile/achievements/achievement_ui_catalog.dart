@@ -16,14 +16,14 @@ class AchievementUiCatalog {
 
   // Achievement accent palette — deliberately distinct from the league
   // tokens (softer hues picked for badge legibility on light & dark
-  // surfaces). Brand/clay accents reuse TurnaTheme tokens below.
-  static const Color _dailyFocusGold = Color(0xFFD9A62E);
-  static const Color _vocabularyBlue = Color(0xFF42A5F5);
-  static const Color _sproutGreen = Color(0xFF8FBF9F);
-  static const Color _silverGray = Color(0xFF9AA8B5);
-  static const Color _emeraldGreen = Color(0xFF2EAF7D);
-  static const Color _rubyRed = Color(0xFFD64560);
-  static const Color _diamondBlue = Color(0xFF6FC3DF);
+  // surfaces). Tokens live in TurnaTheme.
+  static const Color _dailyFocusGold = TurnaTheme.achievementGold;
+  static const Color _vocabularyBlue = TurnaTheme.achievementSky;
+  static const Color _sproutGreen = TurnaTheme.achievementSage;
+  static const Color _silverGray = TurnaTheme.achievementSlate;
+  static const Color _emeraldGreen = TurnaTheme.achievementEmerald;
+  static const Color _rubyRed = TurnaTheme.achievementCrimson;
+  static const Color _diamondBlue = TurnaTheme.achievementCyan;
 
   static IconData iconFor(String iconKey) {
     switch (iconKey) {

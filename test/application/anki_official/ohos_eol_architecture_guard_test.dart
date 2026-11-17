@@ -754,27 +754,7 @@ const _requiredOhosFiles = <String>[
   'ohos/entry/src/main/ets/plugins/FilePickerPlugin.ets',
   'ohos/entry/src/main/ets/plugins/AudioPlugin.ets',
   'ohos/entry/src/main/ets/plugins/TtsPlugin.ets',
-  // ADR 0050 §6 step 5b. The reviewer is a native page, so the probe's host is
-  // an ability of its own rather than another entry in `main_pages.json`:
-  // `@ohos.router` is deprecated from API 18 and this hap declares 5.1.0(18),
-  // which is what pushed the page across an ability boundary. Both the ability
-  // and the page it loads are listed — a registered ability pointing at a page
-  // that is not in `main_pages.json` opens to a blank screen with no build
-  // error, which is the same failure class as an unregistered plugin.
   'ohos/entry/src/main/ets/plugins/AnkiReviewerPlugin.ets',
-  // ADR 0050 §6 step 5b probe host, relocated to `ets/probe/` by R1. A
-  // separate UIAbility rather than another entry in `main_pages.json`:
-  // `@ohos.router` is deprecated from API 18 and this hap declares 5.1.0(18),
-  // which is what pushed the page across an ability boundary. Both the ability
-  // and the page it loads are listed — a registered ability pointing at a page
-  // that is not in `main_pages.json` opens to a blank screen with no build
-  // error, which is the same failure class as an unregistered plugin. The
-  // ability's *name* (`AnkiReviewerProbeAbility`) is a logical identifier
-  // rather than a path, so relocating `srcEntry` left the plugin's
-  // `startAbilityForResult` addressing untouched; `main_pages.json` and the
-  // ability's `PAGE` constant moved with the page.
-  'ohos/entry/src/main/ets/probe/AnkiReviewerProbeAbility.ets',
-  'ohos/entry/src/main/ets/probe/AnkiReviewerProbePage.ets',
   // ADR 0050 §3.7: the production reviewer half. Same missing-file failure
   // class as above, with one addition learned on device — the session store
   // is a library module precisely because an @Entry page's module state is

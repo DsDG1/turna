@@ -7,6 +7,24 @@
 
 ---
 
+### 2026-11-15 旧债收口、门禁转正与存量失败单测修复
+
+- **性质**：技术债收口、规则门禁化与存量失败修复批次；**测试数 +4**（新增 `test/architecture/code_conventions_guard_test.dart` 4 例）。非 golden 全量 **2605 passed / 0 failed**（较上批 2601 总例净增 4 例，并修复既有 `speech_backend_test.dart` 1 例音频焦点断言失败）；`tool/gui` 全量 **216/216 模块通过**（修复 `preview_window.py` 与 `lesson_editor.py` 中 2 处匿名 signal lambda 违规）。
+- **改动**：①移除 `pubspec.yaml` 孤儿 `webview_flutter` 依赖（保留防覆写门禁名单）并清理未跟踪本地残余目录 `android/app/home/`；②将 `ReviewOutcome` / `AnkiReviewRating` / `ReviewGrade` 从 `lib/core/sm2.dart` 抽离至 `lib/domain/review/review_grade.dart`；③清理 `DatabaseSeeder.seedIfEmpty` 与 `ReviewProgressProvider.snapshot` 废弃入口（更名 `computeSnapshot`）、清除 `course_catalog.dart` 死 `anki_cards_meta` SQL，并收口 Legacy Anki v1 每日限额与空壳卸载路径（保持 Drift schemaVersion、`anki_imports` 列结构与备份清单字段兼容）；④修正 `AppStrings` 中 `aboutShareText` / `privacyDetailsContactBody` 指向旧上游的错链并清理 525 条 `lib/` + `test/` 零引用静态文案；⑤将 `lib/views/` 仅剩的 17 处裸 `Color(0x...)` 全部迁入 `TurnaTheme`；⑥将 `AGENTS.md` §8 原「仅自觉」4 项纪律固化为 `code_conventions_guard_test.dart`；⑦`tool/gui` 备份目录 `.varnamala-backup` 统一迁至 `.turna-backup` 并更新 `.gitignore` / 夹具 / 测试 / ADR 0031，修复 `speech_backend_test.dart` 与两处 signal lambda，重写 `docs/advanced-settings-system-health.md` 过时章节。
+- **验证**：`flutter analyze`（官方 SDK）0 issues；`flutter test --exclude-tags golden`（官方 SDK）**2605 passed / 0 failed**；架构门禁含新增 `code_conventions_guard_test.dart` 与 `docs_hygiene_test.dart` 全过；Python 工具测试 **137 ran / skipped=1**（exit 0）；`tool/gui` 边界/索引门禁全过，`python tool/gui/run_gui_tests.py full -j 4` **216 passed / 0 failed**。
+- **未验**：未重新构建 OHOS HAP / Android APK；未执行 `--tags golden` 全量截图对比。
+
+---
+
+### 2026-11-15 死文件、OHOS 探针与仅单测死代码清理
+
+- **性质**：仓库死代码与废弃探针清理批次；**测试数 -42**（移除 4 个对应已删死文件的测试文件及 `official_anki_reviewer_protocol_guard_test`、`fidelity_webview_csp_guard_test`、`ai_prompts_and_presets_test`、`official_anki_reviewer_behavior_test` 中已无存活生产目标的用例）。非 golden 全量 **2600 passed / 1 failed**（唯一失败为工作区既有未提交状态下的 `speech_backend_test.dart` 音频焦点断言失配）。
+- **改动**：①第一档删除 11 个零引用 `lib/` 文件、`nul`、`varnamala.iml`、`test/fixtures/turkish_course/.varnamala-backup/`，并从 `layering_guard_test.dart` 白名单移除已删文件；②删除 OHOS 探针目录 `ohos/entry/src/main/ets/probe/`（7 个 `.ets`）及 Dart / ArkTS 协议、插件、路由、`module.json5`、`EntryAbility`、构架守卫测试与注释中的探针残留；③删除 7 个仅被单测引用的死 `lib/` 文件（保留仍作差分真源的 `official_anki_http_range.dart`）及对应 4 个死测试文件，同步更新 `advanced-settings-system-health.md` 与 `project-guide.md`。
+- **验证**：`flutter analyze`（官方 SDK）无问题；`flutter test --exclude-tags golden`（官方 SDK）执行 **2600 passed / 1 failed**（既有 `speech_backend_test.dart` `focus=true` 断言失配，其余架构守卫与单测全过）。
+- **未验**：未重新构建 OHOS HAP（`.dart_tool/package_config.json` 因官方 SDK `flutter analyze` 切回官方 SDK，后续跑 `ohos/` 构建或 `make gen` 前需按 `AGENTS.md` 恢复 fork SDK `flutter pub get`）；未执行 `--tags golden` 全量截图对比。
+
+---
+
 ### 2026-11-07 Phase Two 作者契约与首单元候选
 
 - **性质**：课程 schema、作者工具、阅读交互、真实内容、媒体与发布边界批次；**测试数 +8**（答案规范化 2、阅读点词 1、SVG 渲染 1、真实首单元 1、替代答案 3）。非 golden 全量 **2643 passed / 0 failed**。

@@ -651,10 +651,15 @@ class ReviewPolicyEditor(QGroupBox):
             spin.setRange(0.1, 10.0)
             spin.setSingleStep(0.1)
             spin.setValue(float(configured.get(runtime_type, 1.0)))
-            spin.valueChanged.connect(
-                lambda value, rt=runtime_type: self._weight_changed(rt, value)
-            )
+            spin.setProperty("runtime_type", runtime_type)
+            spin.valueChanged.connect(self._on_weight_spin_changed)
             self.weights.setCellWidget(row, 1, spin)
+
+    def _on_weight_spin_changed(self, value: float) -> None:
+        sender = self.sender()
+        runtime_type = sender.property("runtime_type") if sender is not None else None
+        if isinstance(runtime_type, str) and runtime_type:
+            self._weight_changed(runtime_type, value)
 
     def _weight_changed(self, runtime_type: str, value: float) -> None:
         policy = self.content.get(ContentKey.REVIEW_POLICY)

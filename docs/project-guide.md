@@ -104,9 +104,9 @@ Section → Unit → Lesson
 
 保真渲染：复杂的 notetype（含自定义 HTML/CSS/JS）没法干净映射成结构化题型时走保真路径，映射编辑器在 `lib/views/anki_official/official_anki_mapping_page.dart`。
 
-- `AnkiHtmlCardView`（`webview_flutter`，全项目唯一的 WebView 使用点）渲染原 notetype 的 HTML + CSS，替换 `{{field}}` 模板变量并处理 cloze 挖空；只有 Android / iOS 有 WebView 实现，桌面和 Web 降级成文本兜底。
+- `OfficialTemplateWebViewBody` / `OfficialAnkiReviewerStage` 走官方渲染内核呈现原 notetype 的 HTML + CSS（预览与正式复习共用）；离线环境禁用脚本或无渲染器可用时降级。
 - JS 和网络隔离：notetype 的 `allowJs` 默认关，联网默认完全离线；离线和询问策略通过 CSP 真正挡掉 `fetch`、XHR、WebSocket 和外部资源，不只是拦页面跳转。
-- 卡面缩放（可选）：只有 `settings.cardTextScale` 调到 100% 以上才注入缩放，默认 100% 一个字节都不注入；三条轨道共用这一个设置项，作用域见第 9 节。
+- 卡面缩放（可选）：只有 `settings.cardTextScale` 调到 100% 以上才注入缩放，默认 100% 一个字节都不注入；各渲染入口共用这一个设置项，作用域见第 9 节。
 
 复习入口：`FormalReviewLauncher` → 共用 `AnkiReviewSessionRoute`。正式资格 = 官方到期搜索（`did:<deck> (is:due OR is:learn OR is:new)`）∩ 课程位置 ∩ 已解锁 ∩ 未暂停/搁置/退役；已解锁 = 该投影课时已完成，或导入历史里 `reps ≥ 1`。第一遍课内只解锁，不写官方排期、不记错题本；下课 flush 只抬高该课牌组的当天新卡名额，不改 `new_per_day` 预设。
 
@@ -126,7 +126,7 @@ AI 适配只产声明式配置：输入是字段名、模板面事实、截断�
 
 ## 7. AI 引擎层与 AI 功能
 
-统一 AI 引擎层：`lib/application/ai/engine/` 是全应用唯一的模型调用出入口。`ai_engine.dart` 是 `@lazySingleton` 门面（`chat()` + `requestJson()` + 缓存接线）；`ai_engine_config.dart` 持 `AiEngineConfig`（双模型 + `StrictSchemaMode`）；`ai_engine_config_holder.dart` 是配置的唯一真理源并持久化到本地（API key 只进平台安全存储，缺插件时降级为会话内）；`ai_http_client.dart` 提供 `postJson` / `postStream` / `probeConnection`（json_schema → json_object 回退、`AiCancelToken` 取消）；`ai_cache.dart` 是 SHA-256 LRU + 磁盘镜像（key 不含 API key）。引擎层只暴露 `chat` + `requestJson`，领域方法、prompt 构建、`parseCompletion` 留在 `AiCourseService`，避免循环依赖。
+统一 AI 引擎层：`lib/application/ai/engine/` 是全应用唯一的模型调用出入口。`ai_engine.dart` 是 `@lazySingleton` 门面（`chat()` + `requestJson()` + 缓存接线）；`ai_engine_config.dart` 持 `AiEngineConfig`（双模型 + `StrictSchemaMode`）；`ai_engine_config_holder.dart` 是配置的唯一真理源并持久化到本地（API key 只进平台安全存储，缺插件时降级为会话内）；`ai_http_client.dart` 提供 `postJson` / `postStream` / `probeConnection`（json_schema → json_object 回退、`AiCancelToken` 取消）；`ai_cache.dart` 是 SHA-256 LRU + 磁盘镜像（key 不含 API key）。引擎层只暴露 `chat` + `requestJson`，领域方法与 prompt 构建留在上层业务模块（如 `ai_course_explainer.dart`、`ai/practice/`），避免循环依赖。
 
 AI Hub：`lib/views/ai/ai_hub_page.dart` 是集中的 AI 入口，五区：Hero（模型与配置）、我的练习（`AiPracticeLibrarySection`：生成中进度、最近草稿、查看全部）、Continue（可恢复的伴学任务）、Start（「生成练习」与「自定义课程」两张卡 + 伴学 4 格）、偏好与提示词（`AiExplainPrefsCard`；「系统提示词」入口只读展示实际发给模型的系统提示词，允许在末尾追加自定义要求）。
 
@@ -171,7 +171,7 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 | `sensoryReduce` | 静音音效和触觉反馈 |
 | `focusMode` | 撤掉非必要装饰、推荐和磨砂效果，保留当前学习任务 |
 
-`app.dart` 的 `_AppShell` 监听 ThemeProvider 和 AccessibilityProvider，选 light / dark / high-contrast 变体，注入根 `MediaQuery` 覆盖。卡片字号的实际作用域：`cardTextScale`（`AccessibilityProvider.cardTextScale` / `cardTextScaleOf(context)`）只被 Anki 卡面消费，三个消费点是 `lib/views/anki/anki_html_card_view.dart`、`lib/views/review/components/official_template_webview_body.dart`、`lib/views/anki_official/official_anki_reviewer_stage.dart`。豁免约定见 [`AGENTS.md`](../AGENTS.md)。
+`app.dart` 的 `_AppShell` 监听 ThemeProvider 和 AccessibilityProvider，选 light / dark / high-contrast 变体，注入根 `MediaQuery` 覆盖。卡片字号的实际作用域：`cardTextScale`（`AccessibilityProvider.cardTextScale` / `cardTextScaleOf(context)`）只被 Anki 卡面消费，两个消费点是 `lib/views/review/components/official_template_webview_body.dart`、`lib/views/anki_official/official_anki_reviewer_stage.dart`。豁免约定见 [`AGENTS.md`](../AGENTS.md)。
 
 ## 10. 平台与构建
 

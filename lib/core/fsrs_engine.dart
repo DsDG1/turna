@@ -6,7 +6,7 @@ import 'package:fsrs/fsrs.dart' as fsrs;
 
 // Project imports:
 import 'package:turna/core/fsrs_relearn.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/core/srs_scheduler.dart';
 import 'package:turna/domain/course/srs_word.dart';
 

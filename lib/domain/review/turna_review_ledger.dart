@@ -1,4 +1,4 @@
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';

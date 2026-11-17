@@ -26,7 +26,7 @@ class InsightsQuery {
 /// may still complete for its caller, but can never overwrite [current].
 class InsightsRepository {
   InsightsRepository(ReviewProgressProvider progress, this._revision)
-      : _loader = progress.snapshot;
+      : _loader = progress.computeSnapshot;
 
   InsightsRepository.forTesting(this._loader, this._revision);
 

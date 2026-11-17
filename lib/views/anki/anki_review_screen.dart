@@ -9,21 +9,18 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/widgets/turna_cards.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
-import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
 /// allows starting a review session for a selected section.
@@ -161,9 +158,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 final importId = LegacyAnkiIdentifiers.importIdFromSectionId(
                   section.id,
                 );
-                final isOfficial = OfficialFormalDueRepository
-                    .instance.officialImportIds
-                    .contains(importId);
                 return KeyedSubtree(
                   key: ValueKey(section.id),
                   child: _AnkiSectionCard(
@@ -187,20 +181,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                       sectionId: section.id,
                     )),
                     onPin: () => _pinDeck(context, section.id),
-                    onOptions: isOfficial
-                        ? null
-                        : () => _editDeckOptions(
-                              context,
-                              sectionId: section.id,
-                              title: section.name,
-                            ),
-                    onUninstall: isOfficial
-                        ? null
-                        : () => _confirmUninstall(
-                              context,
-                              sectionId: section.id,
-                              sectionName: section.name,
-                            ),
                   ),
                 );
               },
@@ -229,117 +209,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   Future<void> _pinDeck(BuildContext context, String sectionId) {
     final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     return context.read<CourseProvider>().pinAnkiDeck(importId);
-  }
-
-  Future<void> _editDeckOptions(
-    BuildContext context, {
-    required String sectionId,
-    required String title,
-  }) async {
-    final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
-    final deckManager = getIt<AnkiDeckManager>();
-    final currentNew = await deckManager.dailyNewLimitFor(importId);
-    final currentReview = await deckManager.dailyReviewLimitFor(importId);
-    if (!context.mounted) return;
-    final newController = TextEditingController(
-      text: currentNew?.toString() ?? '',
-    );
-    final reviewController = TextEditingController(
-      text: currentReview?.toString() ?? '',
-    );
-    final result = await showDialog<({int? newLimit, int? reviewLimit})>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.ankiDeckOptionsTitle(title)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: newController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: AppStrings.ankiDailyNewLimitLabel,
-                hintText: AppStrings.ankiDailyLimitHint,
-              ),
-            ),
-            TextField(
-              controller: reviewController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: AppStrings.ankiDailyReviewLimitLabel,
-                hintText: AppStrings.ankiDailyLimitHint,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              dialogContext,
-              (
-                newLimit: int.tryParse(newController.text.trim()),
-                reviewLimit: int.tryParse(reviewController.text.trim()),
-              ),
-            ),
-            child: Text(AppStrings.commonSave),
-          ),
-        ],
-      ),
-    );
-    newController.dispose();
-    reviewController.dispose();
-    if (result == null || !context.mounted) return;
-    await deckManager.setDailyLimits(
-      importId,
-      newLimit: result.newLimit,
-      reviewLimit: result.reviewLimit,
-    );
-  }
-
-  Future<void> _confirmUninstall(
-    BuildContext context, {
-    required String sectionId,
-    required String sectionName,
-  }) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.ankiUninstallConfirmTitle),
-        content: Text('$sectionName\n\n${AppStrings.ankiUninstallConfirmBody}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: TurnaTheme.error,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(AppStrings.ankiUninstallDeck),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
-    if (importId.isEmpty) return;
-    final uninstallCompleted =
-        await context.read<CourseProvider>().uninstallAnkiDeck(importId);
-    if (!context.mounted) return;
-    // 与课程管理页同语义：false/抛错 = 本次未删成（提交前失败），
-    // 「已移除」只在删除确实生效时出现。
-    TurnaSnackBar.show(
-      context,
-      uninstallCompleted
-          ? AppStrings.ankiDeckRemoved
-          : AppStrings.ankiDeckRemovalFailed,
-    );
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -663,8 +532,6 @@ class _AnkiSectionCard extends StatelessWidget {
   final VoidCallback? onStats;
   final VoidCallback? onBrowse;
   final VoidCallback onPin;
-  final VoidCallback? onOptions;
-  final VoidCallback? onUninstall;
 
   const _AnkiSectionCard({
     required this.index,
@@ -676,8 +543,6 @@ class _AnkiSectionCard extends StatelessWidget {
     required this.onStats,
     required this.onBrowse,
     required this.onPin,
-    required this.onOptions,
-    required this.onUninstall,
   });
 
   @override
@@ -752,12 +617,10 @@ class _AnkiSectionCard extends StatelessWidget {
                     size: 14,
                     color: accent.withValues(alpha: 0.7),
                   ),
-                  _UninstallMenuButton(
+                  _DeckMenuButton(
                     onStats: onStats,
                     onBrowse: onBrowse,
                     onPin: onPin,
-                    onOptions: onOptions,
-                    onUninstall: onUninstall,
                   ),
                 ],
               ),
@@ -799,19 +662,15 @@ class _AnkiSectionCard extends StatelessWidget {
   }
 }
 
-class _UninstallMenuButton extends StatelessWidget {
+class _DeckMenuButton extends StatelessWidget {
   final VoidCallback? onStats;
   final VoidCallback? onBrowse;
   final VoidCallback onPin;
-  final VoidCallback? onOptions;
-  final VoidCallback? onUninstall;
 
-  const _UninstallMenuButton({
+  const _DeckMenuButton({
     required this.onStats,
     required this.onBrowse,
     required this.onPin,
-    required this.onOptions,
-    required this.onUninstall,
   });
 
   @override
@@ -857,39 +716,11 @@ class _UninstallMenuButton extends StatelessWidget {
             ],
           ),
         ),
-        if (onOptions != null)
-          PopupMenuItem<String>(
-            value: 'options',
-            child: Row(
-              children: [
-                const Icon(Icons.tune_outlined, size: 20),
-                const SizedBox(width: 12),
-                Text(AppStrings.ankiDeckOptions),
-              ],
-            ),
-          ),
-        if (onUninstall != null)
-          PopupMenuItem<String>(
-            value: 'uninstall',
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 20,
-                  color: TurnaTheme.error,
-                ),
-                const SizedBox(width: 12),
-                Text(AppStrings.ankiUninstallDeck),
-              ],
-            ),
-          ),
       ],
       onSelected: (value) {
         if (value == 'stats') onStats?.call();
         if (value == 'browse') onBrowse?.call();
         if (value == 'pin') onPin();
-        if (value == 'options') onOptions?.call();
-        if (value == 'uninstall') onUninstall?.call();
       },
     );
   }

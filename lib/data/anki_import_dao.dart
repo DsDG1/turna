@@ -29,8 +29,8 @@ class AnkiImportDao implements IAnkiImportStore {
     final lifecycleRows = await _db
         .customSelect(
           'SELECT import_id, status, source_card_count, stored_card_count, '
-          'indexed_card_count, imported_scheduling, last_error, daily_new_limit, '
-          'daily_review_limit FROM anki_imports',
+          'indexed_card_count, imported_scheduling, last_error '
+          'FROM anki_imports',
         )
         .get();
     final lifecycleById = <String, QueryRow>{
@@ -76,44 +76,11 @@ class AnkiImportDao implements IAnkiImportStore {
         .go();
   }
 
-  @override
-  Future<void> setDailyLimits(
-    String importId, {
-    int? newLimit,
-    int? reviewLimit,
-  }) async {
-    await _db.customStatement(
-      'UPDATE anki_imports '
-      'SET daily_new_limit = ?, daily_review_limit = ? '
-      'WHERE import_id = ?',
-      [newLimit, reviewLimit, importId],
-    );
-  }
-
-  @override
-  Future<int?> dailyNewLimitFor(String importId) =>
-      _readLimit(importId, 'daily_new_limit');
-
-  @override
-  Future<int?> dailyReviewLimitFor(String importId) =>
-      _readLimit(importId, 'daily_review_limit');
-
-  Future<int?> _readLimit(String importId, String column) async {
-    // [column] is a hardcoded literal ('daily_new_limit' / 'daily_review_limit')
-    // from the public callers, so it is safe to interpolate; importId is bound.
-    final rows = await _db.customSelect(
-      'SELECT $column FROM anki_imports WHERE import_id = ?',
-      variables: [Variable.withString(importId)],
-    ).get();
-    if (rows.isEmpty) return null;
-    return rows.first.read<int?>(column);
-  }
-
   Future<AnkiImportRecord> _toRecord(AnkiImport row) async {
     final lifecycleRows = await _db.customSelect(
       'SELECT status, source_card_count, stored_card_count, '
-      'indexed_card_count, imported_scheduling, last_error, daily_new_limit, '
-      'daily_review_limit FROM anki_imports WHERE import_id = ?',
+      'indexed_card_count, imported_scheduling, last_error '
+      'FROM anki_imports WHERE import_id = ?',
       variables: [Variable.withString(row.importId)],
     ).get();
     return _toRecordWithLifecycle(
@@ -139,8 +106,6 @@ class AnkiImportDao implements IAnkiImportStore {
       notetypesJson: row.notetypesJson,
       aiEnhanced: row.aiEnhanced,
       version: row.version,
-      dailyNewLimit: lifecycle?.read<int?>('daily_new_limit'),
-      dailyReviewLimit: lifecycle?.read<int?>('daily_review_limit'),
       status: lifecycle?.read<String?>('status') ?? 'complete',
       sourceCardCount: lifecycle?.read<int?>('source_card_count') ?? 0,
       importedScheduling:

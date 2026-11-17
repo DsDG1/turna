@@ -480,16 +480,6 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
   }
 }
 
-/// Slider tile configuring the Anki daily new-card limit.
-///
-/// Reads/writes `AnkiDeckManager` preferences (no provider rebuild needed —
-/// the slider's own state drives the UI; prefs is authoritative).
-///
-/// 湿地雾光 R16 / ADR 0067：Anki 每日上限设置在记忆卡复习页
-/// （`AnkiReviewPage`），本域的 `SettingsAnkiNewLimitTile` /
-/// `SettingsAnkiReviewLimitTile` / `SettingsDailyChallengeAnkiTile`
-/// 不回到语言课程设置页。
-
 class SettingsReviewBatchTile extends StatelessWidget {
   const SettingsReviewBatchTile({super.key});
 

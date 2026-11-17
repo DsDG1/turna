@@ -181,7 +181,7 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
     'lib/data/course_database.dart', // drift-ops: registry hydration queries
   },
   'lib/application/course_catalog.dart': {
-    'lib/data/course_database.dart', // drift-ops: aggregate card-count query
+    'lib/data/course_database.dart', // handle: threads db into OfficialAnkiV2ViewStore
   },
   'lib/application/course_provider.dart': {
     'lib/data/course_database.dart', // handle: databaseOrNull + V2 read seam
@@ -197,9 +197,6 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
   'lib/application/maintenance/storage_inventory_service.dart': {
     'lib/data/anki_import_dao.dart', // local-handle construction
     'lib/data/course_database.dart', // handle + drift-ops: size queries
-  },
-  'lib/application/maintenance/storage_maintenance_service.dart': {
-    'lib/data/course_database.dart', // drift-ops: cleanup queries
   },
   'lib/application/migration/turna_migration_export.dart': {
     'lib/data/course_database.dart', // drift-ops: serializes raw tables

@@ -307,8 +307,11 @@ class _PreviewCard(QFrame):
         check_btn.clicked.connect(_check)
         btn_row.addWidget(check_btn)
 
+        def _fill_target() -> None:
+            edit.setText(target_text)
+
         quick_btn = QPushButton("填入目标句")
-        quick_btn.clicked.connect(lambda: edit.setText(target_text))
+        quick_btn.clicked.connect(_fill_target)
         btn_row.addWidget(quick_btn)
 
         layout.addLayout(btn_row)

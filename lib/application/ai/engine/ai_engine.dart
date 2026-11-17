@@ -22,12 +22,10 @@ import 'package:turna/core/performance_trace.dart';
 ///   * [requestJson] - JSON-mode reply (course / lesson / transform / extract);
 ///   * [probeConnection] - "test connection" probe.
 ///
-/// Domain methods (course generation, lesson transform, knowledge extraction,
-/// etc.) stay on `AiCourseService` and the feature providers - they build
-/// prompts with `ai_prompt_builder.dart` and parse results with their own
-/// domain parsers, delegating only the HTTP + cache + stream + cancel hop to
-/// this engine. This keeps the engine free of course-schema knowledge and
-/// avoids a circular dependency between the engine and the service shim.
+/// Domain methods (explanation, hint, tutor chat, practice generation, etc.)
+/// stay on the feature providers — they build prompts and parse results with
+/// their own domain parsers, delegating only the HTTP + cache + stream + cancel
+/// hop to this engine. This keeps the engine free of course-schema knowledge.
 ///
 /// Caching: when `config.cacheEnabled` is on, the engine consults [AiCache]
 /// before the network. A cache hit returns immediately; for streaming callers

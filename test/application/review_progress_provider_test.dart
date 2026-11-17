@@ -50,7 +50,7 @@ void main() {
     );
     grammar.registerGrammarPoint('gp-1');
 
-    final snap = await progress.snapshot();
+    final snap = await progress.computeSnapshot();
     expect(snap.aggregate.totalCards, 4);
     expect(snap.bySource.length, greaterThanOrEqualTo(2));
 
@@ -73,12 +73,12 @@ void main() {
     );
     grammar.registerGrammarPoint('gp-1');
 
-    final courseOnly = await progress.snapshot(const ReviewProgressFilter(
+    final courseOnly = await progress.computeSnapshot(const ReviewProgressFilter(
       source: ReviewSource.course,
     ));
     expect(courseOnly.aggregate.totalCards, 1);
 
-    final grammarOnly = await progress.snapshot(const ReviewProgressFilter(
+    final grammarOnly = await progress.computeSnapshot(const ReviewProgressFilter(
       source: ReviewSource.grammar,
     ));
     expect(grammarOnly.aggregate.totalCards, 1);
@@ -104,7 +104,7 @@ void main() {
     final sources = await progress.listSources();
     final deleted = sources.singleWhere((s) => s.id == 'anki:deleted-source');
     expect(deleted.active, isFalse);
-    final snapshot = await progress.snapshot();
+    final snapshot = await progress.computeSnapshot();
     final row = snapshot.bySource
         .singleWhere((source) => source.source.id == 'anki:deleted-source');
     expect(row.totalCards, 0);
@@ -122,7 +122,7 @@ void main() {
     );
     await srs.bulkImportStates({'w-later': future});
 
-    final overdue = await progress.snapshot(const ReviewProgressFilter(
+    final overdue = await progress.computeSnapshot(const ReviewProgressFilter(
       due: DueFilter.overdue,
     ));
     // Only w-now is due immediately (fresh).
@@ -153,7 +153,7 @@ void main() {
     await put('w-fr-2', LanguageCodes.french);
 
     await srs.setLanguageFilter(LanguageCodes.turkish);
-    final tr = await progress.snapshot();
+    final tr = await progress.computeSnapshot();
     expect(tr.aggregate.totalReviews, 1);
     expect(
       tr.activity.fold<int>(0, (n, row) => n + row.reviewedCount),
@@ -161,7 +161,7 @@ void main() {
     );
 
     await srs.setLanguageFilter(LanguageCodes.french);
-    final fr = await progress.snapshot();
+    final fr = await progress.computeSnapshot();
     expect(fr.aggregate.totalReviews, 2);
     expect(
       fr.activity.fold<int>(0, (n, row) => n + row.reviewedCount),

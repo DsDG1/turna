@@ -17,17 +17,4 @@ abstract class IAnkiImportStore {
 
   /// Remove one import row.
   Future<void> delete(String importId);
-
-  /// Update the daily new/review limits for one import.
-  Future<void> setDailyLimits(
-    String importId, {
-    int? newLimit,
-    int? reviewLimit,
-  });
-
-  /// Per-import daily new-card limit (null = unset).
-  Future<int?> dailyNewLimitFor(String importId);
-
-  /// Per-import daily review limit (null = unset).
-  Future<int?> dailyReviewLimitFor(String importId);
 }

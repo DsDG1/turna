@@ -70,7 +70,7 @@
 | 2 | User-visible copy | `feat: update user-facing product copy to Turna` | `lib/l10n/app_strings.dart`, `lib/views/app.dart`, `lib/views/settings/about_varnamala_page.dart`, `lib/views/settings/widgets/settings_about_section.dart`, splash / welcome / share |
 | 3 | Dart package & symbols | `refactor: rename Flutter package and Dart symbols to Turna` | `pubspec.yaml`; `package:varnamala/→package:turna/` everywhere; `VarnamalaApp`→`TurnaApp`; `VarnamalaTheme`→`TurnaTheme`; `about_varnamala_page.dart`→`about_turna_page.dart`; rerun `build_runner` |
 | 4 | Native identities | `chore: rename native application identities to Turna` | `android/app/build.gradle`, `AndroidManifest.xml`, Kotlin package path; iOS `Info.plist`/`project.pbxproj`; macOS `AppInfo.xcconfig`/`pbxproj`; Windows `CMakeLists.txt`/`main.cpp`/`Runner.rc`; Linux `CMakeLists.txt`/`my_application.cc`; Web `index.html`/`manifest.json`; OHOS `oh-package.json5` + AppScope resources |
-| 5 | Editor + local-data compat | `refactor: rename course editor and migrate local settings` | `tool/gui/*`; `QSettings("Turna","CourseEditor")` with read-from-old on first run; `.varnamala`/`.varnamala-gui` → `.turna`/`.turna-gui` (with read-compat); `.varnamala-backup` preserved |
+| 5 | Editor + local-data compat | `refactor: rename course editor and migrate local settings` | `tool/gui/*`; `QSettings("Turna","CourseEditor")` with read-from-old on first run; `.varnamala`/`.varnamala-gui` → `.turna`/`.turna-gui` (with read-compat); `.varnamala-backup` initially preserved (later migrated to `.turna-backup`) |
 | 6 | Docs | `docs: document Turna rebrand and preserve upstream attribution` | `README.md`, `CLAUDE.md`（已删）, project analysis, course authoring guide, GUI user docs, release/build notes |
 | — | Final verification | (no commit, audit only) | `flutter pub get` + `dart format .` + `flutter analyze` + `flutter test`; platform build per §11.2; old-name audit per §11.4 |
 
@@ -83,7 +83,7 @@ QSettings（`tool/gui`）升级后首次运行的读取顺序：
 3. Copy the value into the new `Turna` settings and proceed with the new key from there.
 4. Never delete the old `Varnamala` key — leave it for any user who rolls back the binary.
 
-本地目录：`.varnamala` → `.turna`（用户配置目录）；`.varnamala-gui` → `.turna-gui`（编辑器配置目录）；两者迁移方式一致 —— 读旧目录，回退，写穿到新目录，不删除旧目录。`.varnamala-backup` 是课程内部备份格式，**保留**：改名会使既有课程备份与测试夹具失效。
+本地目录：`.varnamala` → `.turna`（用户配置目录）；`.varnamala-gui` → `.turna-gui`（编辑器配置目录）；两者迁移方式一致 —— 读旧目录，回退，写穿到新目录，不删除旧目录。`.varnamala-backup` 最初为保持兼容而暂留，后续已迁至 `.turna-backup`（同时在 `.gitignore` 与测试夹具排除列表保留对旧目录名的忽略）。
 
 不迁移的协议：course JSON schema 与字段名、SQLite 表名与库结构、既有 course / vocab / lesson ID、Anki 导入格式与学习进度数据结构。
 
@@ -104,7 +104,7 @@ QSettings（`tool/gui`）升级后首次运行的读取顺序：
 - 上游仓库名、链接与社区署名（`README`、`About`、`LICENSE`）。
 - `CHANGELOG` / ADR 里的历史条目。
 - `tool/gui` 一次性迁移代码（读旧写新，QSettings + 本地目录）：`tool/gui/src/application/settings.py`（`LEGACY_ORG_NAME`、`app_data_dir(legacy_name=…)`、`course_clones_dir(legacy_name=…)`、`migrate_legacy_varnamala_qsettings`）、`tool/gui/src/app.py`（调用点）、`tool/gui/src/backend/credential_store.py`（`_KEYRING_SERVICE_LEGACY = "varnamala.git"` 与旧读取路径）、`tool/gui/src/backend/ai_config_file.py`（`CONFIG_KIND_LEGACY = "varnamala.ai_config"`，双 kind 接受）。
-- 课程内部备份逻辑与夹具里的 `.varnamala-backup` 路径（`tool/gui/src/backend/course_adapter.py`、`assets/courses/turkish/.gitignore`、BASELINE 历史文件）。
+- 历史收据（BASELINE 历史文件）与 `.gitignore` / 测试夹具过滤中对旧目录名 `.varnamala-backup` 的兼容忽略项；现行课程备份写入目录为 `.turna-backup`（`tool/gui/src/backend/course_io.py`、`test/fixtures/turkish_course/.gitignore`）。
 - 烘入仓库根绝对路径的 Flutter / Hvigor 生成缓存（`ios/Flutter/Generated.xcconfig`、`macos/Flutter/ephemeral/Flutter-Generated.xcconfig`、`windows/flutter/ephemeral/generated_config.cmake`、`ohos/.hvigor/**`）：按目录路径重建，不属于真源。
 - 上游物理仓库名 `Varnamalaplus`（`README.md` 的 `git clone` 命令、旧分析文档的 `file:///` slug）：上游目录未改名，URL 与 slug 保持。
 - 测试基线历史文件（`test/BASELINE.md`、`tool/gui/tests/BASELINE.md`）：描述改名前的测试结果，只更新「当前现状」一行。

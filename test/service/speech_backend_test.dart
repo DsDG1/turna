@@ -404,12 +404,12 @@ void main() {
       expect(await speaking, isTrue);
     });
 
-    test('requests transient audio focus for playback', () async {
+    test('speaks without requesting exclusive transient audio focus', () async {
       final tts = _FakeFlutterTts(speakResult: 1);
       final backend = FlutterTtsSpeechBackend(tts);
 
       expect(await backend.speak('hi'), isTrue);
-      expect(tts.calls, contains('speak:hi:focus=true'));
+      expect(tts.calls, contains('speak:hi:focus=false'));
     });
 
     test('a native synthesis error fails an accepted request', () async {

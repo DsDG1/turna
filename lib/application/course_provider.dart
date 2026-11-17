@@ -8,7 +8,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
@@ -235,31 +234,6 @@ class CourseProvider extends ChangeNotifier {
     final at = builtinWire == null ? -1 : wires.indexOf(builtinWire);
     wires.insert(at < 0 ? 0 : at + 1, pinnedWire);
     await persistCourseOrder(wires);
-  }
-
-  /// Uninstall an imported deck and reconcile the active scope: when the
-  /// removed deck was the active course the scope falls back to builtin
-  /// ([setScope] reloads the tree itself), otherwise the catalog/tree
-  /// refreshes in place. Returns whether the uninstall actually completed
-  /// so the caller can word the snack — false/exception mean nothing was
-  /// deleted this attempt (same contract as the course-management page).
-  Future<bool> uninstallAnkiDeck(String importId) async {
-    var completed = false;
-    try {
-      completed = await getIt<AnkiDeckManager>().uninstall(importId);
-    } catch (e) {
-      logger.w('[CourseProvider] uninstall failed for $importId: $e');
-    }
-    final removedWasActive = _catalogEntries.any((entry) =>
-        (entry.legacyImportId == importId ||
-            entry.officialSourceId == importId) &&
-        entry.wireKey == _scope.wireKey);
-    if (removedWasActive) {
-      await setScope(CourseCatalog.fallbackBuiltin(_catalogEntries));
-    } else {
-      await reloadCourse();
-    }
-    return completed;
   }
 
   /// Whether [load] has completed at least once.

@@ -19,83 +19,19 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
-/// Centralized Anki deck management: uninstall, incremental update detection,
-/// review limits, and SRS key partitioning.
-///
-/// Phase 3 features:
-/// - Deck uninstall (by tag batch delete + media cleanup)
-/// - Incremental update detection (source_hash comparison)
-/// - Review limits (daily new/review caps)
-/// - SRS state partitioning (per-import prefs keys)
+/// Centralized Anki deck management: uninstall and cleanup recovery for
+/// imported Official sources.
 @lazySingleton
 class AnkiDeckManager {
   final ICourseRepository _repo;
-  final IAnkiImportStore _importDao;
-  final AppPrefs _appPrefs;
 
+  // [importDao] and [appPrefs] remain optional signature parameters for DI and
+  // test compatibility while v1 per-deck limit overrides are retired.
   AnkiDeckManager({
     required ICourseRepository repo,
-    required IAnkiImportStore importDao,
-    required AppPrefs appPrefs,
-  })  : _repo = repo,
-        _importDao = importDao,
-        _appPrefs = appPrefs;
-
-  // ─── Review Limits ──────────────────────────────────────────────────
-
-  /// Default daily new card limit.
-  static const int defaultDailyNewLimit = 20;
-
-  /// Default daily review card limit.
-  static const int defaultDailyReviewLimit = 200;
-
-  static const String _dailyNewLimitKey = 'anki.dailyNewLimit';
-  static const String _dailyReviewLimitKey = 'anki.dailyReviewLimit';
-
-  int get dailyNewLimit {
-    return _appPrefs.preferences
-        .getInt(_dailyNewLimitKey, defaultValue: defaultDailyNewLimit)
-        .getValue();
-  }
-
-  int get dailyReviewLimit {
-    return _appPrefs.preferences
-        .getInt(_dailyReviewLimitKey, defaultValue: defaultDailyReviewLimit)
-        .getValue();
-  }
-
-  Future<void> setDailyNewLimit(int limit) async {
-    await _appPrefs.preferences.setInt(_dailyNewLimitKey, limit);
-  }
-
-  Future<void> setDailyReviewLimit(int limit) async {
-    await _appPrefs.preferences.setInt(_dailyReviewLimitKey, limit);
-  }
-
-  // ─── Daily Challenge Toggle ─────────────────────────────────────────
-
-  static const String _dailyChallengeAnkiKey =
-      'anki.dailyChallengeIncludesAnki';
-
-  /// Whether Anki-imported cards may appear in the daily challenge pool.
-  /// Defaults to `true`; the settings page exposes a toggle to turn this off.
-  bool get dailyChallengeIncludesAnki {
-    return _appPrefs.preferences
-        .getBool(_dailyChallengeAnkiKey, defaultValue: true)
-        .getValue();
-  }
-
-  Future<void> setDailyChallengeIncludesAnki(bool value) async {
-    await _appPrefs.preferences.setBool(_dailyChallengeAnkiKey, value);
-  }
-
-  /// Restore Anki learning prefs to factory defaults (new/review limits +
-  /// daily-challenge inclusion). Does not uninstall decks or clear SRS.
-  Future<void> resetLearningDefaults() async {
-    await setDailyNewLimit(defaultDailyNewLimit);
-    await setDailyReviewLimit(defaultDailyReviewLimit);
-    await setDailyChallengeIncludesAnki(true);
-  }
+    IAnkiImportStore? importDao,
+    AppPrefs? appPrefs,
+  }) : _repo = repo;
 
   // ─── Deck Uninstall ─────────────────────────────────────────────────
 
@@ -251,26 +187,6 @@ class AnkiDeckManager {
     }
     return AnkiDeletionOwner(importId: importId);
   }
-
-  /// Per-deck daily new-card limit override, or `null` for the global limit.
-  Future<int?> dailyNewLimitFor(String importId) =>
-      _importDao.dailyNewLimitFor(importId);
-
-  /// Per-deck daily review limit override, or `null` for the global limit.
-  Future<int?> dailyReviewLimitFor(String importId) =>
-      _importDao.dailyReviewLimitFor(importId);
-
-  /// Persist per-deck daily limit overrides (`null` clears the override).
-  Future<void> setDailyLimits(
-    String importId, {
-    int? newLimit,
-    int? reviewLimit,
-  }) =>
-      _importDao.setDailyLimits(
-        importId,
-        newLimit: newLimit,
-        reviewLimit: reviewLimit,
-      );
 
   /// Official sources own `official-anki-<sourceId>-…` tree ids.
   Future<bool> _isOfficialSource(String importId) async {

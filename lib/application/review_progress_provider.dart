@@ -274,8 +274,11 @@ class ReviewProgressProvider {
     return AppStrings.reviewProgressSourceAnkiNamed(bare);
   }
 
-  @Deprecated('Use InsightsRepository for the insights path')
-  Future<ReviewProgressSnapshot> snapshot([
+  /// Computes an unfiltered or filtered snapshot of review progress and
+  /// retention metrics. UI callers must consume this through
+  /// [InsightsRepository.load] (which binds this method as its loader) rather
+  /// than invoking it directly from widgets.
+  Future<ReviewProgressSnapshot> computeSnapshot([
     ReviewProgressFilter filter = const ReviewProgressFilter(),
   ]) async {
     final tagged = _allTagged();

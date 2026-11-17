@@ -334,11 +334,6 @@ class DatabaseSeeder {
         return true;
       });
 
-  /// Deprecated name: seeding is version-driven, not "if empty". Prefer
-  /// [seedIfNeeded].
-  @Deprecated('Use seedIfNeeded — policy is version + sections, not emptiness')
-  Future<bool> seedIfEmpty() => seedIfNeeded();
-
   Future<String?> _readMeta(String key) async {
     final row = await (db.select(db.courseMeta)
           ..where((t) => t.key.equals(key)))

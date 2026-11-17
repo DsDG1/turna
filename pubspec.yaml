@@ -58,11 +58,6 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.24
   streaming_shared_preferences: ^2.0.0
   url_launcher: ^6.3.2
-  # Fidelity WebView for the Anki deep-adaptation track (阶段 2). Federated -
-  # only Android/iOS have a platform implementation; on desktop/web
-  # AnkiHtmlCardView degrades to a text fallback (decision 4) and never
-  # instantiates a WebViewController.
-  webview_flutter: ^4.10.0
   timezone: ^0.10.1
   flutter_timezone: ^5.1.0
   flutter_svg: ^2.3.2

@@ -255,7 +255,7 @@ class CourseIoService:
 
             backup_dir = (
                 adapter.course_dir
-                / ".varnamala-backup"
+                / ".turna-backup"
                 / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
             )
             if hasattr(adapter, "_backup_json_files"):

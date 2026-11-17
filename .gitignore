@@ -214,3 +214,7 @@ tool/_tmp_*
 # not redistributable in a public repo. Source links + re-download commands
 # live in research/README.md, which stays tracked.
 research/*.pdf
+
+# Local course editor atomic-save backup directories (plus legacy name)
+**/.turna-backup/
+**/.varnamala-backup/

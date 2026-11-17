@@ -250,7 +250,7 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
               child: FadeTransition(
                 opacity: _scrimCurve,
                 child: const ColoredBox(
-                  color: Color(0x46000000),
+                  color: TurnaTheme.popupScrim,
                 ),
               ),
             ),

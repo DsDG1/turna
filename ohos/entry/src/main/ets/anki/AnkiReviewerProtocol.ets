@@ -20,15 +20,13 @@ export const CHANNEL_NAME: string = 'me.dsdogs.turna/official_anki_reviewer';
 
 // ------------------------------------------------ Dart → ArkTS method names
 // (dispatched in AnkiReviewerPlugin.ets; invoked from
-// OfficialAnkiReviewerChannel and the probe on the Dart side)
+// OfficialAnkiReviewerChannel on the Dart side)
 
 export const METHOD_OPEN_REVIEWER: string = 'openReviewer';
 export const METHOD_PRESENT_REVIEWER: string = 'presentReviewer';
 export const METHOD_CACHE_REVIEWER_MEDIA: string = 'cacheReviewerMedia';
 export const METHOD_AWAIT_REVIEWER_READY: string = 'awaitReviewerReady';
 export const METHOD_NOTIFY_REVIEWER_FAILURE: string = 'notifyReviewerFailure';
-export const METHOD_PROBE_REVIEWER_CAPABILITIES: string = 'probeReviewerCapabilities';
-export const METHOD_PROBE_REVIEWER_ASSETS: string = 'probeReviewerAssets';
 
 /// Closes a reviewer opened speculatively (P0-1 warm-up) before any card was
 /// presented. Must survive the "ability not started yet" race: the request is

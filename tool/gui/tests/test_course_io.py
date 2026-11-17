@@ -101,7 +101,7 @@ class TestCourseIoService(unittest.TestCase):
         (staging / "sections" / "s1.json").write_text("stale", encoding="utf-8")
         (staging / "index.json").write_text("{}", encoding="utf-8")
 
-        dst = src / ".varnamala-backup" / "20260928-120000-000000"
+        dst = src / ".turna-backup" / "20260928-120000-000000"
         CourseIoService.backup_json_files(src, dst)
 
         backed = sorted(

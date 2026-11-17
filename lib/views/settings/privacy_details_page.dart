@@ -290,14 +290,14 @@ class _NetworkCalloutRow extends StatelessWidget {
         final isWide = constraints.maxWidth >= 520;
         final left = _NetworkCallout(
           icon: Icons.cloud_off_rounded,
-          tintColor: const Color(0xFF2E7D32), // 深绿
+          tintColor: TurnaTheme.brandTeal,
           title: AppStrings.privacyDetailsNonAiTitle,
           intro: AppStrings.privacyDetailsNonAiIntro,
           body: AppStrings.privacyDetailsNonAiBody,
         );
         final right = _NetworkCallout(
           icon: Icons.hub_outlined,
-          tintColor: const Color(0xFF1565C0), // 深蓝
+          tintColor: TurnaTheme.brandSky,
           title: AppStrings.privacyDetailsAiTitle,
           intro: AppStrings.privacyDetailsAiIntro,
           body: AppStrings.privacyDetailsAiBody,

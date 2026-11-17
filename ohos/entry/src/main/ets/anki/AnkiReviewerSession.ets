@@ -674,9 +674,9 @@ export class AnkiReviewerSession {
 
 /// Object injected into the reviewer shell as `TurnaOhosReviewer`.
 ///
-/// Its own type, same reason as `AnkiProbeBridge`: ArkTS hands page script
-/// only the methods listed in `methodList`. The handler forwards the scalar
-/// row into the session the plugin's `present` is waiting on.
+/// Its own type so ArkTS hands page script only the methods listed in
+/// `methodList`. The handler forwards the scalar row into the session the
+/// plugin's `present` is waiting on.
 export class AnkiReviewerAckBridge {
   private handler: ((row: string) => void) | undefined = undefined;
 

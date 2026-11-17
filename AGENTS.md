@@ -199,9 +199,9 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 | analyzer lint `analysis_options.yaml` | `print` 禁用、async 与 stream 资源泄漏、未处理 Future |
 | codegen `make gen` | freezed / json_serializable / auto_route / injectable / drift 生成物与手写源同步 |
 | `make guard-gui` | `tool/gui/` 自身的分层 + 数值 ratchet 契约 + GUI 文档树索引无孤儿 / 文档指针存活 / 无未闭合代码段 |
-| **仅自觉（尚无断言测试）** | 禁 `debugPrint`、不新增裸 `.like()`、`*_page.dart` 命名、主题色不写裸常量 |
+| 门禁测试 `test/architecture/code_conventions_guard_test.dart` | 禁 `debugPrint`（仅 `lib/core/log_capture.dart` 豁免）、SQL `LIKE` 白名单与转义纪律、`*_page.dart` 与功能域 `components/` 命名双向棘轮、`lib/views/` 禁裸 `Color(0x...)` 与全 `lib/` 禁 `peacock*` 别名 |
 
-给「仅自觉」条目补断言测试，是把本文件从约定升级为强制的唯一路径；补完即从上表移入上行。
+新增约定须同步补入断言测试，不以无检查的口头约定长期悬置。
 
 ---
 

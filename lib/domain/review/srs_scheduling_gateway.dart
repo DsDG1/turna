@@ -1,4 +1,4 @@
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 /// Scheduling operations the review ledger needs from the SRS layer.

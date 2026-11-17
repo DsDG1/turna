@@ -29,7 +29,7 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review/review_lesson_sampler.dart';
 import 'package:turna/application/lesson_srs_undo_log.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/interaction_state.dart';

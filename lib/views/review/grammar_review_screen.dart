@@ -12,7 +12,7 @@ import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/grammar_point.dart';

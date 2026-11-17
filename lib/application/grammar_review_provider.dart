@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/srs_queue_provider.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/service/locator.dart';

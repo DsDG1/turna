@@ -142,6 +142,30 @@ class TurnaTheme {
   static const Color leagueEmerald = Color(0xFF27AE60);
   static const Color leagueDiamond = Color(0xFF3498DB);
 
+  // SURFACE & OVERLAY TOKENS (shared view primitives)
+  /// Reed indent guide stroke along nested sub-lesson rows in the course tree.
+  static const Color subLessonIndentGuide = Color(0x6678C7B8);
+
+  /// Modal backdrop scrim behind Play Hub long-press popups.
+  static const Color popupScrim = Color(0x46000000);
+
+  // ACHIEVEMENT UI CATALOG PALETTE
+  static const Color achievementGold = Color(0xFFD9A62E);
+  static const Color achievementSky = Color(0xFF42A5F5);
+  static const Color achievementSage = Color(0xFF8FBF9F);
+  static const Color achievementSlate = Color(0xFF9AA8B5);
+  static const Color achievementEmerald = Color(0xFF2EAF7D);
+  static const Color achievementCrimson = Color(0xFFD64560);
+  static const Color achievementCyan = Color(0xFF6FC3DF);
+
+  // SHARE POSTER DARK-CARD ACCENTS
+  static const Color sharePosterTitleTop = Color(0xFFEAFBF5);
+  static const Color sharePosterTitleBottom = Color(0xFF8FE8D3);
+  static const Color sharePosterStreak = Color(0xFFFFD54F);
+  static const Color sharePosterFlame = Color(0xFFFF9D5C);
+  static const Color sharePosterXp = Color(0xFF8FD8F0);
+  static const Color sharePosterMastered = Color(0xFF9CE8A8);
+
   // GRADIENTS
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,

@@ -1,14 +1,12 @@
 // Project imports:
-import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/local_reminder_service.dart';
 
-/// Resets every learning-related tunable to its factory default in one sweep:
-/// TTS speed, daily reminder (+ OS schedule), FSRS retention, Anki daily
-/// limits and the daily-challenge inclusion.
+/// Resets learning-related tunables to factory defaults in one sweep: TTS
+/// speed, daily reminder (+ OS schedule), and FSRS desired retention.
 ///
 /// The sweep is **independent per step**, not transactional: the reminder is
 /// applied first (and still gates the rest, because committing "off" while
@@ -36,7 +34,6 @@ class ResetLearningSettingsCommand {
     final settings = getIt<SettingsProvider>();
     final audio = getIt<AudioController>();
     final reminder = getIt<LocalReminderService>();
-    final anki = getIt<AnkiDeckManager>();
 
     // Reminder first, and the one step that still aborts: only after the OS
     // accepts "disabled" may the preference be committed
@@ -67,11 +64,6 @@ class ResetLearningSettingsCommand {
       audio.setTtsSpeed(settings.ttsSpeed);
     } on Object catch (error) {
       failures.add('朗读语速：${_brief(error)}');
-    }
-    try {
-      await anki.resetLearningDefaults();
-    } on Object catch (error) {
-      failures.add('记忆卡限额：${_brief(error)}');
     }
 
     if (failures.isEmpty) return const SettingsOperationSuccess();

@@ -25,7 +25,11 @@ import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Returns true when a TTS dialog was shown (counts against the session
 /// modal budget). Dismissing the barrier keeps the system voice.
-Future<bool> maybePromptTtsAvailability(BuildContext context) async {
+Future<bool> maybePromptTtsAvailability(
+  BuildContext context, {
+  @visibleForTesting
+  Duration androidRetryDelay = const Duration(milliseconds: 350),
+}) async {
   if (kIsWeb) return false;
   final prefs = getIt<AppPrefs>();
   final alreadyPrompted = prefs.preferences
@@ -35,11 +39,29 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
 
   final checker = getIt<TtsAvailabilityChecker>();
   final languageCode = getIt<LanguageProvider>().ttsLanguageCode;
-  final preferred = await checker.isPreferredSystemTtsAvailable(languageCode);
-  if (preferred || !context.mounted) return false;
-
-  final diag = await checker.diagnose(languageCode);
+  var diag = await checker.diagnose(languageCode);
   if (!context.mounted) return false;
+
+  // On Android cold start, switching from the OEM default engine to Google TTS
+  // (com.google.android.tts) can fail its first bind or expose an empty voice
+  // table for a brief moment while the Google service initializes. Retry once
+  // before concluding Google TTS or the voice pack is missing.
+  if (!isHarmonyOsTarget &&
+      defaultTargetPlatform == TargetPlatform.android &&
+      diag.preferredStatus != TtsPreferredStatus.ready &&
+      androidRetryDelay > Duration.zero) {
+    await Future<void>.delayed(androidRetryDelay);
+    if (!context.mounted) return false;
+    if (!checker.isEngineConfigured || !diag.hasGoogleEngine) {
+      await checker.configureSystemEngine(force: true);
+    } else {
+      checker.invalidateDiagnostics();
+    }
+    diag = await checker.diagnose(languageCode);
+    if (!context.mounted) return false;
+  }
+
+  if (diag.preferredStatus == TtsPreferredStatus.ready) return false;
   final languageName = getIt<LanguageProvider>().displayName;
 
   if (isHarmonyOsTarget) {

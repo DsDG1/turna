@@ -193,23 +193,8 @@ class CourseCatalog {
         ),
     ];
 
-    // Legacy decks — one entry per import id found in the shells.
-    final legacyCardCounts = <String, int>{};
-    if (db != null) {
-      try {
-        final rows = await db
-            .customSelect(
-              'SELECT import_id, COUNT(*) AS n FROM anki_cards_meta '
-              'GROUP BY import_id',
-            )
-            .get();
-        for (final row in rows) {
-          legacyCardCounts[row.read<String>('import_id')] = row.read<int>('n');
-        }
-      } catch (_) {
-        // Table may not exist in tests; counts stay zero.
-      }
-    }
+    // Legacy decks — one entry per import id found in the shells (card-meta
+    // table dropped in v27, so shell card counts stay 0).
     final legacyIds = <String>{};
     for (final section in sections) {
       if (section.level != 'Anki') continue;
@@ -227,7 +212,7 @@ class CourseCatalog {
                 legacyImportIdFromSectionId(s.id) == importId &&
                 s.level == 'Anki')
             .length,
-        cardCount: legacyCardCounts[importId] ?? 0,
+        cardCount: 0,
       ));
     }
 

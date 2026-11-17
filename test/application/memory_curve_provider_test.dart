@@ -8,7 +8,7 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
-import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/service/locator.dart';
 

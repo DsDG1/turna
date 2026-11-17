@@ -25,17 +25,11 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 ///   Android/iOS acks are `{ok, code, generation, side, height, recoverable}`
 ///   decoded by [OfficialAnkiPresentResult.fromNative]. Both are verified
 ///   production code and are documented here, not unified.
-/// * **Range/MIME has three implementations on purpose.** Dart's
+/// * **Range/MIME has two implementations on purpose.** Dart's
 ///   `OfficialAnkiHttpRange`/`OfficialAnkiMime` are the normative source
-///   (kept alive by their own tests), `anki/AnkiHttp.ets` is the production
-///   ArkTS mirror, and `ets/probe/AnkiProbeAssets.ets` keeps a deliberately
-///   looser copy. Its three accepted differences, each declared at the top of
-///   that file and pinned by differential needles in the guard test: an
-///   unrecognized Range prefix and an unparseable Range spec answer 200 with
-///   the whole file where production answers 416, and its MIME pair maps `.js`
-///   to `application/javascript` instead of `text/javascript` with a
-///   correspondingly looser utf-8 branch. Separately, `originAllowed`
-///   normalises port `-1` (Dart URL) vs `0` (ArkTS URL).
+///   (kept alive by their own tests), and `anki/AnkiHttp.ets` is the production
+///   ArkTS mirror. Separately, `originAllowed` normalises port `-1` (Dart URL)
+///   vs `0` (ArkTS URL).
 abstract final class OfficialAnkiReviewerProtocol {
   // ------------------------------------------------------------------ channel
 
@@ -44,15 +38,13 @@ abstract final class OfficialAnkiReviewerProtocol {
 
   // ------------------------------------------- Dart → ArkTS method names
   // (the switch in AnkiReviewerPlugin.ets; invoked from
-  // OfficialAnkiReviewerChannel and the probe)
+  // OfficialAnkiReviewerChannel)
 
   static const methodOpenReviewer = 'openReviewer';
   static const methodPresentReviewer = 'presentReviewer';
   static const methodCacheReviewerMedia = 'cacheReviewerMedia';
   static const methodAwaitReviewerReady = 'awaitReviewerReady';
   static const methodNotifyReviewerFailure = 'notifyReviewerFailure';
-  static const methodProbeReviewerCapabilities = 'probeReviewerCapabilities';
-  static const methodProbeReviewerAssets = 'probeReviewerAssets';
 
   /// Closes a reviewer that was opened speculatively (P0-1 warm-up) without a
   /// card ever being presented.
