@@ -1,23 +1,35 @@
-name: Firebase App Distribution
+name: Android Release & Firebase Distribution
 
 # Builds a releasable arm64 APK (via tool/build_release.py, including
-# libturna_anki.so) and uploads it to Firebase App Distribution.
-# One-time Console + GitHub Secrets setup: docs/firebase-app-distribution.md
+# libturna_anki.so), creates a GitHub Release on `v*` tags (or when
+# `publish_github_release` is enabled via workflow_dispatch), and optionally
+# uploads to Firebase App Distribution without blocking the GitHub Release.
+# Setup & secrets: docs/firebase-app-distribution.md
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Artifact version string (e.g. 0.8.0). Defaults to the pubspec version plus the run number.
+        description: Artifact version string (e.g. 0.9.1). Defaults to pubspec core for GitHub Releases, or <pubspec>-dist.<run_number> otherwise.
         required: false
         type: string
+      publish_github_release:
+        description: Create or update a GitHub Release with the APK (always enabled on v* tag pushes)
+        required: false
+        type: boolean
+        default: false
+      upload_firebase:
+        description: Upload APK to Firebase App Distribution when secrets are configured
+        required: false
+        type: boolean
+        default: true
       groups:
         description: Firebase App Distribution tester group names (comma-separated)
         required: false
         type: string
         default: testers
       release_notes:
-        description: Short release notes shown to testers. Defaults to the latest commit subject.
+        description: Short release notes shown on GitHub Release / Firebase. Defaults to generated notes or commit subject.
         required: false
         type: string
   push:
@@ -25,41 +37,22 @@ on:
       - "v*"
 
 concurrency:
-  group: firebase-app-distribution-${{ github.ref }}
+  group: android-release-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write # required to create GitHub Releases and attach APK assets
 
 jobs:
   distribute:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Check required Firebase secrets
-        env:
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          set -euo pipefail
-          missing=0
-          if [ -z "${FIREBASE_APP_ID:-}" ]; then
-            echo "Missing GitHub secret FIREBASE_APP_ID." >&2
-            missing=1
-          fi
-          if [ -z "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
-            echo "Missing GitHub secret FIREBASE_SERVICE_ACCOUNT." >&2
-            missing=1
-          fi
-          if [ "$missing" -ne 0 ]; then
-            echo "See docs/firebase-app-distribution.md for one-time Console + Secrets setup." >&2
-            exit 1
-          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -97,28 +90,54 @@ jobs:
       - name: Verify project config
         run: flutter config --no-analytics
 
-      - name: Resolve version and release notes
+      - name: Resolve version, release metadata, and Firebase config
         id: meta
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_PUBLISH_RELEASE: ${{ github.event.inputs.publish_github_release }}
+          INPUT_UPLOAD_FIREBASE: ${{ github.event.inputs.upload_firebase }}
           INPUT_NOTES: ${{ github.event.inputs.release_notes }}
           INPUT_GROUPS: ${{ github.event.inputs.groups }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${INPUT_VERSION:-}" ]; then
-            VERSION="${INPUT_VERSION}"
-          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+          PUBSPEC_VERSION="$(python3 -c "import re; print(re.search(r'^version:\s*(\S+)', open('pubspec.yaml').read(), re.M).group(1))")"
+          PUBSPEC_CORE="${PUBSPEC_VERSION%%+*}"
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            PUBLISH_GITHUB_RELEASE="true"
+            RELEASE_TAG="${GITHUB_REF_NAME}"
             VERSION="${GITHUB_REF_NAME#v}"
           else
-            PUBSPEC_VERSION="$(python3 -c "import re; print(re.search(r'^version:\s*(\S+)', open('pubspec.yaml').read(), re.M).group(1))")"
-            VERSION="${PUBSPEC_VERSION}-dist.${GITHUB_RUN_NUMBER}"
+            if [ "${INPUT_PUBLISH_RELEASE:-false}" = "true" ]; then
+              PUBLISH_GITHUB_RELEASE="true"
+            else
+              PUBLISH_GITHUB_RELEASE="false"
+            fi
+
+            if [ -n "${INPUT_VERSION:-}" ]; then
+              VERSION="${INPUT_VERSION#v}"
+            elif [ "${PUBLISH_GITHUB_RELEASE}" = "true" ]; then
+              VERSION="${PUBSPEC_CORE}"
+            else
+              VERSION="${PUBSPEC_VERSION}-dist.${GITHUB_RUN_NUMBER}"
+            fi
+            RELEASE_TAG="v${VERSION}"
           fi
+
           python3 - "$VERSION" <<'PY'
           import sys
           sys.path.insert(0, "tool")
           import build_release
           build_release.validate_version(sys.argv[1])
           PY
+
+          if [[ "${VERSION}" == *-* ]]; then
+            IS_PRERELEASE="true"
+          else
+            IS_PRERELEASE="false"
+          fi
 
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${INPUT_NOTES:-}" ]; then
             NOTES="${INPUT_NOTES}"
@@ -134,14 +153,28 @@ jobs:
             GROUPS="testers"
           fi
 
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_UPLOAD_FIREBASE:-true}" = "false" ]; then
+            FIREBASE_ENABLED="false"
+            echo "Firebase upload disabled via workflow_dispatch input."
+          elif [ -n "${FIREBASE_APP_ID:-}" ] && [ -n "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
+            FIREBASE_ENABLED="true"
+          else
+            FIREBASE_ENABLED="false"
+            echo "::notice::FIREBASE_APP_ID or FIREBASE_SERVICE_ACCOUNT is not configured; skipping Firebase App Distribution upload."
+          fi
+
           NOTES_FILE="${RUNNER_TEMP}/firebase-release-notes.txt"
           printf '%s\n' "${NOTES}" > "${NOTES_FILE}"
 
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "release_tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "publish_github_release=${PUBLISH_GITHUB_RELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "is_prerelease=${IS_PRERELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "firebase_enabled=${FIREBASE_ENABLED}" >> "${GITHUB_OUTPUT}"
           echo "groups=${GROUPS}" >> "${GITHUB_OUTPUT}"
           echo "notes_file=${NOTES_FILE}" >> "${GITHUB_OUTPUT}"
           echo "apk_path=build/releases/${VERSION}/turna-v${VERSION}-release.apk" >> "${GITHUB_OUTPUT}"
-          echo "Resolved version=${VERSION} groups=${GROUPS}"
+          echo "Resolved version=${VERSION} release_tag=${RELEASE_TAG} publish_github_release=${PUBLISH_GITHUB_RELEASE} firebase_enabled=${FIREBASE_ENABLED} groups=${GROUPS}"
           echo "Release notes:"
           cat "${NOTES_FILE}"
 
@@ -187,7 +220,42 @@ jobs:
             --skip-aab \
             --skip-content-validation
 
+      - name: Generate APK SHA-256 checksum
+        run: |
+          set -euo pipefail
+          APK_PATH="${{ steps.meta.outputs.apk_path }}"
+          APK_DIR="$(dirname "${APK_PATH}")"
+          APK_FILE="$(basename "${APK_PATH}")"
+          (cd "${APK_DIR}" && sha256sum "${APK_FILE}" > "${APK_FILE}.sha256")
+          cat "${APK_PATH}.sha256"
+
+      - name: Upload APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: turna-v${{ steps.meta.outputs.version }}-release
+          path: |
+            ${{ steps.meta.outputs.apk_path }}
+            ${{ steps.meta.outputs.apk_path }}.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        if: steps.meta.outputs.publish_github_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: Turna ${{ steps.meta.outputs.release_tag }}
+          body: ${{ github.event.inputs.release_notes }}
+          prerelease: ${{ steps.meta.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          files: |
+            ${{ steps.meta.outputs.apk_path }}
+            ${{ steps.meta.outputs.apk_path }}.sha256
+
       - name: Upload APK to Firebase App Distribution
+        if: steps.meta.outputs.firebase_enabled == 'true'
+        continue-on-error: true
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
@@ -195,11 +263,3 @@ jobs:
           groups: ${{ steps.meta.outputs.groups }}
           file: ${{ steps.meta.outputs.apk_path }}
           releaseNotesFile: ${{ steps.meta.outputs.notes_file }}
-
-      - name: Upload APK as a workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: turna-v${{ steps.meta.outputs.version }}-release
-          path: ${{ steps.meta.outputs.apk_path }}
-          if-no-files-found: error
-          retention-days: 14
