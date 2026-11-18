@@ -80,9 +80,9 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ---
 
-## Firebase App Distribution
+## GitHub Release 与 Firebase App Distribution
 
-向测试员分发 arm64 发布 APK：GitHub Actions 工作流 `.github/workflows/firebase_app_distribution.yml`（`workflow_dispatch` 或 `v*` tag）。一次性 Firebase Console 与 GitHub Secrets 见 [`docs/firebase-app-distribution.md`](./firebase-app-distribution.md)。
+打包并发布 arm64 发布 APK（创建 GitHub Release 并可选同步分发至 Firebase）：GitHub Actions 工作流 `.github/workflows/firebase_app_distribution.yml`（`v*` tag 或 `workflow_dispatch`）。Secrets 与触发说明见 [`docs/firebase-app-distribution.md`](./firebase-app-distribution.md)。
 
 ---
 
