@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -64,26 +66,41 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
   @override
   void initState() {
     super.initState();
-    _boot();
+    unawaited(_boot());
   }
 
   @override
   void didUpdateWidget(covariant OfficialAnkiReviewerPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.cardId == widget.cardId || _controller == null) return;
-    _controller!.loadAndShowQuestion(widget.cardId);
+    unawaited(_controller!.loadAndShowQuestion(widget.cardId));
   }
 
   Future<void> _boot() async {
+    if (mounted && (!_booting || _bootError != null)) {
+      setState(() {
+        _booting = true;
+        _bootError = null;
+      });
+    }
+    if (widget.controller == null && _controller != null) {
+      unawaited(_controller!.dispose());
+      _controller = null;
+    }
     try {
-      _controller = await createOfficialAnkiReviewerController(
+      final controller = await createOfficialAnkiReviewerController(
         paths: widget.paths,
         facade: widget.facade,
         controller: widget.controller,
       );
-      await _controller!.loadAndShowQuestion(widget.cardId);
+      _controller = controller;
+      await controller.loadAndShowQuestion(widget.cardId);
     } catch (error, stack) {
-      logger.w('[OfficialAnkiReviewer] boot error $error\n$stack');
+      logger.w(
+        '[OfficialAnkiReviewer] boot error',
+        error: error,
+        stackTrace: stack,
+      );
       _bootError = error;
     } finally {
       if (mounted) setState(() => _booting = false);
@@ -112,6 +129,8 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
               ? error.messageKey
               : 'official_anki.render_failed',
           debugDetails: kDebugMode ? error.toString() : null,
+          onRetry: _boot,
+          onBack: () => Navigator.of(context).maybePop(),
         ),
       );
     }

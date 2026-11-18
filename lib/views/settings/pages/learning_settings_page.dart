@@ -16,10 +16,10 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/settings_course_restore_tile.dart';
 import 'package:turna/views/settings/components/settings_course_update_tile.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/settings/widgets/settings_learning_section.dart';
-import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
-import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/settings/components/settings_learning_section.dart';
+import 'package:turna/views/settings/components/settings_reminder_section.dart';
+import 'package:turna/views/settings/components/settings_sound_section.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 

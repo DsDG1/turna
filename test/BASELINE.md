@@ -7,6 +7,15 @@
 
 ---
 
+### 2026-11-18 方向 1–3 遗留技术债系统收口与全量门禁复绿
+
+- **性质**：跨架构分层、记忆卡尾项与 UI 尾项的全量清债批次；**非 golden 测试净 +8**（清理 `anki_media_delete_test`、`card_presentation_resolver_test` 旧 drift 用例与 `v13 -> v14` 迁移用例，新增 [ADR 0073](../docs/decisions/0073-anki-engine-lifecycle-and-shared-card-ownership.md) 生命周期/跨源共享保护/冲突隔离、`adaptation_input_builder_test` 分层抽样及 `anki_deck_stats_page_test` / `official_anki_reviewer_page_test` / `learning_insights_page_test` / `grammar_review_page_test` 等 B6 失败重试测试）。非 golden 全量 **2613 passed / 0 failed**；Golden 7 组全量重录与对比 **14 passed / 0 failed**。
+- **改动**：①**方向 1（Schema v35 与 ADR 0073）**：`CourseDatabase.kSchemaVersion` 升至 `35`，退役 `AnkiImports` 表 / `AnkiImportDao` / `IAnkiImportStore` / `AnkiImportRecord` / `LegacyAnkiCourseScope` / `AnkiAudioResolver`（`anki://`）及 `anki_course_tree_view.presentation_kind` 列与 `storedKindDrift` 诊断（保留历史迁移包空 `anki_sources.jsonl`、WebDAV `anki_media/` 前缀与 `CourseScopeCodec` `'legacy'`→`null` 兼容）；修复 `MultipleChoiceRenderer` 裸文件名记忆卡图片经 `AnkiMediaStrip.isResolvableMedia` 解析；落地 `ensureOfficialProfileOpen`、延迟 retire 同步清理 `turna.adapt.*`、`conflictingNoteIds` 隔离（`importedOrSharedNoteIds` + 完成页增量/冲突统计展示）、`retainingSharedCardIds` 跨源保护、`replaceExisting` 的 `awaitEnginePass: true` 与 Dart 侧分层多样化抽样（立 ADR 0073）。②**方向 2（棘轮收紧与目录清零）**：`OfficialAnkiV2ViewStore` 下沉 `lib/data/` 并抽 `IOfficialAnkiV2ViewStore` / `ICourseRepository` 扩展，`layering_guard_test` 的 `_allowedApplicationDataImports` 从 28 项收紧至 **12 项**，`code_conventions_guard_test` 裸 SQL `LIKE` 白名单从 6 项收紧至 **2 项**；9 个 `*_screen.dart` 全部迁为 `*_page.dart`（含 `PlayHubScreen` → `PlayHubPage`）、`profile/widgets/` 与 `settings/widgets/` 全部清零（`_legacyScreenFiles` 与 `_legacyFeatureWidgetsDirs` 清零）。③**方向 3（UI 尾项与大文件拆分）**：`AnkiDeckStatsPage` 迁入 `ReportKit` 并删除 `retention_curve_chart.dart` 与 `fl_chart` 依赖；补齐 7 处 B6 异步异常重试态；清理视图层 C1 硬编码中文与 `changelog_page.dart` 旧名 `Varnamala Plus`、抽取 `SystemHealthModules` 共享常量、修复 `ai_api_config_page.dart` C4 优先级括号并退役全部 `league*` 色板常量（守卫扩展至全部 `league*`）；将 Android `Firebase.initializeApp` 移至首帧后 `continueTurnaStartup()`；收敛 `lib/views/` 直接 `getIt` 越界读；拆分 `official_anki_repair_center_page.dart` / `ai_api_config_page.dart` / `course_tree.dart` / `course_management_page.dart`。
+- **验证**：OHOS fork SDK `pub get` + `build_runner build` 通过（210 outputs）；官方 SDK `flutter analyze` **No issues found**；`flutter test --update-goldens --tags golden` 与 `flutter test --tags golden` **14 passed / 0 failed**；`flutter test --exclude-tags golden` **2613 passed / 0 failed**（含全部架构与术语守卫）；随后按 `AGENTS.md` 恢复 OHOS fork SDK `pub get`。
+- **未验**：未跑 `tool/gui` / Python 工具测试（本轮未改 `tool/`）；未在 Android / iOS / HarmonyOS 真机执行 UI 走查或重编 HAP / APK；`test/BASELINE.md`、`docs/status.md`、`docs/project-guide.md` 与同步文档卫生将在随后的 `docs_hygiene_test` 中再跑确认。
+
+---
+
 ### 2026-11-15 旧债收口、门禁转正与存量失败单测修复
 
 - **性质**：技术债收口、规则门禁化与存量失败修复批次；**测试数 +4**（新增 `test/architecture/code_conventions_guard_test.dart` 4 例）。非 golden 全量 **2605 passed / 0 failed**（较上批 2601 总例净增 4 例，并修复既有 `speech_backend_test.dart` 1 例音频焦点断言失败）；`tool/gui` 全量 **216/216 模块通过**（修复 `preview_window.py` 与 `lesson_editor.py` 中 2 处匿名 signal lambda 违规）。

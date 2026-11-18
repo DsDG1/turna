@@ -72,7 +72,9 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: staticVariant ? '$label（静态效果）' : label,
+      label: staticVariant
+          ? AppStrings.cosmeticCompletionStaticLabel(label)
+          : label,
       image: true,
       child: Container(
         width: size,

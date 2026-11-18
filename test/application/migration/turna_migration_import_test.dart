@@ -77,26 +77,38 @@ void main() {
   test('legacy Anki rows are ignored; the rest of the package still applies',
       () async {
     await source.customStatement(
-      "INSERT INTO anki_imports (import_id, source_path, source_hash, "
-      "imported_at) VALUES ('legacy-imp-1', 'a.apkg', 'hash-1', 1)",
+      "INSERT INTO srs_states (word_id, queue, due_at, interval_days, ease, "
+      "reps, lapses, is_leech, is_suspended, is_buried, type) VALUES "
+      "('w-non-anki', 'srs', 10, 3, 2.5, 4, 0, 0, 0, 0, 'word')",
     );
-    final zip = await buildPackage();
+    final baseZip = await buildPackage();
+    final archive = ZipDecoder().decodeBytes(await baseZip.readAsBytes());
+    final historicalZip = await replaceEntryWithChecksum(
+      archive,
+      'anki_sources.jsonl',
+      utf8.encode(
+        '${jsonEncode({'schemaVersion': 1, 'import_id': 'legacy-imp-1'})}\n',
+      ),
+      tmp.path,
+      'legacy',
+    );
 
     final importer = TurnaMigrationImporter(db: target);
-    final result = await importer.importFrom(zip);
+    final result = await importer.importFrom(historicalZip);
 
     expect(result.applied, isTrue);
+    expect(result.restoredSrsStates, 1);
     expect(result.legacyIgnoredImports, ['legacy-imp-1']);
-    // The LIVE legacy tables stay empty — the v1 scheduler is gone and the
-    // import must never resurrect it (ADR 0043).
-    // The target had no anki imports before and must still have none.
-    final liveImports = await target
+    // The retired `anki_imports` table must neither exist nor be queried or
+    // recreated on import (ADR 0043 / schema v35).
+    final legacyTable = await target
         .customSelect(
-          'SELECT COUNT(*) AS n FROM anki_imports',
+          "SELECT name FROM sqlite_master WHERE type = 'table' "
+          "AND name = 'anki_imports'",
         )
         .get();
-    expect(liveImports.single.read<int>('n'), 0,
-        reason: 'the imported legacy row must never enter anki_imports');
+    expect(legacyTable, isEmpty,
+        reason: 'retired anki_imports table must never be created');
   });
 
   test('checksum tampering is rejected with zero writes', () async {
@@ -157,30 +169,12 @@ void main() {
 
     // Rewrite SHA256SUMS to stay internally consistent — the version gate
     // must fire regardless of checksums.
-    final manifestSha = _shaOfBytes(manifestBytes);
-    final newBody = StringBuffer();
-    for (final line
-        in utf8.decode(entryBytes(archive, 'SHA256SUMS')).split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) continue;
-      if (trimmed.endsWith('manifest.json')) {
-        newBody.writeln('$manifestSha  manifest.json');
-      } else {
-        newBody.writeln(trimmed);
-      }
-    }
-    // Two-step rebuild: manifest first, then the updated sums.
-    final step1 = rebuildZip(
+    final future = await replaceEntryWithChecksum(
       archive,
       'manifest.json',
       manifestBytes,
-      '${tmp.path}/future-step1.zip',
-    );
-    final future = rebuildZip(
-      ZipDecoder().decodeBytes(await step1.readAsBytes()),
-      'SHA256SUMS',
-      utf8.encode(newBody.toString()),
-      '${tmp.path}/future.zip',
+      tmp.path,
+      'future',
     );
 
     final result = await TurnaMigrationImporter(db: target).importFrom(future);
@@ -227,6 +221,41 @@ File rebuildZip(Archive archive, String name, List<int> bytes, String outPath) {
   final out = File(outPath);
   out.writeAsBytesSync(ZipEncoder().encode(rebuilt));
   return out;
+}
+
+/// Replaces [name] in [archive] and updates its digest in `SHA256SUMS`.
+Future<File> replaceEntryWithChecksum(
+  Archive archive,
+  String name,
+  List<int> bytes,
+  String workDir,
+  String tag,
+) async {
+  final entrySha = _shaOfBytes(bytes);
+  final newBody = StringBuffer();
+  for (final line
+      in utf8.decode(entryBytes(archive, 'SHA256SUMS')).split('\n')) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) continue;
+    final split = trimmed.indexOf('  ');
+    if (split > 0 && trimmed.substring(split + 2) == name) {
+      newBody.writeln('$entrySha  $name');
+    } else {
+      newBody.writeln(trimmed);
+    }
+  }
+  final step1 = rebuildZip(
+    archive,
+    name,
+    bytes,
+    '$workDir/$tag-step1.zip',
+  );
+  return rebuildZip(
+    ZipDecoder().decodeBytes(await step1.readAsBytes()),
+    'SHA256SUMS',
+    utf8.encode(newBody.toString()),
+    '$workDir/$tag.zip',
+  );
 }
 
 List<int> entryBytes(Archive archive, String name) =>

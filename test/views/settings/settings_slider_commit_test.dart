@@ -10,9 +10,9 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/settings/widgets/settings_accessibility_section.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/settings/widgets/settings_learning_section.dart';
+import 'package:turna/views/settings/components/settings_accessibility_section.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/settings/components/settings_learning_section.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

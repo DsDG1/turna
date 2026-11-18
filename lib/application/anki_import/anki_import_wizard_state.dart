@@ -18,7 +18,9 @@ class AnkiImportSummary {
   final int wordEntryCount;
   final int sourceCardCount;
   final int newNoteCount;
+  final int updatedNoteCount;
   final int duplicateNoteCount;
+  final int conflictingNoteCount;
   final int partCount;
   final bool includeMedia;
 
@@ -30,7 +32,9 @@ class AnkiImportSummary {
     required this.wordEntryCount,
     this.sourceCardCount = 0,
     this.newNoteCount = 0,
+    this.updatedNoteCount = 0,
     this.duplicateNoteCount = 0,
+    this.conflictingNoteCount = 0,
     this.partCount = 0,
     this.includeMedia = true,
   });

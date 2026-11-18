@@ -15,9 +15,11 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -109,13 +111,36 @@ void main() {
       ],
     );
     // The course tree view the loader's read path resolves the course from.
-    await db.customStatement(
-      "INSERT INTO anki_course_tree_view "
-      "(source_id, card_id, note_id, deck_id, word_id, section_key, section_id, "
-      " unit_id, lesson_id, lesson_key, presentation_kind, source_hash, "
-      " mapping_version, rebuilt_at_millis) VALUES "
-      "('$importId', 1, 1, 1, 'w1', 'sk', 's', 'u', 'l', 'lk', 'flip', 'fp', 1, 1),"
-      "('$importId', 2, 2, 1, 'w2', 'sk', 's', 'u', 'l', 'lk', 'flip', 'fp', 1, 1)",
+    await OfficialAnkiV2ViewStore(db).replaceAll(
+      rows: [
+        OfficialAnkiV2ViewRow(
+          sourceId: importId,
+          cardId: 1,
+          noteId: 1,
+          deckId: 1,
+          wordId: 'w1',
+          sectionKey: 'sk',
+          sectionId: 's',
+          unitId: 'u',
+          lessonId: 'l',
+          lessonKey: 'lk',
+          sourceHash: 'fp',
+        ),
+        OfficialAnkiV2ViewRow(
+          sourceId: importId,
+          cardId: 2,
+          noteId: 2,
+          deckId: 1,
+          wordId: 'w2',
+          sectionKey: 'sk',
+          sectionId: 's',
+          unitId: 'u',
+          lessonId: 'l',
+          lessonKey: 'lk',
+          sourceHash: 'fp',
+        ),
+      ],
+      rebuiltAtMillis: 1,
     );
     GetIt.instance.registerSingleton<CourseDatabase>(db);
 

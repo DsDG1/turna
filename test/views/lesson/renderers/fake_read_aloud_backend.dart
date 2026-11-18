@@ -23,6 +23,7 @@ class FakeReadAloudBackend implements ReadAloudBackend {
 
   final List<String> startLocales = [];
   int stopCount = 0;
+  int cancelCount = 0;
 
   ReadAloudResultListener? _onResult;
   ReadAloudErrorListener? _onError;
@@ -50,6 +51,11 @@ class FakeReadAloudBackend implements ReadAloudBackend {
   @override
   Future<void> stop() async {
     stopCount++;
+  }
+
+  @override
+  Future<void> cancel() async {
+    cancelCount++;
   }
 
   void emitPartial(String text) => _onResult?.call(text, false);

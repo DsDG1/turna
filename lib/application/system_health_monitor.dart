@@ -11,10 +11,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
 import 'package:turna/application/diagnostics/system_health_policy.dart';
+import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/di/injection.dart';
-import 'package:turna/data/course_database.dart';
+import 'package:turna/core/system_health_modules.dart';
 import 'package:turna/service/locator.dart';
 
 enum SystemHealthLevel { normal, attention, critical }
@@ -249,17 +249,8 @@ class SystemHealthMonitor extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String> _defaultIntegrityProbe() async {
-    if (!getIt.isRegistered<CourseDatabase>()) return 'ok';
-    try {
-      final db = getIt<CourseDatabase>();
-      final rows = await db.customSelect('PRAGMA integrity_check').get();
-      final first = rows.isNotEmpty ? rows.first.data.values.first : 'ok';
-      return first.toString();
-    } on Object catch (error) {
-      return 'probe-error: $error';
-    }
-  }
+  Future<String> _defaultIntegrityProbe() =>
+      const DatabaseDoctorService().quickProbeCourseIntegrity();
 
   Future<void> _load() async {
     final raw = _prefs.preferences
@@ -315,24 +306,24 @@ class SystemHealthMonitor extends ChangeNotifier {
   static String _moduleFor(LogEntry entry) {
     final text = '${entry.message} ${entry.stackTrace ?? ''}'.toLowerCase();
     if (text.contains('sqlite') || text.contains('database')) {
-      return '数据库';
+      return SystemHealthModules.database;
     }
     if (text.contains('webview') || text.contains('javascript')) {
-      return 'WebView';
+      return SystemHealthModules.webView;
     }
     if (text.contains('anki')) {
-      return '记忆卡渲染';
+      return SystemHealthModules.cardRender;
     }
     if (text.contains('tts') || text.contains('audio')) {
-      return 'TTS / 音频';
+      return SystemHealthModules.ttsAudio;
     }
     if (text.contains('ai') || text.contains('http')) {
-      return 'AI 网络';
+      return SystemHealthModules.aiNetwork;
     }
     if (text.contains('course') || text.contains('lesson')) {
-      return '课程加载';
+      return SystemHealthModules.courseLoad;
     }
-    return '其他';
+    return SystemHealthModules.other;
   }
 
   static String _levelName(Level level) {
@@ -382,7 +373,7 @@ class SystemHealthErrorGroup {
         fingerprint: json['fingerprint'] as String? ?? '',
         level: json['level'] as String? ?? 'warning',
         message: json['message'] as String? ?? '',
-        module: json['module'] as String? ?? '其他',
+        module: json['module'] as String? ?? SystemHealthModules.other,
         count: (json['count'] as num? ?? 0).toInt(),
         firstAt: (json['firstAt'] as num? ?? 0).toInt(),
         lastAt: (json['lastAt'] as num? ?? 0).toInt(),

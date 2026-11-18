@@ -5,8 +5,8 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/content_ota/course_ota_service.dart';
-import 'package:turna/views/settings/widgets/feedback/settings_feedback.dart';
-import 'package:turna/views/settings/widgets/primitives/settings_section.dart';
+import 'package:turna/views/settings/components/feedback/settings_feedback.dart';
+import 'package:turna/views/settings/components/primitives/settings_section.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 typedef CourseContentClear = Future<bool> Function(String languageCode);

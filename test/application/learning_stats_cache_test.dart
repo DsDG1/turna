@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/domain/study/daily_stats.dart';
-import 'package:turna/views/profile/widgets/learning_stats.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/learning_stats.dart';
 
 import '../helpers/fake_study_stats.dart';
 
@@ -113,4 +114,59 @@ void main() {
     expect(fake.weekCalls, 2);
     expect(fake.minutesCalls, 2);
   });
+
+  testWidgets('error renders retry banner and recovers on retry',
+      (tester) async {
+    final flaky = _FlakyStudyStats();
+
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChangeNotifierProvider<StudyStatsProvider>.value(
+            value: flaky,
+            child: const SingleChildScrollView(
+              child: Column(
+                children: [
+                  TodaySummaryCard(),
+                  StudyStatsSection(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.learningStatsLoadFailed), findsNWidgets(2));
+    expect(find.text(AppStrings.commonRetry), findsNWidgets(2));
+
+    flaky.shouldFail = false;
+    await tester.tap(find.text(AppStrings.commonRetry).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.commonRetry));
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.learningStatsLoadFailed), findsNothing);
+    expect(find.text(AppStrings.profileLast7Days), findsOneWidget);
+  });
+}
+
+class _FlakyStudyStats extends _CountingStudyStats {
+  bool shouldFail = true;
+
+  @override
+  Future<DailyStudyStats> getTodayStats() async {
+    if (shouldFail) throw StateError('today stats failure');
+    return super.getTodayStats();
+  }
+
+  @override
+  Future<List<DailyStudyStats>> getLastNDays(int n) async {
+    if (shouldFail) throw StateError('week stats failure');
+    return super.getLastNDays(n);
+  }
 }

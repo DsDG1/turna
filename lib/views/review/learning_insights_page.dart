@@ -10,16 +10,19 @@ import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/review_dashboard/insights_repository.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/profile/widgets/learning_stats.dart';
-import 'package:turna/core/spacing.dart';
+import 'package:turna/views/widgets/learning_stats.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/report_kit.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 学习洞察 — the second-level analytics page (Plan 3 §15.2).
 ///
@@ -42,6 +45,7 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
   ReviewProgressFilter _filter = const ReviewProgressFilter();
   Future<ReviewProgressSnapshot>? _future;
   ReviewProgressSnapshot? _lastData;
+  Object? _lastLoggedError;
   late final InsightsRepository _repository;
 
   @override
@@ -58,7 +62,13 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
 
   void _reload() {
     setState(() {
-      _future = _repository.load(_query);
+      _lastLoggedError = null;
+      // Attach an error observer immediately so synchronous-microtask failures
+      // inside mocked providers do not surface as uncaught Zone errors before
+      // FutureBuilder subscribes on the next frame.
+      final future = _repository.load(_query);
+      future.then<void>((_) {}, onError: (_) {});
+      _future = future;
     });
   }
 
@@ -73,6 +83,16 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
   void _setFilter(ReviewProgressFilter next) {
     _filter = next;
     _reload();
+  }
+
+  void _logErrorOnce(Object? error, StackTrace? stackTrace) {
+    if (identical(_lastLoggedError, error)) return;
+    _lastLoggedError = error;
+    logger.w(
+      'LearningInsightsPage: load failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   @override
@@ -93,7 +113,18 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
             final data = snap.data ?? _lastData;
             if (data != null) _lastData = data;
             if (data == null) {
+              if (snap.hasError) {
+                _logErrorOnce(snap.error, snap.stackTrace);
+                return PracticeEmptyState(
+                  title: AppStrings.insightsLoadFailed,
+                  actionLabel: AppStrings.commonRetry,
+                  onAction: _reload,
+                );
+              }
               return const Center(child: CircularProgressIndicator());
+            }
+            if (snap.hasError) {
+              _logErrorOnce(snap.error, snap.stackTrace);
             }
             final refreshing = snap.connectionState == ConnectionState.waiting;
             final focusMode = accessibilityOf(context).focusMode;
@@ -101,12 +132,27 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
               color: TurnaTheme.brandTeal,
               onRefresh: () async {
                 _repository.invalidate();
-                final next = await _repository.load(_query);
-                if (mounted) {
-                  setState(() {
-                    _lastData = next;
-                    _future = Future.value(next);
-                  });
+                try {
+                  final next = await _repository.load(_query);
+                  if (mounted) {
+                    setState(() {
+                      _lastLoggedError = null;
+                      _lastData = next;
+                      _future = Future.value(next);
+                    });
+                  }
+                } catch (e, st) {
+                  logger.w(
+                    'LearningInsightsPage: refresh failed',
+                    error: e,
+                    stackTrace: st,
+                  );
+                  if (mounted) {
+                    TurnaSnackBar.show(
+                      this.context,
+                      AppStrings.insightsLoadFailed,
+                    );
+                  }
                 }
               },
               child: ListView(
@@ -116,6 +162,11 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
                   if (refreshing) const LinearProgressIndicator(minHeight: 2),
+                  if (snap.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _InlineInsightsErrorBanner(onRetry: _reload),
+                    ),
                   _FilterPanel(
                     filter: _filter,
                     sources: data.availableSources,
@@ -379,7 +430,7 @@ class _CurveCard extends StatelessWidget {
             points: [
               for (final point in curve)
                 ReportPoint(
-                  label: '${point.intervalBucketDays}天',
+                  label: AppStrings.reviewIntervalDays(point.intervalBucketDays),
                   value: point.retention,
                 ),
             ],
@@ -438,7 +489,10 @@ class ReviewActivityHeatmap extends StatelessWidget {
                 AppStrings.reviewHeatmapChartSemantics(activeDays, reviews),
             // 逐格语义保留「day-N：k 次复习」粒度（屏幕阅读器逐日可读）。
             cellLabel: (index, _) => index < rows.length
-                ? '${rows[index].bucket}：${rows[index].reviewedCount} 次复习'
+                ? AppStrings.insightsBucketReviewSummary(
+                    rows[index].bucket,
+                    rows[index].reviewedCount,
+                  )
                 : '',
             // 每行 18 格：365 天 ≈ 20 行，窄屏也能放下。
             columns: 18,
@@ -598,6 +652,36 @@ class _SourceTile extends StatelessWidget {
                 color: TurnaTheme.brandTeal,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineInsightsErrorBanner extends StatelessWidget {
+  const _InlineInsightsErrorBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TurnaTheme.error.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 16, color: TurnaTheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppStrings.insightsLoadFailed,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
           ],
         ),
       ),

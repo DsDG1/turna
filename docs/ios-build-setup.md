@@ -97,7 +97,7 @@ flutter build ipa                            # 出可分发包，需要有效签
 - iOS 已是 Official 产品路径，不是「暂不承诺」：`AnkiImportExecutionPlanner.productModeFor(platform: 'ios')` 返回 `AnkiProductMode.officialAndroid`（Android 沿用同一枚举值），即**导入、正式复习、课程投影都走官方 Core**，与 Android 同源同代码。实现见 `lib/application/anki_official/import/anki_import_execution_plan.dart`。
 - 复习器是 **WKWebView**（不是 `webview_flutter`）：`ios/Runner/AnkiReviewer/` 下三个文件（`OfficialAnkiReviewerView` / `OfficialAnkiSchemeHandler` / `OfficialAnkiReviewerFactory`），在 `AppDelegate` 里用 `registrar(forPlugin: "OfficialAnkiReviewer")` 注册，Dart 侧 `lib/views/anki_official/official_anki_reviewer_view.dart` 在 iOS 上返回 `UiKitView`。
 - 资源经自定义 scheme 提供：`OfficialAnkiSchemeHandler` 注册 `turna-anki://anki.local` 源（`config.setURLSchemeHandler`），服务端渲染资产与媒体按 Range/206 返回。这是代码注册，**不需要在 `Info.plist` 里登记 URL scheme**。
-- 整个 iOS 官方栈由提交 `ec0170ae`（PR #7）引入；口径与状态以 [`status.md`](./status.md) 为准（**验收 NO-GO、迁移中，不得写「迁移完成」**）。
+- 整个 iOS 官方栈由提交 `ec0170ae`（PR #7）引入；记忆卡（Official Anki）总体状态已通过，现行口径以 [`status.md`](./status.md) 为准。
 
 ---
 

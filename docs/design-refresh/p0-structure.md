@@ -62,7 +62,7 @@
 
 ## R04–R06 课时、题型与完成
 
-### NewLessonPage（lesson/new_lesson_screen.dart）
+### NewLessonPage（lesson/new_lesson_page.dart）
 
 - 主任务：一次渲染一题，`LessonViewModel` 驱动提交/推进/完成；`enterStudyScope` 拿备份互斥锁。
 - 旧版结构：① `_LessonAppBar`——关闭按钮 + 居中两行标题（课名 + 「小课 k/n · 第 x/y 题」）+ 条件 AI 提示灯泡；bottom 是 6px 圆角整课进度条。② `PracticeSessionBody`——`LessonStageBanner` 阶段名细条（accent 淡底 + 圆点）→ 可选 header（阅读课是折叠 4 行的阅读卡）→ `Expanded` 滚动区（单题 220ms 淡入上移）内嵌当前 renderer → 固定底部操作栏（提交前「核对」，提交后「继续/知道了」，autoAdvance 题型整条不出现）。
@@ -120,7 +120,7 @@
 
 ## R07–R10 练习、复习与洞察
 
-### PlayHubScreen（play/play_hub_screen.dart，练习 Tab）
+### PlayHubPage（play/play_hub_page.dart，练习 Tab）
 
 - 旧版结构（CustomScrollView）：① 顶部留白；② `TodayHeroCard` 主 CTA——teal→sky 渐变大卡（标题 + 下一队列副标题 + 右侧大数字 + 四队列 chips 速览）；③ Anki 同步失败重试条（条件）；④ 「复习队列」`AdaptiveCardGrid` 2×2（错题/单词/语法/智能练习 或 Anki 变体，各带计数 badge）；⑤ 「练习工具」三列 `CompactToolTile`（弱词/词典/复习进度）；⑥ 底部安全距离。
 - 交互区：短按直接导航；**长按弹 `PlayInfoPopup` 数据浮窗**（Hero、队列格、弱词、进度、智能练习均有；词典无）。
@@ -175,7 +175,7 @@
 - 交互区：250ms 防抖（UI isolate 线性全表扫，与卡牌浏览器同模式各自手写）；发音带失败反馈；AI 按钮开底部 sheet（自动富集/取消/重试/复制/保存）。
 - 状态覆盖：两种空态、AI sheet 全态；列表本体同步无加载/失败。
 
-### AnkiImportPage（anki/anki_import_screen.dart，5 步向导壳）
+### AnkiImportPage（anki/anki_import_page.dart，5 步向导壳）
 
 - 旧版结构：AppBar（返回走确认）→ `WizardStepper` 五点连线（大字号有紧凑变体）→ 步骤体：Selecting（大图标 → 中断导入横幅 → 媒体开关 → 错误红字 → 选文件大按钮[有未完成导入时禁用]）/ AlreadyImported（图标 + 打开/替换）/ Parsing（进度 + 取消）/ Committing（进度 + 不可取消提示）/ Previewing（整体委托 `ModernAnkiImportPreview`）/ Completed（委托 `AnkiImportDoneStep`）。
 - Previewing 主体：错误横幅 → 预览头卡（文件名 + 牌组数 + 三格统计 + 原型 chips）→ 三模式单选卡（智能练习[推荐]/经典翻卡/官方保真）→ SmartAdaptation 区（**鸿蒙不渲染**；逐 notetype 生成/应用/恢复，AI 失败不阻塞导入）→ blocking 警告（「跳过该类型」/「选择正面」开 sheet）→ 逐 notetype 模式行 → 牌组目录树（`::` 分层、checkbox 含入、原型 chip 开样本 sheet）→ 底部粘性导入栏（阻塞时禁用 + 提示）。
@@ -187,7 +187,7 @@
 - Browser：AppBar（标题 + 「复习全部」）→ 搜索框（250ms 防抖）→ 横向过滤 chips（标记/埋藏/暂停 + 熟识度四档品牌色）→ 牌组下拉 + 标签输入（不可用时整行隐藏）→ `Card/ListTile` 列表（旗标 icon + 懒加载逐行预览 + Official/note id 副标题 + 行菜单复习/暂停）。状态覆盖较全（loading/失败重试/不可用/空）。
 - DeckStats：总卡数卡 → 卡状态 → 旗标/暂停/埋藏 → 今日答题 → 三列预测 → 保留率 → 按间隔保留曲线（复用 `RetentionCurveChart`）→ 语义说明。**FutureBuilder 无 error 分支（异常即无限转圈）**；纯展示无操作。
 
-### AnkiReviewPage 复习中枢（anki/anki_review_screen.dart）
+### AnkiReviewPage 复习中枢（anki/anki_review_page.dart）
 
 - 旧版结构：AppBar（标题 + 「导入新牌组」）→ due hero 区三态（不可用警告卡 + 重试 / 渐变 hero[图标 + due 拆解 + 大计数 + 全宽「复习全部」] / 已清空卡）→ 「我的牌组」→ `ReorderableListView` 牌组卡（拖把手 + 图标 + 名称/描述 + due badge[null 显破折号] + 箭头 + 三点菜单；卡下「浏览牌组/牌组统计」文字按钮行）→ 空态（去导入）。
 - 备注：legacy 源 due 恒 0（调度器退役，fail-closed）；菜单含置顶/每日上限/卸载（仅 legacy）。
@@ -259,7 +259,7 @@
 
 ## R15–R18 个人、设置、诊断与说明页
 
-### ProfilePage（profile/profile_screen.dart，个人 Tab）
+### ProfilePage（profile/profile_page.dart，个人 Tab）
 
 - 旧版结构（瘦身后的「slim profile」）：① `AccountWidget` 身份 hero（3px clay→sand 品牌条 + 头像 radius 32[点击换头像] + 名字/单行 bio + 右侧编辑/分享两圆钮）；② `TodaySummaryCard` 今日三格（XP 暖徽 / 分钟 / 正确率，竖分隔线）；③ `ProfileQuickActions` 到期 chip 行（非 Anki 课 3 chip / Anki 课单 chip）；④ 一张玻璃入口卡两行（学习统计 → 复习进度、成就 → 成就页[带 unseen 红点]）。
 - **宝石/连胜/累计统计刻意外迁**：宝石与连胜在学习 Tab 顶栏，累计统计在复习进度页——个人页首屏 4 块不含它们。

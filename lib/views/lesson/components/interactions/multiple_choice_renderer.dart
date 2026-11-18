@@ -11,7 +11,6 @@ import 'package:turna/core/language_detector.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
@@ -171,18 +170,19 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
                   ),
                 ),
                 if (widget.imageAsset != null &&
-                    !AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
+                    widget.imageAsset!.isNotEmpty &&
+                    !AnkiMediaStrip.isResolvableMedia(widget.imageAsset)) ...[
                   const SizedBox(height: 16),
                   RoundedCachedAssetImage(asset: widget.imageAsset!),
                 ],
                 if (widget.audioAssets.isNotEmpty ||
-                    AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
+                    AnkiMediaStrip.isResolvableMedia(widget.imageAsset)) ...[
                   const SizedBox(height: 16),
                   Center(
                     child: AnkiMediaStrip(
                       audioAssets: widget.audioAssets,
                       imageAssets: [
-                        if (AnkiAudioResolver.isAnkiAsset(widget.imageAsset))
+                        if (AnkiMediaStrip.isResolvableMedia(widget.imageAsset))
                           widget.imageAsset!,
                       ],
                     ),

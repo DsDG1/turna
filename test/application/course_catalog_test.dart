@@ -11,6 +11,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/course_scope.dart';
@@ -61,7 +62,8 @@ void main() {
 
     final catalog = await CourseCatalog.load(
       shells: [...shells, ghost],
-      courseDb: db,
+      courseRepository: CourseRepository(db),
+      v2ViewStore: OfficialAnkiV2ViewStore(db),
     );
     final tr = catalog
         .where((e) =>

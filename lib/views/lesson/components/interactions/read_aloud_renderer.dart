@@ -20,6 +20,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/read_aloud_backend.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/optional_provider.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
 
@@ -113,16 +114,16 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   @override
   void dispose() {
     _stallTimer?.cancel();
-    // Ending the session here is best-effort cleanup; the backend delivers a
-    // final result nobody listens to anymore.
-    if (_listening) unawaited(widget.backend.stop());
+    // Ending the session here is best-effort cleanup; cancel releases the mic
+    // immediately instead of asking the platform for a trailing final result.
+    if (_listening || _starting) unawaited(widget.backend.cancel());
     super.dispose();
   }
 
   Future<void> _speak() async {
     if (_starting) return;
     if (_listening) {
-      await widget.backend.stop();
+      await widget.backend.cancel();
       if (!mounted) return;
       setState(() => _listening = false);
     }
@@ -140,7 +141,7 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   }
 
   Future<void> _onMicTap() async {
-    if (widget.state.submitted || _starting) return;
+    if (widget.state.submitted || _skipped || _starting) return;
     if (_listening) {
       // Tap-to-stop: the backend delivers the final transcript through the
       // same onResult channel, so scoring happens in one place.
@@ -159,7 +160,7 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
       }
 
       final ready = await widget.backend.ensureReady();
-      if (!mounted || widget.state.submitted) return;
+      if (!mounted || _skipped || widget.state.submitted) return;
       if (!ready) {
         final failure =
             widget.backend.lastFailure ?? ReadAloudFailure.permissionDenied;
@@ -177,9 +178,9 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
       });
       _armStallWatch();
       await widget.backend.start(
-        // The course's target language: the recognizer needs the right locale
-        // or it transcribes Turkish as if it were the device language.
-        locale: currentSpeechLanguages().target,
+        // Pass the full BCP-47 locale tag (e.g. `tr-TR`) so the backend does
+        // not stall on Android 13+ `locales()` discovery or fail bare tags.
+        locale: currentSpeechLanguages().targetLocale,
         onResult: _onResult,
         onError: _onError,
       );
@@ -224,16 +225,17 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   void _onSkip() {
     if (widget.state.submitted || _skipped) return;
     _stallTimer?.cancel();
-    // Best-effort teardown; a late final transcript is dropped by the
-    // `_skipped` guard rather than scored.
-    unawaited(widget.backend.stop());
+    // Cancel tears down the native recognizer immediately so the microphone is
+    // released without waiting for a trailing final transcript; `_skipped` also
+    // drops any late callback already in flight.
+    unawaited(widget.backend.cancel());
     setState(() {
       _listening = false;
       _stalled = false;
       _skipped = true;
     });
-    // Same posture as the degraded card: progress never blocks on a
-    // technical stall, and nothing lands in the wrong book.
+    // Same posture as the degraded card: progress never blocks, and nothing
+    // lands in the wrong book.
     widget.onSubmit(true, userAnswerText: _skippedAnswer);
   }
 
@@ -242,9 +244,21 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
           AppStrings.readAloudPermissionDenied,
         ReadAloudFailure.serviceUnavailable =>
           AppStrings.readAloudServiceUnavailable,
+        ReadAloudFailure.languageUnsupported =>
+          AppStrings.readAloudLanguageUnsupported,
         ReadAloudFailure.networkUnavailable =>
           AppStrings.readAloudNetworkUnavailable,
         ReadAloudFailure.recognitionFailed => AppStrings.readAloudNoMatch,
+      };
+
+  static bool _isUnrecoverable(ReadAloudFailure reason) => switch (reason) {
+        ReadAloudFailure.permissionDenied ||
+        ReadAloudFailure.serviceUnavailable ||
+        ReadAloudFailure.languageUnsupported =>
+          true,
+        ReadAloudFailure.networkUnavailable ||
+        ReadAloudFailure.recognitionFailed =>
+          false,
       };
 
   void _onError(ReadAloudFailure reason) {
@@ -254,13 +268,17 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
       _listening = false;
       _trouble = _failureText(reason);
       _stalled = false;
+      if (_isUnrecoverable(reason)) {
+        _gaveUpMic = true;
+      }
     });
   }
 
   Future<void> _enableAndStay() async {
     // In-card one-tap enable (the approved default-off posture): flip the
     // master switch without leaving the lesson; the rebuild shows the mic.
-    final settings = getIt<SettingsProvider>();
+    final settings = readOptionalProvider<SettingsProvider>(context);
+    if (settings == null) return;
     await settings.setReadAloudExercisesEnabled(true);
     if (mounted) setState(() {});
   }
@@ -270,6 +288,9 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
     final submitted = widget.state.submitted;
     final micAvailable = widget.backend.isSupported && !_gaveUpMic;
     final gateOn = readAloudExercisesEnabled();
+    final wasSkipped =
+        _skipped || widget.state.userAnswerText == _skippedAnswer;
+    final wasDegraded = widget.state.userAnswerText == _degradedAnswer;
     // Restored after re-entry: the score is a pure function of the target and
     // the recorded transcript, so it is recomputed rather than persisted.
     // Sentinel answers carry no transcript to score.
@@ -281,25 +302,28 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
             ? scoreReadAloud(widget.targetText, widget.state.userAnswerText!)
             : null);
 
-    if (!micAvailable || !gateOn) {
+    if (!micAvailable || !gateOn || wasSkipped || wasDegraded) {
       return _DegradedBody(
         targetText: widget.targetText,
         prompt: widget.prompt,
-        // When the mic path was tried and refused (permission / no service),
-        // the refusal itself is the most useful note; the generic hints are
-        // for cards that degraded before any attempt.
-        note: _gaveUpMic && _trouble != null
-            ? _trouble!
-            : !micAvailable
-                ? AppStrings.readAloudDegradedHint
-                : AppStrings.readAloudEnableHint,
-        enableOffered: !gateOn && micAvailable,
-        submitted: submitted,
+        // Skipped keeps its own hint; refused mic keeps the specific failure
+        // reason; pre-attempt degradation shows the generic hint.
+        note: wasSkipped
+            ? AppStrings.readAloudSkippedHint
+            : _gaveUpMic && _trouble != null
+                ? _trouble!
+                : !micAvailable
+                    ? AppStrings.readAloudDegradedHint
+                    : AppStrings.readAloudEnableHint,
+        enableOffered: !gateOn && micAvailable && !wasSkipped && !submitted,
+        submitted: submitted || _skipped,
         onEnable: _enableAndStay,
         onSpeak: _speak,
         onSubmit: () => widget.onSubmit(true, userAnswerText: _degradedAnswer),
       );
     }
+
+    final isAnswered = submitted || _score != null;
 
     return InteractionBody(
       child: Column(
@@ -323,27 +347,28 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
               ],
             ),
           ),
-          // 阶段 2: 示范播放（行内描边档）; 阶段 3: 录音主控。
+          // 阶段 2: 示范播放（行内描边档）; 阶段 3: 录音主控与常驻跳过。
           const SizedBox(height: 20),
           Center(child: SpeakerButton(onPressed: _speak)),
-          const SizedBox(height: 20),
-          Center(child: _MicButton(listening: _listening, onTap: _onMicTap)),
-          const SizedBox(height: 12),
-          Text(
-            _stalled
-                ? AppStrings.readAloudStalledHint
-                : _listening
-                    ? AppStrings.readAloudListening
-                    : AppStrings.readAloudMicHint,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
+          if (!isAnswered) ...[
+            const SizedBox(height: 20),
+            Center(child: _MicButton(listening: _listening, onTap: _onMicTap)),
+            const SizedBox(height: 12),
+            Text(
+              _stalled
+                  ? AppStrings.readAloudStalledHint
+                  : _listening
+                      ? AppStrings.readAloudListening
+                      : AppStrings.readAloudMicHint,
+              style: AppTextStyles.captionSm(context).copyWith(
+                color: TurnaTheme.textHintColor(context),
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          if (_stalled && !submitted) ...[
             const SizedBox(height: 12),
             Center(
               child: OutlinedButton(
+                key: const ValueKey('read-aloud-skip'),
                 onPressed: _onSkip,
                 child: Text(AppStrings.readAloudSkipAction),
               ),
@@ -541,8 +566,11 @@ class _DegradedBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 「继续」CTA 交给页面底栏（P1：主操作跨题型位置稳定），提交语义不变。
-    LessonActionScope.maybeOf(context)?.report(
+    // 「继续」CTA 交给页面底栏（P1：主操作跨题型位置稳定），提交语义不变；
+    // 无 LessonActionScope 的独立容器（如错题单练、语法练习、统一复习）
+    // 在卡内兜底渲染同一按钮，防止无出口。
+    final actionDraft = LessonActionScope.maybeOf(context);
+    actionDraft?.report(
       canSubmit: !submitted,
       submit: onSubmit,
       label: AppStrings.lessonContinueUpper,
@@ -593,6 +621,14 @@ class _DegradedBody extends StatelessWidget {
                 icon: const Icon(Icons.mic_rounded),
                 label: Text(AppStrings.readAloudEnableAction),
               ),
+            ),
+          ],
+          if (actionDraft == null && !submitted) ...[
+            const SizedBox(height: 20),
+            LessonCheckButton(
+              label: AppStrings.lessonContinueUpper,
+              enabled: true,
+              onPressed: onSubmit,
             ),
           ],
         ],

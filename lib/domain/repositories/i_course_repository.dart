@@ -98,6 +98,32 @@ abstract class ICourseRepository {
   /// Whether [languageCode] has any course content installed.
   Future<bool> languageHasContent(String languageCode);
 
+  /// All `course_meta` entries whose key starts with [prefix].
+  Future<Map<String, String>> courseMetaByPrefix(String prefix);
+
+  /// Upsert a single `course_meta` entry ([key] -> [value]).
+  Future<void> upsertCourseMeta(String key, String value);
+
+  /// Persist an edited lesson's metadata + body while preserving its owning
+  /// language, unit, and sort order. Throws [StateError] if not found.
+  Future<void> updateLessonRecord(Lesson lesson);
+
+  /// Persist a validated AI-generated [section] and its top-level resources
+  /// (`words`, `expressions`, `grammarPoints` from [rawPayload]) atomically.
+  Future<void> saveAiCourseSection({
+    required Section section,
+    required Map<String, dynamic> rawPayload,
+    required String defaultLanguageCode,
+  });
+
+  /// Prune orphaned learner rows for [languageCode] after a course pack
+  /// replacement drops resource or lesson ids.
+  Future<void> deleteOrphanedLearnerRows(
+    String languageCode, {
+    required Set<String> liveResourceIds,
+    required Set<String> liveLessonIds,
+  });
+
   /// Per-language builtin card counts for the catalog badges.
   Future<Map<String, int>> builtinCardCounts();
 }

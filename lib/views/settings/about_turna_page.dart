@@ -389,21 +389,21 @@ class _HeroCard extends StatelessWidget {
                       color: TurnaTheme.dividerBg(context),
                     ),
                     const SizedBox(height: 12),
-                    const Wrap(
+                    Wrap(
                       spacing: 16,
                       runSpacing: 8,
                       children: [
                         _HeroFact(
                           icon: Icons.wifi_off_rounded,
-                          label: '离线可用',
+                          label: AppStrings.aboutHeroFactOffline,
                         ),
                         _HeroFact(
                           icon: Icons.phonelink_lock_rounded,
-                          label: '数据不出本机',
+                          label: AppStrings.aboutHeroFactLocalOnly,
                         ),
                         _HeroFact(
                           icon: Icons.volunteer_activism_rounded,
-                          label: '开源免费',
+                          label: AppStrings.aboutHeroFactOpenSource,
                         ),
                       ],
                     ),

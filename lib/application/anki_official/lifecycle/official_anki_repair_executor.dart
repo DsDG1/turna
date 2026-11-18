@@ -1,10 +1,12 @@
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart';
 
 /// Production executor for the startup repair pass: drives pending v2
@@ -26,13 +28,14 @@ class OfficialAnkiRepairExecutor {
       final retireService = OfficialAnkiV2RetireService(
         catalog: catalog,
         paths: paths,
-        course: course,
+        viewStore: CourseLoader.v2ViewStoreFor(course),
         engine: engine,
       );
       final pending = sources.listSources(profileId).where(
           (row) => row.state == 'pending_cleanup' || row.state == 'retiring');
       for (final source in pending) {
         try {
+          await ensureOfficialProfileOpen(engine, paths);
           await retireService.runRetireJob(sourceId: source.sourceId);
           cleanups++;
         } catch (error) {

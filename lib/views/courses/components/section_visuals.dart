@@ -34,8 +34,8 @@ class SectionVisuals {
   static ({Color background, Color foreground}) colorsFor(String sectionId) {
     if (sectionId.startsWith('anki-')) {
       return (
-        background: TurnaTheme.leagueAmethyst.withValues(alpha: 0.18),
-        foreground: TurnaTheme.leagueAmethyst,
+        background: TurnaTheme.achievementAmethyst.withValues(alpha: 0.18),
+        foreground: TurnaTheme.achievementAmethyst,
       );
     }
     return switch (sectionId) {
@@ -52,20 +52,20 @@ class SectionVisuals {
           foreground: TurnaTheme.warning,
         ),
       'section4' => (
-          background: TurnaTheme.leagueAmethyst.withValues(alpha: 0.18),
-          foreground: TurnaTheme.leagueAmethyst,
+          background: TurnaTheme.achievementAmethyst.withValues(alpha: 0.18),
+          foreground: TurnaTheme.achievementAmethyst,
         ),
       'section5' => (
-          background: TurnaTheme.leagueEmerald.withValues(alpha: 0.18),
-          foreground: TurnaTheme.leagueEmerald,
+          background: TurnaTheme.achievementEmerald.withValues(alpha: 0.18),
+          foreground: TurnaTheme.achievementEmerald,
         ),
       'section6' => (
-          background: TurnaTheme.leagueDiamond.withValues(alpha: 0.18),
-          foreground: TurnaTheme.leagueDiamond,
+          background: TurnaTheme.brandSky.withValues(alpha: 0.18),
+          foreground: TurnaTheme.brandSky,
         ),
       'section7' => (
-          background: TurnaTheme.leagueRuby.withValues(alpha: 0.18),
-          foreground: TurnaTheme.leagueRuby,
+          background: TurnaTheme.anatolianClay.withValues(alpha: 0.18),
+          foreground: TurnaTheme.anatolianClay,
         ),
       'section8' => (
           background: TurnaTheme.brandReed.withValues(alpha: 0.22),

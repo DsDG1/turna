@@ -17,6 +17,36 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 
+/// Deterministically opens [paths] on [engine], treating an already-open
+/// collection as a no-op and briefly retrying transient busy/locked states
+/// before propagating any other error.
+Future<void> ensureOfficialProfileOpen(
+  OfficialAnkiEngine engine,
+  OfficialAnkiPaths paths, {
+  int maxAttempts = 6,
+  Duration baseDelay = const Duration(milliseconds: 80),
+}) async {
+  OfficialAnkiException? lastBusyError;
+  for (var attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await engine.openProfile(paths);
+      return;
+    } on OfficialAnkiException catch (error) {
+      if (error.code == OfficialAnkiErrorCode.collectionAlreadyOpen) {
+        return;
+      }
+      final transient = error.code == OfficialAnkiErrorCode.schedulerBusy ||
+          error.code == OfficialAnkiErrorCode.collectionLocked;
+      if (!transient) rethrow;
+      lastBusyError = error;
+      if (attempt + 1 < maxAttempts) {
+        await Future<void>.delayed(baseDelay * (attempt + 1));
+      }
+    }
+  }
+  if (lastBusyError != null) throw lastBusyError;
+}
+
 class OfficialAnkiRuntimeProbe {
   const OfficialAnkiRuntimeProbe({
     required this.ok,

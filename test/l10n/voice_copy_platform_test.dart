@@ -106,7 +106,7 @@ void main() {
 
     test('the sample carries no hardcoded language override', () {
       final source =
-          File('lib/views/settings/widgets/settings_sound_section.dart')
+          File('lib/views/settings/components/settings_sound_section.dart')
               .readAsStringSync();
       final start = source.indexOf('Future<void> _playSample()');
       final end = source.indexOf('void _showMessage(');
@@ -130,7 +130,7 @@ void main() {
   group('actions the companion build cannot carry out stay hidden', () {
     test('the sound section gates the store action on the platform', () {
       final source =
-          File('lib/views/settings/widgets/settings_sound_section.dart')
+          File('lib/views/settings/components/settings_sound_section.dart')
               .readAsStringSync();
 
       expect(
@@ -150,7 +150,7 @@ void main() {
 
     test('the sound section reports device voices on the companion build', () {
       final source =
-          File('lib/views/settings/widgets/settings_sound_section.dart')
+          File('lib/views/settings/components/settings_sound_section.dart')
               .readAsStringSync();
 
       expect(

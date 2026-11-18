@@ -33,21 +33,20 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/anki/anki_import_screen.dart';
+import 'package:turna/views/anki/anki_import_page.dart';
 import 'package:path/path.dart' as p;
 
 import '../../helpers/in_memory_course_db.dart';
-import 'package:turna/domain/repositories/i_anki_import_store.dart';
 import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 
@@ -139,8 +138,6 @@ void main() {
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(db));
     getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(db));
-    final importDao = AnkiImportDao(db);
-    getIt.registerSingleton<IAnkiImportStore>(importDao);
     getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
 
     courseProvider = CourseProvider(appPrefs);
@@ -152,7 +149,6 @@ void main() {
     getIt.registerSingleton<AnkiDeckManager>(
       AnkiDeckManager(
         repo: getIt<ICourseRepository>(),
-        importDao: importDao,
         appPrefs: appPrefs,
       ),
     );
@@ -228,9 +224,8 @@ void main() {
       findsOneWidget,
       reason: 'wizard returned to the select step with the mapped error',
     );
-    final records = await getIt<IAnkiImportStore>().getAll();
-    expect(records, isEmpty,
-        reason: 'official-first failure must write no anki_imports row');
+    expect(await OfficialAnkiV2ViewStore(db).isAvailable, isFalse,
+        reason: 'official-first failure must write no v2 view rows');
     expect(
       srsProvider.state.keys.where((id) => id.startsWith('anki-')),
       isEmpty,
@@ -275,8 +270,8 @@ void main() {
       ),
       findsOneWidget,
     );
-    final records = await getIt<IAnkiImportStore>().getAll();
-    expect(records, isEmpty, reason: 'flag-off must not write Legacy rows');
+    expect(await OfficialAnkiV2ViewStore(db).isAvailable, isFalse,
+        reason: 'flag-off must not write course tree view rows');
     expect(
       srsProvider.state.keys.where((id) => id.startsWith('anki-')),
       isEmpty,
@@ -300,8 +295,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(failing.calls, 0);
-    final records = await getIt<IAnkiImportStore>().getAll();
-    expect(records, isEmpty,
+    expect(await OfficialAnkiV2ViewStore(db).isAvailable, isFalse,
         reason: 'flag-off must not resurrect a Legacy writer');
   });
 }

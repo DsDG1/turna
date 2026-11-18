@@ -21,12 +21,10 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/repositories/i_course_repository.dart';
-import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/splash/splash_page.dart';
@@ -39,8 +37,8 @@ import 'package:turna/views/home/components/tab_stack.dart';
 import 'package:turna/views/home/scroll_hide_policy.dart';
 import 'package:turna/views/home/streak_broken_dialog.dart';
 import 'package:turna/views/play/play_app_bar.dart';
-import 'package:turna/views/play/play_hub_screen.dart';
-import 'package:turna/views/profile/profile_screen.dart';
+import 'package:turna/views/play/play_hub_page.dart';
+import 'package:turna/views/profile/profile_page.dart';
 import 'package:turna/views/settings/settings_page.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/logger.dart';
@@ -71,7 +69,7 @@ class _HomePageState extends State<HomePage> {
 
   static const _screens = [
     CourseTree(),
-    PlayHubScreen(),
+    PlayHubPage(),
     ProfilePage(),
     SettingsPage(),
   ];
@@ -168,23 +166,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _maybePromptContentUpdate() async {
-    final appPrefs = getIt<AppPrefs>();
-    final storedVersion = await getIt<ICourseRepository>().contentVersion();
-    if (storedVersion == null) return; // not seeded yet
+    final course = context.read<CourseProvider>();
+    final storedVersion = await course.pendingContentUpdateVersion();
+    if (storedVersion == null || !mounted) return;
 
-    final acknowledged = appPrefs.preferences
-        .getString(LocalStateKeys.contentVersionAcknowledged, defaultValue: '')
-        .getValue();
-    if (storedVersion == acknowledged) return; // already acknowledged
-
-    if (!mounted) return;
     final game = context.read<GameProvider>();
     if (game.completedLessonIds.isEmpty) {
       // No progress to protect: silently acknowledge, no dialog.
-      await appPrefs.setString(
-        LocalStateKeys.contentVersionAcknowledged,
-        storedVersion,
-      );
+      await course.acknowledgeSpecificContentVersion(storedVersion);
       return;
     }
 
@@ -195,10 +184,9 @@ class _HomePageState extends State<HomePage> {
   Future<void> _acknowledgeContentUpdate() async {
     final version = _contentUpdateVersion;
     if (version == null) return;
-    await getIt<AppPrefs>().setString(
-      LocalStateKeys.contentVersionAcknowledged,
-      version,
-    );
+    await context.read<CourseProvider>().acknowledgeSpecificContentVersion(
+          version,
+        );
     if (mounted) setState(() => _contentUpdateVersion = null);
   }
 
@@ -233,7 +221,7 @@ class _HomePageState extends State<HomePage> {
     await Future.wait([
       context.read<GameProvider>().resetLessonProgress(),
       context.read<MistakeProvider>().clear(),
-      getIt<IStudyLogRepository>().clearAll(),
+      context.read<StudyStatsProvider>().clearAll(),
       context.read<SrsProvider>().clear(),
       context.read<GrammarReviewProvider>().clear(),
     ]);

@@ -92,7 +92,7 @@ Section → Unit → Lesson
 
 撤销与并发：`undoReview` 和在途的 `reviewItem` 用 `_gradesInFlight` 集合防竞态，评分写入期间拒绝撤销；统一复习会话（`ReviewSessionController`）评分后先推进界面、后台写库，`isPersisting` 为真时禁用撤销。`lib/views/review/unified_review_page.dart` 的中途退出有 `PopScope` 确认，每场默认 25 张。
 
-练习页（Play Hub）：`lib/views/play/play_hub_screen.dart` 是复习流的总入口，队列按 `CourseScope` 切开（[ADR 0037](./decisions/0037-anki-course-review-unification.md)），语言课与导入的 Anki 按 scope 分开显示（Anki 侧隐藏薄弱单词）；智能练习占队列第四格，短按进 AI Hub，长按弹引擎配置浮窗。
+练习页（Play Hub）：`lib/views/play/play_hub_page.dart` 是复习流的总入口，队列按 `CourseScope` 切开（[ADR 0037](./decisions/0037-anki-course-review-unification.md)），语言课与导入的 Anki 按 scope 分开显示（Anki 侧隐藏薄弱单词）；智能练习占队列第四格，短按进 AI Hub，长按弹引擎配置浮窗。
 
 ## 6. Anki 深度集成
 
@@ -102,7 +102,7 @@ Section → Unit → Lesson
 
 导入流水线：选 `.apkg` → 算一次 `AnkiImportExecutionPlan` → `OfficialAnkiOfficialFirstService` 写进官方 Collection → 投影成课程树 → 以 `sourceId` 进入课程 scope。不写 Turna 自己的 Anki 笔记表和间隔重复队列；`.colpkg` 和内存样例牌组在生产环境直接拒绝。执行计划只有 `officialFirst` / `failClosed` / `unsupported` 三种结果，官方内核不可用时一律 fail-closed，不会降级到别的实现。
 
-保真渲染：复杂的 notetype（含自定义 HTML/CSS/JS）没法干净映射成结构化题型时走保真路径，映射编辑器在 `lib/views/anki_official/official_anki_mapping_page.dart`。
+保真渲染：复杂的 notetype（含自定义 HTML/CSS/JS）没法干净映射成结构化题型时走保真路径，快速与多选模板映射直接在导入向导内联 sheet 中完成。
 
 - `OfficialTemplateWebViewBody` / `OfficialAnkiReviewerStage` 走官方渲染内核呈现原 notetype 的 HTML + CSS（预览与正式复习共用）；离线环境禁用脚本或无渲染器可用时降级。
 - JS 和网络隔离：notetype 的 `allowJs` 默认关，联网默认完全离线；离线和询问策略通过 CSP 真正挡掉 `fetch`、XHR、WebSocket 和外部资源，不只是拦页面跳转。
@@ -114,7 +114,7 @@ Section → Unit → Lesson
 
 ### 6.1 记忆卡适配：一套解析器 + 可撤销的声明式方案
 
-导入后的「这张卡怎么展示」只有一个决策点：`OfficialCardPresentationResolver`（[ADR 0057](./decisions/0057-card-adaptation-plan.md)）。它返回四类结果——结构化展示 / 原卡 / 需修正 / 不可用——并带原因码；预览、v2 课时加载、正式复习共用它。视图行只存「预计 kind」作为提示，课时加载时逐卡重判，过期值只记成 `storedKindDrift` 而不会生效。
+导入后的「这张卡怎么展示」只有一个决策点：`OfficialCardPresentationResolver`（[ADR 0057](./decisions/0057-card-adaptation-plan.md)）。它返回四类结果——结构化展示 / 原卡 / 需修正 / 不可用——并带原因码；预览、v2 课时加载、正式复习共用它，运行时按当前卡片与映射决策逐卡解析。
 
 方案存在 Collection 配置区（`turna.adapt.*` 四个键族）：方案体不可变（同键不同内容直接拒绝）、manifest 单键切换、单卡覆盖是一张按来源的小表、索引用于卸载清理。导入期确认的方案只在会话内暂存，提交成功后由 `promoteAdaptationDrafts` 按 **live 真实模板序号** 搬到 live；方案缺失或序号对不上一律回原卡，任何一步失败都不影响导入本身。
 
@@ -219,7 +219,7 @@ JSON 放在 `assets/courses/<lang>/`——当前 `tr` 由 `assets/courses/manife
 - 排行榜 / 天梯 / 好友 / 分享。社会比较短期提升参与度，但抑制内在动机（Deci & Ryan, 1985 自我决定理论）。本项目选内容驱动。
 - 活力值 / 连签修复 / 商店道具。惩罚机制（答错扣活力）和「失败恐惧」相关，可能让学习者回避高难度内容——而高难度内容恰恰是 i+1 原则要求的习得区间。
 - 口语录音匹配（**音素级发音评分**）。自动语音评分在非主流语种（含土耳其语）上可靠性和效度不足——Azure 发音评估不支持 tr-TR，sherpa-onnx 无土耳其语 CTC 模型，该档维持不做。**词面跟读匹配（readAloud）已采用**：[ADR 0061](./decisions/0061-read-aloud-word-matching.md)，平台识别 + 逐词比对，测可懂度不评口音，Android/iOS only。
-- 云端 CMS / Firebase / 推送通知。本地优先保证离线可用性与数据隐私，也避免服务端维护成本。
+- 云端 CMS / Firebase 业务服务 / 推送通知（仅 Android 测试分发保留首帧后初始化的 App Distribution 登记，无分析/鉴权/云存储）。本地优先保证离线可用性与数据隐私，也避免服务端维护成本。
 - XP 倍率 / 每日 XP 目标 / 宝石购买 / 道具 / 社交成就。同上，去摩擦和付费。
 - 全局错误弹窗。可恢复的加载失败走 Provider 状态机承载（如 `SectionLoadState.error`），一次性动作用 SnackBar；不引入拦全应用的全局弹窗。
 - 二元评分以外的档位扩展 / 课程树硬锁 / 云端推送。练习题评分语义见第 5 节；课程树结构由数据驱动，不写死。

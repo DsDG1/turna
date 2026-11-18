@@ -17,7 +17,6 @@ import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
@@ -337,7 +336,6 @@ void main() {
       history,
       srs,
       grammar,
-      AnkiImportDao(db),
     );
     final insights = InsightsRepository(progress, ReviewDataRevision());
 

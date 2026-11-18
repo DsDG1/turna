@@ -6,22 +6,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
-/// Renders Anki deck media (`anki://<importId>/<file>` references) attached
-/// to an objectively-graded interaction (MCQ / FillBlank): one speaker
-/// button per audio reference and one thumbnail per image reference.
+/// Renders imported media (`turnapack://<code>/<file>` or bare Official Anki v2
+/// media filenames) attached to an objectively-graded interaction (MCQ /
+/// FillBlank): one speaker button per audio reference and one thumbnail per
+/// image reference.
 ///
-/// Audio plays through [AudioController.speakWord], which resolves `anki://`
-/// refs to their on-disk copy. Images are resolved to local file paths up
-/// front; refs whose file was never copied (or whose deck was uninstalled)
-/// degrade silently to nothing.
+/// Audio plays through [AudioController] and images resolve to local file
+/// paths up front; missing files degrade silently to nothing.
 class AnkiMediaStrip extends StatefulWidget {
   final List<String> audioAssets;
   final List<String> imageAssets;
@@ -36,12 +36,30 @@ class AnkiMediaStrip extends StatefulWidget {
     this.playAudio,
   });
 
+  /// Returns `true` for `turnapack://` refs and bare media filenames
+  /// (non-empty, containing neither `'/'` nor `'://'`, e.g. `foo.jpg` /
+  /// `bar.mp3` produced by Official Anki v2).
+  static bool isResolvableMedia(String? ref) {
+    if (ref == null) return false;
+    final trimmed = ref.trim();
+    if (trimmed.isEmpty) return false;
+    if (CoursePackMedia.isPackAsset(trimmed)) return true;
+    return _isBareMediaName(trimmed);
+  }
+
+  static bool _isBareMediaName(String asset) {
+    if (asset.isEmpty || asset.contains('://') || asset.contains('/')) {
+      return false;
+    }
+    final dot = asset.lastIndexOf('.');
+    return dot > 0 && dot < asset.length - 1;
+  }
+
   @override
   State<AnkiMediaStrip> createState() => _AnkiMediaStripState();
 }
 
 class _AnkiMediaStripState extends State<AnkiMediaStrip> {
-  final AnkiAudioResolver _mediaResolver = AnkiAudioResolver();
   List<String> _imagePaths = const [];
   List<({String ref, bool available})> _audios = const [];
   int _resolveGeneration = 0;
@@ -63,18 +81,18 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
 
   Future<void> _resolveMedia() async {
     final generation = ++_resolveGeneration;
-    final resolve = widget.resolveMediaPath ?? _mediaResolver.resolveMediaPath;
+    final resolve = widget.resolveMediaPath ?? _resolveDefaultMediaPath;
     final images = <String>[];
     for (final asset in widget.imageAssets) {
-      if (!_isResolvable(asset)) continue;
-      final path = await _resolveAsset(asset, resolve);
+      if (!AnkiMediaStrip.isResolvableMedia(asset)) continue;
+      final path = await _resolveSafely(resolve, asset);
       if (path != null) images.add(path);
     }
     final audios = <({String ref, bool available})>[];
     for (final asset in widget.audioAssets) {
-      if (!_isResolvable(asset)) continue;
+      if (!AnkiMediaStrip.isResolvableMedia(asset)) continue;
       audios.add(
-        (ref: asset, available: await _resolveAsset(asset, resolve) != null),
+        (ref: asset, available: await _resolveSafely(resolve, asset) != null),
       );
     }
     if (!mounted || generation != _resolveGeneration) return;
@@ -84,21 +102,20 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     });
   }
 
-  Future<String?> _resolveAsset(
-    String asset,
-    Future<String?> Function(String) resolve,
-  ) async {
-    if (AnkiAudioResolver.isAnkiAsset(asset) ||
-        CoursePackMedia.isPackAsset(asset)) {
-      return _resolveSafely(resolve, asset);
+  Future<String?> _resolveDefaultMediaPath(String ref) async {
+    if (CoursePackMedia.isPackAsset(ref)) {
+      return CoursePackMedia.resolveFile(ref);
     }
     // Bare official-collection filename (`hello.mp3`): the official Anki
     // importer projects media names, not scheme refs, so it resolves against
     // the collection's media folder instead.
-    return _resolveSafely((ref) async {
-      final audio = getIt<AudioController>();
-      return audio.resolveOfficialMediaPath(ref);
-    }, asset);
+    if (getIt.isRegistered<AudioController>()) {
+      return getIt<AudioController>().resolveOfficialMediaPath(ref);
+    }
+    return officialAnkiMediaCandidateFile(
+      ref,
+      OfficialAnkiCompositionRoot.locatorPaths,
+    )?.path;
   }
 
   Future<String?> _resolveSafely(
@@ -106,11 +123,10 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     String ref,
   ) async {
     try {
-      if (CoursePackMedia.isPackAsset(ref)) {
-        return await CoursePackMedia.resolveFile(ref);
-      }
       return await resolve(ref);
     } catch (_) {
+      // Best-effort media resolution: missing or unreadable media degrades
+      // silently to an unavailable button or hidden thumbnail.
       return null;
     }
   }
@@ -121,6 +137,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     try {
       started = await play(ref);
     } catch (_) {
+      // Best-effort audio playback: failure surfaces via the snackbar below.
       started = false;
     }
     if (!started && mounted) {
@@ -129,29 +146,14 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
   }
 
   Future<bool> _playDefault(String ref) {
+    if (!getIt.isRegistered<AudioController>()) {
+      return Future.value(false);
+    }
     final audio = getIt<AudioController>();
     if (CoursePackMedia.isPackAsset(ref)) {
       return audio.playCoursePackMedia(ref);
     }
-    if (AnkiAudioResolver.isAnkiAsset(ref)) {
-      return audio.playAnkiMedia(ref);
-    }
     return audio.playOfficialMediaFile(ref);
-  }
-
-  /// Scheme refs (`anki://`, `turnapack://`) and bare official-collection
-  /// filenames (`hello.mp3`) are both resolvable; anything else is not media.
-  static bool _isResolvable(String asset) =>
-      AnkiAudioResolver.isAnkiAsset(asset) ||
-      CoursePackMedia.isPackAsset(asset) ||
-      _isBareMediaName(asset);
-
-  static bool _isBareMediaName(String asset) {
-    if (asset.isEmpty || asset.contains('://') || asset.contains('/')) {
-      return false;
-    }
-    final dot = asset.lastIndexOf('.');
-    return dot > 0 && dot < asset.length - 1;
   }
 
   @override

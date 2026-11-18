@@ -32,13 +32,6 @@ enum PresentationReason {
   /// Neither prompt nor answer text is present — nothing to present.
   emptyFields,
 
-  /// The stored view kind is not a kind this build knows (older/newer schema).
-  unknownStoredKind,
-
-  /// The stored view kind is known but disagrees with the freshly resolved
-  /// decision. The fresh decision wins; this records that the view is stale.
-  storedKindDrift,
-
   /// The interaction payload exceeded the projection size limit; the card
   /// falls back to the original-card link instead of disappearing.
   payloadOverflow,

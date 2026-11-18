@@ -12,21 +12,23 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 // Project imports:
-import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/language_provider.dart';
-import 'package:turna/core/performance_trace.dart';
+import 'package:turna/application/maintenance/database_doctor_service.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/log_capture.dart';
-import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/core/performance_trace.dart';
+import 'package:turna/core/system_health_modules.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/service/tts_availability_checker.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/widgets/optional_provider.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// System health page — always freely dismissible (Plan §15).
@@ -189,12 +191,17 @@ class SystemHealthPage extends StatelessWidget {
   void _showAdvice(BuildContext context, SystemHealthEvent event) {
     final modules = event.groups.values.map((item) => item.module).toSet();
     final advice = <String>[
-      if (modules.contains('数据库')) AppStrings.systemHealthAdviceDb,
-      if (modules.contains('记忆卡渲染') || modules.contains('WebView'))
+      if (modules.contains(SystemHealthModules.database))
+        AppStrings.systemHealthAdviceDb,
+      if (modules.contains(SystemHealthModules.cardRender) ||
+          modules.contains(SystemHealthModules.webView))
         AppStrings.systemHealthAdviceAnki,
-      if (modules.contains('TTS / 音频')) AppStrings.systemHealthAdviceTts,
-      if (modules.contains('AI 网络')) AppStrings.systemHealthAdviceAi,
-      if (modules.contains('课程加载')) AppStrings.systemHealthAdviceCourse,
+      if (modules.contains(SystemHealthModules.ttsAudio))
+        AppStrings.systemHealthAdviceTts,
+      if (modules.contains(SystemHealthModules.aiNetwork))
+        AppStrings.systemHealthAdviceAi,
+      if (modules.contains(SystemHealthModules.courseLoad))
+        AppStrings.systemHealthAdviceCourse,
       if (modules.isEmpty) AppStrings.systemHealthAdviceNone,
     ];
     showDialog<void>(
@@ -242,7 +249,7 @@ class SystemHealthPage extends StatelessWidget {
           name: 'turna_diagnostic_report.txt',
         ),
       ],
-      subject: 'Turna 脱敏诊断报告',
+      subject: AppStrings.systemHealthReportTitle,
     );
   }
 
@@ -262,48 +269,58 @@ class SystemHealthPage extends StatelessWidget {
     SystemHealthMonitor monitor,
   ) async {
     final settings = context.read<SettingsProvider>();
+    final lang = readOptionalProvider<LanguageProvider>(context)
+            ?.ttsLanguageCode ??
+        LanguageCodes.turkish;
     final event = monitor.event;
-    final schemaVersion = getIt.isRegistered<ICourseRepository>()
-        ? getIt<ICourseRepository>().schemaVersion
-        : -1;
-    var ttsStatus = '未检查';
+    final schemaVersion = const DatabaseDoctorService().courseSchemaVersion();
+    var ttsStatus = AppStrings.systemHealthReportTtsUnchecked;
     if (getIt.isRegistered<TtsAvailabilityChecker>()) {
       try {
-        final lang = getIt.isRegistered<LanguageProvider>()
-            ? getIt<LanguageProvider>().ttsLanguageCode
-            : LanguageCodes.turkish;
         final tts = await getIt<TtsAvailabilityChecker>().diagnose(lang);
         ttsStatus = tts.preferredStatus.name;
       } catch (_) {
-        ttsStatus = '检查失败';
+        ttsStatus = AppStrings.systemHealthReportTtsFailed;
       }
     }
+    final platformName = kIsWeb ? 'web' : defaultTargetPlatform.name;
     final lines = <String>[
-      'Turna 脱敏诊断报告',
-      '事件：${event.id}',
-      '当前应用版本：${monitor.currentAppVersion}',
-      '事件创建版本：${event.appVersion}',
-      '数据结构版本：${schemaVersion < 0 ? '未知' : schemaVersion}',
-      '平台：${kIsWeb ? 'web' : defaultTargetPlatform.name}',
-      'WebView：${kIsWeb ? 'web' : defaultTargetPlatform.name}',
-      'TTS：$ttsStatus',
-      '健康等级：${monitor.level.name}',
-      '活跃评分：${monitor.score}',
-      '已确认：${monitor.acknowledged}',
-      '自检通过：${event.checkPassed}',
-      '已解决：${monitor.resolved}',
-      '安全模式：${event.safeMode}',
-      '数据完整性风险：${monitor.hasDataIntegrityBlock ? '是（${monitor.dataIntegrityReason}）' : '否'}',
-      '强制禁用 JS：${settings.ankiForceDisableJs}',
+      AppStrings.systemHealthReportTitle,
+      AppStrings.systemHealthReportEvent(event.id),
+      AppStrings.systemHealthReportAppVersion(monitor.currentAppVersion),
+      AppStrings.systemHealthReportEventVersion(event.appVersion),
+      AppStrings.systemHealthReportSchemaVersion(
+        schemaVersion < 0
+            ? AppStrings.systemHealthReportUnknown
+            : '$schemaVersion',
+      ),
+      AppStrings.systemHealthReportPlatform(platformName),
+      AppStrings.systemHealthReportWebView(platformName),
+      AppStrings.systemHealthReportTts(ttsStatus),
+      AppStrings.systemHealthReportHealthLevel(monitor.level.name),
+      AppStrings.systemHealthReportScore(monitor.score),
+      AppStrings.systemHealthReportAcknowledged(monitor.acknowledged),
+      AppStrings.systemHealthReportCheckPassed(event.checkPassed),
+      AppStrings.systemHealthReportResolved(monitor.resolved),
+      AppStrings.systemHealthReportSafeMode(event.safeMode),
+      AppStrings.systemHealthReportIntegrityRisk(
+        monitor.hasDataIntegrityBlock,
+        monitor.dataIntegrityReason,
+      ),
+      AppStrings.systemHealthReportForceDisableJs(settings.ankiForceDisableJs),
       '',
-      '错误摘要：',
+      AppStrings.systemHealthReportErrorSummaryHeader,
       for (final indexed in event.groups.values.indexed)
-        '- 问题组 ${indexed.$1 + 1} [${indexed.$2.level}] '
-            '${indexed.$2.module} ×${indexed.$2.count}（原始正文已省略）',
+        AppStrings.systemHealthReportErrorGroupLine(
+          indexed.$1 + 1,
+          indexed.$2.level,
+          indexed.$2.module,
+          indexed.$2.count,
+        ),
       '',
       PerformanceTrace.instance.summary(),
       '',
-      '已自动排除：API 密钥、认证信息、完整卡片正文、AI 对话正文和个人路径。',
+      AppStrings.systemHealthReportExcludedNote,
     ];
     return SystemHealthMonitor.redact(lines.join('\n'));
   }

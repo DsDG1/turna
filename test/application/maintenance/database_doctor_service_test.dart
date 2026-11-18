@@ -16,6 +16,9 @@ class _FakeScanner implements StorageInventoryService {
   final List<StorageArtifactReport> orphans;
 
   @override
+  Directory? get documentsDirectory => null;
+
+  @override
   Future<StorageInventoryReport> scan() async => StorageInventoryReport(
         artifacts: orphans,
         databaseWalBytes: 0,

@@ -1,10 +1,8 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
-
 import 'package:turna/courses/language_manifest.dart';
-import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/course/language_codes.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 
 /// Overlay for languages imported from `.turnapack` (plan §5.3).
 ///
@@ -28,16 +26,14 @@ class ImportedLanguageRegistry {
   bool contains(String languageCode) =>
       _byCode.containsKey(LanguageCodes.canonicalize(languageCode));
 
-  Future<void> hydrate(CourseDatabase db) async {
+  Future<void> hydrate(ICourseRepository repo) async {
     const prefix = '$metaPrefix:';
-    final rows = await (db.select(db.courseMeta)
-          ..where((t) => t.key.like('$prefix%')))
-        .get();
+    final entries = await repo.courseMetaByPrefix(prefix);
     _byCode.clear();
-    for (final row in rows) {
-      final code = row.key.substring(prefix.length);
+    for (final entry in entries.entries) {
+      final code = entry.key.substring(prefix.length);
       try {
-        final decoded = jsonDecode(row.value);
+        final decoded = jsonDecode(entry.value);
         if (decoded is Map<String, dynamic>) {
           _byCode[LanguageCodes.canonicalize(code)] = decoded;
         }

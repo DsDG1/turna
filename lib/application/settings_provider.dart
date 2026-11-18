@@ -4,11 +4,13 @@ import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:injectable/injectable.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/service/locator.dart';
 
 /// App-wide user settings that need to persist across launches.
@@ -79,6 +81,18 @@ class SettingsProvider extends ChangeNotifier {
 
   TimeOfDay get dailyReminderTime =>
       TimeOfDay(hour: _dailyReminderHour, minute: _dailyReminderMinute);
+
+  /// Reactive preference for the local learner profile (name, avatar, goals).
+  Preference<LocalUser> get authUserPreference => _appPrefs.authUser;
+
+  /// Current local learner profile snapshot.
+  LocalUser get localUser => _appPrefs.authUser.getValue();
+
+  /// Persists an updated [LocalUser] profile and notifies listeners.
+  Future<void> setLocalUser(LocalUser user) async {
+    await _appPrefs.setLocalUser(user);
+    notifyListeners();
+  }
 
   void _load() {
     _soundEffectsEnabled = _appPrefs.preferences

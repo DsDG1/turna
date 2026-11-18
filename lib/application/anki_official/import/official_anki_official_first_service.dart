@@ -17,7 +17,6 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/data/course_database.dart';
 
 /// Projection-preview snapshot after Official-first staging.
 class OfficialAnkiOfficialFirstPreview {
@@ -94,7 +93,6 @@ class OfficialAnkiOfficialFirstService {
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
     required String filePath,
     required AnkiImportExecutionPlan plan,
-    required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
     OfficialAnkiSourceDigest? digest,
     bool withMedia = true,
@@ -150,7 +148,6 @@ class OfficialAnkiOfficialFirstService {
     return preparePreview(
       official: official,
       sourceHash: sourceHash,
-      course: course,
       flags: flags ?? OfficialAnkiFeatureFlags.current,
     );
   }
@@ -165,7 +162,6 @@ class OfficialAnkiOfficialFirstService {
   Future<OfficialAnkiOfficialFirstPreview> preparePreview({
     required OfficialAnkiImportResult official,
     required String sourceHash,
-    required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
   }) async {
     // A5：预览只读 staging 集合。live catalog 的 anki_source_cards 由
@@ -252,7 +248,6 @@ class OfficialAnkiOfficialFirstService {
   Future<OfficialAnkiOfficialFirstPreview?> resumePreview({
     required String sourceId,
     required AnkiImportExecutionPlan plan,
-    required CourseDatabase course,
   }) async {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     final livePaths = OfficialAnkiCompositionRoot.locatorPaths;
@@ -286,7 +281,6 @@ class OfficialAnkiOfficialFirstService {
         sourceHash: source?.sourceHash,
       ),
       sourceHash: source?.sourceHash ?? 'official-unknown',
-      course: course,
       flags: OfficialAnkiFeatureFlags.current,
     );
   }

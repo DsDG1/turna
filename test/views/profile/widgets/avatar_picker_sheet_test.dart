@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
+import 'package:turna/views/profile/components/avatar_picker_sheet.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Bare-bones wrapper so the modal route can be hosted in the test binding

@@ -23,7 +23,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';

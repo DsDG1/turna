@@ -42,13 +42,13 @@ abstract final class ChangelogPage {
       ..writeln()
       ..writeln(AppStrings.changelogIntro)
       ..writeln()
-      ..writeln('## 更新历程')
+      ..writeln(AppStrings.changelogClipboardHistoryHeading)
       ..writeln();
     for (final step in journeySteps) {
       buf.writeln('- **${step.label}** ${step.title} — ${step.subtitle}');
     }
     buf.writeln();
-    buf.writeln('## 版本详情');
+    buf.writeln(AppStrings.changelogClipboardDetailsHeading);
     buf.writeln();
     for (final r in releases) {
       buf.writeln('### ${r.version} — ${r.title}');
@@ -123,9 +123,10 @@ class JourneyOverviewCard extends StatelessWidget {
           Text(
             // 阶段数与终点版本都从 journeySteps 派生：写死会在新增一个
             // 里程碑后立刻说谎（此前硬编码的「9 个阶段」就是这么错的）。
-            'Varnamala Plus 从原型到 '
-            '${ChangelogPage.journeySteps.last.label} 的 '
-            '${ChangelogPage.journeySteps.length} 个阶段',
+            AppStrings.changelogJourneySummary(
+              ChangelogPage.journeySteps.last.label,
+              ChangelogPage.journeySteps.length,
+            ),
             style: AppTextStyles.captionSm(context).copyWith(
               color: TurnaTheme.textHintColor(context),
             ),

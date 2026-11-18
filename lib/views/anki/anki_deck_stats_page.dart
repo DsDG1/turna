@@ -7,20 +7,27 @@ import 'package:auto_route/auto_route.dart';
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
-import 'package:turna/application/memory_curve_provider.dart' show Forecast;
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/review/components/retention_curve_chart.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
 
 @RoutePage()
 class AnkiDeckStatsPage extends StatefulWidget {
   final String importId;
   final String title;
+  final Future<OfficialAnkiSourceAwareStatsSnapshot>? Function(String importId)?
+      statsLoader;
 
   const AnkiDeckStatsPage({
     super.key,
     required this.importId,
     required this.title,
+    this.statsLoader,
   });
 
   @override
@@ -28,208 +35,314 @@ class AnkiDeckStatsPage extends StatefulWidget {
 }
 
 class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
-  // crash-hunt PR1: the source lookup is a sync sqlite read and used to run
-  // inside build(); the stats future was also re-created per rebuild. Both
-  // are resolved once per page lifetime now (PR2 makes the catalog async).
-  // A non-null future means importId is an Official source (catalog service
-  // resolves catalog + source probe in one call).
-  late final Future<OfficialAnkiSourceAwareStatsSnapshot>? _officialStats =
-      const OfficialAnkiCatalogService().statsForSource(widget.importId);
+  Future<OfficialAnkiSourceAwareStatsSnapshot>? _officialStats;
+  Object? _lastLoggedError;
+
+  @override
+  void initState() {
+    super.initState();
+    _officialStats = _loadStats();
+  }
+
+  @override
+  void didUpdateWidget(covariant AnkiDeckStatsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.importId != widget.importId ||
+        oldWidget.statsLoader != widget.statsLoader) {
+      _lastLoggedError = null;
+      _officialStats = _loadStats();
+    }
+  }
+
+  Future<OfficialAnkiSourceAwareStatsSnapshot>? _loadStats() {
+    final loader = widget.statsLoader;
+    if (loader != null) {
+      return loader(widget.importId);
+    }
+    return const OfficialAnkiCatalogService().statsForSource(widget.importId);
+  }
+
+  void _retry() {
+    setState(() {
+      _lastLoggedError = null;
+      _officialStats = _loadStats();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:
-          AppBar(title: Text(AppStrings.ankiDeckStatsPageTitle(widget.title))),
-      body: _officialStats != null
-          ? FutureBuilder(
-              future: _officialStats,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final officialSnap = snapshot.data!;
-                return ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    _MetricCard(
-                      title: AppStrings.ankiStatsTotalCards,
-                      value: '${officialSnap.totalCards}',
-                      icon: Icons.style_outlined,
-                    ),
-                    if (officialSnap.metricsProven) ...[
-                      const SizedBox(height: 12),
-                      _MetricCard(
-                        title: AppStrings.ankiStatsCardStates,
-                        value: '${officialSnap.newCount ?? 0} / '
-                            '${officialSnap.learningCount ?? 0} / '
-                            '${officialSnap.reviewCount ?? 0}',
-                        icon: Icons.layers_outlined,
-                      ),
-                      const SizedBox(height: 12),
-                      _MetricCard(
-                        title: AppStrings.ankiStatsCardFlags,
-                        value: officialSnap.unintroducedCount > 0
-                            ? AppStrings.ankiStatsFlagsValue(
-                                officialSnap.unintroducedCount,
-                                officialSnap.userSuspendedCount,
-                                officialSnap.buriedCount ?? 0,
-                              )
-                            : '${officialSnap.suspendedCount ?? 0} / ${officialSnap.buriedCount ?? 0}',
-                        icon: Icons.pause_circle_outline,
-                      ),
-                      const SizedBox(height: 12),
-                      _MetricCard(
-                        title: AppStrings.ankiStatsTodayAnswers,
-                        value: AppStrings.ankiStatsTodayValue(
-                          officialSnap.todayAnswerCount ?? 0,
-                          officialSnap.todayLearnCount ?? 0,
-                          officialSnap.todayReviewCount ?? 0,
-                          officialSnap.todayRelearnCount ?? 0,
-                        ),
-                        icon: Icons.today_outlined,
-                      ),
-                      const SizedBox(height: 12),
-                      _ForecastCard(
-                        forecast: Forecast(
-                          dueToday: officialSnap.forecastDueToday ?? 0,
-                          due7Days: officialSnap.forecastDue7Days ?? 0,
-                          due30Days: officialSnap.forecastDue30Days ?? 0,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _MetricCard(
-                        title: AppStrings.ankiStatsRevlogTitle,
-                        value: officialSnap.retentionSample == 0
-                            ? AppStrings.ankiStatsRevlogNoSample(
-                                officialSnap.revlogCount ?? 0)
-                            : AppStrings.ankiStatsRevlogValue(
-                                officialSnap.revlogCount ?? 0,
-                                ((officialSnap.retention ?? 0) * 100).round(),
-                                officialSnap.retentionPassed ?? 0,
-                                officialSnap.retentionSample ?? 0,
-                              ),
-                        icon: Icons.track_changes,
-                      ),
-                      if (officialSnap.retentionByInterval.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(AppStrings.ankiStatsRetentionByInterval,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 12),
-                                RetentionCurveChart(
-                                    curve: officialSnap.retentionByInterval),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                    const SizedBox(height: 12),
-                    Card(
-                      child: ListTile(
-                        leading: Icon(Icons.info_outline,
-                            color: TurnaTheme.brandTeal),
-                        title: Text(AppStrings.ankiStatsOfficialSemantics),
-                        subtitle: Text(
-                          officialSnap.metricsProven
-                              ? AppStrings.ankiStatsSemanticsProven
-                              : AppStrings.ankiStatsSemanticsUnavailable(
-                                  officialSnap.note),
-                          style: TextStyle(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            )
-          : Center(
-              child: Text(
-                AppStrings.ankiBrowserOfficialUnavailable(
-                    'legacy_note_store_retired'),
-                textAlign: TextAlign.center,
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: AppBar(
+        title: Text(AppStrings.ankiDeckStatsPageTitle(widget.title)),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+      ),
+      body: TurnaPageContent(
+        maxWidth: AppSpacing.formColumnMaxWidth,
+        child: _officialStats != null
+            ? FutureBuilder<OfficialAnkiSourceAwareStatsSnapshot>(
+                future: _officialStats,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    if (!identical(_lastLoggedError, snapshot.error)) {
+                      _lastLoggedError = snapshot.error;
+                      logger.w(
+                        'AnkiDeckStatsPage: load failed',
+                        error: snapshot.error,
+                        stackTrace: snapshot.stackTrace,
+                      );
+                    }
+                    return PracticeEmptyState(
+                      title: AppStrings.deckStatsLoadFailed,
+                      actionLabel: AppStrings.commonRetry,
+                      onAction: _retry,
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return _StatsReportBody(officialSnap: snapshot.data!);
+                },
+              )
+            : PracticeEmptyState(
+                title: AppStrings.ankiBrowserOfficialUnavailable(
+                  'legacy_note_store_retired',
+                ),
               ),
-            ),
+      ),
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
+class _StatsReportBody extends StatelessWidget {
+  const _StatsReportBody({required this.officialSnap});
 
-  const _MetricCard(
-      {required this.title, required this.value, required this.icon});
+  final OfficialAnkiSourceAwareStatsSnapshot officialSnap;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: ListTile(
-          leading: Icon(icon, color: TurnaTheme.brandTeal),
-          title: Text(title),
-          subtitle: Text(value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.md,
+        AppSpacing.pageMargin,
+        AppSpacing.xxl,
+      ),
+      children: [
+        ReportMetricHeader(
+          label: AppStrings.ankiStatsTotalCards,
+          value: '${officialSnap.totalCards}',
+          unit: AppStrings.ankiDeckStatsCardsUnit,
         ),
-      );
+        if (officialSnap.metricsProven) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _DistributionSection(officialSnap: officialSnap),
+          const SizedBox(height: AppSpacing.xl),
+          _SummaryMetricsSection(officialSnap: officialSnap),
+          const SizedBox(height: AppSpacing.xl),
+          _ForecastSection(officialSnap: officialSnap),
+          if (officialSnap.retentionByInterval.length >= 2) ...[
+            const SizedBox(height: AppSpacing.xl),
+            ReportSectionHeading(title: AppStrings.ankiStatsRetentionByInterval),
+            ReportLineChart(
+              semanticsLabel: AppStrings.ankiDeckStatsRetentionChartLabel,
+              maxValue: 100,
+              points: [
+                for (final p in officialSnap.retentionByInterval)
+                  ReportPoint(
+                    label: AppStrings.reviewIntervalDays(p.intervalBucketDays),
+                    value: p.retention * 100,
+                  ),
+              ],
+            ),
+          ],
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        _SemanticsNoteCard(officialSnap: officialSnap),
+      ],
+    );
+  }
 }
 
-class _ForecastCard extends StatelessWidget {
-  final Forecast forecast;
-  const _ForecastCard({required this.forecast});
+class _DistributionSection extends StatelessWidget {
+  const _DistributionSection({required this.officialSnap});
+
+  final OfficialAnkiSourceAwareStatsSnapshot officialSnap;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(AppStrings.ankiStatsForecast,
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _ForecastValue(
-                      AppStrings.ankiStatsDueToday, forecast.dueToday),
-                  _ForecastValue(
-                      AppStrings.ankiStatsDue7Days, forecast.due7Days),
-                  _ForecastValue(
-                      AppStrings.ankiStatsDue30Days, forecast.due30Days),
-                ],
+  Widget build(BuildContext context) {
+    final newCount = officialSnap.newCount ?? 0;
+    final learningCount = officialSnap.learningCount ?? 0;
+    final reviewCount = officialSnap.reviewCount ?? 0;
+    final total = newCount + learningCount + reviewCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(title: AppStrings.ankiDeckStatsDistribution),
+        if (total == 0)
+          Text(
+            '${AppStrings.reviewNewCard} 0 · '
+            '${AppStrings.ankiDeckStatsLearningLabel} 0 · '
+            '${AppStrings.ankiDeckStatsReviewLabel} 0',
+            style: AppTextStyles.captionSm(context),
+          )
+        else
+          ReportCompositionBar(
+            segments: [
+              ReportSegment(
+                label: AppStrings.reviewNewCard,
+                value: newCount.toDouble(),
+                color: TurnaTheme.brandSky,
+                valueLabel: '$newCount ${AppStrings.ankiDeckStatsCardsUnit}',
+              ),
+              ReportSegment(
+                label: AppStrings.ankiDeckStatsLearningLabel,
+                value: learningCount.toDouble(),
+                color: TurnaTheme.anatolianClay,
+                valueLabel:
+                    '$learningCount ${AppStrings.ankiDeckStatsCardsUnit}',
+              ),
+              ReportSegment(
+                label: AppStrings.ankiDeckStatsReviewLabel,
+                value: reviewCount.toDouble(),
+                color: TurnaTheme.brandTeal,
+                valueLabel: '$reviewCount ${AppStrings.ankiDeckStatsCardsUnit}',
               ),
             ],
           ),
-        ),
-      );
+      ],
+    );
+  }
 }
 
-class _ForecastValue extends StatelessWidget {
-  final String label;
-  final int value;
-  const _ForecastValue(this.label, this.value);
+class _SummaryMetricsSection extends StatelessWidget {
+  const _SummaryMetricsSection({required this.officialSnap});
+
+  final OfficialAnkiSourceAwareStatsSnapshot officialSnap;
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) {
+    final flagsValue = officialSnap.unintroducedCount > 0
+        ? AppStrings.ankiStatsFlagsValue(
+            officialSnap.unintroducedCount,
+            officialSnap.userSuspendedCount,
+            officialSnap.buriedCount ?? 0,
+          )
+        : '${officialSnap.suspendedCount ?? 0} / '
+            '${officialSnap.buriedCount ?? 0}';
+    final todayValue = AppStrings.ankiStatsTodayValue(
+      officialSnap.todayAnswerCount ?? 0,
+      officialSnap.todayLearnCount ?? 0,
+      officialSnap.todayReviewCount ?? 0,
+      officialSnap.todayRelearnCount ?? 0,
+    );
+    final revlogValue = (officialSnap.retentionSample ?? 0) == 0
+        ? AppStrings.ankiStatsRevlogNoSample(officialSnap.revlogCount ?? 0)
+        : AppStrings.ankiStatsRevlogValue(
+            officialSnap.revlogCount ?? 0,
+            ((officialSnap.retention ?? 0) * 100).round(),
+            officialSnap.retentionPassed ?? 0,
+            officialSnap.retentionSample ?? 0,
+          );
+
+    return ReportDefinitionList(
+      rows: [
+        ReportDefinitionRow(
+          label: AppStrings.ankiStatsCardFlags,
+          value: flagsValue,
+        ),
+        ReportDefinitionRow(
+          label: AppStrings.ankiStatsTodayAnswers,
+          value: todayValue,
+        ),
+        ReportDefinitionRow(
+          label: AppStrings.ankiStatsRevlogTitle,
+          value: revlogValue,
+        ),
+      ],
+    );
+  }
+}
+
+class _ForecastSection extends StatelessWidget {
+  const _ForecastSection({required this.officialSnap});
+
+  final OfficialAnkiSourceAwareStatsSnapshot officialSnap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dueToday = officialSnap.forecastDueToday ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReportSectionHeading(title: AppStrings.ankiStatsForecast),
+        ReportDefinitionList(
+          rows: [
+            ReportDefinitionRow(
+              label: AppStrings.ankiStatsDueToday,
+              value: '$dueToday',
+              valueColor: dueToday > 0 ? TurnaTheme.warning : null,
+            ),
+            ReportDefinitionRow(
+              label: AppStrings.ankiStatsDue7Days,
+              value: '${officialSnap.forecastDue7Days ?? 0}',
+            ),
+            ReportDefinitionRow(
+              label: AppStrings.ankiStatsDue30Days,
+              value: '${officialSnap.forecastDue30Days ?? 0}',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SemanticsNoteCard extends StatelessWidget {
+  const _SemanticsNoteCard({required this.officialSnap});
+
+  final OfficialAnkiSourceAwareStatsSnapshot officialSnap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: TurnaTheme.flatPaperDecoration(
+        context,
+        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: TextStyle(
-                  color: TurnaTheme.textHintColor(context), fontSize: 12)),
-          Text('$value',
-              style:
-                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: TurnaTheme.brandTeal,
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.ankiStatsOfficialSemantics,
+                  style: AppTextStyles.cardTitle(context),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  officialSnap.metricsProven
+                      ? AppStrings.ankiStatsSemanticsProven
+                      : AppStrings.ankiStatsSemanticsUnavailable(
+                          officialSnap.note,
+                        ),
+                  style: AppTextStyles.captionSm(context),
+                ),
+              ],
+            ),
+          ),
         ],
-      );
+      ),
+    );
+  }
 }

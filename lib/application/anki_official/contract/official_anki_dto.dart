@@ -140,6 +140,15 @@ class OfficialAnkiImportLog {
     return ids.toList(growable: false);
   }
 
+  /// Note ids owned or shared by this import, explicitly excluding
+  /// [conflictingNoteIds] so conflicting existing notes are never claimed by
+  /// this source's card ownership ledger.
+  Set<int> get importedOrSharedNoteIds => <int>{
+        ...newNoteIds,
+        ...updatedNoteIds,
+        ...duplicateNoteIds,
+      };
+
   factory OfficialAnkiImportLog.fromJson(Map<String, Object?> json) {
     List<int> ids(String snake, String camel) {
       final raw = json[snake] ?? json[camel];

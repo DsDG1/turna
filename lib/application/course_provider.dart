@@ -25,14 +25,14 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
-import 'package:turna/data/course_database.dart' show CourseDatabase;
-import 'package:turna/data/course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 import 'package:turna/service/locator.dart';
 
 /// Explicit state for per-section body loading.
@@ -60,9 +60,9 @@ class CourseScopeSwitchException implements Exception {
 /// cannot shift the user's view onto a different node.
 ///
 /// The active course is identified by a typed [CourseScope] (ADR 0043):
-/// the built-in language course, one Legacy Anki import, or one Official
-/// Anki source. String scope matching lives only in [CourseScopeCodec] and
-/// the one-time preference migrator — business code compares typed scopes.
+/// the built-in language course or one Official Anki source. String scope
+/// matching lives only in [CourseScopeCodec] and the one-time preference
+/// migrator — business code compares typed scopes.
 ///
 /// Sections are loaded lazily: [load] populates [_sections] with lightweight
 /// shells (units empty) from the course index and pre-loads the first
@@ -217,9 +217,7 @@ class CourseProvider extends ChangeNotifier {
   /// Pin a deck directly after the builtin course in the persisted order.
   Future<void> pinAnkiDeck(String importId) async {
     final pinnedWire = _catalogEntries
-        .where((entry) =>
-            entry.legacyImportId == importId ||
-            entry.officialSourceId == importId)
+        .where((entry) => entry.officialSourceId == importId)
         .map((entry) => entry.wireKey)
         .firstOrNull;
     if (pinnedWire == null) return;
@@ -385,16 +383,29 @@ class CourseProvider extends ChangeNotifier {
     }
   }
 
+  ICourseRepository? _repositoryOrNull() {
+    try {
+      return CourseLoader.repositoryOrNull();
+    } catch (_) {
+      // Optional dependency guard: DB/repository may be absent in widget tests.
+      return null;
+    }
+  }
+
+  IOfficialAnkiV2ViewStore? _v2ViewStoreOrNull() {
+    try {
+      return CourseLoader.v2ViewStoreOrNull();
+    } catch (_) {
+      // Optional dependency guard: DB/view store may be absent in widget tests.
+      return null;
+    }
+  }
+
   OfficialAnkiV2CourseRead? _v2Read() {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    CourseDatabase? course;
-    try {
-      course = CourseLoader.databaseOrNull();
-    } catch (_) {
-      course = null;
-    }
-    if (catalog == null || course == null) return null;
-    return OfficialAnkiV2CourseRead(catalog: catalog, course: course);
+    final viewStore = _v2ViewStoreOrNull();
+    if (catalog == null || viewStore == null) return null;
+    return OfficialAnkiV2CourseRead(catalog: catalog, viewStore: viewStore);
   }
 
   /// Load the course shells from the index and pre-load the first
@@ -643,6 +654,34 @@ class CourseProvider extends ChangeNotifier {
     return run;
   }
 
+  /// Returns the currently seeded content version when it has not been
+  /// acknowledged yet, or `null` if unseeded or already acknowledged.
+  Future<String?> pendingContentUpdateVersion() async {
+    final prefs = _appPrefs;
+    final repo = _repositoryOrNull();
+    if (prefs == null || repo == null) return null;
+    final storedVersion = await repo.contentVersion();
+    if (storedVersion == null) return null;
+    final acknowledged = prefs.preferences
+        .getString(LocalStateKeys.contentVersionAcknowledged, defaultValue: '')
+        .getValue();
+    return storedVersion == acknowledged ? null : storedVersion;
+  }
+
+  /// Persists [version] as the acknowledged course content version.
+  Future<void> acknowledgeSpecificContentVersion(String version) async {
+    final prefs = _appPrefs;
+    if (prefs == null) return;
+    try {
+      await prefs.setString(
+        LocalStateKeys.contentVersionAcknowledged,
+        version,
+      );
+    } catch (error) {
+      logger.w('Failed to acknowledge content version $version', error: error);
+    }
+  }
+
   /// Marks the currently seeded content version as acknowledged.
   ///
   /// Used after a settings-driven restore to bundled content: the version
@@ -653,9 +692,9 @@ class CourseProvider extends ChangeNotifier {
   Future<void> acknowledgeContentVersion() async {
     final prefs = _appPrefs;
     if (prefs == null) return;
-    final db = CourseLoader.databaseOrNull();
-    if (db == null) return;
-    final stored = await CourseRepository(db).contentVersion();
+    final repo = _repositoryOrNull();
+    if (repo == null) return;
+    final stored = await repo.contentVersion();
     if (stored == null) return;
     try {
       await prefs.setString(LocalStateKeys.contentVersionAcknowledged, stored);
@@ -887,8 +926,6 @@ class CourseProvider extends ChangeNotifier {
     return switch (scope) {
       BuiltinCourseScope() => _catalogEntries.any((e) => e.scope == scope) ||
           _catalogEntries.any((e) => e.isBuiltin),
-      LegacyAnkiCourseScope(importId: final id) =>
-        _catalogEntries.any((e) => e.legacyImportId == id),
       OfficialAnkiCourseScope(sourceId: final id) =>
         _catalogEntries.any((e) => e.officialSourceId == id),
     };
@@ -900,8 +937,6 @@ class CourseProvider extends ChangeNotifier {
         _isAnyAnkiSection(s) == false &&
             CourseCatalog.builtinLanguageOf(s.id, _sectionLanguageCodes) ==
                 LanguageCodes.canonicalize(code),
-      LegacyAnkiCourseScope(importId: final id) =>
-        CourseCatalog.legacyImportIdFromSectionId(s.id) == id,
       OfficialAnkiCourseScope(sourceId: final id) =>
         CourseCatalog.officialSourceIdFromSectionId(s.id) == id,
     };
@@ -922,14 +957,8 @@ class CourseProvider extends ChangeNotifier {
   /// Marker codes + content counts for [CourseCatalog.load]; empty when the
   /// DB is not reachable (tests without a DB).
   Future<(Set<String>, Map<String, int>)> _uninstalledAndCardCounts() async {
-    CourseDatabase? db;
-    try {
-      db = CourseLoader.databaseOrNull();
-    } catch (_) {
-      db = null;
-    }
-    if (db == null) return (const <String>{}, const <String, int>{});
-    final repo = CourseRepository(db);
+    final repo = _repositoryOrNull();
+    if (repo == null) return (const <String>{}, const <String, int>{});
     return (
       await repo.uninstalledLanguageCodes(),
       await repo.builtinCardCounts(),
@@ -937,9 +966,13 @@ class CourseProvider extends ChangeNotifier {
   }
 
   Future<void> _reloadCatalog({List<Section>? shells}) async {
+    final repo = _repositoryOrNull();
+    final viewStore = _v2ViewStoreOrNull();
     final (uninstalled, cardCounts) = await _uninstalledAndCardCounts();
     final entries = await CourseCatalog.load(
       shells: shells ?? _allSections,
+      courseRepository: repo,
+      v2ViewStore: viewStore,
       uninstalledLanguageCodes: uninstalled,
       builtinCardCounts: cardCounts,
     );
@@ -964,8 +997,6 @@ class CourseProvider extends ChangeNotifier {
       switch (entry.scope) {
         case BuiltinCourseScope():
           wireForStored.putIfAbsent('', () => wire);
-        case LegacyAnkiCourseScope(importId: final id):
-          wireForStored['anki:$id'] = wire;
         case OfficialAnkiCourseScope(sourceId: final id):
           wireForStored['anki:$id'] = wire;
       }
@@ -1002,10 +1033,10 @@ class CourseProvider extends ChangeNotifier {
       // tab permanently empty, so fall back to an installed builtin course.
       if (decoded is BuiltinCourseScope) {
         try {
-          final db = CourseLoader.databaseOrNull();
-          final uninstalled = db == null
+          final repo = _repositoryOrNull();
+          final uninstalled = repo == null
               ? const <String>{}
-              : await CourseRepository(db).uninstalledLanguageCodes();
+              : await repo.uninstalledLanguageCodes();
           if (uninstalled
               .contains(LanguageCodes.canonicalize(decoded.languageCode))) {
             logger

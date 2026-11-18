@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/settings/widgets/primitives/settings_section.dart';
+import 'package:turna/views/settings/components/primitives/settings_section.dart';
 
 /// Pixel census of a painted switch: how many pixels are the white thumb and
 /// how many are the brand-teal track.

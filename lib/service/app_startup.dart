@@ -4,6 +4,9 @@ import 'dart:async';
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 
+// Package imports:
+import 'package:firebase_core/firebase_core.dart';
+
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
@@ -21,11 +24,9 @@ import 'package:turna/core/ohos_target.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/course_scope.dart';
+import 'package:turna/firebase_options.dart';
 import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
@@ -70,6 +71,23 @@ Future<void> continueTurnaStartup({bool retrySeed = false}) async {
       getIt<CourseProvider>().clearBootFailure();
     }
     turnaStartupProgress.update(TurnaStartupPhase.ready);
+    // Firebase is registered for Android (turna-d0d5e) only and deferred past
+    // the first frame so splash painting never blocks on native Firebase init.
+    if (!isHarmonyOsTarget &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } catch (e, st) {
+        logger.w(
+          'Firebase initialization failed; continuing startup',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
   } catch (e, st) {
     logger.e(
       'Startup continuation failed; splash stays until retry',
@@ -143,22 +161,6 @@ Future<void> _hydrateAfterSeed() async {
       await const OfficialAnkiStartupRecovery().run();
     } catch (e) {
       logger.d('[OfficialAnki] startup recovery skipped: $e');
-    }
-  }());
-
-  unawaited(() async {
-    try {
-      final importDao = AnkiImportDao(getIt<CourseDatabase>());
-      final swept = await AnkiAudioResolver().sweepOrphanMedia(
-        (importId) async => await importDao.getById(importId) != null,
-        sourceHashForImport: (importId) async =>
-            (await importDao.getById(importId))?.sourceHash,
-      );
-      if (swept > 0) {
-        logger.d('[AnkiMedia] swept $swept orphan media dir(s)');
-      }
-    } catch (e) {
-      logger.d('[AnkiMedia] orphan sweep skipped: $e');
     }
   }());
 

@@ -672,7 +672,10 @@ class LessonViewModel extends ChangeNotifier {
       }
     } else {
       _correctAnswers++;
-      _audioController.playRandomLevelUpSound();
+      if (userAnswerText != 'read-aloud-skipped' &&
+          userAnswerText != 'read-aloud-degraded') {
+        _audioController.playRandomLevelUpSound();
+      }
     }
 
     // Count this item as completed exactly once per pass — guard against a

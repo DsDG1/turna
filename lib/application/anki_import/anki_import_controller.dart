@@ -206,7 +206,6 @@ class AnkiImportController extends ChangeNotifier {
         path: path,
         plan: plan,
         officialFirst: _deps.officialFirst,
-        course: _deps.courseDatabase,
         includeMedia: includeMedia,
         digest: digest,
         onArrangingPreview: _progress.showArranging,
@@ -351,7 +350,8 @@ class AnkiImportController extends ChangeNotifier {
     final current = _state;
     if (current is! AnkiImportAlreadyImported) return;
     if (getIt.isRegistered<AnkiDeckManager>()) {
-      await getIt<AnkiDeckManager>().uninstall(current.sourceId);
+      await getIt<AnkiDeckManager>()
+          .uninstall(current.sourceId, awaitEnginePass: true);
     }
     _replacingExisting = true;
     await proceedWithPath(current.filePath);
@@ -374,7 +374,6 @@ class AnkiImportController extends ChangeNotifier {
       final preview = await _deps.officialFirst.resumePreview(
         sourceId: item.sourceId,
         plan: plan,
-        course: _deps.courseDatabase,
       );
       if (_stale(op)) return;
       if (preview == null) {
@@ -464,7 +463,8 @@ class AnkiImportController extends ChangeNotifier {
         case OfficialAnkiImportPreviewModel():
           final result = await commitOfficialPreview(
             preview,
-            course: _deps.courseDatabase,
+            v2ViewStore: _deps.v2ViewStore,
+            unificationStore: _deps.unificationStore,
             onProgress: _progress.onCommit,
             pendingAdaptations: adaptationDrafts.plans,
           );

@@ -39,7 +39,7 @@
 
 | 页面 | 路由 · 文件 | 入口 | 平台与守卫 | 处置 |
 |---|---|---|---|---|
-| NewLessonPage | `NewLessonRoute` · `views/lesson/new_lesson_screen.dart` | 课程树课时/子课瓦片 | AI 提示按钮鸿蒙隐藏 | 生产 |
+| NewLessonPage | `NewLessonRoute` · `views/lesson/new_lesson_page.dart` | 课程树课时/子课瓦片 | AI 提示按钮鸿蒙隐藏 | 生产 |
 
 ### R05 题型 renderer（17 个，随课时渲染）
 
@@ -75,9 +75,9 @@
 
 | 页面 | 路由 · 文件 | 入口 | 平台与守卫 | 处置 |
 |---|---|---|---|---|
-| PlayHubScreen | Tab 1 内嵌 · `views/play/play_hub_screen.dart` | 底部导航 | 智能练习 tile 鸿蒙不渲染；Anki 课裁剪单词/语法/词典/弱词入口 | 生产 |
+| PlayHubPage | Tab 1 内嵌 · `views/play/play_hub_page.dart` | 底部导航 | 智能练习 tile 鸿蒙不渲染；Anki 课裁剪单词/语法/词典/弱词入口 | 生产 |
 | PlayAppBar | 组件 · `views/play/play_app_bar.dart` | Tab 1 激活时 | — | 组件 |
-| DailyChallengePage | `DailyChallengeRoute` · `views/play/daily_challenge_screen.dart` | 练习台「练习工具」格（A2 恢复入口；Anki 牌组课不渲染） | — | 生产 |
+| DailyChallengePage | `DailyChallengeRoute` · `views/play/daily_challenge_page.dart` | 练习台「练习工具」格（A2 恢复入口；Anki 牌组课不渲染） | — | 生产 |
 | WeakWordsPage | `WeakWordsRoute` · `views/play/weak_words_page.dart` | Play Hub 工具行 | Anki 课时入口隐藏 | 生产 |
 
 ### R08 复习会话
@@ -85,10 +85,10 @@
 | 页面 | 路由 · 文件 | 入口 | 平台与守卫 | 处置 |
 |---|---|---|---|---|
 | UnifiedReviewPage | `UnifiedReviewRoute`（路由无 push）· `views/review/unified_review_page.dart` | SrsReviewPage 以 widget 嵌入（活路径） | AI 讲解按钮鸿蒙隐藏 | 条件生产（组件路径） |
-| SrsReviewPage | `SrsReviewRoute` · `views/review/srs_review_screen.dart` | Play Hub 队列格/Hero、复习进度、资料页快捷 | CourseReadyGuard | 生产 |
-| GrammarReviewPage | `GrammarReviewRoute` · `views/review/grammar_review_screen.dart` | Play Hub、资料页、错题列表 | — | 生产 |
+| SrsReviewPage | `SrsReviewRoute` · `views/review/srs_review_page.dart` | Play Hub 队列格/Hero、复习进度、资料页快捷 | CourseReadyGuard | 生产 |
+| GrammarReviewPage | `GrammarReviewRoute` · `views/review/grammar_review_page.dart` | Play Hub、资料页、错题列表 | — | 生产 |
 | MistakeReviewPage | `MistakeReviewRoute` · `views/review/mistake_review_page.dart` | Play Hub 队列格+Hero、资料页 | CourseReadyGuard | 生产 |
-| AnkiReviewPage（复习中枢） | `AnkiReviewRoute` · `views/anki/anki_review_screen.dart` | 复习来源详情「开始复习」 | CourseReadyGuard；legacy 源 due 恒 0 | 生产 |
+| AnkiReviewPage（复习中枢） | `AnkiReviewRoute` · `views/anki/anki_review_page.dart` | 复习来源详情「开始复习」 | CourseReadyGuard；legacy 源 due 恒 0 | 生产 |
 | AnkiReviewSessionPage（正式会话宿主） | `AnkiReviewSessionRoute`（统一经 `FormalReviewLauncher`）· `views/anki/anki_review_session_page.dart` | 复习中枢 / 浏览器 / Play Hub / 资料页 | **鸿蒙无 AppBar/进度头/工具栏/评分栏（原生 ability 盖面）** | 生产 |
 
 ### R09 错题
@@ -97,7 +97,7 @@
 |---|---|---|---|
 | MistakeListPage | `MistakeListRoute` · `views/review/mistake_list_page.dart` | MistakeReview 顶栏列表图标 | 生产 |
 | MistakeDashboardPage | `MistakeDashboardRoute` · `views/review/mistake_dashboard_page.dart` | MistakeList 顶栏洞察图标 | 生产 |
-| MistakePracticePage | `MistakePracticeRoute` · `views/review/mistake_practice_screen.dart` | MistakeList 卡片「练习」 | 生产 |
+| MistakePracticePage | `MistakePracticeRoute` · `views/review/mistake_practice_page.dart` | MistakeList 卡片「练习」 | 生产 |
 
 ### R10 进度与洞察
 
@@ -117,7 +117,7 @@
 
 | 页面 / 步骤体 | 路由 · 文件 | 入口 | 平台与守卫 | 处置 |
 |---|---|---|---|---|
-| AnkiImportPage（向导壳） | `AnkiImportRoute` · `views/anki/anki_import_screen.dart` | 复习中枢上传按钮 / 课程管理添加卡 | — | 生产 |
+| AnkiImportPage（向导壳） | `AnkiImportRoute` · `views/anki/anki_import_page.dart` | 复习中枢上传按钮 / 课程管理添加卡 | — | 生产 |
 | 预览步骤体 ModernAnkiImportPreview 及配套 | `views/anki/import_wizard/`（目录树、预设选择、notetype 行、样本 sheet、正面选择 sheet、中断横幅） | 向导 Previewing 步 | SmartAdaptation 区鸿蒙不渲染 | 生产（步骤体） |
 | AnkiImportDoneStep | `views/anki/import_wizard/anki_import_done_step.dart` | 向导 Completed 步 | — | 生产（步骤体） |
 
@@ -154,7 +154,7 @@
 
 | 页面 | 路由 · 文件 | 入口 | 处置 |
 |---|---|---|---|
-| ProfilePage | Tab 2 内嵌 · `views/profile/profile_screen.dart` | 底部导航 | 生产 |
+| ProfilePage | Tab 2 内嵌 · `views/profile/profile_page.dart` | 底部导航 | 生产 |
 | AchievementsPage | `AchievementsRoute` · `views/profile/achievements_page.dart` | 资料页入口行 | 生产 |
 | AvatarRingsPage（装饰商店） | `AvatarRingsRoute` · `views/settings/avatar_rings_page.dart`（位于 settings 目录、个人域内容） | 设置-账户分类 | 生产 |
 
@@ -200,7 +200,7 @@
 | showMcqPreviewSheet / showQuickFrontPicker | `views/anki/import_wizard/mcq_preview_sheet.dart`、`quick_front_picker_sheet.dart` | 导入预览 | R12 |
 | showAdaptationRestoreSheet | `views/anki_official/components/adaptation_restore_sheet.dart` | 课程管理官方源条目 | R12 |
 | _DictionaryAiSheet | `views/dictionary/dictionary_page.dart` 内嵌 | 词条 AI 按钮（鸿蒙隐藏） | R11 |
-| showAvatarPickerSheet / _EditNameSheet | `views/profile/widgets/avatar_picker_sheet.dart`、`account_app_bar.dart` | 资料 hero 头像 / 编辑 | R15 |
+| showAvatarPickerSheet / _EditNameSheet | `views/profile/components/avatar_picker_sheet.dart`、`account_app_bar.dart` | 资料 hero 头像 / 编辑 | R15 |
 | _ShareProgressSheet | `views/home/components/profile_app_bar.dart` | 资料 hero 分享 | R15 |
 | showAchievementDetailSheet | `views/profile/achievements/achievement_detail_sheet.dart` | 成就徽章 / 推荐卡 | R15 |
 | _CourseTtsSettingsSheet | `views/courses/course_management_page.dart` 内嵌 | 课程卡溢出菜单 | R03 |
@@ -213,12 +213,12 @@
 | TTS 可用性引导 | `views/splash/splash_page.dart` 的 `maybePromptTtsAvailability` | 会话首次（鸿蒙走只读变体） | R01 |
 | StreakBrokenDialog | `views/home/streak_broken_dialog.dart` | 断签且未被 TTS 弹层占用预算 | R01 |
 | 内容更新 banner + 重置确认（内嵌 AlertDialog） | `views/home/home_page.dart` | 课程内容版本变化且有进度 | R01 |
-| 课时退出确认 / 完成三弹层 | `views/lesson/new_lesson_screen.dart`、`components/lesson_dialogs.dart` | 课时流程 | R04 / R06 |
+| 课时退出确认 / 完成三弹层 | `views/lesson/new_lesson_page.dart`、`components/lesson_dialogs.dart` | 课时流程 | R04 / R06 |
 | 统一复习退出确认 | `views/review/unified_review_page.dart` | 会话中退出 | R08 |
-| 导入三阶段进度 / 替换确认 / 错误对话框 | `views/courses/course_management_page.dart`、`views/anki/anki_import_screen.dart` | pack 导入 / Anki 导入 | R03 / R12 |
-| 卸载确认 / 每日上限 / 中断导入丢弃确认 | `views/anki/anki_review_screen.dart`、`import_wizard/official_pending_import_banner.dart` | 牌组管理 | R12 / R13 |
+| 导入三阶段进度 / 替换确认 / 错误对话框 | `views/courses/course_management_page.dart`、`views/anki/anki_import_page.dart` | pack 导入 / Anki 导入 | R03 / R12 |
+| 卸载确认 / 每日上限 / 中断导入丢弃确认 | `views/anki/anki_review_page.dart`、`import_wizard/official_pending_import_banner.dart` | 牌组管理 | R12 / R13 |
 | AI 确认族（删除练习 / 恢复默认 / 清除凭据 / 恢复默认连接） | `views/ai/` 各页 | 危险操作 | R14 |
-| 设置确认族 SettingsConfirmDialog / InfoDialog / FormDialog | `views/settings/widgets/feedback/settings_feedback.dart` | 危险操作与表单 | R16 / R17 |
+| 设置确认族 SettingsConfirmDialog / InfoDialog / FormDialog | `views/settings/components/feedback/settings_feedback.dart` | 危险操作与表单 | R16 / R17 |
 | 课程更新 URL 对话框（六阶段状态） | `views/settings/components/settings_course_update_tile.dart` | 手动 OTA | R17 |
 | PlayInfoPopup（Overlay 长按浮窗） | `views/play/components/info_popup.dart` | Play Hub 各卡长按 | R07 |
 | TurnaSnackBar | `views/widgets/turna_snack_bar.dart` | 全局一次性反馈 | 全部 |

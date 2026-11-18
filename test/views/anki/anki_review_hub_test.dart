@@ -7,7 +7,7 @@ import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/anki/anki_review_screen.dart';
+import 'package:turna/views/anki/anki_review_page.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 

@@ -155,9 +155,9 @@ void main() {
     test('production entries call FormalReviewLauncher.open and shared session',
         () {
       const paths = {
-        'lib/views/play/play_hub_screen.dart',
-        'lib/views/profile/widgets/profile_quick_actions.dart',
-        'lib/views/anki/anki_review_screen.dart',
+        'lib/views/play/play_hub_page.dart',
+        'lib/views/profile/components/profile_quick_actions.dart',
+        'lib/views/anki/anki_review_page.dart',
         'lib/views/anki/anki_card_browser_page.dart',
       };
       for (final path in paths) {
@@ -167,7 +167,7 @@ void main() {
         expect(text.contains('OfficialAnkiReviewPage'), isFalse, reason: path);
         expect(
           text.contains('AnkiReviewRoute()') &&
-              path.contains('play_hub_screen'),
+              path.contains('play_hub_page'),
           isFalse,
           reason: 'Play Hub must not stay on the deck-list route',
         );
@@ -185,9 +185,9 @@ void main() {
 
     test('production review UI does not pass raw quality or reclassify', () {
       const paths = [
-        'lib/views/play/play_hub_screen.dart',
-        'lib/views/profile/widgets/profile_quick_actions.dart',
-        'lib/views/anki/anki_review_screen.dart',
+        'lib/views/play/play_hub_page.dart',
+        'lib/views/profile/components/profile_quick_actions.dart',
+        'lib/views/anki/anki_review_page.dart',
         'lib/views/anki/anki_review_session_page.dart',
         'lib/views/anki/anki_card_browser_page.dart',
         // Doc 39 P1-A: the orphan page/surface live on only as fixtures.

@@ -47,7 +47,7 @@ class OfficialAnkiV2UnownedCardReclaimer {
       return 0;
     }
     try {
-      await resolved.openProfile(paths);
+      await ensureOfficialProfileOpen(resolved, paths);
     } catch (error) {
       officialAnkiV2Log('unowned purge open: $error', warning: true);
       return 0;

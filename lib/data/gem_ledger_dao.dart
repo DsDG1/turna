@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/sql_like.dart';
 import 'package:turna/domain/game/gem_consumable.dart';
 import 'package:turna/domain/repositories/i_gem_ledger.dart';
 
@@ -67,13 +68,15 @@ class GemLedgerDao implements IGemLedger {
   /// auditable projection; the UI wallet ([GemsProvider]) mirrors it.
   @override
   Future<int> projectedBalance() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
-          "WHERE status = 'committed' AND NOT "
-          "(item_id = '$streakVoucherItemId' AND reason LIKE 'voucher:%')",
-        )
-        .get();
+    final rows = await _db.customSelect(
+      'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
+      "WHERE status = 'committed' AND NOT "
+      "(item_id = ? AND ${sqlLikeEscapedClause('reason')})",
+      variables: [
+        Variable.withString(streakVoucherItemId),
+        prefixLikeVariable('voucher:'),
+      ],
+    ).get();
     return rows.first.read<int>('total');
   }
 
@@ -100,9 +103,12 @@ class GemLedgerDao implements IGemLedger {
   Future<int> streakVoucherBalance() async {
     final rows = await _db.customSelect(
       'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
-      'WHERE status = \'committed\' AND item_id = ? '
-      "AND reason LIKE 'voucher:%'",
-      variables: [Variable.withString(streakVoucherItemId)],
+      "WHERE status = 'committed' AND item_id = ? "
+      'AND ${sqlLikeEscapedClause('reason')}',
+      variables: [
+        Variable.withString(streakVoucherItemId),
+        prefixLikeVariable('voucher:'),
+      ],
     ).get();
     return rows.single.read<int>('total');
   }

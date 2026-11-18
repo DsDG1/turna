@@ -60,8 +60,13 @@ class MistakeProvider extends ChangeNotifier {
   List<MistakeEntry>? _cachedView;
   Map<String, int>? _dailyCountsCache;
   int? _masteredTotalCache;
+  Object? _loadErrorObject;
+  String? _loadError;
 
   String get languageCode => _languageCode;
+  bool get hasLoadError => _loadError != null;
+  String? get loadError => _loadError;
+  Object? get loadErrorObject => _loadErrorObject;
 
   IMistakeRepository? get _repo {
     if (_repository != null) return _repository;
@@ -78,28 +83,49 @@ class MistakeProvider extends ChangeNotifier {
     if (next == _languageCode && _loaded) return;
     _languageCode = next;
     _loaded = false;
+    _loadError = null;
+    _loadErrorObject = null;
     _cached = null;
     _cachedView = null;
     _dailyCountsCache = null;
     _masteredTotalCache = null;
     await ensureLoaded();
-    notifyListeners();
+    if (!hasLoadError) {
+      notifyListeners();
+    }
   }
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
-    await _migratePrefsIfNeeded();
-    final repo = _repo;
-    if (repo != null) {
-      _cached = await repo.load(_languageCode);
-      _dailyCountsCache = await repo.loadDailyCounts(_languageCode);
-      _masteredTotalCache = await repo.loadMasteredTotal(_languageCode);
-      _cachedView = List.unmodifiable(_cached!);
+    final hadError = _loadError != null;
+    try {
+      await _migratePrefsIfNeeded();
+      final repo = _repo;
+      if (repo != null) {
+        _cached = await repo.load(_languageCode);
+        _dailyCountsCache = await repo.loadDailyCounts(_languageCode);
+        _masteredTotalCache = await repo.loadMasteredTotal(_languageCode);
+        _cachedView = List.unmodifiable(_cached!);
+      } else {
+        _readPrefsIntoCache();
+      }
+      _loadError = null;
+      _loadErrorObject = null;
       _loaded = true;
-      return;
+      if (hadError) {
+        notifyListeners();
+      }
+    } catch (error, stackTrace) {
+      _loadErrorObject = error;
+      _loadError = error.toString();
+      _loaded = false;
+      logger.w(
+        'MistakeProvider: failed to load mistakes for $_languageCode',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      notifyListeners();
     }
-    _readPrefsIntoCache();
-    _loaded = true;
   }
 
   void _readPrefsIntoCache() {
@@ -111,7 +137,12 @@ class MistakeProvider extends ChangeNotifier {
       _cached = decoded
           .map((e) => MistakeEntry.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      logger.w(
+        'MistakeProvider: corrupted mistakeLog prefs; degrading to empty',
+        error: e,
+        stackTrace: st,
+      );
       _cached = <MistakeEntry>[];
     }
     _cachedView = List.unmodifiable(_cached!);
@@ -143,7 +174,12 @@ class MistakeProvider extends ChangeNotifier {
         for (final e in decoded.entries)
           if (e.value is num) e.key: (e.value as num).toInt(),
       };
-    } catch (_) {
+    } catch (e, st) {
+      logger.w(
+        'MistakeProvider: corrupted mistakeDailyCounts prefs; degrading to empty',
+        error: e,
+        stackTrace: st,
+      );
       _dailyCountsCache = <String, int>{};
     }
     return _dailyCountsCache!;
@@ -353,13 +389,20 @@ class MistakeProvider extends ChangeNotifier {
   /// so [entries] is not an empty flash while repo mode is unloading.
   Future<void> reloadFromPrefs() async {
     _loaded = false;
+    _loadError = null;
+    _loadErrorObject = null;
     _cached = null;
     _cachedView = null;
     _dailyCountsCache = null;
     _masteredTotalCache = null;
     await ensureLoaded();
-    notifyListeners();
+    if (!hasLoadError) {
+      notifyListeners();
+    }
   }
+
+  /// Retry loading mistakes after a failure.
+  Future<void> retry() => reloadFromPrefs();
 
   /// Returns the stored interaction snapshot for [entry], or `null` if the
   /// mistake was recorded before snapshots were saved.

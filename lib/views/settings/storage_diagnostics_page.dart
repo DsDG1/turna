@@ -24,7 +24,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/platform_page_route.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/storage_category_items_page.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/core/theme.dart';

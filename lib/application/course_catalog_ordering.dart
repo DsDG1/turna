@@ -41,7 +41,7 @@ abstract final class CourseCatalogOrdering {
   }) {
     final wireForId = <String, String>{};
     for (final entry in entries) {
-      final id = entry.legacyImportId ?? entry.officialSourceId;
+      final id = entry.officialSourceId;
       if (id != null) wireForId[id] = entry.wireKey;
     }
     final reorderedWires = <String>{

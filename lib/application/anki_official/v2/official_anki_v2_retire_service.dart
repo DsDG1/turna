@@ -6,10 +6,11 @@ import 'package:turna/application/anki_official/lifecycle/official_anki_maintena
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
-import 'package:turna/data/course_database.dart';
-import 'package:turna/di/injection.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// B5：v2 删除轴 retiring 序列（D6/K6，Step 1 发现 #3 的结构性答复）。
 ///
@@ -26,22 +27,28 @@ class OfficialAnkiV2RetireService {
   OfficialAnkiV2RetireService({
     required this.catalog,
     required this.paths,
-    CourseDatabase? course,
+    IOfficialAnkiV2ViewStore? viewStore,
     this.engine,
     this.nowMillis,
     this.deleteChunk = defaultDeleteChunk,
-  }) : course = course ??
-            (getIt.isRegistered<CourseDatabase>()
-                ? getIt<CourseDatabase>()
-                : null);
+  }) : viewStore = viewStore ?? _defaultViewStoreOrNull();
+
+  static IOfficialAnkiV2ViewStore? _defaultViewStoreOrNull() {
+    try {
+      return CourseLoader.v2ViewStoreOrNull();
+    } catch (_) {
+      // GetIt 可选依赖守卫：未装配时按无视图处理。
+      return null;
+    }
+  }
 
   final OfficialAnkiDatabase catalog;
   final OfficialAnkiPaths paths;
 
-  /// 可空：维护 runner 侧 course 可能缺席（极端装配态）。缺席时「即刻
+  /// 可空：维护 runner 侧视图仓储可能缺席（极端装配态）。缺席时「即刻
   /// 不可见」退化为账本 state 过滤（读面按 active 供数据），视图行留到
-  /// 下次有 course 的重建清掉。
-  final CourseDatabase? course;
+  /// 下次有视图仓储的重建清掉。
+  final IOfficialAnkiV2ViewStore? viewStore;
   final OfficialAnkiEngine? engine;
   final int Function()? nowMillis;
 
@@ -89,13 +96,10 @@ class OfficialAnkiV2RetireService {
       rethrow;
     }
     // 即刻不可见：视图定向删行（不等 job、不需引擎）。
-    final courseDb = course;
-    if (courseDb != null) {
+    final resolvedViewStore = viewStore;
+    if (resolvedViewStore != null) {
       try {
-        await courseDb.customStatement(
-          'DELETE FROM anki_course_tree_view WHERE source_id = ?',
-          [sourceId],
-        );
+        await resolvedViewStore.deleteBySource(sourceId);
       } catch (error) {
         officialAnkiV2Log(
           'retire view row delete deferred: $sourceId ($error)',
@@ -122,11 +126,14 @@ class OfficialAnkiV2RetireService {
       await beginRetire(sourceId: sourceId);
     }
 
-    // ② 引擎删除：按所有权清单分批；缺卡无害（removeCards 计数语义）。
+    // ② 引擎删除：按所有权清单分批；缺卡无害（removeCards 计数语义），
+    // 并跳过仍由兄弟活跃来源持有的共享卡（retainingSharedCardIds）。
     final resolved = engine;
     if (resolved != null) {
+      final retained = sources.retainingSharedCardIds(sourceId);
       var removed = 0;
       var owned = 0;
+      var skippedShared = 0;
       var offset = 0;
       while (true) {
         final chunk = sources.listCardIdsPage(
@@ -136,13 +143,20 @@ class OfficialAnkiV2RetireService {
         );
         if (chunk.isEmpty) break;
         owned += chunk.length;
-        removed += await resolved.deleteCards(chunk);
         offset += chunk.length;
+        final toDelete = [
+          for (final id in chunk)
+            if (!retained.contains(id)) id,
+        ];
+        skippedShared += chunk.length - toDelete.length;
+        if (toDelete.isNotEmpty) {
+          removed += await resolved.deleteCards(toDelete);
+        }
         await Future<void>.delayed(Duration.zero);
       }
       officialAnkiV2Log(
         'retire engine delete: $sourceId '
-        '($owned owned, $removed removed)',
+        '($owned owned, $removed removed, $skippedShared shared retained)',
       );
     } else {
       // 引擎不可达：job 留在表里等下次心跳重跑；source 停 retiring、
@@ -154,13 +168,29 @@ class OfficialAnkiV2RetireService {
       return false;
     }
 
-    // ③ 终删账本（v2 五表纪律）+ 清理配置区映射决策 + 视图重建。
+    // ③ 终删账本（v2 五表纪律）+ 清理配置区映射决策/适配命名空间 + 视图重建。
     sources.deleteSourceV2(sourceId: sourceId);
     try {
       await OfficialAnkiV2DecisionStore(resolved).deleteImportMapping(sourceId);
     } catch (suppressed) {
       // 配置区清理 best-effort：键残留不影响正确性（source 已无账本行）。
       officialAnkiV2Log('retire mapping cleanup: $suppressed', warning: true);
+    }
+    try {
+      final cleaned = await OfficialAnkiAdaptationStore(resolved)
+          .deleteSourceNamespace(sourceId);
+      if (!cleaned) {
+        officialAnkiV2Log(
+          'retire adaptation namespace cleanup incomplete: $sourceId',
+          warning: true,
+        );
+      }
+    } catch (suppressed) {
+      // 配置区清理 best-effort：键残留不影响正确性（source 已无账本行）。
+      officialAnkiV2Log(
+        'retire adaptation namespace cleanup: $suppressed',
+        warning: true,
+      );
     }
     await _makeSourceInvisible(sourceId);
 
@@ -191,20 +221,17 @@ class OfficialAnkiV2RetireService {
   /// 行，保底「即刻移除」。
   Future<void> _makeSourceInvisible(String sourceId) async {
     final resolved = engine;
-    final courseDb = course;
-    if (resolved == null || courseDb == null) {
-      if (courseDb != null) {
-        await courseDb.customStatement(
-          'DELETE FROM anki_course_tree_view WHERE source_id = ?',
-          [sourceId],
-        );
+    final resolvedViewStore = viewStore;
+    if (resolved == null || resolvedViewStore == null) {
+      if (resolvedViewStore != null) {
+        await resolvedViewStore.deleteBySource(sourceId);
       }
       return;
     }
     await OfficialAnkiV2ViewRebuilder(
       engine: resolved,
       catalog: catalog,
-      course: courseDb,
+      viewStore: resolvedViewStore,
       profileId: paths.profileId,
       nowMillis: nowMillis,
     ).rebuild();

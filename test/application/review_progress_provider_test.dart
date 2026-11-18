@@ -5,7 +5,6 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
@@ -20,7 +19,6 @@ void main() {
   late SrsProvider srs;
   late GrammarReviewProvider grammar;
   late ReviewHistoryDao reviewDao;
-  late AnkiImportDao ankiDao;
   late ReviewProgressProvider progress;
 
   setUp(() async {
@@ -30,10 +28,9 @@ void main() {
     final link = LessonLinkStore(prefs);
     final srsDao = emptySrsStateDao();
     reviewDao = emptyReviewHistoryDao();
-    ankiDao = AnkiImportDao(emptyInMemoryCourseDatabase());
     srs = SrsProvider(prefs, link, srsDao);
     grammar = GrammarReviewProvider(prefs, link, emptySrsStateDao());
-    progress = ReviewProgressProvider(reviewDao, srs, grammar, ankiDao);
+    progress = ReviewProgressProvider(reviewDao, srs, grammar);
   });
 
   test('snapshot groups explicit course vs anki vs grammar identity', () async {

@@ -39,6 +39,10 @@ enum ReadAloudFailure {
   /// Google recognition service).
   serviceUnavailable,
 
+  /// A recognition service exists, but it does not support or have data for
+  /// the requested language (e.g. domestic Android engine without Turkish).
+  languageUnsupported,
+
   /// The recognition service could not be reached, or its online language
   /// resources could not be downloaded.
   networkUnavailable,
@@ -89,6 +93,10 @@ abstract class ReadAloudBackend {
 
   /// Ends the session early, delivering a final result. Best-effort.
   Future<void> stop();
+
+  /// Immediately aborts the active session and releases the microphone without
+  /// waiting for a final transcript. Best-effort.
+  Future<void> cancel();
 }
 
 /// How long `start` waits for `listen()` itself to confirm before tearing
@@ -131,6 +139,7 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
   bool _finalDelivered = false;
   Timer? _listenWatchdog;
   Timer? _finalGrace;
+  final Map<String, String> _resolvedLocales = {};
 
   @override
   bool get isSupported => true;
@@ -220,7 +229,7 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
               cancelOnError: true,
               listenMode: ListenMode.dictation,
               localeId: resolvedLocale,
-              pauseFor: const Duration(seconds: 3),
+              pauseFor: const Duration(seconds: 5),
               listenFor: const Duration(seconds: 30),
             ),
           )
@@ -265,38 +274,49 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
 
   /// Resolves the most appropriate locale identifier for [requestedLocale].
   ///
-  /// Locale discovery is an optimization only. Some Android recognition
-  /// services never answer it, so a failed or slow answer must not block the
-  /// actual recognition request.
+  /// Complete BCP-47 tags (e.g. `tr-TR`) skip `locales()` directly so the
+  /// Android 13+ `locales()` hang (which blocks 2s when on-device recognition
+  /// is absent) cannot delay opening the microphone. Bare language codes still
+  /// consult `locales()` once and cache matches in memory.
   @visibleForTesting
   Future<String> resolveLocaleId(String requestedLocale) async {
+    final normalized = requestedLocale.replaceAll('_', '-').trim();
+    if (normalized.isEmpty) return requestedLocale;
+    if (normalized.contains('-')) return normalized;
+
+    final cached = _resolvedLocales[normalized];
+    if (cached != null) return cached;
+
     try {
       final available = await _speech.locales().timeout(
             const Duration(seconds: 2),
           );
-      if (available.isEmpty) return requestedLocale;
-      final req = requestedLocale.replaceAll('_', '-').toLowerCase();
+      if (available.isEmpty) return normalized;
+      final req = normalized.toLowerCase();
       for (final loc in available) {
         final id = loc.localeId.replaceAll('_', '-').toLowerCase();
-        if (id == req) return loc.localeId;
+        if (id == req) return _resolvedLocales[normalized] = loc.localeId;
       }
       for (final loc in available) {
         final id = loc.localeId.replaceAll('_', '-').toLowerCase();
-        if (id.startsWith('$req-')) return loc.localeId;
+        if (id.startsWith('$req-')) {
+          return _resolvedLocales[normalized] = loc.localeId;
+        }
       }
       final dash = req.indexOf('-');
       if (dash > 0) {
         final base = req.substring(0, dash);
         for (final loc in available) {
           final id = loc.localeId.replaceAll('_', '-').toLowerCase();
-          if (id == base || id.startsWith('$base-')) return loc.localeId;
+          if (id == base || id.startsWith('$base-')) {
+            return _resolvedLocales[normalized] = loc.localeId;
+          }
         }
       }
     } catch (e) {
-      logger
-          .w('read-aloud: locale discovery failed, using $requestedLocale: $e');
+      logger.w('read-aloud: locale discovery failed, using $normalized: $e');
     }
-    return requestedLocale;
+    return normalized;
   }
 
   @override
@@ -308,6 +328,12 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
     if (_sessionActive && !_finalDelivered) {
       _armFinalGrace('stop produced no final transcript');
     }
+  }
+
+  @override
+  Future<void> cancel() async {
+    _endSession();
+    await _speech.cancel();
   }
 
   void _beginSession() {
@@ -391,8 +417,10 @@ class SpeechToTextReadAloudBackend implements ReadAloudBackend {
       return ReadAloudFailure.permissionDenied;
     }
     if (errorMsg.contains('language_not_supported') ||
-        errorMsg.contains('language_unavailable') ||
-        errorMsg.contains('recognizerNotAvailable')) {
+        errorMsg.contains('language_unavailable')) {
+      return ReadAloudFailure.languageUnsupported;
+    }
+    if (errorMsg.contains('recognizerNotAvailable')) {
       return ReadAloudFailure.serviceUnavailable;
     }
     if (errorMsg.contains('network') ||
@@ -432,6 +460,9 @@ class UnavailableReadAloudBackend implements ReadAloudBackend {
 
   @override
   Future<void> stop() async {}
+
+  @override
+  Future<void> cancel() async {}
 }
 
 /// The backend this build should use (ADR 0061: Android/iOS only).

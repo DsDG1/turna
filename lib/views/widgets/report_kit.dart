@@ -5,9 +5,9 @@
 /// [ReportLineChart] / [ReportHeatmap] / [ReportCompositionBar]）→ 辅助
 /// 指标按解释顺序（[ReportDefinitionList]）。
 ///
-/// 图表全部 CustomPaint 自绘（与 `retention_curve_chart` 同一做法），不引入
-/// 图表依赖；每个图表把 [semanticsLabel] 作为必填语义名交给调用方组织——
-/// 纯装饰像素图对屏幕阅读器是空的，朗读稿必须由数据侧生成。
+/// 图表全部 CustomPaint 自绘，不引入图表依赖；每个图表把 [semanticsLabel] 作为
+/// 必填语义名交给调用方组织——纯装饰像素图对屏幕阅读器是空的，朗读稿必须由
+/// 数据侧生成。
 library;
 
 // Dart imports:

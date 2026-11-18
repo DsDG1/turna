@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final source = File(
-    'lib/views/anki/anki_import_screen.dart',
+    'lib/views/anki/anki_import_page.dart',
   ).readAsStringSync();
 
   group('import wizard pop-loop guard (crash-hunt)', () {

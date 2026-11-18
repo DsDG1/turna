@@ -143,34 +143,14 @@ void main() {
     expect(resolution.decision.reasons, isEmpty);
   });
 
-  test('an unknown stored kind is ignored, not coerced', () {
-    final resolution = resolver.resolve(
-      values: values(),
-      mapping: mapping(),
-      storedKindName: 'kind-from-a-newer-build',
-    );
-    expect(resolution.kind, OfficialAnkiProjectionKind.flip);
-    expect(
-      resolution.decision.reasons,
-      contains(PresentationReason.unknownStoredKind),
-    );
-    expect(
-      resolution.decision.reasons,
-      isNot(contains(PresentationReason.storedKindDrift)),
-    );
-  });
-
-  test('a stale stored kind is overridden and the drift is recorded', () {
+  test('a cloze card resolves to fillBlank', () {
     final resolution = resolver.resolve(
       values: values(archetype: 'cloze', target: 'a {{c1::b}} c'),
       mapping: mapping(archetype: 'cloze'),
-      storedKindName: 'flip',
     );
     expect(resolution.kind, OfficialAnkiProjectionKind.fillBlank);
-    expect(
-      resolution.decision.reasons,
-      contains(PresentationReason.storedKindDrift),
-    );
+    expect(resolution.decision, isA<StructuredCardDecision>());
+    expect(resolution.decision.kind, CardPresentationKind.fillBlank);
   });
 
   test('a flip card with unproven media sides keeps the original card', () {

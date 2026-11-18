@@ -122,34 +122,16 @@ String _norm(String path) => path.replaceAll('\\', '/');
 /// `lib/data/sql_like.dart` (`escapeLikePattern` / `containsLike` / `prefixLike`).
 const Set<String> _allowedConstantLikeFiles = {
   'lib/application/anki_official/storage/official_anki_database.dart',
-  'lib/application/anki_official/v2/official_anki_v2_view_store.dart',
-  'lib/application/course_pack/imported_languages.dart',
   'lib/data/course_database.dart',
-  'lib/data/course_repository.dart',
-  'lib/data/gem_ledger_dao.dart',
 };
 
 /// Surviving *_screen.dart files locked in under AGENTS.md §5 ratchet.
-/// Any new screen/page must use `*_page.dart`; remove entries as legacy
-/// screens migrate.
-const Set<String> _legacyScreenFiles = {
-  'lib/views/anki/anki_import_screen.dart',
-  'lib/views/anki/anki_review_screen.dart',
-  'lib/views/lesson/new_lesson_screen.dart',
-  'lib/views/play/daily_challenge_screen.dart',
-  'lib/views/play/play_hub_screen.dart',
-  'lib/views/profile/profile_screen.dart',
-  'lib/views/review/grammar_review_screen.dart',
-  'lib/views/review/mistake_practice_screen.dart',
-  'lib/views/review/srs_review_screen.dart',
-};
+/// Any new screen/page must use `*_page.dart`; legacy screens are retired.
+const Set<String> _legacyScreenFiles = {};
 
 /// Surviving feature-scoped `widgets/` folders (excluding `lib/views/widgets`).
 /// New feature folders must use `components/`.
-const Set<String> _legacyFeatureWidgetsDirs = {
-  'lib/views/profile/widgets',
-  'lib/views/settings/widgets',
-};
+const Set<String> _legacyFeatureWidgetsDirs = {};
 
 void main() {
   group('AGENTS.md §8 code conventions guard', () {
@@ -254,8 +236,10 @@ void main() {
         () {
       final bareHexColor = RegExp(r'\bColor\s*\(\s*0[xX][0-9a-fA-F]+\s*\)');
       final peacockAlias = RegExp(r'\bpeacock[A-Za-z0-9_]*\b', caseSensitive: false);
+      final leagueAlias = RegExp(r'\bleague[A-Z][A-Za-z0-9_]*\b');
       final bareColorHits = <String>[];
       final peacockHits = <String>[];
+      final leagueHits = <String>[];
 
       for (final file in libFiles) {
         final rel = _norm(file.path);
@@ -266,6 +250,9 @@ void main() {
         }
         if (peacockAlias.hasMatch(tokens.codeOnly)) {
           peacockHits.add(rel);
+        }
+        if (leagueAlias.hasMatch(tokens.codeOnly)) {
+          leagueHits.add(rel);
         }
       }
 
@@ -280,6 +267,12 @@ void main() {
         isEmpty,
         reason: 'Legacy peacock* palette aliases are retired; use TurnaTheme '
             'brand tokens.',
+      );
+      expect(
+        leagueHits,
+        isEmpty,
+        reason: 'Retired league* palette tokens must not be used; use TurnaTheme '
+            'semantic tokens.',
       );
     });
   });

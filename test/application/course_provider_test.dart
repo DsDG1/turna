@@ -1,6 +1,6 @@
 // Tests for CourseProvider:
 // 1. id-based selection API (switching sections, finding units/lessons)
-// 2. Course scope & fallback (legacy Anki deck scoping)
+// 2. Course scope & fallback (Official Anki deck scoping + legacy fallback)
 // 3. Course order & management (reordering, catalog ordering)
 // 4. Official Anki course scope & multi-source isolation
 
@@ -17,56 +17,50 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart' show CourseDatabase;
-import 'package:turna/data/course_repository.dart';
 import 'package:turna/domain/course/course_scope.dart';
-import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/domain/course/lesson.dart';
-import 'package:turna/domain/course/lesson_content.dart';
-import 'package:turna/domain/course/section.dart';
-import 'package:turna/domain/course/stage.dart';
-import 'package:turna/domain/course/unit.dart';
 import 'package:turna/service/locator.dart';
 
 import '../helpers/fixture_language_bundle.dart';
 import '../helpers/in_memory_course_db.dart';
 
-/// Build a minimal one-unit/one-lesson Anki deck section, mirroring what
-/// AnkiDeckAssembler persists (`anki-<importId>-s<did>` id, level 'Anki').
-Section _ankiDeckSection(String importId, String name) {
-  return Section(
-    id: 'anki-$importId-s10',
-    name: name,
-    description: 'Imported from Anki (1 cards)',
-    level: 'Anki',
-    prerequisiteSectionIds: const [],
-    units: [
-      Unit(
-        id: 'anki-$importId-u10-0',
-        name: name,
-        lessons: [
-          Lesson(
-            id: 'anki-$importId-u10-0-l0',
-            name: '$name #1',
-            type: LessonType.normal,
-            template: LessonTemplate.legacy,
-            content: LessonContent(
-              stages: [
-                Stage(
-                  id: 'anki-$importId-u10-0-l0-s0',
-                  name: 'Card 1',
-                  items: [
-                    Interaction.ankiCard(
-                      id: 'anki-$importId-n1-c0',
-                      front: 'Front',
-                      back: 'Back',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+/// Seeds an active Official Anki v2 source and its `anki_course_tree_view` row.
+Future<void> _seedOfficialDeck({
+  required CourseDatabase db,
+  required OfficialAnkiDatabase catalog,
+  required String sourceId,
+  required String name,
+  int cardId = 1,
+  int deckId = 10,
+}) async {
+  OfficialAnkiSourceDao(catalog).upsertSource(
+    sourceId: sourceId,
+    profileId: 'profile-default-01',
+    sourceHash: 'hash-$sourceId',
+    sourceSize: 1,
+    displayName: name,
+    state: 'active',
+    backendCommit: 'test',
+    nowMillis: 1,
+  );
+  await db.customStatement(
+    'INSERT INTO anki_course_tree_view '
+    '(source_id, card_id, note_id, deck_id, word_id, section_key, section_id, '
+    ' unit_id, unit_key, lesson_id, lesson_key, source_hash, '
+    ' mapping_version, rebuilt_at_millis) VALUES '
+    '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)',
+    [
+      sourceId,
+      cardId,
+      cardId,
+      deckId,
+      'w-$sourceId-$cardId',
+      '$name Section',
+      'official-anki-$sourceId-s$deckId',
+      'official-anki-$sourceId-s$deckId-u1',
+      name,
+      'official-anki-$sourceId-s$deckId-l1',
+      'Lesson 1',
+      'hash-$sourceId',
     ],
   );
 }
@@ -257,13 +251,37 @@ void main() {
   });
 
   group('CourseProvider course scope', () {
+    late CourseDatabase db;
+    late OfficialAnkiDatabase catalog;
     late AppPrefs appPrefs;
 
+    const deckAScope = OfficialAnkiCourseScope(
+      profileId: 'profile-default-01',
+      sourceId: 'deckaa',
+    );
+    const deckBScope = OfficialAnkiCourseScope(
+      profileId: 'profile-default-01',
+      sourceId: 'deckbb',
+    );
+
     setUp(() async {
-      final db = await seedInMemoryCourseDb();
-      final repo = CourseRepository(db);
-      await repo.bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
-      await repo.bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
+      db = await seedInMemoryCourseDb();
+      catalog = OfficialAnkiDatabase.memory();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+      await _seedOfficialDeck(
+        db: db,
+        catalog: catalog,
+        sourceId: 'deckaa',
+        name: 'Deck A',
+        cardId: 1,
+      );
+      await _seedOfficialDeck(
+        db: db,
+        catalog: catalog,
+        sourceId: 'deckbb',
+        name: 'Deck B',
+        cardId: 2,
+      );
       CourseLoader.invalidateCaches();
 
       SharedPreferences.setMockInitialValues({});
@@ -273,6 +291,21 @@ void main() {
       // file, so reset the scope key explicitly to keep tests independent.
       await appPrefs.setString(PrefsConstants.courseScope, '');
       await appPrefs.setStringList(PrefsConstants.courseOrder, const []);
+
+      OfficialAnkiCourseEntry.flagsOf =
+          () => OfficialAnkiFeatureFlags.productionAndroid;
+      OfficialAnkiCourseEntry.activeSectionIds = () => {
+            'official-anki-deckaa-s10',
+            'official-anki-deckbb-s10',
+          };
+    });
+
+    tearDown(() async {
+      OfficialAnkiCourseEntry.resetHooks();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+      CourseLoader.clearDatabaseOverride();
+      catalog.close();
+      await db.close();
     });
 
     test('default scope hides Anki decks but still lists deck entries',
@@ -282,18 +315,23 @@ void main() {
 
       expect(provider.scope, const BuiltinCourseScope('turkish'));
       expect(provider.sections, isNotEmpty);
-      expect(provider.sections.every((s) => s.level != 'Anki'), isTrue,
-          reason: 'built-in scope must hide Anki deck sections');
+      expect(
+        provider.sections.every(
+          (s) => s.level != 'Anki' && s.level != 'OfficialAnki',
+        ),
+        isTrue,
+        reason: 'built-in scope must hide Anki deck sections',
+      );
 
       // The unfiltered list and the catalog still see every deck.
       expect(
-        provider.allSections.where((s) => s.level == 'Anki'),
+        provider.allSections.where((s) => s.level == 'OfficialAnki'),
         hasLength(2),
       );
       expect(
         provider.catalogEntries
-            .where((e) => e.legacyImportId != null)
-            .map((e) => e.legacyImportId),
+            .where((e) => e.officialSourceId != null)
+            .map((e) => e.officialSourceId),
         containsAll(['deckaa', 'deckbb']),
       );
       expect(
@@ -308,20 +346,20 @@ void main() {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
-      await provider.setScope(const LegacyAnkiCourseScope('deckaa'));
+      await provider.setScope(deckAScope);
 
-      expect(provider.scope, const LegacyAnkiCourseScope('deckaa'));
+      expect(provider.scope, deckAScope);
       expect(provider.sections, hasLength(1));
-      expect(provider.sections.single.id, 'anki-deckaa-s10');
-      expect(provider.currentSectionId, 'anki-deckaa-s10');
-      // The deck body loads through the standard lazy path.
+      expect(provider.sections.single.id, 'official-anki-deckaa-s10');
+      expect(provider.currentSectionId, 'official-anki-deckaa-s10');
+      // The deck body is populated from the v2 course-tree view.
       expect(provider.currentSection?.units, isNotEmpty);
 
       // A fresh provider restores the persisted scope.
       final restored = CourseProvider(appPrefs);
       await restored.load();
-      expect(restored.scope, const LegacyAnkiCourseScope('deckaa'));
-      expect(restored.sections.single.id, 'anki-deckaa-s10');
+      expect(restored.scope, deckAScope);
+      expect(restored.sections.single.id, 'official-anki-deckaa-s10');
     });
 
     test('legacy string setCourseScope falls back to builtin (plan P1)',
@@ -329,10 +367,11 @@ void main() {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
-      // Pre-cutover raw values are no longer resolved against the catalog;
-      // the fallback keeps the app on a usable builtin course.
+      // Pre-cutover and retired legacy wire values fall back to a builtin course.
       await provider.setCourseScope('anki:deckbb');
+      expect(provider.scope, isA<BuiltinCourseScope>());
 
+      await provider.setCourseScope('course-scope:v1:legacy:deckbb');
       expect(provider.scope, isA<BuiltinCourseScope>());
     });
 
@@ -341,12 +380,17 @@ void main() {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
-      await provider.setScope(const LegacyAnkiCourseScope('deckbb'));
-      expect(provider.sections.single.id, 'anki-deckbb-s10');
+      await provider.setScope(deckBScope);
+      expect(provider.sections.single.id, 'official-anki-deckbb-s10');
 
       await provider.setScope(const BuiltinCourseScope('turkish'));
       expect(provider.scope, const BuiltinCourseScope('turkish'));
-      expect(provider.sections.every((s) => s.level != 'Anki'), isTrue);
+      expect(
+        provider.sections.every(
+          (s) => s.level != 'Anki' && s.level != 'OfficialAnki',
+        ),
+        isTrue,
+      );
 
       final restored = CourseProvider(appPrefs);
       await restored.load();
@@ -355,7 +399,7 @@ void main() {
 
     test('falls back to built-in course when the scoped deck is gone',
         () async {
-      // Simulate a persisted scope whose deck was uninstalled.
+      // Simulate a persisted scope whose deck was uninstalled / retired.
       await appPrefs.setString(PrefsConstants.courseScope, 'anki:gone');
 
       final provider = CourseProvider(appPrefs);
@@ -367,7 +411,12 @@ void main() {
         reason: 'unknown deck scope must fall back to the built-in course',
       );
       expect(provider.sections, isNotEmpty);
-      expect(provider.sections.every((s) => s.level != 'Anki'), isTrue);
+      expect(
+        provider.sections.every(
+          (s) => s.level != 'Anki' && s.level != 'OfficialAnki',
+        ),
+        isTrue,
+      );
 
       // The fallback is persisted, so a fresh provider stays builtin too.
       final restored = CourseProvider(appPrefs);
@@ -377,17 +426,32 @@ void main() {
   });
 
   group('CourseProvider course order (course management page)', () {
+    late CourseDatabase db;
+    late OfficialAnkiDatabase catalog;
     late AppPrefs appPrefs;
+    late Set<String> activeIds;
 
     setUp(() async {
       // Turkish from the shipped bundle, French from the fixture overlay: the
       // order assertions below cover two builtin courses plus two decks, and
       // 0.9 ships a single builtin language.
-      final db =
-          await seedInMemoryCourseDb(bundle: await frenchCourseFixtureBundle());
-      final repo = CourseRepository(db);
-      await repo.bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
-      await repo.bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
+      db = await seedInMemoryCourseDb(bundle: await frenchCourseFixtureBundle());
+      catalog = OfficialAnkiDatabase.memory();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+      await _seedOfficialDeck(
+        db: db,
+        catalog: catalog,
+        sourceId: 'deckaa',
+        name: 'Deck A',
+        cardId: 1,
+      );
+      await _seedOfficialDeck(
+        db: db,
+        catalog: catalog,
+        sourceId: 'deckbb',
+        name: 'Deck B',
+        cardId: 2,
+      );
       CourseLoader.invalidateCaches();
 
       SharedPreferences.setMockInitialValues({});
@@ -395,6 +459,22 @@ void main() {
       appPrefs = AppPrefs(sp);
       await appPrefs.setString(PrefsConstants.courseScope, '');
       await appPrefs.setStringList(PrefsConstants.courseOrder, const []);
+
+      activeIds = {
+        'official-anki-deckaa-s10',
+        'official-anki-deckbb-s10',
+      };
+      OfficialAnkiCourseEntry.flagsOf =
+          () => OfficialAnkiFeatureFlags.productionAndroid;
+      OfficialAnkiCourseEntry.activeSectionIds = () => activeIds;
+    });
+
+    tearDown(() async {
+      OfficialAnkiCourseEntry.resetHooks();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+      CourseLoader.clearDatabaseOverride();
+      catalog.close();
+      await db.close();
     });
 
     test('default order is built-in course first, decks appended after',
@@ -405,7 +485,7 @@ void main() {
       final entries = provider.catalogEntries;
       expect(entries.first.isBuiltin, isTrue);
       expect(
-        entries.skip(1).map((e) => e.legacyImportId),
+        entries.skip(1).map((e) => e.officialSourceId),
         containsAll(['deckaa', 'deckbb']),
       );
       expect(entries.where((e) => e.isBuiltin).length, greaterThanOrEqualTo(1));
@@ -416,8 +496,8 @@ void main() {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
-      final deckA = LegacyAnkiCourseScope('deckaa').wireKey;
-      final deckB = LegacyAnkiCourseScope('deckbb').wireKey;
+      const deckA = 'course-scope:v1:official:profile-default-01:deckaa';
+      const deckB = 'course-scope:v1:official:profile-default-01:deckbb';
       await provider.persistCourseOrder([deckB, builtinWire, deckA]);
 
       expect(
@@ -438,8 +518,8 @@ void main() {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
-      final deckA = LegacyAnkiCourseScope('deckaa').wireKey;
-      final deckB = LegacyAnkiCourseScope('deckbb').wireKey;
+      const deckA = 'course-scope:v1:official:profile-default-01:deckaa';
+      const deckB = 'course-scope:v1:official:profile-default-01:deckbb';
       var notifications = 0;
       provider.addListener(() => notifications++);
 
@@ -463,9 +543,9 @@ void main() {
 
     test('stored order drops deleted decks and appends unknown new decks',
         () async {
-      final deckA = LegacyAnkiCourseScope('deckaa').wireKey;
-      final deckB = LegacyAnkiCourseScope('deckbb').wireKey;
-      final gone = LegacyAnkiCourseScope('gone').wireKey;
+      const deckA = 'course-scope:v1:official:profile-default-01:deckaa';
+      const deckB = 'course-scope:v1:official:profile-default-01:deckbb';
+      const gone = 'course-scope:v1:official:profile-default-01:gone';
       // 'gone' was uninstalled; deckbb is not in the stored order yet.
       await appPrefs.setStringList(
           PrefsConstants.courseOrder, [gone, deckA, builtinWire]);
@@ -490,7 +570,7 @@ void main() {
       await provider.load();
 
       expect(
-        provider.catalogEntries.map((e) => e.legacyImportId ?? 'builtin'),
+        provider.catalogEntries.map((e) => e.officialSourceId ?? 'builtin'),
         ['deckbb', 'builtin', 'deckaa', 'builtin'],
       );
     });
@@ -498,34 +578,32 @@ void main() {
     test(
         'reloadCourse sees a newly imported Anki deck without manual '
         'invalidateCaches (import-path regression)', () async {
-      final db = await seedInMemoryCourseDb();
-      final writeRepo = CourseRepository(db);
-      await writeRepo
-          .bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
-      await writeRepo
-          .bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
-      CourseLoader.invalidateCaches();
-
       final provider = CourseProvider(appPrefs);
       await provider.load();
       expect(
         provider.catalogEntries
-            .where((e) => e.legacyImportId != null)
-            .map((e) => e.legacyImportId),
+            .where((e) => e.officialSourceId != null)
+            .map((e) => e.officialSourceId),
         containsAll(['deckaa', 'deckbb']),
       );
 
-      // Simulate Anki import writing a section while CourseLoader shells
-      // are still memoized. reloadCourse itself must drop that memo — the
-      // caller must not need a separate invalidateCaches().
-      await writeRepo
-          .bulkInsertCourseTree(_ankiDeckSection('deckcc', 'Deck C'));
+      // Simulate an Official Anki import publishing a new deck while
+      // CourseLoader shells are still memoized. reloadCourse itself must drop
+      // that memo — the caller must not need a separate invalidateCaches().
+      await _seedOfficialDeck(
+        db: db,
+        catalog: catalog,
+        sourceId: 'deckcc',
+        name: 'Deck C',
+        cardId: 3,
+      );
+      activeIds.add('official-anki-deckcc-s10');
       await provider.reloadCourse();
 
       expect(
         provider.catalogEntries
-            .where((e) => e.legacyImportId != null)
-            .map((e) => e.legacyImportId),
+            .where((e) => e.officialSourceId != null)
+            .map((e) => e.officialSourceId),
         containsAll(['deckaa', 'deckbb', 'deckcc']),
         reason: 'reloadCourse must invalidate CourseLoader so new imports '
             'appear as course entries without an app restart',
@@ -568,17 +646,17 @@ void main() {
       await db.customStatement(
         "INSERT INTO anki_course_tree_view "
         "(source_id, card_id, note_id, deck_id, word_id, section_key, section_id, "
-        " unit_id, lesson_id, lesson_key, presentation_kind, source_hash, "
+        " unit_id, lesson_id, lesson_key, source_hash, "
         " mapping_version, rebuilt_at_millis) VALUES "
         "('$srcA', 1, 1, 10, 'w1', 'Deck A Top', 'official-anki-$srcA-s10', "
         "'official-anki-$srcA-s10-u1', 'official-anki-$srcA-s10-l1', 'lk', "
-        "'flip', 'hash-$srcA', 1, 1),"
+        "'hash-$srcA', 1, 1),"
         "('$srcA', 2, 2, 11, 'w2', 'Deck A Sub', 'official-anki-$srcA-s11', "
         "'official-anki-$srcA-s11-u1', 'official-anki-$srcA-s11-l1', 'lk', "
-        "'flip', 'hash-$srcA', 1, 1),"
+        "'hash-$srcA', 1, 1),"
         "('$srcB', 3, 3, 10, 'w3', 'Deck B Top', 'official-anki-$srcB-s10', "
         "'official-anki-$srcB-s10-u1', 'official-anki-$srcB-s10-l1', 'lk', "
-        "'flip', 'hash-$srcB', 1, 1)",
+        "'hash-$srcB', 1, 1)",
       );
       CourseLoader.invalidateCaches();
 

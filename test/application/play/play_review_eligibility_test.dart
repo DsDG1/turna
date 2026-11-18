@@ -12,23 +12,12 @@ void main() {
         PlayReviewEligibility.isAnki(const BuiltinCourseScope('tr')), isFalse);
   });
 
-  test('official and legacy Anki scopes are Anki review scopes', () {
-    expect(
-      PlayReviewEligibility.isAnki(
-        const OfficialAnkiCourseScope(
-          profileId: 'profile-default-01',
-          sourceId: 'src',
-        ),
-      ),
-      isTrue,
+  test('official Anki scope is an Anki review scope', () {
+    const official = OfficialAnkiCourseScope(
+      profileId: 'profile-default-01',
+      sourceId: 'src',
     );
-    expect(
-      PlayReviewEligibility.isAnki(const LegacyAnkiCourseScope('imp')),
-      isTrue,
-    );
-    expect(
-      PlayReviewEligibility.isLanguage(const LegacyAnkiCourseScope('imp')),
-      isFalse,
-    );
+    expect(PlayReviewEligibility.isAnki(official), isTrue);
+    expect(PlayReviewEligibility.isLanguage(official), isFalse);
   });
 }

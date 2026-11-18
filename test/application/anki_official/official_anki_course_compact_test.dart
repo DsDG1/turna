@@ -12,6 +12,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -159,7 +160,7 @@ void main() {
     await OfficialAnkiV2RetireService(
       catalog: catalog,
       engine: engine,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       paths: OfficialAnkiPaths(
         profileId: 'profile-c-01',
         profileRoot: root,

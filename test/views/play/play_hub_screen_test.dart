@@ -22,7 +22,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
-import 'package:turna/views/play/play_hub_screen.dart';
+import 'package:turna/views/play/play_hub_page.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 
 import '../../helpers/in_memory_course_db.dart';
@@ -72,7 +72,7 @@ void main() {
     prefs = AppPrefs(sp);
   });
 
-  /// Wraps [child] in the provider stack PlayHubScreen selects from.
+  /// Wraps [child] in the provider stack PlayHubPage selects from.
   /// Accessibility/Settings 只被长按浮窗的触感路径读取，一并注入。
   Widget wrapProviders(
     Widget child, {
@@ -109,7 +109,7 @@ void main() {
       );
 
   Widget hubTree({_ScopeStubCourseProvider? courseProvider}) => wrapProviders(
-        const Scaffold(body: PlayHubScreen()),
+        const Scaffold(body: PlayHubPage()),
         courseProvider: courseProvider,
       );
 
@@ -259,7 +259,7 @@ void main() {
       OfficialAnkiHomeDueSync.debugRefreshOverride = () async {};
       // TTL 是进程级静态：同 isolate 里更早的测试可能已置位，不清掉的话
       // initState 刷新会被跳过（这正是生产端「5 分钟内重进不刷新」的行为）。
-      PlayHubScreen.resetDueRefreshTtlForTest();
+      PlayHubPage.resetDueRefreshTtlForTest();
     });
 
     tearDown(() {
@@ -384,7 +384,7 @@ void main() {
       router.switchTo(TabDestination.learn);
       await tester.pumpAndSettle();
       // 跨过 3 秒防抖，模拟真实的「切走一会儿再回来」。
-      PlayHubScreen.resetDueRefreshTtlForTest();
+      PlayHubPage.resetDueRefreshTtlForTest();
       router.switchTo(TabDestination.play);
       await tester.pumpAndSettle();
 

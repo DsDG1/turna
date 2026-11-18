@@ -73,7 +73,7 @@
 | 设置弱化材质 | [ADR 0063](./decisions/0063-settings-glass-quiet-tier.md) | 深层设置保持安静，视觉强度服从表单阅读 |
 | 表面角色与降彩度 | `TurnaTheme.flatPaperDecoration` / `glassChroma` / `glassShadowCooling`、[ADR 0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 纸面、玻璃、控件、磨砂浮层各自承担固定职责 |
 | 全局页面与导航 | [HomePage](../lib/views/home/home_page.dart)、[BottomNavigator](../lib/views/home/components/bottom_navigator.dart)、[AppRouter](../lib/routing/routing.dart) | 重建外壳、顶栏与导航的版面和组件；保留导航状态与返回行为 |
-| 课时与题型 | [NewLessonPage](../lib/views/lesson/new_lesson_screen.dart)、[交互渲染器目录](../lib/views/lesson/components/interactions/) | 逐题型重构作答版面与反馈区，保留作答、判分和结算接缝 |
+| 课时与题型 | [NewLessonPage](../lib/views/lesson/new_lesson_page.dart)、[交互渲染器目录](../lib/views/lesson/components/interactions/) | 逐题型重构作答版面与反馈区，保留作答、判分和结算接缝 |
 | 公共视觉基础 | [AppSpacing](../lib/core/spacing.dart)、[TurnaMotion](../lib/core/motion.dart)、[公共卡片组件](../lib/views/widgets/turna_cards.dart)、[几何图形](../lib/views/widgets/turna_geometry.dart)、[内容宽度容器](../lib/views/widgets/turna_page_content.dart) | 作为参数、性能、语义与预览接缝参考；按新线框重建组件和组合方式 |
 | 既有视觉基线 | [Golden 目录](../test/golden/)、[测试基线](../test/BASELINE.md) | 用作历史对照；系统字体排版和设备效果另行采样 |
 
@@ -262,15 +262,15 @@ Turna 的视觉从湿地清晨取色：水面带蓝的青、芦苇透亮的绿�
 | R01 | 启动与外壳：`views/splash/`、`views/home/` | 启动采用鹤标识、大片留白与几何光片的独立构图。主外壳采用轻标题与水平文字导航，单个受光标记表示当前目的地；状态数字进入所属页面的概览区，减少顶栏堆叠 | 首次播种、正常启动、初始化失败、字体放大、系统安全区、返回与 Tab 状态保留 |
 | R02 | 课程主线：`views/courses/course_tree.dart`、`components/` | 重做为章节开篇与学习目录：上方章节序号、大标题与几何构图，中间一个当前子课焦点，下方按单元分段排列课时与子课；用时间线、序号和文字排版表达旅程，重做展开与已完成组织 | 当前、完成、未解锁、空章节、长子课名、多子课、展开折叠、滚动恢复 |
 | R03 | 课程选择与管理：`section_picker_page.dart`、`course_management_page.dart` | 章节选择采用大序号目录与局部展开内容；课程管理采用当前课程摘要、课程书架式索引与底部管理操作。来源、切换和导入分别进入清楚的功能区 | 无课程、切换中、切换失败回落、内容更新提示、已有进度 |
-| R04 | 课时骨架：`views/lesson/new_lesson_screen.dart`、`components/` | 重做沉浸学习画布：顶部细进度与退出，中段放大任务内容，下段独立作答区；反馈占用明确的阶段区域，主操作随作答阶段变化。题面、答案与解析重新分区和配比 | 进入、阶段切换、提交中、退出确认、返回恢复、键盘弹出、媒体加载失败 |
+| R04 | 课时骨架：`views/lesson/new_lesson_page.dart`、`components/` | 重做沉浸学习画布：顶部细进度与退出，中段放大任务内容，下段独立作答区；反馈占用明确的阶段区域，主操作随作答阶段变化。题面、答案与解析重新分区和配比 | 进入、阶段切换、提交中、退出确认、返回恢复、键盘弹出、媒体加载失败 |
 | R05 | 所有题型：`views/lesson/components/interactions/` | 逐题型重画：词汇采用词句与图像分区，输入采用上下文与书写区，排序采用答案槽与词库，听力采用播放主区与听辨区，阅读采用连续文章与问题区；选项从各自任务版面中提炼 | 默认、已选、正误、解析、长题面、多选、排序、听力、阅读、跟读与平台降级 |
 | R06 | 完成体验：`lesson_dialogs.dart`、`unified_review_completion.dart` 等 | 重做为有开篇与结尾的学习小结：几何完成标记与一句结果居上，实际收获与薄弱点沿纵向展开，下方提供明确的下一步。重新设计弹层或页面容器，奖励以结果注释呈现 | 完成、部分完成、失败后重试、返回主线、无新增奖励、减少动态效果 |
 | R07 | 练习入口与每日挑战：`views/play/` | 练习页重做为今日任务台：总待办与主要行动居上，各队列作为有顺序的任务行展开，工具进入单独文字索引。每日挑战采用挑战开篇、当前任务、作答与结果的独立布局 | 无待复习、多个队列、数据刷新、短按与长按、非语言课程的入口裁剪 |
-| R08 | 复习会话：`unified_review_page.dart`、`srs_review_screen.dart`、`grammar_review_screen.dart` | 复习入口使用来源摘要与开始操作；会话采用中部回忆画布和底部阶段操作带，揭示后重组答案与评分区。语法采用解释页、练习页与自评页的连续阅读结构 | 正反面、评分写入、撤销受限、队列结束、中途退出、来源差异与模板媒体 |
+| R08 | 复习会话：`unified_review_page.dart`、`srs_review_page.dart`、`grammar_review_page.dart` | 复习入口使用来源摘要与开始操作；会话采用中部回忆画布和底部阶段操作带，揭示后重组答案与评分区。语法采用解释页、练习页与自评页的连续阅读结构 | 正反面、评分写入、撤销受限、队列结束、中途退出、来源差异与模板媒体 |
 | R09 | 错题与弱词：`mistake_*`、`views/play/weak_words_page.dart` | 重做为学习笔记式列表：问题摘要、原句与错误标记形成条目主体，来源与时间作旁注；详情将自己的作答、正确表达与解析分段对照，重练操作形成稳定的下方操作区 | 空列表、长句、语法关联、重做、清除、加载失败 |
 | R10 | 进度与洞察：`review_progress_page.dart`、`learning_insights_page.dart`、`review_source_detail_page.dart` | 采用学习报告构图：时间窗与一个核心指标开篇，主图占独立段落，辅助指标按解释顺序排列，来源详情形成下钻目录；每个页面依据已有数据选择不同主图与主次关系 | 无记录、稀疏数据、长时间范围、极端值、深色与高对比、文字缩放 |
 | R11 | 词典：`views/dictionary/dictionary_page.dart` | 重做为词条阅读界面：搜索构成首屏起点，结果采用词头、词性与释义的排版目录；展开后主词与发音居上，释义和例句连续分段。宽屏采用结果索引与词条正文并排 | 首次进入、输入、无结果、长词与变音字符、释义展开、键盘、音频不可用 |
-| R12 | 记忆卡导入与适配：`views/anki/anki_import_screen.dart`、`import_wizard/`、`official_anki_mapping_page.dart` | 重做步骤工作区：顶部说明当前任务与阶段，中央一次聚焦文件、目录预览或映射内容，下方固定阶段操作；复杂配置进入展开区域。映射用字段与预览的清楚关系替代平铺选项 | 大文件、复杂牌组、多模板、部分不支持、取消、失败、重复导入提示与适配回落 |
+| R12 | 记忆卡导入与适配：`views/anki/anki_import_page.dart`、`import_wizard/` | 重做步骤工作区：顶部说明当前任务与阶段，中央一次聚焦文件、目录预览或映射内容，下方固定阶段操作；复杂配置进入展开区域。映射用字段与预览的清楚关系替代平铺选项 | 大文件、复杂牌组、多模板、部分不支持、取消、失败、重复导入提示与适配回落 |
 | R13 | 记忆卡管理与宿主：`views/anki/`、`views/anki_official/` | 浏览器采用搜索 / 筛选带与内容列表，统计采用牌组报告，修复中心采用问题摘要与恢复步骤；正式卡片宿主采用最小上下文框架与独立评分带，各自重新组织版面 | 原模板显示、媒体、二档正式评分、修复中、引擎错误、诊断入口访问约束 |
 | R14 | AI：`views/ai/` 及 `textbook/` | 入口采用任务目录，练习库采用筛选与可继续内容，生成采用配置与任务进度，聊天采用连续会话与独立输入区；诊断采用结论与依据，保存内容采用阅读目录。各子页分别设计首屏 | 未配置、空库、排队、生成、取消、流式中断、失败重试、长回复、平台入口隐藏 |
 | R15 | 个人与成就：`views/profile/`、`avatar_rings_page.dart` | 个人页重做为学习档案：身份与一句概览开篇，学习积累形成主体，长期记录与成就作为后续章节。成就采用分类收藏与单项详情，头像环采用当前预览与选择工作区，分享卡独立构图 | 新用户、长期数据、未解锁与已解锁、长昵称、分享预览、无新成就 |

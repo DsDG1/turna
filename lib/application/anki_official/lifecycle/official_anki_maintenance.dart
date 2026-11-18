@@ -1,16 +1,17 @@
 import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
-import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart';
 
 class OfficialAnkiMaintenanceLease {
@@ -357,20 +358,26 @@ class OfficialAnkiMaintenanceRunner {
     return completed;
   }
 
+  Future<OfficialAnkiEngine> _requireOpenEngine(String kindLabel) async {
+    final resolved = engine;
+    if (resolved == null) {
+      throw StateError('$kindLabel requires engine');
+    }
+    await ensureOfficialProfileOpen(resolved, paths);
+    return resolved;
+  }
+
   Future<OfficialAnkiCompactResult> _runKind(
     OfficialAnkiMaintenanceKind kind,
     Map<String, Object?> row,
   ) async {
     switch (kind) {
       case OfficialAnkiMaintenanceKind.mediaGc:
-        final engine = this.engine;
-        if (engine == null) {
-          // Same keep-alive contract as compact_collection/v2_source_delete:
-          // media bytes are only reclaimed with the engine, so an engine-less
-          // run must leave the job in retry_wait for a run that has one —
-          // completing it here would orphan the media files forever.
-          throw StateError('media_gc requires engine');
-        }
+        // Same keep-alive contract as compact_collection/v2_source_delete:
+        // media bytes are only reclaimed with the engine, so an engine-less
+        // run must leave the job in retry_wait for a run that has one —
+        // completing it here would orphan the media files forever.
+        final engine = await _requireOpenEngine('media_gc');
         final gc = await engine.gcUnusedMedia(dryRun: false);
         return OfficialAnkiCompactResult(
           beforeBytes: gc.reclaimedBytes + gc.trashBytes,
@@ -384,30 +391,18 @@ class OfficialAnkiMaintenanceRunner {
             skippedReason: 'engine_unavailable',
           );
         }
+        await ensureOfficialProfileOpen(engine, paths);
         await engine.pruneEmptyMetadata();
         return const OfficialAnkiCompactResult();
       case OfficialAnkiMaintenanceKind.compactCollection:
-        final engine = this.engine;
-        if (engine == null) {
-          // collection.anki2 carries rslib's `COLLATE unicase` b-trees
-          // (schema 14/15/17); a raw sqlite3 connection cannot rebuild
-          // them — VACUUM fails with "no such collation sequence: unicase"
-          // on any collection that has tag/deck/notetype rows. Only the
-          // engine can compact it, so fail the job into retry_wait and let
-          // a later run with the engine open complete it (same keep-alive
-          // contract as v2_source_delete, ADR 0043/K6).
-          throw StateError('compact_collection requires engine');
-        }
-        try {
-          await engine.openProfile(paths);
-        } on OfficialAnkiException catch (error) {
-          if (error.code != OfficialAnkiErrorCode.collectionAlreadyOpen) {
-            // Transient states (scheduler busy / locked / wrong state) mean
-            // "not now" — rethrow so the job lands in retry_wait instead of
-            // being completed without compacting.
-            rethrow;
-          }
-        }
+        // collection.anki2 carries rslib's `COLLATE unicase` b-trees
+        // (schema 14/15/17); a raw sqlite3 connection cannot rebuild
+        // them — VACUUM fails with "no such collation sequence: unicase"
+        // on any collection that has tag/deck/notetype rows. Only the
+        // engine can compact it, so fail the job into retry_wait and let
+        // a later run with the engine open complete it (same keep-alive
+        // contract as v2_source_delete, ADR 0043/K6).
+        final engine = await _requireOpenEngine('compact_collection');
         return await engine.compactCollection(force: forceCompact);
       case OfficialAnkiMaintenanceKind.compactCatalog:
         return compactSqliteFile(paths.catalogFile, force: forceCompact);
@@ -417,32 +412,28 @@ class OfficialAnkiMaintenanceRunner {
         // ADR 0043：retiring 序列的 job 体。引擎缺席时抛错 →
         // markFailed(retry_wait) 保活 job（K6：绝不把未删引擎的 source
         // 标完成）；source 缺席 = 已终删（幂等重放）。
-        final engine = this.engine;
-        if (engine == null) {
-          throw StateError('v2_source_delete requires engine');
-        }
+        final engine = await _requireOpenEngine('v2_source_delete');
         final sourceId = row['source_id'] as String?;
         if (sourceId == null || sourceId.isEmpty) {
           throw StateError('v2_source_delete without source_id');
         }
+        final db = course;
         await OfficialAnkiV2RetireService(
           catalog: catalog,
           paths: paths,
-          course: course,
+          viewStore: db != null ? CourseLoader.v2ViewStoreFor(db) : null,
           engine: engine,
         ).runRetireJob(sourceId: sourceId);
         return const OfficialAnkiCompactResult();
       case OfficialAnkiMaintenanceKind.v2ViewRebuild:
         // ADR 0043/K3：无状态视图整建，重启即重跑（幂等）。
-        final engine = this.engine;
-        if (engine == null) {
-          throw StateError('v2_view_rebuild requires engine');
-        }
+        final engine = await _requireOpenEngine('v2_view_rebuild');
+        final db = course ??
+            (throw StateError('v2_view_rebuild requires course'));
         final result = await OfficialAnkiV2ViewRebuilder(
           engine: engine,
           catalog: catalog,
-          course:
-              course ?? (throw StateError('v2_view_rebuild requires course')),
+          viewStore: CourseLoader.v2ViewStoreFor(db),
           profileId: paths.profileId,
         ).rebuild();
         return OfficialAnkiCompactResult(

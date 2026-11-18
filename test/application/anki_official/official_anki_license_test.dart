@@ -31,7 +31,7 @@ void main() {
       final about =
           File('lib/views/settings/about_turna_page.dart').readAsStringSync();
       final settings = File(
-        'lib/views/settings/widgets/settings_about_section.dart',
+        'lib/views/settings/components/settings_about_section.dart',
       ).readAsStringSync();
       expect(about.contains('showTurnaLicensePage'), isTrue);
       expect(settings.contains('showTurnaLicensePage'), isTrue);

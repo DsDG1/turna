@@ -17,8 +17,9 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/v2/adaptation_promotion_flow.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
 import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
-import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/anki/adaptation/card_adaptation_plan.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 import 'package:turna/l10n/app_strings.dart';
 
 class OfficialFirstCommitResult {
@@ -36,7 +37,6 @@ Future<OfficialAnkiImportPreviewModel> importOfficialThenPreview({
   required String path,
   required AnkiImportExecutionPlan plan,
   required OfficialAnkiOfficialFirstService officialFirst,
-  required CourseDatabase course,
   required bool includeMedia,
   OfficialAnkiSourceDigest? digest,
   void Function()? onArrangingPreview,
@@ -51,7 +51,6 @@ Future<OfficialAnkiImportPreviewModel> importOfficialThenPreview({
   final preview = await officialFirst.importThenPreview(
     filePath: path,
     plan: plan,
-    course: course,
     digest: digest,
     withMedia: includeMedia,
     onArrangingPreview: onArrangingPreview,
@@ -76,7 +75,8 @@ Future<OfficialAnkiImportPreviewModel> importOfficialThenPreview({
 /// Writes live Collection, promotes staging mappings, then projects via v2.
 Future<OfficialFirstCommitResult> commitOfficialPreview(
   OfficialAnkiImportPreviewModel preview, {
-  required CourseDatabase course,
+  required IOfficialAnkiV2ViewStore v2ViewStore,
+  IAnkiUnificationStore? unificationStore,
   OfficialCommitProgress? onProgress,
   Map<String, CardAdaptationPlan> pendingAdaptations =
       const <String, CardAdaptationPlan>{},
@@ -97,7 +97,8 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
       preview,
       catalog,
       paths,
-      course,
+      v2ViewStore: v2ViewStore,
+      unificationStore: unificationStore,
       onProgress: onProgress,
       pendingAdaptations: pendingAdaptations,
     );
@@ -112,8 +113,9 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
 Future<OfficialFirstCommitResult> _commitOfficialV2(
   OfficialAnkiImportPreviewModel preview,
   OfficialAnkiDatabase catalog,
-  OfficialAnkiPaths paths,
-  CourseDatabase course, {
+  OfficialAnkiPaths paths, {
+  required IOfficialAnkiV2ViewStore v2ViewStore,
+  IAnkiUnificationStore? unificationStore,
   OfficialCommitProgress? onProgress,
   Map<String, CardAdaptationPlan> pendingAdaptations =
       const <String, CardAdaptationPlan>{},
@@ -121,7 +123,8 @@ Future<OfficialFirstCommitResult> _commitOfficialV2(
   final result = await OfficialAnkiV2ImportService(
     catalog: catalog,
     paths: paths,
-    course: course,
+    viewStore: v2ViewStore,
+    unificationStore: unificationStore,
   ).commit(
     sourceId: preview.sourceId,
     packagePath: preview.filePath,
@@ -151,7 +154,9 @@ Future<OfficialFirstCommitResult> _commitOfficialV2(
       wordEntryCount: result.cardCount,
       sourceCardCount: preview.cardCount,
       newNoteCount: result.newNoteCount,
+      updatedNoteCount: result.updatedNoteCount,
       duplicateNoteCount: result.duplicateNoteCount,
+      conflictingNoteCount: result.conflictingNoteCount,
       partCount: result.partCount,
       includeMedia: result.includeMedia,
     ),

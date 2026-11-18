@@ -15,7 +15,6 @@ import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/domain/study/study_log.dart';
@@ -44,7 +43,6 @@ void main() {
       emptyReviewHistoryDao(),
       srs,
       grammar,
-      AnkiImportDao(CourseDatabase(NativeDatabase.memory())),
       ReviewDataRevision(),
       StudyLogRepository(appPrefs),
       appPrefs,
@@ -131,7 +129,6 @@ void main() {
       emptyReviewHistoryDao(),
       srs,
       grammar,
-      AnkiImportDao(CourseDatabase(NativeDatabase.memory())),
       ReviewDataRevision(),
       StudyLogRepository(appPrefs),
       appPrefs,

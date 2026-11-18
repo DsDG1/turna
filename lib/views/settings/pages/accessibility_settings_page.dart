@@ -8,8 +8,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
-import 'package:turna/views/settings/widgets/settings_accessibility_section.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_accessibility_section.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 
 /// Accessibility category page (formal route: `/settings/accessibility`).
 @RoutePage()

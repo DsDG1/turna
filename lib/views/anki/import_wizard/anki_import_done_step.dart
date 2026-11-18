@@ -104,9 +104,15 @@ class AnkiImportDoneStep extends StatelessWidget {
                   rows: [
                     if (summary.newNoteCount > 0)
                       AppStrings.ankiDoneNewNotes(summary.newNoteCount),
+                    if (summary.updatedNoteCount > 0)
+                      AppStrings.ankiImportUpdatedNotes(
+                          summary.updatedNoteCount),
                     if (summary.duplicateNoteCount > 0)
                       AppStrings.ankiDoneDuplicateNotes(
                           summary.duplicateNoteCount),
+                    if (summary.conflictingNoteCount > 0)
+                      AppStrings.ankiImportConflictingNotes(
+                          summary.conflictingNoteCount),
                     if (summary.partCount > 0)
                       AppStrings.ankiDoneParts(summary.partCount)
                     else if (summary.sectionCount > 1)

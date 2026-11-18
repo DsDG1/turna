@@ -8,13 +8,17 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_repair_center_page.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
 class _EmptyScanner implements StorageInventoryService {
+  @override
+  Directory? get documentsDirectory => null;
   @override
   Future<StorageInventoryReport> scan() async => StorageInventoryReport(
         artifacts: const [],
@@ -197,4 +201,93 @@ void main() {
         find.text(AppStrings.databaseDoctorOneClickOptimize), findsOneWidget);
     expect(find.text(AppStrings.databaseDoctorTitle), findsOneWidget);
   });
+
+  testWidgets('doctor and orphan scan errors show retry banners and recover',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    final root = Directory.systemTemp.createTempSync('turna-repair-err-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-repair-err',
+      profileRoot: root,
+    );
+    final scanner = _FlakyScanner();
+    final doctor = _FlakyDoctorService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OfficialAnkiRepairCenterPage(
+          catalog: db,
+          paths: paths,
+          scanner: scanner,
+          doctor: doctor,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(AppStrings.repairDiagnosticsLoadFailed),
+      findsNWidgets(2),
+    );
+    expect(find.text(AppStrings.commonRetry), findsNWidgets(2));
+
+    doctor.shouldFail = false;
+    scanner.shouldFail = false;
+
+    await tester.tap(find.text(AppStrings.commonRetry).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.commonRetry));
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.repairDiagnosticsLoadFailed), findsNothing);
+    expect(
+      find.text(AppStrings.databaseDoctorStorageNoOrphans),
+      findsOneWidget,
+    );
+  });
+}
+
+class _FlakyScanner implements StorageInventoryService {
+  bool shouldFail = true;
+
+  @override
+  Directory? get documentsDirectory => null;
+
+  @override
+  Future<StorageInventoryReport> scan() async {
+    if (shouldFail) throw StateError('scan failed');
+    return StorageInventoryReport(
+      artifacts: const [],
+      databaseWalBytes: 0,
+      databaseShmBytes: 0,
+      freelistBytes: 0,
+      aiCacheEntries: 0,
+      scannedAt: DateTime(2026, 8, 31),
+    );
+  }
+}
+
+class _FlakyDoctorService extends DatabaseDoctorService {
+  bool shouldFail = true;
+
+  @override
+  Future<DatabaseDoctorReport> inspectHealth({
+    CourseDatabase? course,
+    OfficialAnkiDatabase? catalog,
+    OfficialAnkiPaths? paths,
+    StorageInventoryService? scanner,
+  }) async {
+    if (shouldFail) throw StateError('doctor inspect failed');
+    return super.inspectHealth(
+      course: course,
+      catalog: catalog,
+      paths: paths,
+      scanner: scanner,
+    );
+  }
 }

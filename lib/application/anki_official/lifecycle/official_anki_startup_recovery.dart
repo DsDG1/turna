@@ -59,7 +59,11 @@ class OfficialAnkiStartupRecovery {
           try {
             await (ensureEngine ??
                 OfficialAnkiCompositionRoot.requireImporter)();
-            engine = OfficialAnkiCompositionRoot.engine;
+            final opened = OfficialAnkiCompositionRoot.engine;
+            if (opened != null) {
+              await ensureOfficialProfileOpen(opened, paths);
+              engine = opened;
+            }
           } catch (error) {
             officialAnkiStartupLog('startup engine open failed: $error',
                 warning: true);

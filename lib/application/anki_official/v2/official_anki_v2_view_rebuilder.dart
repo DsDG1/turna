@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
-import 'package:turna/application/anki_import/recognition/policy/presentation_policy.dart';
-import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
@@ -13,8 +10,8 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
-import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// 重建结果（诊断与测试断言用）。
 class OfficialAnkiV2ViewRebuildResult {
@@ -58,7 +55,7 @@ class OfficialAnkiV2ViewRebuilder {
   OfficialAnkiV2ViewRebuilder({
     required this.engine,
     required this.catalog,
-    required this.course,
+    required this.viewStore,
     required this.profileId,
     this.lessonSize = defaultLessonSize,
     this.nowMillis,
@@ -73,7 +70,7 @@ class OfficialAnkiV2ViewRebuilder {
 
   final OfficialAnkiEngine engine;
   final OfficialAnkiDatabase catalog;
-  final CourseDatabase course;
+  final IOfficialAnkiV2ViewStore viewStore;
   final String profileId;
   final int lessonSize;
   final int Function()? nowMillis;
@@ -133,7 +130,6 @@ class OfficialAnkiV2ViewRebuilder {
     final started = _now;
     final dao = OfficialAnkiSourceDao(catalog);
     final decisions = OfficialAnkiV2DecisionStore(engine);
-    final store = OfficialAnkiV2ViewStore(course);
     rebuilding.value = true;
     try {
       final sources = dao.listV2Sources(profileId, states: {'active'});
@@ -185,7 +181,7 @@ class OfficialAnkiV2ViewRebuilder {
       }
       // D2：按 source 分组换页——同一事务内先删已不在 active 集合的
       // 残留行，再逐 source DELETE+INSERT；live 集合是权威清单。
-      await store.replaceScoped(
+      await viewStore.replaceScoped(
         liveSourceIds: {for (final source in sources) source.sourceId},
         rowsBySource: rowsBySource,
         rebuiltAtMillis: _now,
@@ -233,7 +229,6 @@ class OfficialAnkiV2ViewRebuilder {
     final started = _now;
     final dao = OfficialAnkiSourceDao(catalog);
     final decisions = OfficialAnkiV2DecisionStore(engine);
-    final store = OfficialAnkiV2ViewStore(course);
     rebuilding.value = true;
     try {
       final active = dao.listV2Sources(profileId, states: {'active'});
@@ -282,7 +277,7 @@ class OfficialAnkiV2ViewRebuilder {
       if (cancelToken?.isCancelled ?? false) {
         return _result(0, 0, started, cancelled: true);
       }
-      await store.replaceScoped(
+      await viewStore.replaceScoped(
         liveSourceIds: liveSourceIds,
         rowsBySource: rowsBySource,
         rebuiltAtMillis: _now,
@@ -301,8 +296,8 @@ class OfficialAnkiV2ViewRebuilder {
         source == null ? 0 : 1,
         rowCount,
         started,
-        sectionCount: await store.distinctSectionCount(),
-        lessonCount: await store.distinctLessonCount(),
+        sectionCount: await viewStore.distinctSectionCount(),
+        lessonCount: await viewStore.distinctLessonCount(),
       );
     } finally {
       rebuilding.value = false;
@@ -333,7 +328,7 @@ class OfficialAnkiV2ViewRebuilder {
     );
   }
 
-  /// 单 source 的行构建：deck 路径 → 放置键 + 呈现 kind，再按组切片。
+  /// 单 source 的行构建：deck 路径 → 放置键，再按组切片。
   /// 每 [_arrangeYieldEvery] 张让出一次事件循环，避免大牌组卡死界面。
   Future<List<OfficialAnkiV2ViewRow>> _rowsFor({
     required OfficialAnkiSourceRow source,
@@ -344,7 +339,6 @@ class OfficialAnkiV2ViewRebuilder {
     required OfficialAnkiV2MappingDecision? mapping,
     void Function(int current, int total)? onArrange,
   }) async {
-    final kindsByNotetype = _kindsByNotetype(mapping);
     final skipped = mapping?.notetypeIdsSkipped ?? const <int>{};
     final excludedDecks = mapping?.excludedDeckIds ?? const <int>{};
     final total = cards.length;
@@ -363,7 +357,6 @@ class OfficialAnkiV2ViewRebuilder {
         placed.add(_PlacedCard(
           card: card,
           placement: _place(source.sourceId, path, placements[topDeckId]),
-          presentationKind: kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
         ));
       }
       if ((i + 1) % _arrangeYieldEvery == 0) {
@@ -437,7 +430,6 @@ class OfficialAnkiV2ViewRebuilder {
             part: (i ~/ size) + 1,
           ),
           lessonKey: placement.lessonKey,
-          presentationKind: placedCard.presentationKind,
           sourceHash: source.sourceHash,
         ));
         emitted++;
@@ -516,91 +508,16 @@ class OfficialAnkiV2ViewRebuilder {
       lessonKey: lessonKey,
     );
   }
-
-  /// notetype → 预计呈现 kind（依据识别原型与 enabledKinds 决策）。
-  ///
-  /// **这只是提示**（ADR 0057 §1）：视图行不持有卡级事实，实际卡面由
-  /// `OfficialCardPresentationResolver` 在课时加载时逐卡重判；这里算出的
-  /// kind 与卡级结论不一致时，记录 `storedKindDrift` 而不是让过期值生效。
-  static Map<int, String> _kindsByNotetype(
-    OfficialAnkiV2MappingDecision? mapping,
-  ) {
-    if (mapping == null) return const {};
-    try {
-      final decoded = jsonDecode(mapping.suggestionsJson);
-      if (decoded is! Map) {
-        officialAnkiV2Log(
-          'mapping suggestions JSON is not an object; expected kinds default '
-          'to flip',
-          warning: true,
-        );
-        return const {};
-      }
-      final out = <int, String>{};
-      for (final entry in decoded.entries) {
-        final id = int.tryParse('${entry.key}');
-        if (id == null || entry.value is! Map) continue;
-        final map = entry.value as Map;
-        final archetypeStr = map['archetype'] as String?;
-        final rawKinds = map['enabledKinds'];
-        final enabled = rawKinds is List
-            ? rawKinds.map((e) => '$e').toSet()
-            : const <String>{};
-        if (archetypeStr == null ||
-            !CardArchetype.values.any((a) => a.name == archetypeStr)) {
-          // 未知原型不能静默当 basicPair——那会制造大量虚假的
-          // storedKindDrift，让漂移计数失去诊断价值。
-          officialAnkiV2Log(
-            'unknown archetype "$archetypeStr" for notetype $id; expected '
-            'kind defaults to flip',
-            warning: true,
-          );
-        }
-        out[id] = _resolvePrimaryKind(
-          archetypeStr: archetypeStr,
-          enabledKinds: enabled,
-        );
-      }
-      return out;
-    } catch (error) {
-      // 建议 JSON 损坏会让全组预计 kind 落到 flip 兜底：留一条警告，漂移
-      // 计数异常时有据可查（AGENTS.md §4：操作型失败不得静默）。
-      officialAnkiV2Log(
-        'mapping suggestions JSON undecodable: $error; expected kinds '
-        'default to flip',
-        warning: true,
-      );
-      return const {};
-    }
-  }
-
-  /// 表在 [OfficialAnkiPresentationPolicy.expectedKindForArchetype] 里只有
-  /// 一份——视图与卡级决策不会各长一张表（ADR 0057 §1）。
-  static String _resolvePrimaryKind({
-    required String? archetypeStr,
-    required Set<String> enabledKinds,
-  }) {
-    final archetype = CardArchetype.values.firstWhere(
-      (a) => a.name == archetypeStr,
-      orElse: () => CardArchetype.basicPair,
-    );
-    return OfficialAnkiPresentationPolicy.expectedKindForArchetype(
-      archetype,
-      enabledKinds,
-    ).name;
-  }
 }
 
 class _PlacedCard {
   const _PlacedCard({
     required this.card,
     required this.placement,
-    required this.presentationKind,
   });
 
   final OfficialAnkiCardDescriptor card;
   final _Placement placement;
-  final String presentationKind;
 }
 
 class _Placement {

@@ -8,8 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/settings/components/settings_reminder_section.dart';
 import 'package:turna/core/theme.dart';
 
 void main() {

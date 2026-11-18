@@ -7,7 +7,7 @@ import 'package:turna/core/theme.dart';
 /// 练习 Tab 的顶栏占位（「湿地雾光」R07）。
 ///
 /// 练习页页头（「练习」pageTitle + 日期 captionSm）已移入页面正文（见
-/// `play_hub_screen.dart` 的开篇），顶栏不再承载标题，只保留高度占位：
+/// `play_hub_page.dart` 的开篇），顶栏不再承载标题，只保留高度占位：
 /// `SafeArea` + [TurnaTheme.tabAppBarHeight] 的透明条，让四个根 Tab 的
 /// 内容起点与基线和 Learn / Profile 一致（高度契约见
 /// `test/views/tab_app_bar_contract_test.dart`）。

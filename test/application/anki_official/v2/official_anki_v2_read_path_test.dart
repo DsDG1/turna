@@ -4,13 +4,15 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
@@ -68,7 +70,6 @@ void main() {
           unitId: 'official-anki-src-v2-read-u-222',
           lessonId: lessonId,
           lessonKey: 'Deck A',
-          presentationKind: 'showWord',
           sourceHash: 'hash-read',
         ),
         const OfficialAnkiV2ViewRow(
@@ -82,7 +83,6 @@ void main() {
           unitId: 'official-anki-src-v2-read-u-222',
           lessonId: lessonId,
           lessonKey: 'Deck A',
-          presentationKind: 'showWord',
           sourceHash: 'hash-read',
         ),
       ],
@@ -91,6 +91,7 @@ void main() {
   });
 
   tearDown(() async {
+    OfficialAnkiCourseEntry.resetHooks();
     OfficialAnkiCompositionRoot.readOnlyCatalog = null;
     OfficialAnkiCompositionRoot.locatorPaths = null;
     OfficialAnkiLessonCardIndex.debugResolver = null;
@@ -116,7 +117,10 @@ void main() {
   });
 
   test('flag on: section shells synthesize from the view', () async {
-    final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
+    final read = OfficialAnkiV2CourseRead(
+      catalog: catalog,
+      viewStore: OfficialAnkiV2ViewStore(course),
+    );
     final shells = await read.sectionShells();
     expect(shells, hasLength(1));
     expect(shells.single.name, 'Deck A');
@@ -132,7 +136,10 @@ void main() {
   test('flag on: retiring source disappears from shells and mapping', () async {
     OfficialAnkiSourceDao(catalog)
         .markRetiring(sourceId: sourceId, nowMillis: 2);
-    final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
+    final read = OfficialAnkiV2CourseRead(
+      catalog: catalog,
+      viewStore: OfficialAnkiV2ViewStore(course),
+    );
     expect(await read.sectionShells(), isEmpty,
         reason: 'K6：retiring 即刻从课程树消失（账本 state 过滤兜底）');
     final index = await OfficialAnkiLessonCardIndex.resolveForLesson(lessonId);
@@ -157,7 +164,6 @@ void main() {
           unitId: 'official-anki-src-v2-read-u-222',
           lessonId: id,
           lessonKey: 'Deck A',
-          presentationKind: 'showWord',
           sourceHash: 'hash-read',
         );
 
@@ -174,7 +180,6 @@ void main() {
           unitId: 'official-anki-src-v2-read-u-222',
           lessonId: lessonId,
           lessonKey: 'Deck A',
-          presentationKind: 'showWord',
           sourceHash: 'hash-read',
         ),
         partRow(part3Id, 11, 110),
@@ -185,7 +190,7 @@ void main() {
 
     final shells = await OfficialAnkiV2CourseRead(
       catalog: catalog,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
     ).sectionShells();
     final lessons = shells.single.units.single.lessons;
     expect(
@@ -219,7 +224,6 @@ void main() {
           unitId: unitLate,
           lessonId: 'official-anki-src-v2-read-l-late-p1',
           lessonKey: 'Deck A::Sub',
-          presentationKind: 'showWord',
           sourceHash: 'hash-read',
         ),
       ],
@@ -228,7 +232,7 @@ void main() {
 
     final shells = await OfficialAnkiV2CourseRead(
       catalog: catalog,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
     ).sectionShells();
     expect(shells.single.units.map((u) => u.id).toList(), [
       'official-anki-src-v2-read-u-222', // 首卡 7
@@ -252,7 +256,6 @@ void main() {
           unitKey: 'Grammar',
           lessonId: 'l-nouns',
           lessonKey: 'Nouns',
-          presentationKind: 'flip',
           sourceHash: 'hash-read',
         ),
         OfficialAnkiV2ViewRow(
@@ -267,7 +270,6 @@ void main() {
           unitKey: 'Grammar',
           lessonId: 'l-verbs',
           lessonKey: 'Verbs',
-          presentationKind: 'flip',
           sourceHash: 'hash-read',
         ),
       ],
@@ -276,7 +278,7 @@ void main() {
 
     final shells = await OfficialAnkiV2CourseRead(
       catalog: catalog,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
     ).sectionShells();
     final unit = shells.single.units.single;
     expect(unit.name, 'Grammar');
@@ -284,6 +286,29 @@ void main() {
       'Nouns',
       'Verbs',
     });
+  });
+
+  test('OfficialAnkiCourseEntry uses viewStoreOf hook and resets cleanly',
+      () async {
+    final store = OfficialAnkiV2ViewStore(course);
+    expect(
+      await OfficialAnkiCourseEntry.lookupActiveSectionIdsAsync(
+        catalog: catalog,
+        viewStore: store,
+      ),
+      {'official-anki-src-v2-read-s-111'},
+    );
+
+    OfficialAnkiCourseEntry.catalogOf = () => catalog;
+    OfficialAnkiCourseEntry.viewStoreOf = () => store;
+    expect(
+      await OfficialAnkiCourseEntry.resolveActiveSectionIds(),
+      {'official-anki-src-v2-read-s-111'},
+    );
+
+    OfficialAnkiCourseEntry.resetHooks();
+    expect(OfficialAnkiCourseEntry.viewStoreOf, isNull);
+    expect(OfficialAnkiCourseEntry.catalogOf, isNull);
   });
 
   test('a missing view table reads as empty', () async {

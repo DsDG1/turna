@@ -10,6 +10,7 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/data/mistake_repository.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
@@ -360,4 +361,96 @@ void main() {
       expect(repoBacked.entries.first.id, 'm-repo');
     });
   });
+
+  group('load error and retry', () {
+    test('ensureLoaded records error and retry recovers', () async {
+      final repo = _FlakyMistakeRepository([
+        entry(id: 'm-recovered'),
+      ]);
+      final provider = MistakeProvider(prefs)..useRepository(repo);
+      var notifications = 0;
+      provider.addListener(() => notifications++);
+
+      await provider.ensureLoaded();
+      expect(provider.hasLoadError, isTrue);
+      expect(provider.loadError, isNotNull);
+      expect(provider.entries, isEmpty);
+      expect(notifications, 1);
+
+      await provider.retry();
+      expect(provider.hasLoadError, isFalse);
+      expect(provider.loadError, isNull);
+      expect(provider.entries.map((e) => e.id).toList(), ['m-recovered']);
+      expect(notifications, 2);
+    });
+  });
+}
+
+class _FlakyMistakeRepository implements IMistakeRepository {
+  _FlakyMistakeRepository(this._entries);
+
+  final List<MistakeEntry> _entries;
+  int loadCalls = 0;
+
+  @override
+  Future<List<MistakeEntry>> load(String languageCode) async {
+    loadCalls++;
+    if (loadCalls == 1) {
+      throw StateError('simulated mistake load failure');
+    }
+    return _entries;
+  }
+
+  @override
+  Future<Map<String, int>> loadDailyCounts(String languageCode) async =>
+      const <String, int>{};
+
+  @override
+  Future<int> loadMasteredTotal(String languageCode) async => 0;
+
+  @override
+  Future<void> replaceAll({
+    required String languageCode,
+    required List<MistakeEntry> entries,
+    required Map<String, int> dailyCounts,
+    required int masteredTotal,
+    int maxEntries = IMistakeRepository.defaultMaxEntries,
+  }) async {}
+
+  @override
+  Future<void> insertEntry({
+    required String languageCode,
+    required MistakeEntry entry,
+    required Map<String, int> dailyCounts,
+    required int masteredTotal,
+    bool evictOldest = false,
+  }) async {}
+
+  @override
+  Future<void> updateEntry({
+    required String languageCode,
+    required MistakeEntry entry,
+    Map<String, int>? dailyCounts,
+    int? masteredTotal,
+  }) async {}
+
+  @override
+  Future<void> deleteEntriesByIds({
+    required String languageCode,
+    required Iterable<String> ids,
+    Map<String, int>? dailyCounts,
+    int? masteredTotal,
+  }) async {}
+
+  @override
+  Future<void> deleteLanguage(String languageCode) async {}
+
+  @override
+  Future<bool> migrateFromPrefsJson({
+    required String languageCode,
+    required String logJson,
+    required String dailyCountsJson,
+    required int masteredTotal,
+  }) async =>
+      false;
 }

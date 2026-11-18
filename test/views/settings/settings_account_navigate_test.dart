@@ -13,7 +13,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/settings/widgets/settings_account_section.dart';
+import 'package:turna/views/settings/components/settings_account_section.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

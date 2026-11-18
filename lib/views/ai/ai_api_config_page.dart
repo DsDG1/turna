@@ -3,26 +3,23 @@ import 'dart:async';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
-import 'package:turna/di/injection.dart';
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
-import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_api_config_sections.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
-import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/optional_provider.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -54,6 +51,7 @@ class AiApiConfigPage extends StatefulWidget {
 }
 
 class _AiApiConfigPageState extends State<AiApiConfigPage> {
+  late final AiEngineConfigHolder _holder;
   late AiEngineConfig _draft;
 
   /// Starts empty: the stored key is never echoed into an editable field.
@@ -69,14 +67,14 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   /// Lets the page reset the probe result when the config underneath changes
   /// (preset switch, clear key, restore defaults).
-  final GlobalKey<_ConnectionTestSectionState> _probeKey =
-      GlobalKey<_ConnectionTestSectionState>();
+  final GlobalKey<AiConfigConnectionTestSectionState> _probeKey =
+      GlobalKey<AiConfigConnectionTestSectionState>();
 
   @override
   void initState() {
     super.initState();
-    final holder = getIt<AiEngineConfigHolder>();
-    _draft = holder.config;
+    _holder = readOptionalProvider<AiEngineConfigHolder>(context)!;
+    _draft = _holder.config;
     _apiKeyCtrl = TextEditingController();
     _baseUrlCtrl = TextEditingController(text: _draft.baseUrl);
     _modelChatCtrl = TextEditingController(text: _draft.modelChat);
@@ -101,8 +99,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   /// Dispose-safe variant of [_commitDraft]: no setState, no controller
   /// mutation — just persist the pending text before the controllers die.
   void _flushDraftForDispose() {
-    final holder = getIt<AiEngineConfigHolder>();
-    final storedKey = holder.config.apiKey;
+    final storedKey = _holder.config.apiKey;
     final typedKey = _apiKeyCtrl.text.trim();
     var normalizedBaseUrl = _draft.customBaseUrl;
     if (_draft.preset.id == AiProvider.custom) {
@@ -123,7 +120,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     // updateConfig → notifyListeners would try to mark provider dependents
     // while the tree is locked ("widget tree was locked" assert). The
     // microtask runs after the frame, with the lock released.
-    unawaited(Future.microtask(() => holder.updateConfig(next)));
+    unawaited(Future.microtask(() => _holder.updateConfig(next)));
   }
 
   // ─── Draft commit (debounced + explicit) ─────────────────────────────
@@ -157,8 +154,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   }
 
   Future<void> _commitDraft() async {
-    final holder = getIt<AiEngineConfigHolder>();
-    final storedKey = holder.config.apiKey;
+    final storedKey = _holder.config.apiKey;
     final typedKey = _apiKeyCtrl.text.trim();
     var normalizedBaseUrl = _draft.customBaseUrl;
     String? baseUrlError;
@@ -180,7 +176,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     if (next == _draft) return;
     _draft = next;
     if (mounted) setState(() {});
-    await holder.updateConfig(next);
+    await _holder.updateConfig(next);
     // The key field only ever holds freshly typed input; it's consumed now.
     if (mounted && _apiKeyCtrl.text.isNotEmpty) {
       _apiKeyCtrl.clear();
@@ -216,7 +212,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       _baseUrlError = null;
     });
     _probeKey.currentState?.clearResult();
-    unawaited(getIt<AiEngineConfigHolder>().updateConfig(_draft));
+    unawaited(_holder.updateConfig(_draft));
   }
 
   /// The draft config with the *effective* key (typed or stored) — used by
@@ -236,10 +232,10 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       destructive: true,
     );
     if (confirmed != true || !mounted) return;
-    await getIt<AiEngineConfigHolder>().clearApiKey();
+    await _holder.clearApiKey();
     if (mounted) {
       setState(() {
-        _draft = getIt<AiEngineConfigHolder>().config;
+        _draft = _holder.config;
       });
       _probeKey.currentState?.clearResult();
       TurnaSnackBar.show(context, AppStrings.aiConfigClearKeyDone);
@@ -255,11 +251,10 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       destructive: true,
     );
     if (confirmed != true || !mounted) return;
-    await getIt<AiEngineConfigHolder>()
-        .updateConfig(const AiEngineConfig(apiKey: ''));
+    await _holder.updateConfig(const AiEngineConfig(apiKey: ''));
     if (mounted) {
       setState(() {
-        _draft = getIt<AiEngineConfigHolder>().config;
+        _draft = _holder.config;
         _apiKeyCtrl.clear();
         _baseUrlCtrl.text = _draft.baseUrl;
         _modelChatCtrl.text = _draft.modelChat;
@@ -322,21 +317,21 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _StatusLine(
+                AiConfigStatusLine(
                   isComplete: _effectiveDraft.isComplete,
                   presetLabel: _draft.preset.label,
                   modelChatText: _modelChatCtrl.text.trim(),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                const _CredentialSafetyNotice(),
+                const AiConfigCredentialSafetyNotice(),
                 const SizedBox(height: AppSpacing.md),
                 // 接口类型 + 数据流向 + 责任归属：用户按实填了第三方 Key，
                 // 就必须在填写现场说清「请求发给谁、谁负责」。
-                const _EndpointScopeNotice(),
+                const AiConfigEndpointScopeNotice(),
                 const SizedBox(height: AppSpacing.xl),
 
                 // ── 分区：连接 ──
-                _SectionHeading(AppStrings.aiConfigGroupConnection),
+                AiConfigSectionHeading(AppStrings.aiConfigGroupConnection),
                 Text(
                   AppStrings.aiConfigProviderSectionHint,
                   style: AppTextStyles.captionSm(context).copyWith(
@@ -353,7 +348,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _BaseUrlBlock(
+                AiConfigBaseUrlBlock(
                   isCustom: _draft.preset.id == AiProvider.custom,
                   controller: _baseUrlCtrl,
                   errorText: _baseUrlError,
@@ -371,11 +366,11 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                 const SizedBox(height: AppSpacing.xl),
 
                 // ── 分区：密钥与模型 ──
-                _SectionHeading(AppStrings.aiConfigGroupModels),
+                AiConfigSectionHeading(AppStrings.aiConfigGroupModels),
                 _textEntry(
                   context,
                   label: AppStrings.settingsApiKeyLabel,
-                  child: _ApiKeyField(
+                  child: AiConfigApiKeyField(
                     controller: _apiKeyCtrl,
                     hint: _draft.apiKey.isEmpty
                         ? AppStrings.settingsApiKeyHint
@@ -397,7 +392,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                   ),
                 ),
                 if (_draft.preset.supportedModels.isNotEmpty)
-                  _ModelQuickPick(
+                  AiConfigModelQuickPick(
                     models: _draft.preset.supportedModels,
                     selectedModel: _modelChatCtrl.text.trim(),
                     onSelected: (model) {
@@ -420,7 +415,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                   ),
                 ),
                 if (_draft.preset.supportedModels.isNotEmpty)
-                  _ModelQuickPick(
+                  AiConfigModelQuickPick(
                     models: _draft.preset.supportedModels,
                     selectedModel: _modelJsonCtrl.text.trim(),
                     onSelected: (model) {
@@ -458,15 +453,18 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                 const SizedBox(height: AppSpacing.xl),
 
                 // ── 危险操作 ──
-                _DangerRow(onClear: _clearCredentials, onRestore: _restoreDefaults),
+                AiConfigDangerRow(
+                  onClear: _clearCredentials,
+                  onRestore: _restoreDefaults,
+                ),
                 const SizedBox(height: AppSpacing.md),
-                const _FooterHint(),
+                const AiConfigFooterHint(),
               ],
             ),
           ),
         ),
         // 保存 / 测试收进底部动作带：位置稳定，键盘弹出时仍可见。
-        bottomNavigationBar: _ConnectionTestSection(
+        bottomNavigationBar: AiConfigConnectionTestSection(
           key: _probeKey,
           configGetter: () => _effectiveDraft,
           onSave: _saveNow,
@@ -500,615 +498,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   }
 }
 
-// ─── Shared visual helpers ──────────────────────────────────────────────
-
 String _maskKey(String key) {
   final trimmed = key.trim();
   if (trimmed.isEmpty) return '';
   if (trimmed.length <= 8) return '${trimmed[0]}…(${trimmed.length})';
   return '${trimmed.substring(0, 3)}…${trimmed.substring(trimmed.length - 4)}';
-}
-
-// ─── Section widgets ────────────────────────────────────────────────────
-
-/// 偏好目录深页的分区标题。
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm + 2),
-      child: Text(title, style: AppTextStyles.sectionTitle(context)),
-    );
-  }
-}
-
-/// 连接状态一行（R14：状态点 + 一句文案，不再是玻璃大卡）。
-class _StatusLine extends StatelessWidget {
-  const _StatusLine({
-    required this.isComplete,
-    required this.presetLabel,
-    required this.modelChatText,
-  });
-
-  final bool isComplete;
-  final String presetLabel;
-  final String modelChatText;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = isComplete ? TurnaTheme.brandTeal : TurnaTheme.warning;
-    // 合成单条文案：预设与模型作为整体展示，不逐字重复分区控件的取值。
-    final subtitle = isComplete
-        ? '$presetLabel · $modelChatText'
-        : AppStrings.aiConfigStatusHintIncomplete;
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isComplete ? accent : null,
-            border: isComplete ? null : Border.all(color: accent, width: 2),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm + 2),
-        Text(
-          isComplete
-              ? AppStrings.aiConfigStatusConfigured
-              : AppStrings.aiConfigStatusNotConfigured,
-          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Editable Base URL for the custom preset; read-only value row for presets.
-class _BaseUrlBlock extends StatelessWidget {
-  const _BaseUrlBlock({
-    required this.isCustom,
-    required this.controller,
-    required this.errorText,
-    required this.presetBaseUrl,
-    required this.onChanged,
-  });
-
-  final bool isCustom;
-  final TextEditingController controller;
-  final String? errorText;
-  final String presetBaseUrl;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isCustom) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: controller,
-            decoration: aiSheetInputDecoration(
-              context,
-              hint: AppStrings.settingsBaseUrlHint,
-            ),
-            onChanged: onChanged,
-          ),
-          if (errorText != null) ...[
-            const SizedBox(height: AppSpacing.xs + 2),
-            Text(
-              errorText!,
-              style: AppTextStyles.captionSm(context)
-                  .copyWith(color: TurnaTheme.error),
-            ),
-          ],
-        ],
-      );
-    }
-    // 预设地址：label 左、值右（长地址省略），不可编辑也不带 chevron。
-    return Row(
-      children: [
-        Text(
-          AppStrings.settingsBaseUrlLabel,
-          style: AppTextStyles.bodyText(context)
-              .copyWith(fontSize: 15, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Text(
-            presetBaseUrl,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: AppTextStyles.bodyText(context).copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: TurnaTheme.brandTeal,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// API key input. Owns the obscure/visible toggle locally so toggling only
-/// rebuilds this field. The hint is computed by the caller — the stored key
-/// is never echoed into the editable content.
-class _ApiKeyField extends StatefulWidget {
-  const _ApiKeyField({
-    required this.controller,
-    required this.hint,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final ValueChanged<String> onChanged;
-
-  @override
-  State<_ApiKeyField> createState() => _ApiKeyFieldState();
-}
-
-class _ApiKeyFieldState extends State<_ApiKeyField> {
-  bool _obscure = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: widget.controller,
-      obscureText: _obscure,
-      autofillHints: const [AutofillHints.password],
-      decoration: aiSheetInputDecoration(
-        context,
-        hint: widget.hint,
-        suffixIcon: IconButton(
-          tooltip: _obscure
-              ? AppStrings.commonShowPassword
-              : AppStrings.commonHidePassword,
-          icon: Icon(
-            _obscure
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
-            size: 20,
-            color: TurnaTheme.textHintColor(context),
-          ),
-          onPressed: () => setState(() => _obscure = !_obscure),
-        ),
-      ),
-      onChanged: widget.onChanged,
-    );
-  }
-}
-
-/// Quick-pick chips for the preset's supported chat models.
-class _ModelQuickPick extends StatelessWidget {
-  const _ModelQuickPick({
-    required this.models,
-    required this.selectedModel,
-    required this.onSelected,
-  });
-
-  final List<String> models;
-  final String selectedModel;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          for (final model in models)
-            TurnaFilterChip(
-              label: model,
-              selected: selectedModel == model,
-              onSelected: (_) => onSelected(model),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Test-connection + save action band with the probe status readout. Owns the
-/// probing/result state so the spinner only rebuilds this section.
-class _ConnectionTestSection extends StatefulWidget {
-  const _ConnectionTestSection({
-    super.key,
-    required this.configGetter,
-    required this.onSave,
-  });
-
-  /// Effective draft (typed key overrides stored) — probed, never persisted.
-  final AiEngineConfig Function() configGetter;
-  final VoidCallback onSave;
-
-  @override
-  State<_ConnectionTestSection> createState() => _ConnectionTestSectionState();
-}
-
-class _ConnectionTestSectionState extends State<_ConnectionTestSection> {
-  bool _probing = false;
-  ({bool ok, int latencyMs, String errorCategory})? _probeResult;
-
-  /// Drop the last probe outcome (config underneath changed).
-  void clearResult() {
-    if (mounted) setState(() => _probeResult = null);
-  }
-
-  Future<void> _testConnection() async {
-    final draft = widget.configGetter();
-    if (!draft.isComplete) return;
-    setState(() => _probing = true);
-    try {
-      final result = await getIt<AiEngine>().probeConnection(draft);
-      if (!mounted) return;
-      setState(() {
-        _probing = false;
-        _probeResult = (
-          ok: result.ok,
-          latencyMs: result.latencyMs,
-          errorCategory: result.ok
-              ? ''
-              : _classifyProbeError(result.error, result.latencyMs),
-        );
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _probing = false;
-        _probeResult = (
-          ok: false,
-          latencyMs: 0,
-          errorCategory: _classifyProbeError(error.toString(), 0),
-        );
-      });
-    }
-  }
-
-  String _classifyProbeError(String message, int latencyMs) {
-    final m = message.toLowerCase();
-    if (m.contains('timeout') ||
-        m.contains('timed out') ||
-        m.contains('deadline')) {
-      return AppStrings.aiConfigProbeTimeout;
-    }
-    if (m.contains('failed host') ||
-        m.contains('dns') ||
-        m.contains('no address') ||
-        m.contains('connection refused')) {
-      return AppStrings.aiConfigProbeNetwork;
-    }
-    if (m.contains('handshake') ||
-        m.contains('certificate') ||
-        m.contains('tls')) {
-      return AppStrings.aiConfigProbeTls;
-    }
-    if (m.contains('401') ||
-        m.contains('403') ||
-        m.contains('unauthorized') ||
-        m.contains('invalid api key') ||
-        m.contains('authentication')) {
-      return AppStrings.aiConfigProbeAuth;
-    }
-    if (m.contains('429') || m.contains('rate limit') || m.contains('quota')) {
-      return AppStrings.aiConfigProbeRateLimit;
-    }
-    if (m.contains('404') || m.contains('model') && m.contains('not')) {
-      return AppStrings.aiConfigProbeModel;
-    }
-    if (m.contains('json') || m.contains('format') || m.contains('decode')) {
-      return AppStrings.aiConfigProbeFormat;
-    }
-    return AppStrings.aiConfigProbeUnknown;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SessionActionBand(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageMargin,
-        AppSpacing.md,
-        AppSpacing.pageMargin,
-        AppSpacing.lg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_probeResult != null) ...[
-            _probeStatusRow(context),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 52,
-                  child: OutlinedButton.icon(
-                    style: aiSheetSecondaryButtonStyle(),
-                    onPressed: _probing || !widget.configGetter().isComplete
-                        ? null
-                        : _testConnection,
-                    icon: _probing
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.wifi_tethering_rounded, size: 18),
-                    label: Text(AppStrings.aiHubToolsTestConnection),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: SessionPrimaryAction(
-                  label: AppStrings.aiConfigSave,
-                  onPressed: widget.onSave,
-                  trailingIcon: Icons.save_outlined,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _probeStatusRow(BuildContext context) {
-    final ok = _probeResult!.ok;
-    final accent = ok ? TurnaTheme.brandTeal : TurnaTheme.error;
-    final text = ok
-        ? AppStrings.aiHubToolsTestConnectionOk(_probeResult!.latencyMs)
-        : '${AppStrings.aiHubToolsTestConnectionFail}（${_probeResult!.errorCategory}）';
-    return Row(
-      children: [
-        Icon(
-          ok
-              ? Icons.check_circle_outline_rounded
-              : Icons.error_outline_rounded,
-          size: 18,
-          color: accent,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: accent,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        if (!ok)
-          // Copy the (sanitized) endpoint so the user can debug externally.
-          IconButton(
-            iconSize: 16,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            tooltip: AppStrings.aiConfigCopyEndpoint,
-            icon: Icon(
-              Icons.copy_rounded,
-              size: 16,
-              color: TurnaTheme.textHintColor(context),
-            ),
-            onPressed: () {
-              Clipboard.setData(
-                ClipboardData(text: widget.configGetter().chatCompletionsUrl),
-              );
-            },
-          ),
-      ],
-    );
-  }
-}
-
-/// Destructive actions: clear stored key / restore default config.
-class _DangerRow extends StatelessWidget {
-  const _DangerRow({required this.onClear, required this.onRestore});
-
-  final VoidCallback onClear;
-  final VoidCallback onRestore;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        TextButton.icon(
-          onPressed: onClear,
-          style: TextButton.styleFrom(
-            foregroundColor: TurnaTheme.error,
-          ),
-          icon: const Icon(Icons.key_off_outlined, size: 18),
-          label: Text(AppStrings.aiConfigClearKeyButton),
-        ),
-        TextButton.icon(
-          onPressed: onRestore,
-          icon: const Icon(Icons.restore_rounded, size: 18),
-          label: Text(AppStrings.aiConfigRestoreDefaultsButton),
-        ),
-      ],
-    );
-  }
-}
-
-/// Footer note about local-only key storage.
-class _FooterHint extends StatelessWidget {
-  const _FooterHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.lock_outline_rounded,
-          size: 13,
-          color: TurnaTheme.textHintColor(context),
-        ),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            AppStrings.settingsAiApiConfigNotSaved,
-            style: AppTextStyles.captionSm(context).copyWith(
-              fontSize: 12,
-              color: TurnaTheme.textHintColor(context),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Surfaces credential-storage facts the user needs: session-only platforms
-/// (key lost on restart), failed migrations (plaintext kept + retry hint), and
-/// — the common case — confirmation that the key is encrypted on device and
-/// survives a restart.
-class _CredentialSafetyNotice extends StatelessWidget {
-  const _CredentialSafetyNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<AiEngineConfigHolder,
-        (AiKeyStorageKind, AiCredentialMigrationStatus, bool)>(
-      selector: (_, holder) => (
-        holder.keyStorageKind,
-        holder.migrationStatus,
-        holder.config.apiKey.isNotEmpty,
-      ),
-      builder: (context, state, _) {
-        final (kind, migration, hasKey) = state;
-        final isFailure = migration == AiCredentialMigrationStatus.failed;
-        final isSession = kind == AiKeyStorageKind.sessionOnly;
-        final isPersisted = kind == AiKeyStorageKind.secure && hasKey;
-        if (!isFailure && !isSession && !isPersisted) {
-          return const SizedBox.shrink();
-        }
-
-        final IconData icon;
-        final Color accent;
-        final String message;
-        if (isFailure) {
-          icon = Icons.shield_outlined;
-          accent = TurnaTheme.error;
-          message = AppStrings.aiConfigMigrationPendingNotice;
-        } else if (isSession) {
-          icon = Icons.shield_outlined;
-          accent = TurnaTheme.warning;
-          message = AppStrings.aiConfigSessionKeyNotice;
-        } else {
-          icon = Icons.verified_user_outlined;
-          accent = TurnaTheme.brandSky;
-          message = AppStrings.aiConfigKeyPersistedNotice;
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(icon, size: 16, color: accent),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                message,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// 接口与责任边界说明（分区标题 + 三行说明，不包卡）。
-///
-/// 三句话缺一不可：① 这个页面只接 OpenAI 兼容协议，别的协议填进来必然失败；
-/// ② 请求从本机直达用户自己填的服务商，应用不做中转；③ 内容由服务商生成与
-/// 处理，准确性/合规/计费归服务商。用户在这里填的是自己的密钥，这三条属于
-/// 填写现场必须给出的信息，不能只写在隐私政策里。
-class _EndpointScopeNotice extends StatelessWidget {
-  const _EndpointScopeNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeading(AppStrings.aiConfigScopeTitle),
-        _ScopeLine(
-          icon: Icons.terminal_rounded,
-          text: AppStrings.aiConfigScopeProtocol,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _ScopeLine(
-          icon: Icons.cloud_upload_outlined,
-          text: AppStrings.aiConfigScopeDataFlow,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _ScopeLine(
-          icon: Icons.gavel_rounded,
-          text: AppStrings.aiConfigScopeLiability,
-        ),
-      ],
-    );
-  }
-}
-
-class _ScopeLine extends StatelessWidget {
-  const _ScopeLine({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(
-            icon,
-            size: 15,
-            color: TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTextStyles.captionSm(context)
-                .copyWith(height: 1.45, fontSize: 12.5),
-          ),
-        ),
-      ],
-    );
-  }
 }

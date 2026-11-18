@@ -6,6 +6,5 @@ import 'package:turna/domain/course/course_scope.dart';
 abstract final class PlayReviewEligibility {
   static bool isLanguage(CourseScope scope) => scope is BuiltinCourseScope;
 
-  static bool isAnki(CourseScope scope) =>
-      scope is OfficialAnkiCourseScope || scope is LegacyAnkiCourseScope;
+  static bool isAnki(CourseScope scope) => scope is OfficialAnkiCourseScope;
 }

@@ -12,10 +12,8 @@ import 'package:turna/application/anki_official/storage/official_anki_import_att
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/core/log_capture.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'storage_maintenance_platform_stub.dart'
     if (dart.library.io) 'storage_maintenance_platform_io.dart' as platform;
 
@@ -69,11 +67,10 @@ enum StorageArtifactCategory {
 }
 
 /// Read-only storage inventory across every Anki-related surface (Plan 1
-/// Phase 3). Aggregates the main database, legacy imports/media, the
+/// Phase 3). Aggregates the main database, leftover legacy media dirs, the
 /// official collection directory, regenerable caches, and logs — each byte
-/// attributed to a category, owner, and cleanup policy. Orphan detection
-/// cross-checks media directories against `anki_imports` rows; nothing is
-/// ever deleted by this service.
+/// attributed to a category, owner, and cleanup policy. Nothing is ever
+/// deleted by this service.
 class StorageInventoryReport {
   const StorageInventoryReport({
     required this.artifacts,
@@ -117,7 +114,9 @@ class StorageInventoryReport {
 }
 
 class StorageInventoryService {
-  const StorageInventoryService();
+  const StorageInventoryService({this.documentsDirectory});
+
+  final Directory? documentsDirectory;
 
   Future<StorageInventoryReport> scan() async {
     final trace = Stopwatch()..start();
@@ -148,40 +147,24 @@ class StorageInventoryService {
       cleanupPolicy: StorageCleanupPolicy.optimize,
     ));
 
-    // ── Legacy Anki: import rows + per-import media directories ────────
-    final imports = await AnkiImportDao(db).getAll();
-    artifacts.add(StorageArtifactReport(
-      category: StorageArtifactCategory.legacyAnki,
-      ownerId: '',
-      label: '${imports.length} imports '
-          '(${imports.where((i) => i.status == 'failed').length} failed)',
-      physicalBytes: 0,
-      fileCount: imports.length,
-      cleanupPolicy: StorageCleanupPolicy.deleteSaga,
-    ));
-
-    final mediaBase =
-        p.join(await AnkiAudioResolver().getMediaBasePath(), 'anki_media');
-    final ownedIds = imports.map((i) => i.importId).toSet();
-    // Exact import rows own media even while a course is staging/hidden.
-    // Course visibility is not an ownership fact, and prefix comparisons can
-    // confuse sibling ids such as `abc` and `abc-extra`.
-    final mediaDirs = await _listSubdirectories(mediaBase);
-    for (final dir in mediaDirs) {
-      final size = await platform.directorySizeBytes(dir.path);
-      final name = p.basename(dir.path);
-      final hasOwner = ownedIds.contains(name);
-      artifacts.add(StorageArtifactReport(
-        category: StorageArtifactCategory.legacyAnkiMedia,
-        ownerId: name,
-        label: 'media/$name',
-        physicalBytes: size,
-        fileCount: await _countFiles(dir.path),
-        cleanupPolicy: hasOwner
-            ? StorageCleanupPolicy.deleteSaga
-            : StorageCleanupPolicy.confirmOnly,
-        orphaned: !hasOwner,
-      ));
+    // ── Legacy Anki media directories (retired; any leftover is orphaned) ─
+    final docsPath = await _applicationDocumentsPath();
+    if (docsPath != null) {
+      final mediaBase = p.join(docsPath, 'anki_media');
+      final mediaDirs = await _listSubdirectories(mediaBase);
+      for (final dir in mediaDirs) {
+        final size = await platform.directorySizeBytes(dir.path);
+        final name = p.basename(dir.path);
+        artifacts.add(StorageArtifactReport(
+          category: StorageArtifactCategory.legacyAnkiMedia,
+          ownerId: name,
+          label: 'media/$name',
+          physicalBytes: size,
+          fileCount: await _countFiles(dir.path),
+          cleanupPolicy: StorageCleanupPolicy.confirmOnly,
+          orphaned: true,
+        ));
+      }
     }
 
     // ── Official Anki: collection, catalog, media, backups ─────────────
@@ -396,6 +379,17 @@ class StorageInventoryService {
     try {
       return (await getApplicationSupportDirectory()).path;
     } catch (_) {
+      // Optional platform path: skip directory scan when unavailable.
+      return null;
+    }
+  }
+
+  Future<String?> _applicationDocumentsPath() async {
+    if (documentsDirectory != null) return documentsDirectory!.path;
+    try {
+      return (await getApplicationDocumentsDirectory()).path;
+    } catch (_) {
+      // Optional platform path: skip leftover anki_media scan when unavailable.
       return null;
     }
   }

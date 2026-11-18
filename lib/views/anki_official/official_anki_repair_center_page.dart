@@ -15,15 +15,13 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
-import 'package:turna/core/log_capture.dart';
-
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/anki_official/components/repair_center_sections.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
-import 'package:turna/core/theme.dart';
 
 /// Database Health & Repair Center:
 /// Handles both core CourseDatabase health and Anki official collection repair,
@@ -63,9 +61,12 @@ class OfficialAnkiRepairCenterPage extends StatefulWidget {
 class _OfficialAnkiRepairCenterPageState
     extends State<OfficialAnkiRepairCenterPage> {
   bool _busy = false;
-  Future<StorageInventoryReport?>? _orphanScan;
+  StorageInventoryReport? _orphanReport;
+  String? _orphansError;
+  bool _scanningOrphans = false;
 
   DatabaseDoctorReport? _doctorReport;
+  String? _doctorError;
   bool _inspecting = false;
 
   List<OfficialAnkiPendingImport> _pending = const [];
@@ -88,9 +89,13 @@ class _OfficialAnkiRepairCenterPageState
   @override
   void initState() {
     super.initState();
-    _orphanScan = _loadOrphans();
     _reloadCatalogSnapshot();
-    _loadDoctorReport();
+    _inspecting = true;
+    unawaited(_loadDoctorReport(fromInit: true));
+    if (_catalog != null) {
+      _scanningOrphans = true;
+      unawaited(_loadOrphans(fromInit: true));
+    }
   }
 
   void _reloadCatalogSnapshot() {
@@ -104,8 +109,13 @@ class _OfficialAnkiRepairCenterPageState
     _failedJobs = snapshot.failedJobs;
   }
 
-  Future<void> _loadDoctorReport() async {
-    setState(() => _inspecting = true);
+  Future<void> _loadDoctorReport({bool fromInit = false}) async {
+    if (!fromInit && mounted) {
+      setState(() {
+        _inspecting = true;
+        _doctorError = null;
+      });
+    }
     try {
       final report = await _doctor.inspectHealth(
         catalog: _catalog,
@@ -115,20 +125,60 @@ class _OfficialAnkiRepairCenterPageState
       if (mounted) {
         setState(() {
           _doctorReport = report;
+          _doctorError = null;
           _inspecting = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _inspecting = false);
+    } catch (e, st) {
+      logger.w(
+        'RepairCenter: doctor inspection failed',
+        error: e,
+        stackTrace: st,
+      );
+      if (mounted) {
+        setState(() {
+          _doctorError = AppStrings.repairDiagnosticsLoadFailed;
+          _inspecting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadOrphans({bool fromInit = false}) async {
+    if (_catalog == null) return;
+    if (!fromInit && mounted) {
+      setState(() {
+        _scanningOrphans = true;
+        _orphansError = null;
+      });
+    }
+    try {
+      final report =
+          await (widget.scanner ?? const StorageInventoryService()).scan();
+      if (mounted) {
+        setState(() {
+          _orphanReport = report;
+          _orphansError = null;
+          _scanningOrphans = false;
+        });
+      }
+    } catch (e, st) {
+      logger.w('RepairCenter: orphan scan failed', error: e, stackTrace: st);
+      if (mounted) {
+        setState(() {
+          _orphansError = AppStrings.repairDiagnosticsLoadFailed;
+          _scanningOrphans = false;
+        });
+      }
     }
   }
 
   void _reloadAndSetState() {
-    setState(() {
-      _reloadCatalogSnapshot();
-      _orphanScan = _loadOrphans();
-    });
-    _loadDoctorReport();
+    setState(_reloadCatalogSnapshot);
+    unawaited(_loadDoctorReport());
+    if (_catalog != null) {
+      unawaited(_loadOrphans());
+    }
   }
 
   @override
@@ -145,488 +195,125 @@ class _OfficialAnkiRepairCenterPageState
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: TurnaTheme.glassDecoration(
-              context,
-              TurnaTheme.glassNeutral,
-              level: GlassLevel.l1Quiet,
-              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline_rounded,
-                    color: TurnaTheme.textSecondaryColor(context)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    AppStrings.ankiRepairCenterEmptyCatalog,
-                    style: TextStyle(
-                      color: TurnaTheme.textSecondaryColor(context),
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          if (_busy || _inspecting) const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+          const RepairEmptyCatalogCard(),
+          const SizedBox(height: 16),
+          RepairHealthOverviewCard(
+            report: _doctorReport,
+            doctorError: _doctorError,
+            orphans: const [],
+            orphansError: null,
+            busy: _busy,
+            canRepairAll: false,
+            onRetryDoctor: () => unawaited(_loadDoctorReport()),
+            onOneClickOptimize: () => unawaited(_oneClickOptimize()),
+            onOneClickRepair: () => unawaited(_oneClickRepair(const [])),
           ),
           const SizedBox(height: 16),
-          _buildHealthOverviewCard(context, orphans: const []),
-          const SizedBox(height: 16),
-          _buildAdvancedTools(context),
+          RepairAdvancedToolsSection(
+            busy: _busy,
+            hasCatalog: false,
+            onCheckIntegrity: () => unawaited(_checkIntegrity()),
+            onRebuildIndexes: () => unawaited(_rebuildIndexes()),
+            onCheckCollection: () => unawaited(_checkCollection()),
+            onExport: () => unawaited(_export()),
+          ),
         ],
       );
     }
 
-    final pending = _pending;
     final pendingCleanup = _sources
         .where((s) => s.state == 'pending_cleanup' || s.state == 'retiring')
         .toList();
     final quarantined =
         _sources.where((s) => s.state == 'quarantined').toList();
-    final jobs = _jobs;
-    final failed = _failedJobs;
+    final orphans = _orphanReport?.orphans ?? const <StorageArtifactReport>[];
+    final empty = _orphansError == null &&
+        _pending.isEmpty &&
+        pendingCleanup.isEmpty &&
+        quarantined.isEmpty &&
+        _jobs.isEmpty &&
+        _failedJobs.isEmpty &&
+        orphans.isEmpty;
+    final canRepairAll =
+        orphans.isNotEmpty || _failedJobs.isNotEmpty || pendingCleanup.isNotEmpty;
 
-    return FutureBuilder<StorageInventoryReport?>(
-      future: _orphanScan,
-      builder: (context, snap) {
-        final orphans = snap.data?.orphans ?? const <StorageArtifactReport>[];
-        final empty = pending.isEmpty &&
-            pendingCleanup.isEmpty &&
-            quarantined.isEmpty &&
-            jobs.isEmpty &&
-            failed.isEmpty &&
-            orphans.isEmpty;
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            if (_busy || _inspecting) const LinearProgressIndicator(),
-            const SizedBox(height: 8),
-            _buildHealthOverviewCard(context, orphans: orphans),
-            const SizedBox(height: 16),
-            if (empty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    AppStrings.ankiRepairCenterEmpty,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-                  ),
-                ),
-              ),
-            if (orphans.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: AppStrings.ankiRepairOrphans,
-                trailing: orphans.length > 1
-                    ? TextButton.icon(
-                        onPressed:
-                            _busy ? null : () => _cleanAllOrphans(orphans),
-                        icon: const Icon(Icons.delete_sweep_outlined, size: 16),
-                        label: Text(AppStrings.databaseDoctorCleanAllOrphans),
-                      )
-                    : null,
-              ),
-              for (final orphan in orphans)
-                _tile(
-                  key: Key('repair-orphan-${orphan.ownerId}'),
-                  title: orphan.label,
-                  subtitle:
-                      '${_categoryName(orphan.category)} · ${_formatBytes(orphan.physicalBytes)}',
-                  actions: [
-                    TextButton(
-                      onPressed: _busy ? null : () => _cleanOrphan(orphan),
-                      child: Text(AppStrings.ankiRepairCleanAction),
-                    ),
-                  ],
-                ),
-            ],
-            if (pending.isNotEmpty) ...[
-              _buildSectionHeader(title: AppStrings.ankiPendingImportsTitle),
-              for (final item in pending) ...[
-                OfficialInterruptedImportCard(
-                  key: Key('repair-pending-${item.sourceId}'),
-                  displayName: item.displayName,
-                  onDiscard: _busy ? null : () => _discardImport(item.sourceId),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ],
-            if (pendingCleanup.isNotEmpty) ...[
-              _buildSectionHeader(title: AppStrings.ankiRepairPendingCleanup),
-              for (final source in pendingCleanup)
-                _tile(
-                  key: Key('repair-cleanup-${source.sourceId}'),
-                  title: source.displayName,
-                  subtitle: AppStrings.ankiRepairSourceState(source.state),
-                  actions: [
-                    TextButton(
-                      onPressed:
-                          _busy ? null : () => _retryCleanup(source.sourceId),
-                      child: Text(AppStrings.ankiRepairRetryCleanup),
-                    ),
-                  ],
-                ),
-            ],
-            if (quarantined.isNotEmpty) ...[
-              _buildSectionHeader(title: AppStrings.ankiRepairQuarantined),
-              for (final source in quarantined)
-                _tile(
-                  key: Key('repair-quarantine-${source.sourceId}'),
-                  title: source.displayName,
-                  subtitle: AppStrings.ankiRepairSourceState(source.state),
-                  actions: [
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _deleteQuarantine(source.sourceId),
-                      child: Text(AppStrings.ankiRepairDeleteQuarantine),
-                    ),
-                  ],
-                ),
-            ],
-            if (jobs.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: AppStrings.ankiRepairMaintenanceJobs,
-                trailing: TextButton(
-                  onPressed: _busy ? null : _retryAllJobs,
-                  child: Text(AppStrings.databaseDoctorRetryAllJobs),
-                ),
-              ),
-              for (final job in jobs)
-                _tile(
-                  key: Key('repair-job-${job['job_id']}'),
-                  title: AppStrings.ankiRepairJobKind('${job['kind']}'),
-                  subtitle: AppStrings.ankiRepairJobState('${job['state']}'),
-                  actions: [
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _retryJob(job['job_id'] as String),
-                      child: Text(AppStrings.ankiRepairJobRun),
-                    ),
-                  ],
-                ),
-            ],
-            if (failed.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: AppStrings.ankiRepairFailedJobs,
-                trailing: TextButton(
-                  onPressed: _busy ? null : _clearFailedJobs,
-                  child: Text(AppStrings.databaseDoctorClearFailedJobs),
-                ),
-              ),
-              for (final job in failed)
-                _tile(
-                  key: Key('repair-failed-${job['job_id']}'),
-                  title: AppStrings.ankiRepairJobKind('${job['kind']}'),
-                  subtitle: AppStrings.ankiRepairJobErrorExplanation(
-                      job['last_error_code'] as String?),
-                  actions: [
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _retryJob(job['job_id'] as String),
-                      child: Text(AppStrings.commonRetry),
-                    ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _deleteJob(job['job_id'] as String),
-                      child: Text(AppStrings.ankiRepairJobClear),
-                    ),
-                  ],
-                ),
-            ],
-            const SizedBox(height: 16),
-            _buildAdvancedTools(context),
-          ],
-        );
-      },
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // UI Widgets
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildHealthOverviewCard(
-    BuildContext context, {
-    required List<StorageArtifactReport> orphans,
-  }) {
-    final report = _doctorReport;
-    final isHealthy = report != null && report.isAllHealthy;
-    final color = isHealthy ? TurnaTheme.leagueEmerald : TurnaTheme.warning;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        side: BorderSide(
-          color: color.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-      ),
-      color: color.withValues(alpha: 0.05),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  isHealthy
-                      ? Icons.verified_rounded
-                      : Icons.warning_amber_rounded,
-                  color: color,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isHealthy
-                            ? AppStrings.databaseDoctorHealthy
-                            : (report?.courseDb.integrityOk == false
-                                ? AppStrings.databaseDoctorError
-                                : AppStrings.databaseDoctorWarning),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
-                      ),
-                      if (report != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          isHealthy
-                              ? AppStrings.ankiRepairHealthyDetail
-                              : AppStrings.ankiRepairIssuesCount(
-                                  report.totalIssuesCount),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: TurnaTheme.cardBg(context),
-                borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-              ),
-              child: Column(
-                children: [
-                  _statusRow(
-                    context,
-                    icon: Icons.menu_book_rounded,
-                    title: AppStrings.databaseDoctorCourseDbTitle,
-                    status: report?.courseDb.integrityOk == true
-                        ? AppStrings.databaseDoctorCourseDbOk
-                        : AppStrings.ankiRepairDbAbnormal,
-                    statusColor: report?.courseDb.integrityOk == true
-                        ? TurnaTheme.leagueEmerald
-                        : TurnaTheme.error,
-                    detail: report != null
-                        ? AppStrings.ankiRepairCourseDbDetail(
-                            report.courseDb.lessonCount,
-                            report.courseDb.wordCount,
-                            report.courseDb.srsCount,
-                          )
-                        : null,
-                  ),
-                  const Divider(height: 12),
-                  _statusRow(
-                    context,
-                    icon: Icons.collections_bookmark_outlined,
-                    title: AppStrings.databaseDoctorAnkiDbTitle,
-                    status: report?.ankiDb.isConfigured == true
-                        ? (report!.ankiDb.failedJobsCount > 0
-                            ? AppStrings.ankiRepairHasFailedJobs
-                            : AppStrings.databaseDoctorAnkiDbOk)
-                        : AppStrings.databaseDoctorAnkiDbNotConfigured,
-                    statusColor: report?.ankiDb.isConfigured == true
-                        ? (report!.ankiDb.failedJobsCount > 0
-                            ? TurnaTheme.warning
-                            : TurnaTheme.leagueEmerald)
-                        : TurnaTheme.textSecondaryColor(context),
-                    detail: report?.ankiDb.isConfigured == true
-                        ? AppStrings.ankiRepairDeckCount(
-                            report!.ankiDb.sourceCount)
-                        : null,
-                  ),
-                  const Divider(height: 12),
-                  _statusRow(
-                    context,
-                    icon: Icons.folder_open_outlined,
-                    title: AppStrings.databaseDoctorStorageTitle,
-                    status: orphans.isEmpty
-                        ? AppStrings.databaseDoctorStorageNoOrphans
-                        : AppStrings.ankiRepairOrphanCount(orphans.length),
-                    statusColor: orphans.isEmpty
-                        ? TurnaTheme.leagueEmerald
-                        : TurnaTheme.warning,
-                    detail: orphans.isNotEmpty
-                        ? _formatBytes(orphans.fold<int>(
-                            0, (sum, a) => sum + a.physicalBytes))
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  key: const Key('repair-doctor-optimize'),
-                  onPressed: _busy ? null : _oneClickOptimize,
-                  icon: const Icon(Icons.speed_rounded, size: 18),
-                  label: Text(AppStrings.databaseDoctorOneClickOptimize),
-                ),
-                if (!isHealthy &&
-                    (orphans.isNotEmpty ||
-                        _failedJobs.isNotEmpty ||
-                        _sources.any((s) => s.state == 'pending_cleanup')))
-                  FilledButton.tonalIcon(
-                    key: const Key('repair-doctor-fix-all'),
-                    onPressed: _busy ? null : () => _oneClickRepair(orphans),
-                    icon: const Icon(Icons.build_circle_outlined, size: 18),
-                    label: Text(AppStrings.databaseDoctorOneClickRepair),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusRow(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String status,
-    required Color statusColor,
-    String? detail,
-  }) {
-    return Row(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        Icon(icon, size: 16, color: TurnaTheme.textSecondaryColor(context)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              if (detail != null)
-                Text(
-                  detail,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-            ],
-          ),
+        if (_busy || _inspecting || _scanningOrphans)
+          const LinearProgressIndicator(),
+        const SizedBox(height: 8),
+        RepairHealthOverviewCard(
+          report: _doctorReport,
+          doctorError: _doctorError,
+          orphans: orphans,
+          orphansError: _orphansError,
+          busy: _busy,
+          canRepairAll: canRepairAll,
+          onRetryDoctor: () => unawaited(_loadDoctorReport()),
+          onOneClickOptimize: () => unawaited(_oneClickOptimize()),
+          onOneClickRepair: () => unawaited(_oneClickRepair(orphans)),
         ),
-        Text(
-          status,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: statusColor,
+        const SizedBox(height: 16),
+        if (empty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                AppStrings.ankiRepairCenterEmpty,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: TurnaTheme.textSecondaryColor(context)),
+              ),
+            ),
           ),
+        RepairOrphansSection(
+          orphans: orphans,
+          orphansError: _orphansError,
+          busy: _busy,
+          onRetryScan: () => unawaited(_loadOrphans()),
+          onCleanOrphan: (orphan) => unawaited(_cleanOrphan(orphan)),
+          onCleanAllOrphans: () => unawaited(_cleanAllOrphans(orphans)),
+        ),
+        RepairPendingImportsSection(
+          pending: _pending,
+          busy: _busy,
+          onDiscard: (id) => unawaited(_discardImport(id)),
+        ),
+        RepairPendingCleanupSection(
+          sources: pendingCleanup,
+          busy: _busy,
+          onRetryCleanup: (id) => unawaited(_retryCleanup(id)),
+        ),
+        RepairQuarantinedSection(
+          sources: quarantined,
+          busy: _busy,
+          onDeleteQuarantine: (id) => unawaited(_deleteQuarantine(id)),
+        ),
+        RepairMaintenanceJobsSection(
+          jobs: _jobs,
+          busy: _busy,
+          onRetryAll: () => unawaited(_retryAllJobs()),
+          onRetryJob: (id) => unawaited(_retryJob(id)),
+        ),
+        RepairFailedJobsSection(
+          jobs: _failedJobs,
+          busy: _busy,
+          onClearAll: () => unawaited(_clearFailedJobs()),
+          onRetryJob: (id) => unawaited(_retryJob(id)),
+          onDeleteJob: (id) => unawaited(_deleteJob(id)),
+        ),
+        const SizedBox(height: 16),
+        RepairAdvancedToolsSection(
+          busy: _busy,
+          hasCatalog: true,
+          onCheckIntegrity: () => unawaited(_checkIntegrity()),
+          onRebuildIndexes: () => unawaited(_rebuildIndexes()),
+          onCheckCollection: () => unawaited(_checkCollection()),
+          onExport: () => unawaited(_export()),
         ),
       ],
-    );
-  }
-
-  Widget _buildAdvancedTools(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildSectionHeader(title: AppStrings.databaseDoctorAdvancedTools),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _checkIntegrity,
-              icon: const Icon(Icons.check_circle_outline, size: 16),
-              label: Text(AppStrings.databaseDoctorCheckIntegrity),
-            ),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _rebuildIndexes,
-              icon: const Icon(Icons.sync_alt_rounded, size: 16),
-              label: Text(AppStrings.databaseDoctorRebuildIndexes),
-            ),
-            if (_catalog != null)
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _checkCollection,
-                icon: const Icon(Icons.health_and_safety_outlined, size: 16),
-                label: Text(AppStrings.databaseDoctorCheckCollection),
-              ),
-            OutlinedButton.icon(
-              key: const Key('repair-export'),
-              onPressed: _busy ? null : _export,
-              icon: const Icon(Icons.ios_share_outlined, size: 16),
-              label: Text(AppStrings.ankiRepairExportDiagnostics),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader({required String title, Widget? trailing}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-          ),
-          if (trailing != null) trailing,
-        ],
-      ),
-    );
-  }
-
-  Widget _tile({
-    required Key key,
-    required String title,
-    required String subtitle,
-    List<Widget> actions = const [],
-  }) {
-    return ListTile(
-      key: key,
-      contentPadding: EdgeInsets.zero,
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: actions.isEmpty
-          ? null
-          : Row(mainAxisSize: MainAxisSize.min, children: actions),
     );
   }
 
@@ -634,328 +321,301 @@ class _OfficialAnkiRepairCenterPageState
   // Actions
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<StorageInventoryReport?> _loadOrphans() async {
-    try {
-      return await (widget.scanner ?? const StorageInventoryService()).scan();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> _oneClickOptimize() async {
+  Future<void> _runBusyAction(
+    String label,
+    Future<void> Function() action, {
+    bool reload = true,
+  }) async {
     setState(() => _busy = true);
     try {
-      final res = await _doctor.optimizeAll(
-        catalog: _catalog,
-        paths: _paths,
-        engine: _engine,
-      );
-      if (mounted) {
-        _snack(AppStrings.databaseDoctorOptimizeDoneMessage(
-          reclaimedBytes: res.courseDbReclaimedBytes,
-          ankiJobs: res.ankiJobsCompleted,
-        ));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
-  }
-
-  Future<void> _oneClickRepair(List<StorageArtifactReport> orphans) async {
-    final confirmed = await _confirm(
-      title: AppStrings.ankiRepairOneClickTitle,
-      body: AppStrings.ankiRepairOneClickBody,
-    );
-    if (confirmed != true) return;
-    setState(() => _busy = true);
-    try {
-      // 1. Clean orphans
-      if (orphans.isNotEmpty) {
-        await _doctor.cleanOrphans(targets: orphans, scanner: widget.scanner);
-      }
-      // 2. Retry failed jobs
-      await _doctor.retryFailedJobs(
-        catalog: _catalog,
-        paths: _paths,
-        engine: _engine,
-      );
-      // 3. Retry pending cleanups
-      final pendingCleanups = _sources
-          .where((s) => s.state == 'pending_cleanup' || s.state == 'retiring')
-          .toList();
-      for (final s in pendingCleanups) {
-        try {
-          if (_catalog != null && _paths != null) {
-            await OfficialAnkiV2RetireService(
-              catalog: _catalog!,
-              paths: _paths!,
-              course: null,
-              engine: _engine,
-            ).runRetireJob(sourceId: s.sourceId);
-          }
-        } catch (e, st) {
-          // One-click repair must still finish the remaining steps, but a
-          // swallowed step failure would report success falsely.
-          logger.w('RepairCenter: one-click repair step failed',
-              error: e, stackTrace: st);
-        }
-      }
-      if (mounted) {
-        _snack(AppStrings.ankiRepairOneClickDone);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
-  }
-
-  Future<void> _cleanOrphan(StorageArtifactReport orphan) async {
-    final confirmed = await _confirm(
-      title: AppStrings.databaseDoctorCleanOrphanConfirmTitle,
-      body: AppStrings.databaseDoctorCleanOrphanConfirmBody,
-    );
-    if (confirmed != true) return;
-    setState(() => _busy = true);
-    try {
-      if (getIt.isRegistered<AnkiDeckManager>()) {
-        await getIt<AnkiDeckManager>().uninstall(orphan.ownerId);
-      }
-      if (mounted) _snack(AppStrings.ankiRepairOrphanCleaned);
-    } catch (_) {
+      await action();
+    } catch (e, st) {
+      logger.w('RepairCenter: $label failed', error: e, stackTrace: st);
       if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
     } finally {
       if (mounted) {
         setState(() => _busy = false);
-        _reloadAndSetState();
+        if (reload) _reloadAndSetState();
       }
     }
   }
 
-  Future<void> _cleanAllOrphans(List<StorageArtifactReport> orphans) async {
-    final confirmed = await _confirm(
-      title: AppStrings.databaseDoctorCleanOrphanConfirmTitle,
-      body: AppStrings.databaseDoctorCleanOrphanConfirmBody,
-    );
-    if (confirmed != true) return;
-    setState(() => _busy = true);
-    try {
-      final cleaned = await _doctor.cleanOrphans(targets: orphans);
-      if (mounted) _snack(AppStrings.ankiRepairOrphansCleaned(cleaned));
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
+  Future<void> _runConfirmedAction({
+    required String label,
+    required String title,
+    required String body,
+    required Future<void> Function() action,
+    Future<void> Function()? injected,
+  }) async {
+    final confirmed =
+        await confirmRepairAction(context, title: title, body: body);
+    if (!confirmed || !mounted) return;
+    await _runBusyAction(label, injected ?? action);
   }
+
+  Future<void> _oneClickOptimize() => _runBusyAction('optimize', () async {
+        final res = await _doctor.optimizeAll(
+          catalog: _catalog,
+          paths: _paths,
+          engine: _engine,
+        );
+        if (!mounted) return;
+        _snack(res.ok || res.ankiJobsCompleted > 0
+            ? AppStrings.databaseDoctorOptimizeDoneMessage(
+                reclaimedBytes: res.courseDbReclaimedBytes,
+                ankiJobs: res.ankiJobsCompleted,
+              )
+            : AppStrings.ankiRepairActionUnavailable);
+      });
+
+  Future<void> _oneClickRepair(List<StorageArtifactReport> orphans) =>
+      _runConfirmedAction(
+        label: 'one-click repair',
+        title: AppStrings.ankiRepairOneClickTitle,
+        body: AppStrings.ankiRepairOneClickBody,
+        action: () async {
+          if (orphans.isNotEmpty) {
+            await _doctor.cleanOrphans(
+                targets: orphans, scanner: widget.scanner);
+          }
+          await _doctor.retryFailedJobs(
+              catalog: _catalog, paths: _paths, engine: _engine);
+          var anyStepFailed = false;
+          final pendingCleanups = _sources
+              .where(
+                  (s) => s.state == 'pending_cleanup' || s.state == 'retiring')
+              .toList();
+          for (final s in pendingCleanups) {
+            try {
+              if (_catalog != null && _paths != null) {
+                await OfficialAnkiV2RetireService(
+                  catalog: _catalog!,
+                  paths: _paths!,
+                  engine: _engine,
+                ).runRetireJob(sourceId: s.sourceId);
+              }
+            } catch (e, st) {
+              anyStepFailed = true;
+              // One-click repair must still finish remaining steps, while
+              // surfacing partial failure instead of pretending success.
+              logger.w('RepairCenter: one-click repair step failed',
+                  error: e, stackTrace: st);
+            }
+          }
+          if (mounted) {
+            _snack(anyStepFailed
+                ? AppStrings.ankiRepairActionUnavailable
+                : AppStrings.ankiRepairOneClickDone);
+          }
+        },
+      );
+
+  Future<void> _cleanOrphan(StorageArtifactReport orphan) =>
+      _runConfirmedAction(
+        label: 'clean orphan',
+        title: AppStrings.databaseDoctorCleanOrphanConfirmTitle,
+        body: AppStrings.databaseDoctorCleanOrphanConfirmBody,
+        action: () async {
+          if (!getIt.isRegistered<AnkiDeckManager>()) {
+            if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
+            return;
+          }
+          final ok = await getIt<AnkiDeckManager>().uninstall(orphan.ownerId);
+          if (mounted) {
+            _snack(ok
+                ? AppStrings.ankiRepairOrphanCleaned
+                : AppStrings.ankiRepairActionUnavailable);
+          }
+        },
+      );
+
+  Future<void> _cleanAllOrphans(List<StorageArtifactReport> orphans) =>
+      _runConfirmedAction(
+        label: 'clean all orphans',
+        title: AppStrings.databaseDoctorCleanOrphanConfirmTitle,
+        body: AppStrings.databaseDoctorCleanOrphanConfirmBody,
+        action: () async {
+          final cleaned = await _doctor.cleanOrphans(
+              targets: orphans, scanner: widget.scanner);
+          if (mounted) {
+            _snack(cleaned > 0
+                ? AppStrings.ankiRepairOrphansCleaned(cleaned)
+                : AppStrings.ankiRepairActionUnavailable);
+          }
+        },
+      );
 
   Future<void> _retryJob(String jobId) async {
     final catalog = _catalog;
     final paths = _paths;
-    if (catalog == null || paths == null) return;
-    setState(() => _busy = true);
-    try {
-      await const OfficialAnkiCatalogService().retryAndRunMaintenanceJob(
+    if (catalog == null || paths == null) {
+      _snack(AppStrings.ankiRepairActionUnavailable);
+      return;
+    }
+    await _runBusyAction('retry job', () async {
+      final ok =
+          await const OfficialAnkiCatalogService().retryAndRunMaintenanceJob(
         jobId,
         catalog: catalog,
         paths: paths,
         engine: _engine,
       );
-      if (mounted) _snack(AppStrings.ankiRepairJobDone);
-    } finally {
       if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
+        _snack(ok
+            ? AppStrings.ankiRepairJobDone
+            : AppStrings.ankiRepairActionUnavailable);
       }
-    }
+    });
   }
 
-  Future<void> _retryAllJobs() async {
-    setState(() => _busy = true);
-    try {
-      final completed = await _doctor.retryFailedJobs(
-        catalog: _catalog,
-        paths: _paths,
-        engine: _engine,
-      );
-      if (mounted) _snack(AppStrings.ankiRepairJobsDone(completed));
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
-  }
+  Future<void> _retryAllJobs() => _runBusyAction('retry all jobs', () async {
+        final completed = await _doctor.retryFailedJobs(
+          catalog: _catalog,
+          paths: _paths,
+          engine: _engine,
+        );
+        if (mounted) _snack(AppStrings.ankiRepairJobsDone(completed));
+      });
 
   Future<void> _deleteJob(String jobId) async {
-    const OfficialAnkiCatalogService()
-        .deleteMaintenanceJob(jobId, catalog: _catalog);
-    _reloadAndSetState();
+    try {
+      const OfficialAnkiCatalogService()
+          .deleteMaintenanceJob(jobId, catalog: _catalog);
+    } catch (e, st) {
+      logger.w('RepairCenter: delete job failed', error: e, stackTrace: st);
+      if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
+    } finally {
+      if (mounted) _reloadAndSetState();
+    }
   }
 
   Future<void> _clearFailedJobs() async {
     final catalog = _catalog;
     final profileId = _paths?.profileId;
-    if (catalog == null || profileId == null) return;
-    final count = const OfficialAnkiCatalogService()
-        .clearFailedMaintenanceJobs(profileId, catalog: catalog);
-    _snack(AppStrings.ankiRepairFailedJobsCleared(count));
-    _reloadAndSetState();
-  }
-
-  Future<void> _checkIntegrity() async {
-    setState(() => _busy = true);
+    if (catalog == null || profileId == null) {
+      _snack(AppStrings.ankiRepairActionUnavailable);
+      return;
+    }
     try {
-      final courseRes = await _doctor.checkCourseIntegrity();
-      final ankiRes = const OfficialAnkiCatalogService()
-              .catalogIntegrityCheck(catalog: _catalog) ??
-          AppStrings.ankiRepairCatalogNotEnabled;
-      if (mounted) {
-        unawaited(showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(AppStrings.ankiRepairIntegrityTitle),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppStrings.ankiRepairCourseDbResult(courseRes)),
-                const SizedBox(height: 8),
-                Text(AppStrings.ankiRepairAnkiDbResult(ankiRes)),
-              ],
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(AppStrings.commonGotIt),
-              ),
-            ],
-          ),
-        ));
-      }
+      final count = const OfficialAnkiCatalogService()
+          .clearFailedMaintenanceJobs(profileId, catalog: catalog);
+      if (mounted) _snack(AppStrings.ankiRepairFailedJobsCleared(count));
+    } catch (e, st) {
+      logger.w('RepairCenter: clear failed jobs failed',
+          error: e, stackTrace: st);
+      if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) _reloadAndSetState();
     }
   }
 
-  Future<void> _rebuildIndexes() async {
-    setState(() => _busy = true);
-    try {
-      await _doctor.rebuildCourseIndexes();
-      if (mounted) _snack(AppStrings.ankiRepairIndexesRebuilt);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  Future<void> _checkIntegrity() => _runBusyAction(
+        'integrity check',
+        () async {
+          final courseRes = await _doctor.checkCourseIntegrity();
+          final ankiRes = const OfficialAnkiCatalogService()
+                  .catalogIntegrityCheck(catalog: _catalog) ??
+              AppStrings.ankiRepairCatalogNotEnabled;
+          if (mounted) {
+            unawaited(showRepairIntegrityDialog(
+              context,
+              courseResult: courseRes,
+              ankiResult: ankiRes,
+            ));
+          }
+        },
+        reload: false,
+      );
 
-  Future<void> _checkCollection() async {
-    setState(() => _busy = true);
-    try {
-      final ok = await _doctor.checkAnkiCollection(engine: _engine);
-      if (mounted) {
-        _snack(ok
-            ? AppStrings.ankiRepairIntegrityPassed
-            : AppStrings.ankiRepairIntegrityInterrupted);
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  Future<void> _rebuildIndexes() => _runBusyAction(
+        'rebuild indexes',
+        () async {
+          await _doctor.rebuildCourseIndexes();
+          if (mounted) _snack(AppStrings.ankiRepairIndexesRebuilt);
+        },
+        reload: false,
+      );
 
-  Future<void> _discardImport(String sourceId) async {
-    final confirmed = await _confirm(
+  Future<void> _checkCollection() => _runBusyAction(
+        'check collection',
+        () async {
+          final ok = await _doctor.checkAnkiCollection(engine: _engine);
+          if (mounted) {
+            _snack(ok
+                ? AppStrings.ankiRepairIntegrityPassed
+                : AppStrings.ankiRepairIntegrityInterrupted);
+          }
+        },
+        reload: false,
+      );
+
+  Future<void> _discardImport(String sourceId) {
+    final injected = widget.onDiscardImport;
+    if (injected == null && (_catalog == null || _paths == null)) {
+      return _confirmAndUnavailable(
+        title: AppStrings.ankiRepairDiscardConfirmTitle,
+        body: AppStrings.ankiRepairDiscardConfirmBody,
+      );
+    }
+    return _runConfirmedAction(
+      label: 'discard import',
       title: AppStrings.ankiRepairDiscardConfirmTitle,
       body: AppStrings.ankiRepairDiscardConfirmBody,
-    );
-    if (confirmed != true) return;
-    final injected = widget.onDiscardImport;
-    if (injected != null) {
-      await injected(sourceId);
-      if (mounted) _reloadAndSetState();
-      return;
-    }
-    final catalog = _catalog;
-    final paths = _paths;
-    if (catalog == null || paths == null) {
-      _snack(AppStrings.ankiRepairActionUnavailable);
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      await const OfficialAnkiCatalogService().discardPendingImport(
+      injected: injected == null ? null : () => injected(sourceId),
+      action: () => const OfficialAnkiCatalogService().discardPendingImport(
         sourceId,
-        catalog: catalog,
-        paths: paths,
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
+        catalog: _catalog!,
+        paths: _paths!,
+      ),
+    );
   }
 
-  Future<void> _retryCleanup(String sourceId) async {
-    final confirmed = await _confirm(
+  Future<void> _retryCleanup(String sourceId) {
+    final injected = widget.onRetryCleanup;
+    if (injected == null && (_catalog == null || _paths == null)) {
+      return _confirmAndUnavailable(
+        title: AppStrings.ankiRepairRetryCleanupConfirmTitle,
+        body: AppStrings.ankiRepairRetryCleanupConfirmBody,
+      );
+    }
+    return _runConfirmedAction(
+      label: 'retry cleanup',
       title: AppStrings.ankiRepairRetryCleanupConfirmTitle,
       body: AppStrings.ankiRepairRetryCleanupConfirmBody,
-    );
-    if (confirmed != true) return;
-    final injected = widget.onRetryCleanup;
-    if (injected != null) {
-      await injected(sourceId);
-      if (mounted) _reloadAndSetState();
-      return;
-    }
-    final catalog = _catalog;
-    final paths = _paths;
-    if (catalog == null || paths == null) {
-      _snack(AppStrings.ankiRepairActionUnavailable);
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      await OfficialAnkiV2RetireService(
-        catalog: catalog,
-        paths: paths,
+      injected: injected == null ? null : () => injected(sourceId),
+      action: () => OfficialAnkiV2RetireService(
+        catalog: _catalog!,
+        paths: _paths!,
         engine: _engine,
-      ).runRetireJob(sourceId: sourceId);
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
+      ).runRetireJob(sourceId: sourceId),
+    );
   }
 
-  Future<void> _deleteQuarantine(String sourceId) async {
-    final confirmed = await _confirm(
+  Future<void> _deleteQuarantine(String sourceId) {
+    final injected = widget.onDeleteQuarantine;
+    return _runConfirmedAction(
+      label: 'delete quarantine',
       title: AppStrings.ankiRepairDeleteQuarantineConfirmTitle,
       body: AppStrings.ankiRepairDeleteQuarantineConfirmBody,
+      injected: injected == null ? null : () => injected(sourceId),
+      action: () async {
+        if (!getIt.isRegistered<AnkiDeckManager>()) {
+          if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
+          return;
+        }
+        final ok = await getIt<AnkiDeckManager>().uninstall(sourceId);
+        if (mounted && !ok) _snack(AppStrings.ankiRepairActionUnavailable);
+      },
     );
-    if (confirmed != true) return;
-    final injected = widget.onDeleteQuarantine;
-    if (injected != null) {
-      await injected(sourceId);
-      if (mounted) _reloadAndSetState();
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      await getIt<AnkiDeckManager>().uninstall(sourceId);
-    } catch (_) {
-      _snack(AppStrings.ankiRepairActionUnavailable);
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reloadAndSetState();
-      }
-    }
+  }
+
+  Future<void> _confirmAndUnavailable({
+    required String title,
+    required String body,
+  }) async {
+    final confirmed =
+        await confirmRepairAction(context, title: title, body: body);
+    if (confirmed && mounted) _snack(AppStrings.ankiRepairActionUnavailable);
   }
 
   Future<void> _export() async {
@@ -964,95 +624,35 @@ class _OfficialAnkiRepairCenterPageState
       _snack(AppStrings.ankiRepairActionUnavailable);
       return;
     }
-    final payload = const OfficialAnkiStorageAudit().encode(
-      const OfficialAnkiStorageAudit().snapshot(
-        catalog: catalog,
-        paths: _paths,
-        profileId: _paths?.profileId,
-      ),
-    );
-    final withLogs = _appendRecentLogs(payload);
-    final injected = widget.onExportDiagnostics;
-    if (injected != null) {
-      await injected(withLogs);
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: withLogs));
     try {
-      await Share.share(withLogs, subject: AppStrings.ankiRepairCenterTitle);
-    } catch (_) {
-      // Best-effort secondary channel: the clipboard copy above already
-      // succeeded and the snack below tells the user so.
-    }
-    if (mounted) _snack(AppStrings.ankiRepairExportCopied);
-  }
-
-  String _appendRecentLogs(String payload, {int limit = 120}) {
-    try {
-      final entries = LogCapture.instance.entries.value;
-      if (entries.isEmpty) return payload;
-      final buffer = StringBuffer(payload)
-        ..write('\n--- recent file log (${entries.length} kept, '
-            'showing up to $limit, newest first) ---\n');
-      var shown = 0;
-      for (final entry in entries) {
-        if (shown >= limit) break;
-        buffer.writeln(
-          '${entry.timestamp.toIso8601String()} '
-          '[${entry.level.name}] ${entry.displayMessage}',
-        );
-        shown++;
+      final payload = const OfficialAnkiStorageAudit().encode(
+        const OfficialAnkiStorageAudit().snapshot(
+          catalog: catalog,
+          paths: _paths,
+          profileId: _paths?.profileId,
+        ),
+      );
+      final withLogs = appendRepairRecentLogs(payload);
+      final injected = widget.onExportDiagnostics;
+      if (injected != null) {
+        await injected(withLogs);
+        return;
       }
-      return buffer.toString();
-    } catch (_) {
-      return payload;
+      await Clipboard.setData(ClipboardData(text: withLogs));
+      try {
+        await Share.share(withLogs, subject: AppStrings.ankiRepairCenterTitle);
+      } catch (e, st) {
+        // Best-effort secondary channel: the clipboard copy above already
+        // succeeded and the snack below tells the user so.
+        logger.w('RepairCenter: share diagnostics failed',
+            error: e, stackTrace: st);
+      }
+      if (mounted) _snack(AppStrings.ankiRepairExportCopied);
+    } catch (e, st) {
+      logger.w('RepairCenter: export diagnostics failed',
+          error: e, stackTrace: st);
+      if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
     }
-  }
-
-  String _categoryName(StorageArtifactCategory category) {
-    switch (category) {
-      case StorageArtifactCategory.mainDatabase:
-        return AppStrings.ankiRepairCategoryMainDb;
-      case StorageArtifactCategory.legacyAnki:
-        return AppStrings.ankiRepairCategoryLegacyAnki;
-      case StorageArtifactCategory.legacyAnkiMedia:
-        return AppStrings.ankiRepairCategoryLegacyMedia;
-      case StorageArtifactCategory.officialAnki:
-        return AppStrings.ankiRepairCategoryOfficialAnki;
-      case StorageArtifactCategory.regenerableCache:
-        return AppStrings.ankiRepairCategoryRegenerable;
-      case StorageArtifactCategory.logs:
-        return AppStrings.ankiRepairCategoryLogs;
-    }
-  }
-
-  static String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
-
-  Future<bool?> _confirm({required String title, required String body}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.commonOk),
-          ),
-        ],
-      ),
-    );
   }
 
   void _snack(String message) => TurnaSnackBar.show(context, message);

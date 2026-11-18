@@ -15,15 +15,14 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/course_database.dart'
-    hide Section, Unit, Lesson, LessonContent;
 import 'package:turna/domain/anki/adaptation/presentation_decision.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// Why a v2 lesson existed but its content could not be derived. The caller
 /// can tell "not a v2 lesson" (null failure) apart from "v2, but broken"
@@ -69,13 +68,13 @@ class OfficialAnkiV2LessonContent {
   /// v2 课时 → 带正文的完整 [Lesson]；非 v2 课时或派生不可用 → lesson 为
   /// null（failure 说明是不是 v2 课时本身坏了）。
   static Future<OfficialAnkiV2LessonOutcome> lessonFor(String lessonId) async {
-    final course = _courseOrNull();
+    final viewStore = _viewStoreOrNull();
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (course == null || catalog == null) {
+    if (viewStore == null || catalog == null) {
       return (lesson: null, failure: null);
     }
 
-    final rows = await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId);
+    final rows = await viewStore.rowsForLesson(lessonId);
     if (rows.isEmpty) {
       return (lesson: null, failure: null); // 非 v2 课时（v1 数据或未知 id）
     }
@@ -318,7 +317,6 @@ class OfficialAnkiV2LessonContent {
         row: projectionRow,
         mapping: mapping,
         applied: applied,
-        storedKindName: row.presentationKind,
         payloads: payloads,
       );
     } catch (error, stackTrace) {
@@ -406,9 +404,9 @@ class OfficialAnkiV2LessonContent {
     return sha256.convert(utf8.encode(cardIds.join(','))).toString();
   }
 
-  static CourseDatabase? _courseOrNull() {
+  static IOfficialAnkiV2ViewStore? _viewStoreOrNull() {
     try {
-      return CourseLoader.databaseOrNull();
+      return CourseLoader.v2ViewStoreOrNull();
     } catch (_) {
       // best-effort 探测：课程库尚未初始化属于正常冷启动路径。
       return null;
@@ -428,15 +426,27 @@ class OfficialAnkiV2LessonContent {
   /// 引擎在场直接用；缺席照抄 v2 commit 模式 bootstrap 一次（课时播放
   /// = 复习面，答题本就需要引擎）。bootstrap 失败 fail-closed 返 null。
   static Future<OfficialAnkiEngine?> _engineOrNull() async {
-    final existing = OfficialAnkiCompositionRoot.engine;
-    if (existing != null) return existing;
-    try {
-      await OfficialAnkiCompositionRoot.requireImporter();
-    } catch (error) {
-      officialAnkiV2Log('lesson content engine bootstrap: $error',
-          warning: true);
-      return null;
+    var resolved = OfficialAnkiCompositionRoot.engine;
+    if (resolved == null) {
+      try {
+        await OfficialAnkiCompositionRoot.requireImporter();
+      } catch (error) {
+        officialAnkiV2Log('lesson content engine bootstrap: $error',
+            warning: true);
+        return null;
+      }
+      resolved = OfficialAnkiCompositionRoot.engine;
     }
-    return OfficialAnkiCompositionRoot.engine;
+    if (resolved == null) return null;
+    final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (paths != null) {
+      try {
+        await ensureOfficialProfileOpen(resolved, paths);
+      } catch (error) {
+        officialAnkiV2Log('lesson content openProfile: $error', warning: true);
+        return null;
+      }
+    }
+    return resolved;
   }
 }

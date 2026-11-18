@@ -342,7 +342,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
         if (_topicCtrl.text.trim().isEmpty) {
           setState(() {
             _busy = false;
-            _error = '请先填写课程主题。';
+            _error = AppStrings.aiPracticeTopicRequired;
           });
           return;
         }
@@ -364,7 +364,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = '加入队列失败：$e';
+        _error = AppStrings.aiPracticeEnqueueFailed(e);
       });
     }
   }

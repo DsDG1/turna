@@ -18,6 +18,7 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/optional_provider.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
@@ -31,6 +32,12 @@ Future<bool> maybePromptTtsAvailability(
   Duration androidRetryDelay = const Duration(milliseconds: 350),
 }) async {
   if (kIsWeb) return false;
+  final language = readOptionalProvider<LanguageProvider>(context);
+  if (language == null ||
+      !getIt.isRegistered<AppPrefs>() ||
+      !getIt.isRegistered<TtsAvailabilityChecker>()) {
+    return false;
+  }
   final prefs = getIt<AppPrefs>();
   final alreadyPrompted = prefs.preferences
       .getBool(LocalStateKeys.ttsAvailabilityPromptShown, defaultValue: false)
@@ -38,7 +45,8 @@ Future<bool> maybePromptTtsAvailability(
   if (alreadyPrompted) return false;
 
   final checker = getIt<TtsAvailabilityChecker>();
-  final languageCode = getIt<LanguageProvider>().ttsLanguageCode;
+  final languageCode = language.ttsLanguageCode;
+  final languageName = language.displayName;
   var diag = await checker.diagnose(languageCode);
   if (!context.mounted) return false;
 
@@ -62,7 +70,6 @@ Future<bool> maybePromptTtsAvailability(
   }
 
   if (diag.preferredStatus == TtsPreferredStatus.ready) return false;
-  final languageName = getIt<LanguageProvider>().displayName;
 
   if (isHarmonyOsTarget) {
     // The companion build cannot act on this report: there is no store to open

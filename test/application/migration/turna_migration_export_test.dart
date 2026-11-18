@@ -60,15 +60,6 @@ void main() {
         1, 0, 'word'
       )
     ''');
-    await db.customStatement('''
-      INSERT INTO anki_imports (
-        import_id, source_path, source_hash, imported_at,
-        deck_count, note_count, card_count, media_count
-      ) VALUES (
-        'imp1', '/tmp/deck.apkg', 'hash1', 3000,
-        1, 1, 1, 0
-      )
-    ''');
     tempRoot = await Directory.systemTemp.createTemp('turna-mig-');
   });
 
@@ -99,7 +90,7 @@ void main() {
     expect(result.zipFile.existsSync(), isTrue);
     expect(result.manifest['format'], kTurnaMigrationFormat);
     expect(result.manifest['counts']['srsStates'], 1);
-    expect(result.manifest['counts']['ankiSources'], 1);
+    expect(result.manifest['counts']['ankiSources'], 0);
     expect(result.manifest['counts']['mediaObjects'], 1);
 
     final bytes = await result.zipFile.readAsBytes();
@@ -148,6 +139,12 @@ void main() {
           as List<int>,
     );
     expect(srs, contains('w1'));
+
+    final ankiSources = utf8.decode(
+      archive.firstWhere((f) => f.name == 'anki_sources.jsonl').content
+          as List<int>,
+    );
+    expect(ankiSources, isEmpty);
 
     final mediaSha = result.sha256Sums.keys
         .firstWhere((k) => k.startsWith('media/'))

@@ -16,7 +16,6 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/html_stripper.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/service/audio_backend.dart';
@@ -78,7 +77,6 @@ class AudioController {
   final SettingsProvider _settingsProvider;
   final AccessibilityProvider _accessibilityProvider;
   final VocabAudioResolver _vocabAudioResolver;
-  final AnkiAudioResolver _ankiMediaResolver;
   final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
 
@@ -123,11 +121,9 @@ class AudioController {
     @Named('effectsAudio') required AudioBackend effects,
     @Named('speechAudio') required AudioBackend speech,
     TtsAvailabilityChecker? ttsChecker,
-    AnkiAudioResolver? ankiMediaResolver,
   })  : _effects = effects,
         _speech = speech,
-        _ttsChecker = ttsChecker,
-        _ankiMediaResolver = ankiMediaResolver ?? AnkiAudioResolver() {
+        _ttsChecker = ttsChecker {
     _ttsSpeed = _settingsProvider.ttsSpeed;
   }
 
@@ -473,9 +469,6 @@ class AudioController {
   /// Speak a vocabulary word. Prefers the offline [audioAsset] if present,
   /// otherwise falls back to TTS of the word term.
   ///
-  /// `anki://<importId>/<file>` references (Anki deck media) are resolved to
-  /// the on-disk copy and played directly — never sent to TTS.
-  ///
   /// Content lookup goes through [VocabAudioResolver] so this class does not
   /// import language-specific vocab maps.
   Future<void> speakWord(String wordId) async {
@@ -491,9 +484,6 @@ class AudioController {
   }
 
   Future<TtsSpeakResult> _speakWordWithResult(String wordId) async {
-    if (AnkiAudioResolver.isAnkiAsset(wordId)) {
-      return _mediaSpeakResult(await playAnkiMedia(wordId));
-    }
     if (CoursePackMedia.isPackAsset(wordId)) {
       return _mediaSpeakResult(await playCoursePackMedia(wordId));
     }
@@ -573,23 +563,6 @@ class AudioController {
     }
   }
 
-  /// Play an Anki deck media file (`anki://` reference) from its persistent
-  /// copy. Returns `true` only when playback was successfully started.
-  /// Missing files and platform playback errors never fall back to TTS.
-  Future<bool> playAnkiMedia(String ref) async {
-    if (!AnkiAudioResolver.isAnkiAsset(ref)) return false;
-    try {
-      final path = await _ankiMediaResolver.resolveMediaPath(ref);
-      if (path == null) return false;
-      await _speech.stop();
-      await _speech.playFile(path);
-      return true;
-    } catch (e) {
-      logger.w('Error playing Anki media: $e');
-      return false;
-    }
-  }
-
   /// Listen-only / mixed content helper: [audioAsset] may be an asset path or
   /// a logical word id. Path detection lives here so renderers only call this
   /// (or plain [speak] / [speakFromAsset] / [speakWord]).
@@ -623,9 +596,7 @@ class AudioController {
     final text = transcript.trim();
 
     if (asset != null && asset.isNotEmpty) {
-      if (AnkiAudioResolver.isAnkiAsset(asset)) {
-        return _mediaSpeakResult(await playAnkiMedia(asset));
-      } else if (CoursePackMedia.isPackAsset(asset)) {
+      if (CoursePackMedia.isPackAsset(asset)) {
         if (await playCoursePackMedia(asset)) {
           return const TtsSpeakResult(source: TtsSpeakSource.system);
         }

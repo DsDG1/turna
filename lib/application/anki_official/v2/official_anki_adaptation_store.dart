@@ -388,18 +388,46 @@ class OfficialAnkiAdaptationStore {
   /// Uninstall / source removal: drop the manifest, the overrides and every
   /// revision this source ever wrote. The index is the only reason this can be
   /// complete — the config area has no enumeration operation.
-  Future<void> deleteSourceNamespace(String sourceId) async {
-    final indexValue =
-        await _engine.getConfig(OfficialAnkiAdaptationConfigKeys.index(sourceId));
-    final index = indexValue.found
-        ? AdaptationPlanIndex.decode(indexValue.value)
-        : null;
-    for (final key in index?.keys ?? const <String>[]) {
-      await _engine.setConfig(key, null);
+  ///
+  /// Returns `true` when every delete reported `ok`, or `false` if reading the
+  /// index or deleting any key failed or threw.
+  Future<bool> deleteSourceNamespace(String sourceId) async {
+    var allOk = true;
+    Future<void> deleteKey(String key) async {
+      try {
+        final result = await _engine.setConfig(key, null);
+        if (!result.ok) allOk = false;
+      } catch (error) {
+        allOk = false;
+        officialAnkiV2Log(
+          'adaptation namespace delete $key failed: $error',
+          warning: true,
+        );
+      }
     }
-    await _engine.setConfig(OfficialAnkiAdaptationConfigKeys.manifest(sourceId), null);
-    await _engine.setConfig(OfficialAnkiAdaptationConfigKeys.cards(sourceId), null);
-    await _engine.setConfig(OfficialAnkiAdaptationConfigKeys.index(sourceId), null);
+
+    AdaptationPlanIndex? index;
+    try {
+      final indexValue = await _engine
+          .getConfig(OfficialAnkiAdaptationConfigKeys.index(sourceId));
+      index = indexValue.found
+          ? AdaptationPlanIndex.decode(indexValue.value)
+          : null;
+    } catch (error) {
+      allOk = false;
+      officialAnkiV2Log(
+        'adaptation index read during delete failed for $sourceId: $error',
+        warning: true,
+      );
+    }
+
+    for (final key in index?.keys ?? const <String>[]) {
+      await deleteKey(key);
+    }
+    await deleteKey(OfficialAnkiAdaptationConfigKeys.manifest(sourceId));
+    await deleteKey(OfficialAnkiAdaptationConfigKeys.cards(sourceId));
+    await deleteKey(OfficialAnkiAdaptationConfigKeys.index(sourceId));
+    return allOk;
   }
 
   Future<bool> _writeManifest(

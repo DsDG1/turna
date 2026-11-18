@@ -21,10 +21,10 @@ import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.d
 import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
-import 'package:turna/data/anki_unification_dao.dart';
-import 'package:turna/data/course_database.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// v2 提交链的结果（与 v1 的投影结果形状对齐，供向导汇总）。
 class OfficialAnkiV2CommitResult {
@@ -35,7 +35,9 @@ class OfficialAnkiV2CommitResult {
     required this.sectionCount,
     required this.lessonCount,
     this.newNoteCount = 0,
+    this.updatedNoteCount = 0,
     this.duplicateNoteCount = 0,
+    this.conflictingNoteCount = 0,
     this.partCount = 0,
     this.includeMedia = true,
   });
@@ -46,7 +48,9 @@ class OfficialAnkiV2CommitResult {
   final int sectionCount;
   final int lessonCount;
   final int newNoteCount;
+  final int updatedNoteCount;
   final int duplicateNoteCount;
+  final int conflictingNoteCount;
   final int partCount;
   final bool includeMedia;
 }
@@ -71,14 +75,17 @@ class OfficialAnkiV2ImportService {
   OfficialAnkiV2ImportService({
     required this.catalog,
     required this.paths,
-    required this.course,
+    required this.viewStore,
+    IAnkiUnificationStore? unificationStore,
     this.engine,
     this.nowMillis,
-  });
+  }) : unificationStore =
+            unificationStore ?? CourseLoader.unificationStoreOrNull();
 
   final OfficialAnkiDatabase catalog;
   final OfficialAnkiPaths paths;
-  final CourseDatabase course;
+  final IOfficialAnkiV2ViewStore viewStore;
+  final IAnkiUnificationStore? unificationStore;
   final OfficialAnkiEngine? engine;
   final int Function()? nowMillis;
 
@@ -210,7 +217,7 @@ class OfficialAnkiV2ImportService {
     OfficialAnkiImportLog imported;
     try {
       // 幂等打开（Step 1 语义）：冷启动直奔向导时 live 引擎可能未开。
-      await resolved.openProfile(paths);
+      await ensureOfficialProfileOpen(resolved, paths);
       imported = await _importLive(
         resolved: resolved,
         attempts: attempts,
@@ -222,7 +229,7 @@ class OfficialAnkiV2ImportService {
       // importing 状态、staging 目录仍在（finishCommit 未执行）。
       attempts.absorbReceipt(
         attemptId: attempt.attemptId,
-        noteIds: imported.associatedNoteIds,
+        importedOrSharedNoteIds: imported.importedOrSharedNoteIds,
         nowMillis: _now,
         scopeJson: jsonEncode({'displayName': displayName}),
       );
@@ -315,7 +322,7 @@ class OfficialAnkiV2ImportService {
       sourceId: sourceId,
       onProgress: onProgress,
     );
-    final partCount = await OfficialAnkiV2ViewStore(course).splitSectionCount();
+    final partCount = await viewStore.splitSectionCount();
     // 与 v1 publish 同语义的调度锁（P1）：未被课程引入的卡挂起，课时
     // 完成解锁。读面 = 视图行 + 引入账本（anki_card_introduction_states，
     // 保留表）；写只经引擎（suspend），course.db 零写入。fail-open：
@@ -328,7 +335,9 @@ class OfficialAnkiV2ImportService {
       sectionCount: rebuilt.sectionCount,
       lessonCount: rebuilt.lessonCount,
       newNoteCount: imported.newNoteIds.length,
+      updatedNoteCount: imported.updatedNoteIds.length,
       duplicateNoteCount: imported.duplicateNoteIds.length,
+      conflictingNoteCount: imported.conflictingNoteIds.length,
       partCount: partCount,
       includeMedia: includeMedia,
     );
@@ -398,11 +407,12 @@ class OfficialAnkiV2ImportService {
     OfficialCommitProgress? onProgress,
   ) async {
     try {
-      final cardIds =
-          await OfficialAnkiV2ViewStore(course).cardIdsForSource(sourceId);
+      final cardIds = await viewStore.cardIdsForSource(sourceId);
       if (cardIds.isEmpty) return;
-      final introduced = await AnkiUnificationDao(course)
-          .introducedCardIdsForSource(sourceId: sourceId);
+      final introduced = await unificationStore?.introducedCardIdsForSource(
+            sourceId: sourceId,
+          ) ??
+          const <int>{};
       final toSuspend = [
         for (final cardId in cardIds)
           if (!introduced.contains(cardId)) cardId,
@@ -441,7 +451,7 @@ class OfficialAnkiV2ImportService {
     final rebuilder = OfficialAnkiV2ViewRebuilder(
       engine: resolved,
       catalog: catalog,
-      course: course,
+      viewStore: viewStore,
       profileId: paths.profileId,
       nowMillis: nowMillis,
     );

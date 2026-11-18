@@ -24,7 +24,7 @@ import 'package:turna/domain/cosmetics/avatar_ring.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/profile/widgets/account_app_bar.dart';
+import 'package:turna/views/profile/components/account_app_bar.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

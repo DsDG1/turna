@@ -28,7 +28,7 @@ const Set<String> _frostBudgets = {
   'lib/views/home/components/text_tab_bar.dart',
   'lib/views/widgets/turna_snack_bar.dart',
   'lib/views/widgets/glass_surface.dart',
-  'lib/views/profile/widgets/account_app_bar.dart',
+  'lib/views/profile/components/account_app_bar.dart',
 };
 
 bool _isGenerated(String path) =>

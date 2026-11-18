@@ -15,12 +15,11 @@ import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -159,12 +158,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   }
 
   String? _readBlockedNotice() {
-    if (!getIt.isRegistered<AppPrefs>()) return null;
-    final raw = getIt<AppPrefs>()
-        .preferences
-        .getString(LocalStateKeys.remoteBackupRestoreBlockedReason,
-            defaultValue: '')
-        .getValue();
+    final raw = _configStore?.restoreBlockedReason ?? '';
     return raw.isEmpty ? null : AppStrings.remoteBackupBlockedNotice(raw);
   }
 

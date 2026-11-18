@@ -20,9 +20,9 @@ void main() {
   // Pages wrapped in PopScope(canPop: false): any maybePop inside them is a
   // blocked pop that re-enters the pop callback — infinite loop.
   const guardedPages = [
-    'lib/views/lesson/new_lesson_screen.dart',
+    'lib/views/lesson/new_lesson_page.dart',
     'lib/views/review/unified_review_page.dart',
-    'lib/views/anki/anki_import_screen.dart',
+    'lib/views/anki/anki_import_page.dart',
     'lib/views/ai/ai_api_config_page.dart',
     'lib/views/settings/storage_category_items_page.dart',
   ];

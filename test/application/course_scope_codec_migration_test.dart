@@ -1,16 +1,14 @@
-// CourseScope codec + legacy preference migration tests (ADR 0043): round-trip, percent-encoding of dynamic segments, legacy value
-// resolution (single/multi official, legacy vs official ambiguity), and
-// idempotent repair.
+// CourseScope codec tests (ADR 0043): round-trip, percent-encoding of
+// dynamic segments, rejection of retired legacy keys and malformed values.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/course/course_scope.dart';
 
 void main() {
   group('CourseScopeCodec v1', () {
-    test('round-trips all three scope kinds', () {
+    test('round-trips both active scope kinds', () {
       final scopes = <CourseScope>[
         const BuiltinCourseScope('turkish'),
-        const LegacyAnkiCourseScope('anki_import_123'),
         const OfficialAnkiCourseScope(
           profileId: 'profile-default-01',
           sourceId: 'src-4f8b2c9d',
@@ -26,10 +24,6 @@ void main() {
       expect(
         const BuiltinCourseScope('turkish').wireKey,
         'course-scope:v1:builtin:tr',
-      );
-      expect(
-        const LegacyAnkiCourseScope('imp1').wireKey,
-        'course-scope:v1:legacy:imp1',
       );
       expect(
         const OfficialAnkiCourseScope(
@@ -49,7 +43,8 @@ void main() {
       expect(decoded, scope);
     });
 
-    test('rejects malformed keys', () {
+    test('rejects retired legacy keys and malformed keys', () {
+      expect(CourseScopeCodec.decode('course-scope:v1:legacy:imp1'), isNull);
       expect(CourseScopeCodec.decode(''), isNull);
       expect(CourseScopeCodec.decode('anki:src'), isNull);
       expect(CourseScopeCodec.decode('course-scope:v1:'), isNull);
@@ -73,11 +68,9 @@ void main() {
 
     test('scope kinds never collide', () {
       const builtin = BuiltinCourseScope('src-1');
-      const legacy = LegacyAnkiCourseScope('src-1');
       const official =
           OfficialAnkiCourseScope(profileId: 'p', sourceId: 'src-1');
-      expect(builtin == legacy, isFalse);
-      expect(legacy == official, isFalse);
+      expect(builtin == official, isFalse);
     });
   });
 }

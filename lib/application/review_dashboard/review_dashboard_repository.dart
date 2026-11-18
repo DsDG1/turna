@@ -13,7 +13,6 @@ import 'package:turna/application/review_dashboard/review_dashboard_models.dart'
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
-import 'package:turna/domain/repositories/i_anki_import_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/domain/study/daily_stats.dart';
@@ -43,7 +42,6 @@ class ReviewDashboardRepository {
     this._reviewDao,
     this._srs,
     this._grammar,
-    this._ankiImportDao,
     this._revision,
     this._studyLog,
     this._appPrefs,
@@ -53,7 +51,6 @@ class ReviewDashboardRepository {
   final IReviewHistoryStore _reviewDao;
   final SrsProvider _srs;
   final GrammarReviewProvider _grammar;
-  final IAnkiImportStore _ankiImportDao;
   final ReviewDataRevision _revision;
   final IStudyLogRepository _studyLog;
   final AppPrefs _appPrefs;
@@ -233,19 +230,6 @@ class ReviewDashboardRepository {
         totalBySource.keys.where((k) => k.startsWith('anki:')).toList();
     final officialKeys =
         totalBySource.keys.where((k) => k.startsWith('official:')).toList();
-    final nameByImport = <String, String>{};
-    if (ankiKeys.isNotEmpty) {
-      final imports = await _ankiImportDao.getAll();
-      for (final r in imports) {
-        final name = r.sourcePath
-            .split(RegExp(r'[/\\]'))
-            .last
-            .replaceAll(RegExp(r'\.(apkg|colpkg)$', caseSensitive: false), '');
-        nameByImport[r.importId] = name.isEmpty
-            ? AppStrings.reviewProgressSourceAnki(r.importId)
-            : name;
-      }
-    }
 
     void addSource(
       LearningSourceKind kind,
@@ -278,8 +262,8 @@ class ReviewDashboardRepository {
         LearningSourceKind.ankiLegacy,
         key,
         importId,
-        nameByImport[importId] ?? AppStrings.reviewProgressSourceAnki(importId),
-        active: nameByImport.containsKey(importId),
+        AppStrings.reviewProgressSourceAnki(importId),
+        active: false,
       );
     }
     for (final key in officialKeys) {

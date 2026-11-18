@@ -101,6 +101,7 @@ class AchievementUnlockBanner extends StatelessWidget {
     );
   }
 
-  String _moreSuffix(BuildContext context) =>
-      unlocks.length > 1 ? ' 等 ${unlocks.length} 枚' : '';
+  String _moreSuffix(BuildContext context) => unlocks.length > 1
+      ? AppStrings.achievementsUnlockBannerMoreSuffix(unlocks.length)
+      : '';
 }

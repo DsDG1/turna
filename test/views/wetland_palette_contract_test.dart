@@ -280,11 +280,11 @@ void main() {
       // lesson_tile/unit_card 退役）转为：任务台的优先队列标记与统计
       // 强调。课程树完成态按定稿用 teal 环/实心，不再用 clay。
       final playHubSrc =
-          File('lib/views/play/play_hub_screen.dart').readAsStringSync();
+          File('lib/views/play/play_hub_page.dart').readAsStringSync();
       expect(playHubSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(playHubSrc.contains('DirectoryTaskRow'), isTrue);
 
-      final statsSrc = File('lib/views/profile/widgets/learning_stats.dart')
+      final statsSrc = File('lib/views/widgets/learning_stats.dart')
           .readAsStringSync();
       expect(statsSrc.contains('TurnaTheme.anatolianClay'), isTrue);
     });
@@ -301,7 +301,7 @@ void main() {
 
     test('play hub weak-words tile uses clay secondary accent', () {
       final src =
-          File('lib/views/play/play_hub_screen.dart').readAsStringSync();
+          File('lib/views/play/play_hub_page.dart').readAsStringSync();
       expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(src.contains('playWeakWordsTitle'), isTrue);
     });
@@ -313,7 +313,7 @@ void main() {
       expect(overviewSrc.contains('TurnaTheme.anatolianClay'), isTrue);
 
       final profileSrc =
-          File('lib/views/profile/profile_screen.dart').readAsStringSync();
+          File('lib/views/profile/profile_page.dart').readAsStringSync();
       expect(profileSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(profileSrc.contains('profileAchievementsTitle'), isTrue);
     });

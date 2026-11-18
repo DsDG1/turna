@@ -645,12 +645,27 @@ class CourseRepository implements ICourseRepository {
   Future<Set<String>> uninstalledLanguageCodes() async {
     const prefix = '${DatabaseSeeder.metaUninstalled}:';
     final rows = await (database.select(database.courseMeta)
-          ..where((t) => t.key.like('$prefix%')))
+          ..where((t) => prefixLike(t.key, prefix)))
         .get();
     return rows
         .map((row) => row.key.substring(prefix.length))
         .where((code) => code.isNotEmpty)
         .toSet();
+  }
+
+  @override
+  Future<Map<String, String>> courseMetaByPrefix(String prefix) async {
+    final rows = await (database.select(database.courseMeta)
+          ..where((t) => prefixLike(t.key, prefix)))
+        .get();
+    return {for (final row in rows) row.key: row.value};
+  }
+
+  @override
+  Future<void> upsertCourseMeta(String key, String value) async {
+    await database.into(database.courseMeta).insertOnConflictUpdate(
+          db.CourseMetaCompanion.insert(key: key, value: value),
+        );
   }
 
   /// Lesson ids owned by one language, collected BEFORE the language's rows
@@ -717,6 +732,7 @@ class CourseRepository implements ICourseRepository {
   /// (PK is `(language_code, word_id)` with the pool encoded in `queue`).
   /// `mistake_aggregates` is daily-count data, not resource-keyed, and is
   /// left alone.
+  @override
   Future<void> deleteOrphanedLearnerRows(
     String languageCode, {
     required Set<String> liveResourceIds,
@@ -865,6 +881,235 @@ class CourseRepository implements ICourseRepository {
 
   @override
   Future<void> deleteOfficialProjection(String sourceId) async {}
+
+  @override
+  Future<void> updateLessonRecord(Lesson lesson) async {
+    // Preserve existing unit/sort metadata by reading the current lesson row.
+    final existing = await (database.select(database.lessons)
+          ..where((t) => t.id.equals(lesson.id)))
+        .getSingleOrNull();
+    if (existing == null) {
+      throw StateError('Lesson ${lesson.id} not found in database.');
+    }
+
+    await database.transaction(() async {
+      await database.into(database.lessons).insertOnConflictUpdate(
+            db.LessonsCompanion(
+              id: Value(lesson.id),
+              // Carry the row's own language: the table's PK is
+              // (language_code, id), so omitting it would upsert under the
+              // 'tr' default and fork a duplicate row instead of updating
+              // the existing one.
+              languageCode: Value(existing.languageCode),
+              unitId: Value(existing.unitId),
+              name: Value(lesson.name),
+              description: Value(lesson.description),
+              type: Value(lesson.type.name),
+              template: Value(lesson.template.name),
+              prerequisiteLessonIds:
+                  Value(jsonEncode(lesson.prerequisiteLessonIds)),
+              subLessonSummaries: Value(
+                SubLessonSummariesCodec.encode(
+                  SubLessonSummariesCodec.fromSubLessons(
+                    lesson.content.subLessons,
+                  ),
+                ),
+              ),
+              sortOrder: Value(existing.sortOrder),
+            ),
+          );
+      await database.into(database.lessonContents).insertOnConflictUpdate(
+            db.LessonContentsCompanion(
+              lessonId: Value(lesson.id),
+              languageCode: Value(existing.languageCode),
+              contentJson: Value(jsonEncode(lesson.content.toJson())),
+            ),
+          );
+    });
+  }
+
+  @override
+  Future<void> saveAiCourseSection({
+    required Section section,
+    required Map<String, dynamic> rawPayload,
+    required String defaultLanguageCode,
+  }) async {
+    final rows = await database.select(database.sections).get();
+    final nextOrder = rows.isEmpty
+        ? 0
+        : rows.map((r) => r.sortOrder).fold<int>(0, (a, b) => a > b ? a : b) + 1;
+    final code = LanguageCodes.canonicalize(
+      '${rawPayload['language'] ?? defaultLanguageCode}',
+    );
+    await _assertNoCrossLanguageIdCollision(section, code);
+
+    await database.transaction(() async {
+      await database.into(database.sections).insertOnConflictUpdate(
+            db.SectionsCompanion(
+              id: Value(section.id),
+              languageCode: Value(code),
+              name: Value(section.name),
+              description: Value(section.description),
+              prerequisiteSectionIds:
+                  Value(jsonEncode(section.prerequisiteSectionIds)),
+              sortOrder: Value(nextOrder),
+            ),
+          );
+
+      for (var uOrder = 0; uOrder < section.units.length; uOrder++) {
+        final u = section.units[uOrder];
+        await database.into(database.units).insertOnConflictUpdate(
+              db.UnitsCompanion(
+                id: Value(u.id),
+                languageCode: Value(code),
+                sectionId: Value(section.id),
+                name: Value(u.name),
+                description: Value(u.description),
+                prerequisiteUnitIds: Value(jsonEncode(u.prerequisiteUnitIds)),
+                sortOrder: Value(uOrder),
+              ),
+            );
+        for (var lOrder = 0; lOrder < u.lessons.length; lOrder++) {
+          final l = u.lessons[lOrder];
+          await database.into(database.lessons).insertOnConflictUpdate(
+                db.LessonsCompanion(
+                  id: Value(l.id),
+                  languageCode: Value(code),
+                  unitId: Value(u.id),
+                  name: Value(l.name),
+                  description: Value(l.description),
+                  type: Value(l.type.name),
+                  template: Value(l.template.name),
+                  prerequisiteLessonIds:
+                      Value(jsonEncode(l.prerequisiteLessonIds)),
+                  subLessonSummaries: Value(
+                    SubLessonSummariesCodec.encode(
+                      SubLessonSummariesCodec.fromSubLessons(
+                        l.content.subLessons,
+                      ),
+                    ),
+                  ),
+                  sortOrder: Value(lOrder),
+                ),
+              );
+          await database.into(database.lessonContents).insertOnConflictUpdate(
+                db.LessonContentsCompanion(
+                  lessonId: Value(l.id),
+                  languageCode: Value(code),
+                  contentJson: Value(jsonEncode(l.content.toJson())),
+                ),
+              );
+        }
+      }
+
+      await _writeAiResources(rawPayload, code);
+    });
+  }
+
+  Future<void> _assertNoCrossLanguageIdCollision(
+    Section section,
+    String code,
+  ) async {
+    String? otherLanguageOf(List<String> rowLanguages) =>
+        rowLanguages.where((c) => c != code).firstOrNull;
+    void check(String table, String id, String? owner) {
+      if (owner != null) {
+        throw StateError(
+          'Cannot save AI course into language "$code": $table id "$id" is '
+          'already used by language "$owner" (ids must be unique across '
+          'languages — runtime lookups are by bare id).',
+        );
+      }
+    }
+
+    check(
+      'section',
+      section.id,
+      otherLanguageOf(
+        await (database.select(database.sections)
+              ..where((t) => t.id.equals(section.id)))
+            .map((r) => r.languageCode)
+            .get(),
+      ),
+    );
+    for (final unit in section.units) {
+      check(
+        'unit',
+        unit.id,
+        otherLanguageOf(
+          await (database.select(database.units)
+                ..where((t) => t.id.equals(unit.id)))
+              .map((r) => r.languageCode)
+              .get(),
+        ),
+      );
+      for (final lesson in unit.lessons) {
+        check(
+          'lesson',
+          lesson.id,
+          otherLanguageOf(
+            await (database.select(database.lessons)
+                  ..where((t) => t.id.equals(lesson.id)))
+                .map((r) => r.languageCode)
+                .get(),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _writeAiResources(
+    Map<String, dynamic> parsed,
+    String code,
+  ) async {
+    final words = (parsed['words'] as List?) ?? const [];
+    for (final w in words) {
+      if (w is! Map) continue;
+      await database.into(database.vocabulary).insertOnConflictUpdate(
+            db.VocabularyCompanion(
+              id: Value(w['id']?.toString() ?? ''),
+              languageCode: Value(code),
+              term: Value(w['term']?.toString() ?? ''),
+              translation: Value(w['translation']?.toString() ?? ''),
+              pronunciation: Value(w['pronunciation']?.toString()),
+              audioAsset: Value(w['audioAsset']?.toString()),
+              tags: Value(jsonEncode(w['tags'] ?? const [])),
+            ),
+          );
+    }
+    final exprs = (parsed['expressions'] as List?) ?? const [];
+    for (final e in exprs) {
+      if (e is! Map) continue;
+      await database.into(database.expressions).insertOnConflictUpdate(
+            db.ExpressionsCompanion(
+              id: Value(e['id']?.toString() ?? ''),
+              languageCode: Value(code),
+              term: Value(e['term']?.toString() ?? ''),
+              translation: Value(e['translation']?.toString() ?? ''),
+              pronunciation: Value(e['pronunciation']?.toString()),
+              audioAsset: Value(e['audioAsset']?.toString()),
+              tags: Value(jsonEncode(e['tags'] ?? const [])),
+            ),
+          );
+    }
+    final gps = (parsed['grammarPoints'] as List?) ?? const [];
+    for (final g in gps) {
+      if (g is! Map) continue;
+      await database.into(database.grammarPoints).insertOnConflictUpdate(
+            db.GrammarPointsCompanion(
+              id: Value(g['id']?.toString() ?? ''),
+              languageCode: Value(code),
+              title: Value(g['title']?.toString() ?? ''),
+              explanation: Value(g['explanation']?.toString() ?? ''),
+              exampleExpressionIds:
+                  Value(jsonEncode(g['exampleExpressionIds'] ?? const [])),
+              exampleSentenceIds:
+                  Value(jsonEncode(g['exampleSentenceIds'] ?? const [])),
+              practiceItems: Value(jsonEncode(g['practiceItems'] ?? const [])),
+            ),
+          );
+    }
+  }
 
   static List<String> _decodeStringList(String encoded) {
     try {

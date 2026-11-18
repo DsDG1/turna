@@ -40,6 +40,7 @@ class _MistakeListPageState extends State<MistakeListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final hasLoadError = context.select((MistakeProvider p) => p.hasLoadError);
     final mistakes = context.select((MistakeProvider p) => p.entries);
     final wordCount = mistakes.where((e) => e.wordId != null).length;
     final grammarCount = mistakes.where((e) => e.grammarPointId != null).length;
@@ -62,54 +63,107 @@ class _MistakeListPageState extends State<MistakeListPage> {
           ),
         ],
       ),
-      body: mistakes.isEmpty
+      body: hasLoadError && mistakes.isEmpty
           ? PracticeEmptyState(
-              title: AppStrings.reviewNoMistakesRecorded,
-              message: AppStrings.reviewKeepItUp,
+              title: AppStrings.mistakesLoadFailed,
+              actionLabel: AppStrings.commonRetry,
+              onAction: () => context.read<MistakeProvider>().retry(),
             )
-          : RefreshIndicator(
-              color: TurnaTheme.brandTeal,
-              onRefresh: () =>
-                  context.read<MistakeProvider>().reloadFromPrefs(),
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+          : mistakes.isEmpty
+              ? PracticeEmptyState(
+                  title: AppStrings.reviewNoMistakesRecorded,
+                  message: AppStrings.reviewKeepItUp,
+                )
+              : RefreshIndicator(
+                  color: TurnaTheme.brandTeal,
+                  onRefresh: () => context.read<MistakeProvider>().retry(),
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    slivers: [
+                      if (hasLoadError)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.pageMargin,
+                              AppSpacing.md,
+                              AppSpacing.pageMargin,
+                              0,
+                            ),
+                            child: _MistakeLoadErrorBanner(
+                              onRetry: () =>
+                                  context.read<MistakeProvider>().retry(),
+                            ),
+                          ),
+                        ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.pageMargin,
+                            AppSpacing.md,
+                            AppSpacing.pageMargin,
+                            0,
+                          ),
+                          child: _FilterBar(
+                            selected: _filter,
+                            allCount: mistakes.length,
+                            wordCount: wordCount,
+                            grammarCount: grammarCount,
+                            onSelected: (filter) =>
+                                setState(() => _filter = filter),
+                          ),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.pageMargin,
+                          vertical: AppSpacing.sm,
+                        ),
+                        sliver: SliverList.builder(
+                          itemCount: visible.length,
+                          itemBuilder: (context, index) => _RevealOnMount(
+                            index: index,
+                            child: _MistakeEntryRow(mistake: visible[index]),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.pageMargin,
-                        AppSpacing.md,
-                        AppSpacing.pageMargin,
-                        0,
-                      ),
-                      child: _FilterBar(
-                        selected: _filter,
-                        allCount: mistakes.length,
-                        wordCount: wordCount,
-                        grammarCount: grammarCount,
-                        onSelected: (filter) =>
-                            setState(() => _filter = filter),
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.pageMargin,
-                      vertical: AppSpacing.sm,
-                    ),
-                    sliver: SliverList.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (context, index) => _RevealOnMount(
-                        index: index,
-                        child: _MistakeEntryRow(mistake: visible[index]),
-                      ),
-                    ),
-                  ),
-                ],
+    );
+  }
+}
+
+class _MistakeLoadErrorBanner extends StatelessWidget {
+  const _MistakeLoadErrorBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TurnaTheme.error.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 16, color: TurnaTheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppStrings.mistakesLoadFailed,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+            TextButton(
+              onPressed: onRetry,
+              child: Text(AppStrings.commonRetry),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

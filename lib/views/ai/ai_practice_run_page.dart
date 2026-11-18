@@ -169,7 +169,7 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         title: Text(AppStrings.aiPracticeRunnerSummary),
-        content: Text('答对 $correct / $total'),
+        content: Text(AppStrings.aiPracticeRunnerScore(correct, total)),
         actions: [
           if (hasNext)
             FilledButton(

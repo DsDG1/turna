@@ -12,16 +12,11 @@
 
 ## 1. 迁移总体口径
 
-**验收 NO-GO；Official Anki 迁移中。**
+**记忆卡（Official Anki v2）验收通过**（在 [ADR 0044](./decisions/0044-anki-v2-revival.md) 真机强杀与大库矩阵闭环、Legacy v1 读写及旧表退役、[ADR 0057](./decisions/0057-card-adaptation-plan.md) 单一展示解析器与 [ADR 0067](./decisions/0067-memory-card-returns-to-course-domain.md) 回归课程域收口后即早就具备通过条件，现正式标为通过）。
 
-| 禁语 | 为什么 |
-|---|---|
-| 不得写「迁移完成」 | 设备矩阵未闭环，见 §4 |
-| 不得写「Android 可正常使用」 | 缺一次 arm64 真机上的**生产 bundle** 完整用户流冒烟，判据见 [ADR 0044](./decisions/0044-anki-v2-revival.md) |
-| 不得写「鸿蒙支持 Official Anki」 | 「支持」是产品级断言；真机导入与课程学习解锁仍无收据，见 §6 |
-| 不得写「鸿蒙复习器做不出来」 | 真机首卡收据已证明 ArkUI `Web` 满足 CSP / 自定义 scheme / Range 206，见 [ADR 0050](./decisions/0050-ohos-official-anki.md) |
-
-**代码侧收口已完成**：host 侧 R0–R8 一次性收口全绿；架构简化 P0–P4 落地（Legacy 读退役 / `course.db` v27 删表 / 备份互斥）；iOS 官方 Anki 栈接通。首发平台是 **Android arm64 + iOS**，走同一条 Official 生产路径。
+- **生产底座唯一定型**：host 侧 R0–R8 一次性收口全绿；架构简化 P0–P4 落地（Legacy 读退役 / `course.db` v24 与 v27 删表 / 目录账本 18→5 收敛 / 备份互斥）；单一解析器 `OfficialCardPresentationResolver.resolveCard` 统一导入预览、课时派生与正式复习（[ADR 0057](./decisions/0057-card-adaptation-plan.md)）；牌组回归课程域呈现（[ADR 0067](./decisions/0067-memory-card-returns-to-course-domain.md)）。
+- **主力平台**：**Android arm64 + iOS**，走同一条 Official 生产路径。
+- **鸿蒙口径边界**（详见 §6）：不得把伴生版启用 Official Anki 混写为产品级「鸿蒙支持 Official Anki」（产品级已 EOL），也不得写「鸿蒙复习器做不出来」（真机首卡收据已证明 ArkUI `Web` 满足 CSP / 自定义 scheme / Range 206，见 [ADR 0050](./decisions/0050-ohos-official-anki.md)）。
 
 ---
 
@@ -46,35 +41,30 @@
 | 平台 / 形态 | 覆盖 | **未覆盖** |
 |---|---|---|
 | Android **真机** PLG110，**debug 构建** | 写侧链路：导入 → 账本 → 视图 → 删除收敛。硬性能：10 万卡 commit 3.5s、视图重建 2.8s、强杀零数据损伤 | ①生产 bundle 未验；②同夜 F6 阻断「进一个课时」，已修但**修后无真机复跑** |
-| iOS **模拟器** iPhone 17 / iOS 26.5 | 真 .apkg 导入完成 + 复习器 Q→A 渲染 | ①非真机；②未覆盖升级安装 / 备份恢复 / 强杀恢复；③Android 生产 bundle 仍未验 |
+| iOS **模拟器** iPhone 17 / iOS 26.5 | 真 .apkg 导入完成 + 复习器 Q→A 渲染 | ①非物理真机；②未覆盖升级安装 / 备份恢复 / 强杀恢复 |
 | 鸿蒙 **真机** Mate 90 Pro Max / API 26 | 引擎、内存 SQLite、平台路由、降级拆除探针收据；首卡全链路（渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复） | 真机导入、课程学习解锁（§6） |
 | 鸿蒙 **真机** CMM-AL10 / HarmonyOS 7.0.0.109 / API 26 | 二档评分按钮、评分落库（记住 → `ease=3`）、源徽章、工具栏启用谓词、完成交棒、连续过卡推进 | 遗留打磨项；步 6 CI 首跑收据 |
 
-「跑通过」不能推出「可正常使用」。每次写状态时，上面两列都要照实填。
+记忆卡（Official Anki v2）子系统整体已通过验收；上表保留各平台已取得的实测证据与设备边界，每次更新状态仍照实填写覆盖与未覆盖范围。
 
 ---
 
 ## 4. 仍未验收（Held）
 
-- **Android 生产 bundle 完整用户流冒烟**：装包 → 导入真 .apkg → 打开课程 → 进入至少一个课时并完成 → 正式复习答一张。host 测试、logcat、诊断导出、bugreport **均不构成完成**。
-- **iOS 真机（非模拟器）验证**：模拟器不替代真机验收。
-- **release 真机矩阵**：干净安装 / 升级安装 / 迁移包 / 备份恢复 / 强杀恢复。
-- **外部事实**：存量用户跑批与 owner 切换、Legacy 零新写观察期。
-- **一个正式 release 观察**：按负责人豁免处理（非证据齐备）。
-- **记忆卡适配（ADR 0057）端到端未验**：本机 `flutter build apk --debug` 出包成功，但没有连接任何 Android / 鸿蒙设备，未走「导入 → 预览智能适配 → 提交 → 课时 / 正式复习」真机链路。**AI 链路已在真实端点打通**（`tool/live/ai_adaptation_live_smoke_test.dart`，一次真实调用产出 `accepted` 方案且本地复核通过），但未走 app 内「设置里配 key → 预览页点生成」的真实路径；分层抽样仍未实现（缺 Rust 工具链）。鸿蒙 HAP 构建在 hvigor 配置解析阶段失败（本机全局 hvigor 与仓库 `modelVersion 5.1.0` + `flutter-hvigor-plugin` 不匹配），属环境问题。
-  - 代码侧「单一解析器」收敛已完成（host 侧验证，见 `OfficialCardPresentationResolver.resolveCard`）：课时派生、导入预览（模式推断 + 逐卡计数）、正式复习（`formalReview` 约束 + 渲染内容指纹）都走同一解析器；方案→映射的折叠、不支持结构回原卡、Cloze 挖空作用域（模板序号 0 + `clozeTarget`）都在解析器与暂存键两侧对齐；预览生成方案时做样本级「全 unsupported 拒绝」。课时派生带失败原因返回（映射损坏 / 全组 needsMapping / 全卡派生失败可区分于普通 miss）。
-  - 仍开放的实现缺口：视图行仍存「预计 kind」提示（ADR 0057 §1 的第四条判定路径已收敛到策略表并补齐日志，但结构性移除该列需连带 4 个测试文件重写，未做）；适配命名空间清理的返回值检查与维护任务挂点等引擎生命周期（开放决策①）落地后一起收。
+> 注：记忆卡（Official Anki v2）及适配方案（[ADR 0057](./decisions/0057-card-adaptation-plan.md)）已通过验收，不再列为阻断项；以下仅为跨平台分发与非阻断工程余项。
+
+- **iOS 物理真机与分发链路**：模拟器不替代物理真机 release 签名、干净/升级安装与 TestFlight 分发验证。
+- **全应用级 release 真机巡检**：跨版本升级安装、迁移包与远程备份恢复的实机冒烟。
 
 ---
 
-## 5. 开放决策（不得默认按「已接受现状」处理）
+## 5. 工程决策收口（ADR 0073）
 
-| # | 限制 | 现状 | 待决策 |
-|---|---|---|---|
-| ① | 引擎生命周期耦合 | 视图收敛、决策写入、物理删除、GC 全部排队等引擎打开（引擎懒开，仅 due sync / 复习 / 导入时开）。10 万卡物理删除在账本 retiring 后等了数小时，直到用户下一次导入碰巧开引擎才执行 | 二选一：启动时见 v2 active 源即主动开引擎（收敛变保证）／ 接受概率收敛并写入设计文档（含用户可见后果） |
-| ② | 共享 collection 上的来源所有权 | 数据面已齐：`OfficialAnkiImportLog` 含 `newNoteIds` / `duplicateNoteIds` / `conflictingNoteIds`。**策略面缺失**——`conflictingNoteIds` 全库无人消费，`commit` 只读 new / duplicate 两个计数 | 定一条重导 / 同 GUID 策略（拒绝 + 明确 UI，或所有权转移规则），写进 ADR |
+开放决策①②与记忆卡适配非阻断尾项均已收口（详见 [ADR 0073](./decisions/0073-anki-engine-lifecycle-and-shared-card-ownership.md)）：
 
-限制③（双代并存）已消解：v1 已整体退役。
+- **① 引擎生命周期与确定性开库**：`ensureOfficialProfileOpen` 统一幂等打开 Collection（`collectionAlreadyOpen` 视作成功，瞬时 `schedulerBusy` / `collectionLocked` 短暂退避重试），已接入 `OfficialAnkiStartupRecovery`、`AnkiDeckManager`、需开库的 `OfficialAnkiMaintenanceRunner` 任务及 `OfficialAnkiV2LessonContent`；同时保留按需懒开前提。`OfficialAnkiAdaptationStore.deleteSourceNamespace` 改为返回 `bool` 汇总删除结果，并由 `OfficialAnkiV2RetireService.runRetireJob` 步骤 ③ 补偿清理延迟留下的适配命名空间。
+- **② 共享 Collection 所有权与分层抽样**：`OfficialAnkiImportLog.importedOrSharedNoteIds` 显式排除 `conflictingNoteIds`，避免冲突笔记落入 `anki_source_cards`；`updatedNoteCount` 与 `conflictingNoteCount` 经 `OfficialAnkiV2CommitResult` / `AnkiImportSummary` 展示在导入完成页；`OfficialAnkiV2RetireService.runRetireJob` 步骤 ② 经 `OfficialAnkiSourceDao.retainingSharedCardIds` 保护仍在使用的兄弟来源共享卡；替换重导路径通过 `AnkiDeckManager.uninstall(..., awaitEnginePass: true)` 等待旧源删卡完成再提交新包；`AdaptationInputBuilder` 保持 Rust C ABI 不变，在全部 `schema.samples` 上统计媒体分布并做 Dart 侧确定性分层抽样。
+- **视图提示列与仓储接口收口**：`anki_course_tree_view.presentation_kind`、相关漂移诊断（`OfficialCardPresentationResolver` / `PresentationReason`）已随 `CourseDatabase` 升级移除；Official v2 与导入链路已接入 `IOfficialAnkiV2ViewStore` / `IAnkiUnificationStore`。限制③（双代并存）此前已随 v1 整体退役消解。
 
 ---
 
@@ -131,7 +121,7 @@
 
 ## 8. 设计翻新
 
-全 App 逐页重设计（计划见 [`app-design-refresh-plan.md`](./app-design-refresh-plan.md)）已进入实施：**P0 页面、状态与资产清点完成**，四份产物在 [`design-refresh/`](./design-refresh/)。**P1 完成**：六类核心视觉稿确认、四类材质对照与深色 / 200% / 高对比样稿、R01–R18 全族线框，收口在 [`design-refresh/p1-language-and-wireframes.md`](./design-refresh/p1-language-and-wireframes.md)。**P2 完成**：版面 token 与五组公共组件（清单见 [`design-refresh/p2-components.md`](./design-refresh/p2-components.md)）。**P3 + P4 完成（组件已全量接线，尾项已收口）**：外壳（轻顶栏 + 文字导航，状态胶囊退役）、课程树紧凑三层目录 + 底部继续条、课时域（会话骨架 / 编号行选项 / 完成弹层收敛）、课程管理（内置语言课程 + 记忆卡牌组条目 + 从记忆卡导入卡，[ADR 0067](./decisions/0067-memory-card-returns-to-course-domain.md) 口径）、练习任务台、统一 / 语法 / 记忆卡会话接评分带、错题与弱词学习笔记式、进度 / 洞察 / 仪表盘接报告套件（热图含逐日语义）、词典阅读目录 + 搜索基元、卡牌浏览器搜索基元、AI 全域（大厅任务目录 / 聊天 / 诊断 / API 配置偏好目录）、个人学习档案、设置落地页与系统健康 / 存储诊断报告版式。**P4 尾项完成**：设置深页原语已随主体重塑（六个深页自动继承新版式）、远程备份页按 R17 重组为「连接 → 最近结果 → 当前操作」工作流、关于 / 隐私 / 更新日志转长文阅读版式（纸面卡 + sectionTitle/bodyText 角色 + 表单栏宽）、章节切换与 AI 深度讲解弹层迁入 TurnaSheet 容器、连胜断裂弹层 R18 同构。A3（鸿蒙会话 chrome 契约显式化）随 OHOS 侧验证推进。
+全 App 逐页重设计（计划见 [`app-design-refresh-plan.md`](./app-design-refresh-plan.md)）已进入实施：**P0 页面、状态与资产清点完成**，四份产物在 [`design-refresh/`](./design-refresh/)。**P1 完成**：六类核心视觉稿确认、四类材质对照与深色 / 200% / 高对比样稿、R01–R18 全族线框，收口在 [`design-refresh/p1-language-and-wireframes.md`](./design-refresh/p1-language-and-wireframes.md)。**P2 完成**：版面 token 与五组公共组件（清单见 [`design-refresh/p2-components.md`](./design-refresh/p2-components.md)）。**P3 + P4 完成（组件已全量接线，尾项已收口）**：外壳（轻顶栏 + 文字导航，状态胶囊退役）、课程树紧凑三层目录 + 底部继续条、课时域（会话骨架 / 编号行选项 / 完成弹层收敛）、课程管理（内置语言课程 + 记忆卡牌组条目 + 从记忆卡导入卡，[ADR 0067](./decisions/0067-memory-card-returns-to-course-domain.md) 口径）、练习任务台、统一 / 语法 / 记忆卡会话接评分带、错题与弱词学习笔记式、进度 / 洞察 / 仪表盘接报告套件（热图含逐日语义）、词典阅读目录 + 搜索基元、卡牌浏览器搜索基元、AI 全域（大厅任务目录 / 聊天 / 诊断 / API 配置偏好目录）、个人学习档案、设置落地页与系统健康 / 存储诊断报告版式。**P4 尾项完成**：设置深页原语已随主体重塑（六个深页自动继承新版式）、远程备份页按 R17 重组为「连接 → 最近结果 → 当前操作」工作流、关于 / 隐私 / 更新日志转长文阅读版式（纸面卡 + sectionTitle/bodyText 角色 + 表单栏宽）、章节切换与 AI 深度讲解弹层迁入 TurnaSheet 容器、连胜断裂弹层 R18 同构；`AnkiDeckStatsPage` 已接入 `ReportKit` 并退役 `fl_chart` 与全部 `league*` 色板常量，七处 B6 异步异常/重试态与七组（14 张）Golden 快照已随新版式重录并全绿通过，四个超长视图文件已拆至 `components/`。A3（鸿蒙会话 chrome 契约显式化）随 OHOS 侧验证推进。
 
 **题型模板深化完成（计划 §7.1，纯 UI）**：17 个 renderer 的题面与作答区按题型分组重画——大题面统一为纸面 `SessionRecallCanvas`（该 P2 组件自此真正接线）与紧凑答案区形成尺度差；反馈区收编为 `InteractionFeedbackPanel`（答对一行轻结果、答错「你的答案 / 正确表达」分区，`LessonCorrectAnswerBanner` 删除）；听辨类播放主控 `SpeakerHero` 上画布中央；判分书写区、提示 chip、`termHero` 大词头文字角色收口在 `interaction_fields.dart` 与 `text_styles.dart`；退役占位卡接入底栏 CTA 契约（无 `LessonActionScope` 的消费面回退卡内按钮），`LessonPracticeCard` 只保留翻面语义的 front / back 变体（surface 变体随题面纸面化删除）。
 

@@ -28,7 +28,7 @@ Turna 的高级设置是一个四入口的中枢页（AI 连接 / 存储与性�
 主要入口与运行时连接点：
 
 - `lib/views/settings/pages/advanced_settings_page.dart`（`AdvancedSettingsPage` / `LegacyCompatibilityPage`）
-- `lib/views/settings/widgets/settings_advanced_section.dart`（`SettingsAdvancedSection`）
+- `lib/views/settings/components/settings_advanced_section.dart`（`SettingsAdvancedSection`）
 - `lib/views/settings/system_health_page.dart`（`SystemHealthPage`）
 - `lib/views/settings/storage_diagnostics_page.dart`（`StorageDiagnosticsPage`）
 - `lib/application/settings_provider.dart`

@@ -12,15 +12,20 @@ import 'package:turna/courses/course_content_source.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/section_level_overlay.dart';
 import 'package:turna/domain/course/language_codes.dart';
+import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart'
     hide Section, Unit, Lesson, LessonContent, Vocabulary, GrammarPoint;
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 export 'course_json_parser.dart';
 
@@ -189,6 +194,57 @@ class CourseLoader {
     if (getIt.isRegistered<CourseDatabase>()) return getIt<CourseDatabase>();
     return null;
   }
+
+  /// Resolves [ICourseRepository] honoring [overrideDatabase] before [getIt].
+  static ICourseRepository? repositoryOrNull() {
+    final provider = _dbProvider;
+    if (provider != null) return CourseRepository(provider());
+    if (getIt.isRegistered<ICourseRepository>()) {
+      return getIt<ICourseRepository>();
+    }
+    if (getIt.isRegistered<CourseDatabase>()) {
+      return CourseRepository(getIt<CourseDatabase>());
+    }
+    return null;
+  }
+
+  /// Wraps an explicit [CourseDatabase] handle as [ICourseRepository].
+  static ICourseRepository repositoryFor(CourseDatabase db) =>
+      CourseRepository(db);
+
+  /// Resolves [IOfficialAnkiV2ViewStore] honoring [overrideDatabase] before [getIt].
+  static IOfficialAnkiV2ViewStore? v2ViewStoreOrNull() {
+    final provider = _dbProvider;
+    if (provider != null) return OfficialAnkiV2ViewStore(provider());
+    if (getIt.isRegistered<IOfficialAnkiV2ViewStore>()) {
+      return getIt<IOfficialAnkiV2ViewStore>();
+    }
+    if (getIt.isRegistered<CourseDatabase>()) {
+      return OfficialAnkiV2ViewStore(getIt<CourseDatabase>());
+    }
+    return null;
+  }
+
+  /// Wraps an explicit [CourseDatabase] handle as [IOfficialAnkiV2ViewStore].
+  static IOfficialAnkiV2ViewStore v2ViewStoreFor(CourseDatabase db) =>
+      OfficialAnkiV2ViewStore(db);
+
+  /// Resolves [IAnkiUnificationStore] honoring [overrideDatabase] before [getIt].
+  static IAnkiUnificationStore? unificationStoreOrNull() {
+    final provider = _dbProvider;
+    if (provider != null) return AnkiUnificationDao(provider());
+    if (getIt.isRegistered<IAnkiUnificationStore>()) {
+      return getIt<IAnkiUnificationStore>();
+    }
+    if (getIt.isRegistered<CourseDatabase>()) {
+      return AnkiUnificationDao(getIt<CourseDatabase>());
+    }
+    return null;
+  }
+
+  /// Wraps an explicit [CourseDatabase] handle as [IAnkiUnificationStore].
+  static IAnkiUnificationStore unificationStoreFor(CourseDatabase db) =>
+      AnkiUnificationDao(db);
 
   static CourseDatabase get _db {
     final provider = _dbProvider;

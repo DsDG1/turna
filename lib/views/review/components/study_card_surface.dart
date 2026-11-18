@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/read_aloud_backend.dart';
 import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/dictation_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
@@ -16,6 +18,7 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/multi_select_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/multiple_choice_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/read_aloud_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/type_the_word_renderer.dart';
 import 'package:turna/views/review/components/flutter_course_card_body.dart';
 import 'package:turna/views/review/components/official_template_webview_body.dart';
@@ -141,6 +144,11 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         TypeTheWordRenderer(),
         ImageRecallRenderer(),
         DictationRenderer(),
+        ReadAloudRenderer(
+          getIt.isRegistered<ReadAloudBackend>()
+              ? getIt<ReadAloudBackend>()
+              : const UnavailableReadAloudBackend(),
+        ),
       };
 
   @override

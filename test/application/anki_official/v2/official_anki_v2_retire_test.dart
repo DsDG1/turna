@@ -9,9 +9,13 @@ import 'package:turna/application/anki_official/lifecycle/official_anki_maintena
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
+import 'package:turna/domain/anki/adaptation/card_adaptation_plan.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
@@ -86,7 +90,7 @@ void main() {
       OfficialAnkiV2RetireService(
         catalog: catalog,
         paths: paths,
-        course: course,
+        viewStore: OfficialAnkiV2ViewStore(course),
         engine: engine,
         deleteChunk: deleteChunk,
       );
@@ -108,7 +112,6 @@ void main() {
           unitId: 'official-anki-$sourceId-u1',
           lessonId: 'official-anki-$sourceId-l1',
           lessonKey: 'Deck A',
-          presentationKind: 'showWord',
           sourceHash: 'hash-$sourceId',
         ),
       ],
@@ -153,7 +156,6 @@ void main() {
           unitId: 'official-anki-$sourceId-u1',
           lessonId: 'official-anki-$sourceId-l1',
           lessonKey: 'Deck A',
-          presentationKind: 'showWord',
           sourceHash: 'hash-$sourceId',
         ),
       ],
@@ -227,7 +229,7 @@ void main() {
     final completed = await OfficialAnkiV2RetireService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: null,
     ).runRetireJob(sourceId: sourceId);
     expect(completed, isFalse, reason: '引擎缺席 → job 留队重跑');
@@ -318,5 +320,162 @@ void main() {
     expect(engine.deleteCardsCallCount, 3,
         reason: '5 ids / chunk 2 = 3 batches');
     expect(OfficialAnkiSourceDao(catalog).findById(sourceId), isNull);
+  });
+
+  test(
+      'retainingSharedCardIds protects shared cards owned by active siblings '
+      'during runRetireJob', () async {
+    final sources = OfficialAnkiSourceDao(catalog);
+    const retiringSource = 'src-retire-a';
+    const activeSibling = 'src-sibling-b';
+    const retiredSibling = 'src-sibling-retired';
+
+    void seedSource(String id, String state, List<int> cardIds) {
+      sources.upsertSource(
+        sourceId: id,
+        profileId: paths.profileId,
+        sourceHash: 'hash-$id',
+        sourceSize: 10,
+        displayName: id,
+        state: state,
+        backendCommit: 'pending',
+        nowMillis: 1,
+      );
+      sources.markChainV2(sourceId: id, nowMillis: 1);
+      sources.upsertCardBatch(
+        sourceId: id,
+        cards: [
+          for (final cardId in cardIds)
+            OfficialAnkiCardDescriptor(
+              cardId: cardId,
+              noteId: cardId,
+              deckId: 10,
+              templateOrd: 0,
+              notetypeId: 1,
+            ),
+        ],
+      );
+    }
+
+    // Card 1: owned by retiringSource + a retired sibling -> NOT protected.
+    // Card 2: owned by retiringSource + activeSibling -> PROTECTED.
+    // Card 3: owned only by activeSibling -> untouched.
+    seedSource(retiringSource, 'active', const [1, 2]);
+    seedSource(activeSibling, 'active', const [2, 3]);
+    seedSource(retiredSibling, 'retired', const [1]);
+
+    engine.seedPackage(packagePath: 'pkg.apkg', notes: 3, cards: 3);
+
+    expect(sources.retainingSharedCardIds(retiringSource), {2});
+
+    await service().beginRetire(sourceId: retiringSource);
+    expect(await service().runRetireJob(sourceId: retiringSource), isTrue);
+
+    expect(engine.cards.containsKey(1), isFalse,
+        reason: 'card 1 has no active sibling owner and must be deleted');
+    expect(engine.cards.containsKey(2), isTrue,
+        reason: 'card 2 is shared with active sibling and must be retained');
+    expect(engine.cards.containsKey(3), isTrue);
+    expect(sources.findById(retiringSource), isNull);
+    expect(sources.listCards(activeSibling).map((c) => c.cardId), [2, 3]);
+    expect(
+      await OfficialAnkiV2ViewStore(course).cardIdsForSource(activeSibling),
+      [2, 3],
+    );
+  });
+
+  test(
+      'runRetireJob step 3 cleans turna.adapt.* keys via deleteSourceNamespace',
+      () async {
+    final sourceId = await seedActiveV2Source(sourceId: 'src-adapt-retire');
+    const siblingId = 'src-adapt-sibling';
+    final adaptationStore = OfficialAnkiAdaptationStore(engine);
+
+    CardAdaptationPlan planFor(String src, String planId) => CardAdaptationPlan(
+          planId: planId,
+          revision: 1,
+          scope: AdaptationScope(
+            sourceId: src,
+            notetypeId: 1,
+            templateOrdinal: 0,
+          ),
+          bindings: const <String, int>{'prompt': 0, 'answer': 1},
+          front: const <AdaptationBlock>[
+            AdaptationBlock(kind: 'text', fieldIndex: 0),
+          ],
+          back: const <AdaptationBlock>[
+            AdaptationBlock(kind: 'text', fieldIndex: 1),
+          ],
+        );
+
+    await adaptationStore.activate(
+      sourceId: sourceId,
+      scopeKey: adaptationScopeKey(1, 0),
+      plan: planFor(sourceId, 'plan-retire-1'),
+    );
+    await adaptationStore.writeCardOverride(
+      sourceId: sourceId,
+      cardId: 1,
+      override: const AdaptationCardOverride.original(),
+    );
+
+    // Seed sibling adaptation keys that must not be removed.
+    await adaptationStore.activate(
+      sourceId: siblingId,
+      scopeKey: adaptationScopeKey(1, 0),
+      plan: planFor(siblingId, 'plan-sibling-1'),
+    );
+    await adaptationStore.writeCardOverride(
+      sourceId: siblingId,
+      cardId: 2,
+      override: const AdaptationCardOverride.original(),
+    );
+
+    await service().beginRetire(sourceId: sourceId);
+    expect(await service().runRetireJob(sourceId: sourceId), isTrue);
+
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.manifest(sourceId),
+      ),
+      isFalse,
+    );
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.cards(sourceId),
+      ),
+      isFalse,
+    );
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.index(sourceId),
+      ),
+      isFalse,
+    );
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.plan('plan-retire-1', 1),
+      ),
+      isFalse,
+    );
+
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.manifest(siblingId),
+      ),
+      isTrue,
+    );
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.cards(siblingId),
+      ),
+      isTrue,
+    );
+    expect(
+      engine.configStore.containsKey(
+        OfficialAnkiAdaptationConfigKeys.plan('plan-sibling-1', 1),
+      ),
+      isTrue,
+    );
   });
 }

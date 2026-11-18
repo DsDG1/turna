@@ -14,9 +14,8 @@ import 'package:turna/core/theme.dart';
 class AchievementUiCatalog {
   const AchievementUiCatalog._();
 
-  // Achievement accent palette — deliberately distinct from the league
-  // tokens (softer hues picked for badge legibility on light & dark
-  // surfaces). Tokens live in TurnaTheme.
+  // Achievement accent palette — softer hues picked for badge legibility on
+  // light & dark surfaces. Tokens live in TurnaTheme.
   static const Color _dailyFocusGold = TurnaTheme.achievementGold;
   static const Color _vocabularyBlue = TurnaTheme.achievementSky;
   static const Color _sproutGreen = TurnaTheme.achievementSage;
@@ -118,17 +117,17 @@ class AchievementUiCatalog {
       case AchievementRarity.sprout:
         return _sproutGreen;
       case AchievementRarity.bronze:
-        return TurnaTheme.leagueBronze;
+        return TurnaTheme.achievementBronze;
       case AchievementRarity.silver:
         return _silverGray;
       case AchievementRarity.gold:
-        return TurnaTheme.leagueGold;
+        return TurnaTheme.achievementGold;
       case AchievementRarity.emerald:
         return _emeraldGreen;
       case AchievementRarity.ruby:
         return _rubyRed;
       case AchievementRarity.amethyst:
-        return TurnaTheme.leagueAmethyst;
+        return TurnaTheme.achievementAmethyst;
       case AchievementRarity.diamond:
         return _diamondBlue;
     }

@@ -62,7 +62,22 @@ Expression<bool> containsLike(Expression<String> target, String raw) {
 Expression<bool> prefixLike(Expression<String> target, String prefix) {
   return LikeEscaped(
     target,
-    Variable.withString('${escapeLikePattern(prefix)}%'),
+    prefixLikeVariable(prefix),
     r'\',
   );
 }
+
+/// Raw SQL fragment for parameterised escaped LIKE matching (for use inside
+/// `customSelect` / `customStatement` with [prefixLikeVariable] or
+/// [containsLikeVariable]).
+String sqlLikeEscapedClause(String columnSql) =>
+    "$columnSql LIKE ? ESCAPE '\\'";
+
+/// Bound [Variable] matching `<escaped prefix>%` for [sqlLikeEscapedClause].
+Variable<String> prefixLikeVariable(String prefix) =>
+    Variable.withString('${escapeLikePattern(prefix)}%');
+
+/// Bound [Variable] matching `%<escaped needle>%` for [sqlLikeEscapedClause].
+Variable<String> containsLikeVariable(String needle) =>
+    Variable.withString('%${escapeLikePattern(needle)}%');
+

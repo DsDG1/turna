@@ -1026,7 +1026,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.mic_rounded));
       await tester.pumpAndSettle();
 
-      expect(backend.startLocales, ['tr']);
+      expect(backend.startLocales, ['tr-TR']);
       backend.emitPartial('mer');
       await tester.pump();
       backend.emitFinal('merhaba');
@@ -1134,7 +1134,59 @@ void main() {
 
       expect(find.byIcon(Icons.mic_rounded), findsNothing);
       expect(
-        find.text('系统没有可用的语音识别服务，请安装或启用后重试'),
+        find.text('系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'languageUnsupported session error degrades to listen-only card with '
+        'language guidance', (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-lang-unsupported',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+      backend.emitError(ReadAloudFailure.languageUnsupported);
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, isEmpty);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(find.byType(SpeakerHero), findsOneWidget);
+      expect(
+        find.text('当前默认语音识别服务不支持该语言——请在系统设置中切换为 Google 语音服务'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'serviceUnavailable session error degrades to listen-only card with '
+        'service guidance', (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-service-session',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.pumpAndSettle();
+      backend.emitError(ReadAloudFailure.serviceUnavailable);
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, isEmpty);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(find.byType(SpeakerHero), findsOneWidget);
+      expect(
+        find.text('系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试'),
         findsOneWidget,
       );
     });
@@ -1164,8 +1216,34 @@ void main() {
     });
 
     testWidgets(
-        '10s of silence shows the stall hint and a skip that keeps the '
-        'lesson moving', (tester) async {
+        'skip button is available before opening mic and switches to '
+        'listen-only card', (tester) async {
+      await settings.setReadAloudExercisesEnabled(true);
+      final backend = FakeReadAloudBackend();
+      final renderer = ReadAloudRenderer(backend);
+      const interaction = Interaction.readAloud(
+        id: 'ra-skip-immediate',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      final skip = find.widgetWithText(OutlinedButton, '跳过这句');
+      expect(skip, findsOneWidget);
+
+      await tester.tap(skip);
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, [(true, 'read-aloud-skipped')]);
+      expect(backend.cancelCount, 1);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
+      expect(find.byType(SpeakerHero), findsOneWidget);
+      expect(find.text('已跳过跟读：先听示范，再自己读一遍'), findsOneWidget);
+    });
+
+    testWidgets(
+        '10s of silence shows the stall hint and a skip that switches to '
+        'listen-only card', (tester) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1188,10 +1266,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // A technical stall is not an answer: always-correct sentinel, nothing
-      // in the wrong book, and the session is torn down.
+      // in the wrong book, and the mic session is cancelled immediately.
       expect(harness.submissions, [(true, 'read-aloud-skipped')]);
-      expect(backend.stopCount, 1);
+      expect(backend.cancelCount, 1);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
       expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
+      expect(find.byType(SpeakerHero), findsOneWidget);
+      expect(find.text('已跳过跟读：先听示范，再自己读一遍'), findsOneWidget);
     });
 
     testWidgets('ongoing speech pushes the stall hint back', (tester) async {
@@ -1265,6 +1346,40 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(harness.submissions, [(true, 'read-aloud-skipped')]);
+    });
+
+    testWidgets('degraded card renders inline continue outside LessonActionScope',
+        (tester) async {
+      final renderer =
+          ReadAloudRenderer(FakeReadAloudBackend(supported: false));
+      const interaction = Interaction.readAloud(
+        id: 'ra-no-scope',
+        targetText: 'Merhaba!',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: renderer.build(
+                interaction,
+                InteractionState.idle,
+                (correct, {userAnswerText, reviewQuality}) {
+                  harness.submissions.add((correct, userAnswerText));
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final continueButton = find.widgetWithText(LessonCheckButton, '继续');
+      expect(continueButton, findsOneWidget);
+
+      await tester.tap(continueButton);
+      await tester.pumpAndSettle();
+
+      expect(harness.submissions, [(true, 'read-aloud-degraded')]);
     });
   });
 }

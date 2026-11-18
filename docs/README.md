@@ -102,7 +102,7 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 | [0065](./decisions/0065-glass-chroma-and-surface-roles.md) | 玻璃降彩度，并分开玻璃对象与扁平纸面 | [0067](./decisions/0067-memory-card-returns-to-course-domain.md) | 记忆卡回归课程域：牌组即课程，练习台无记忆卡入口 |
 | [0068](./decisions/0068-ambient-light-and-frosted-glass.md) | L0 环境天光与真毛玻璃档 | [0069](./decisions/0069-course-draft-web-preview.md) | 课程网页目录、草稿预览与反馈修订 |
 | [0070](./decisions/0070-scenario-dialogue-lessons.md) | 情景对话场景与既有题型组合 | [0071](./decisions/0071-review-question-pool.md) | 复习题池与课内错题权重 |
-| [0072](./decisions/0072-phase-two-authoring-and-release-contract.md) | Phase Two 作者契约、媒体与版本边界 | — | — |
+| [0072](./decisions/0072-phase-two-authoring-and-release-contract.md) | Phase Two 作者契约、媒体与版本边界 | [0073](./decisions/0073-anki-engine-lifecycle-and-shared-card-ownership.md) | 记忆卡引擎生命周期收口与共享来源所有权 |
 
 ## 其它位置
 

@@ -15,6 +15,8 @@ import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/language_manifest.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/domain/course/course_scope.dart';
 
 import 'helpers/in_memory_course_db.dart';
@@ -185,7 +187,10 @@ void main() {
     expect(result.displayName, 'Spanish');
     expect(result.sectionCount, 1);
     expect(result.wordCount, 1);
-    final entries = await CourseCatalog.load(courseDb: db);
+    final entries = await CourseCatalog.load(
+      courseRepository: CourseRepository(db),
+      v2ViewStore: OfficialAnkiV2ViewStore(db),
+    );
     expect(
       entries.any((e) =>
           e.displayName == 'Spanish' &&
@@ -461,7 +466,10 @@ void main() {
     expect(result.code, 'es');
     expect(result.sectionCount, greaterThanOrEqualTo(3));
     expect(result.wordCount, greaterThanOrEqualTo(100));
-    final entries = await CourseCatalog.load(courseDb: db);
+    final entries = await CourseCatalog.load(
+      courseRepository: CourseRepository(db),
+      v2ViewStore: OfficialAnkiV2ViewStore(db),
+    );
     expect(
       entries.any((e) => e.scope == const BuiltinCourseScope('es')),
       isTrue,

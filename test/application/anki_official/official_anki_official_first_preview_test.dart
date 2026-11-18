@@ -1,4 +1,3 @@
-import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -6,7 +5,6 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/data/course_database.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -17,11 +15,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();
 
-  late CourseDatabase course;
   late FakeOfficialAnkiEngine engine;
 
   setUp(() {
-    course = CourseDatabase(NativeDatabase.memory());
     engine = FakeOfficialAnkiEngine();
     engine.deckTree = const [
       OfficialAnkiDeckNode(deckId: 10, name: 'Deck A', level: 0),
@@ -33,7 +29,6 @@ void main() {
 
   tearDown(() {
     OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
-    course.close();
   });
 
   Future<OfficialAnkiOfficialFirstPreview> previewWithCards(
@@ -59,7 +54,6 @@ void main() {
         associatedNoteIds: noteIds.toList(),
       ),
       sourceHash: 'hash-preview',
-      course: course,
     );
   }
 
@@ -121,7 +115,6 @@ void main() {
           noteCount: 0,
         ),
         sourceHash: 'h',
-        course: course,
       ),
       throwsA(
         isA<OfficialAnkiException>().having(

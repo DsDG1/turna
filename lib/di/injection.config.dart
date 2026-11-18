@@ -75,20 +75,19 @@ import '../application/system_health_monitor.dart' as _i412;
 import '../application/theme_provider.dart' as _i151;
 import '../courses/languages/vocab_audio_resolver.dart' as _i73;
 import '../data/ai_practice_repository.dart' as _i648;
-import '../data/anki_import_dao.dart' as _i151;
 import '../data/course_database.dart' as _i604;
 import '../data/course_repository.dart' as _i848;
 import '../data/gem_ledger_dao.dart' as _i327;
+import '../data/official_anki_v2_view_store.dart' as _i892;
 import '../data/review_history_dao.dart' as _i68;
 import '../data/srs_state_dao.dart' as _i336;
 import '../data/study_log_repository.dart' as _i889;
-import '../domain/audio/anki_audio_resolver.dart' as _i180;
 import '../domain/audio/vocab_audio_resolver.dart' as _i188;
 import '../domain/repositories/i_ai_practice_repository.dart' as _i318;
-import '../domain/repositories/i_anki_import_store.dart' as _i888;
 import '../domain/repositories/i_course_repository.dart' as _i876;
 import '../domain/repositories/i_credential_store.dart' as _i1034;
 import '../domain/repositories/i_gem_ledger.dart' as _i453;
+import '../domain/repositories/i_official_anki_v2_view_store.dart' as _i424;
 import '../domain/repositories/i_review_history_store.dart' as _i280;
 import '../domain/repositories/i_srs_state_store.dart' as _i732;
 import '../domain/repositories/i_study_log_repository.dart' as _i445;
@@ -206,7 +205,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => serviceModule.aiExplainPrefsStore());
     gh.lazySingleton<_i495.AiSavedExplanationsStore>(
         () => serviceModule.aiSavedExplanationsStore());
-    gh.lazySingleton<_i180.AnkiAudioResolver>(() => _i180.AnkiAudioResolver());
     gh.lazySingleton<_i711.LocalReminderService>(
         () => _i711.LocalReminderService());
     gh.lazySingleton<_i591.TurnaMigrationImporter>(
@@ -261,6 +259,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i927.StreakProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i151.ThemeProvider>(
         () => _i151.ThemeProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i424.IOfficialAnkiV2ViewStore>(
+        () => _i892.OfficialAnkiV2ViewStore(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i42.CosmeticProvider>(() => _i42.CosmeticProvider(
           gh<_i523.AppPrefs>(),
           gh<_i417.GemsProvider>(),
@@ -273,8 +273,6 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i445.IStudyLogRepository>(),
           gh<_i551.MistakeProvider>(),
         ));
-    gh.lazySingleton<_i888.IAnkiImportStore>(
-        () => _i151.AnkiImportDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i732.ISrsStateStore>(
         () => _i336.SrsStateDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i977.AccessibilityProvider>(
@@ -305,11 +303,6 @@ extension GetItInjectableX on _i174.GetIt {
             ));
     gh.lazySingleton<_i691.AiEngineConfigHolder>(
         () => _i691.AiEngineConfigHolder(gh<_i1034.ICredentialStore>()));
-    gh.lazySingleton<_i917.AnkiDeckManager>(() => _i917.AnkiDeckManager(
-          repo: gh<_i876.ICourseRepository>(),
-          importDao: gh<_i888.IAnkiImportStore>(),
-          appPrefs: gh<_i523.AppPrefs>(),
-        ));
     gh.lazySingleton<_i278.AchievementMetricProjector>(
         () => _i278.AchievementMetricProjector(
               gh<_i523.AppPrefs>(),
@@ -344,7 +337,6 @@ extension GetItInjectableX on _i174.GetIt {
           effects: gh<_i903.AudioBackend>(instanceName: 'effectsAudio'),
           speech: gh<_i903.AudioBackend>(instanceName: 'speechAudio'),
           ttsChecker: gh<_i307.TtsAvailabilityChecker>(),
-          ankiMediaResolver: gh<_i180.AnkiAudioResolver>(),
         ));
     gh.lazySingleton<_i579.CourseReadyGuard>(
         () => _i579.CourseReadyGuard(gh<_i1051.CourseProvider>()));
@@ -390,6 +382,10 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i1008.GrammarReviewProvider>(),
               gh<_i876.ICourseRepository>(),
             ));
+    gh.lazySingleton<_i917.AnkiDeckManager>(() => _i917.AnkiDeckManager(
+          repo: gh<_i876.ICourseRepository>(),
+          appPrefs: gh<_i523.AppPrefs>(),
+        ));
     gh.lazySingleton<_i253.RestoreNormalizationService>(
         () => serviceModule.restoreNormalizationService(
               gh<_i523.AppPrefs>(),
@@ -408,12 +404,15 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.lazySingleton<_i936.AppRouter>(
         () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
-    gh.lazySingleton<_i706.ReviewProgressProvider>(
-        () => _i706.ReviewProgressProvider(
+    gh.lazySingleton<_i1014.ReviewDashboardRepository>(
+        () => _i1014.ReviewDashboardRepository(
               gh<_i280.IReviewHistoryStore>(),
               gh<_i361.SrsProvider>(),
               gh<_i1008.GrammarReviewProvider>(),
-              gh<_i888.IAnkiImportStore>(),
+              gh<_i118.ReviewDataRevision>(),
+              gh<_i445.IStudyLogRepository>(),
+              gh<_i523.AppPrefs>(),
+              gh<_i927.StreakProvider>(),
             ));
     gh.lazySingleton<Set<_i931.InteractionRenderer>>(
         () => rendererModule.renderers(
@@ -440,16 +439,11 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i361.SrsProvider>(),
           gh<_i1008.GrammarReviewProvider>(),
         ));
-    gh.lazySingleton<_i1014.ReviewDashboardRepository>(
-        () => _i1014.ReviewDashboardRepository(
+    gh.lazySingleton<_i706.ReviewProgressProvider>(
+        () => _i706.ReviewProgressProvider(
               gh<_i280.IReviewHistoryStore>(),
               gh<_i361.SrsProvider>(),
               gh<_i1008.GrammarReviewProvider>(),
-              gh<_i888.IAnkiImportStore>(),
-              gh<_i118.ReviewDataRevision>(),
-              gh<_i445.IStudyLogRepository>(),
-              gh<_i523.AppPrefs>(),
-              gh<_i927.StreakProvider>(),
             ));
     gh.lazySingleton<_i543.AiPracticeJobQueue>(() => _i543.AiPracticeJobQueue(
           gh<_i318.IAiPracticeRepository>(),

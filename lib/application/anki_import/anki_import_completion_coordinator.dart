@@ -3,12 +3,11 @@ import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 
-/// Wire key of the catalog entry owned by [id] (legacy import id or
-/// official source id), or null. Doc 39 P5: single copy — the import
-/// screen's hand-rolled loop was deleted.
+/// Wire key of the catalog entry owned by [id] (official source id), or null.
+/// Doc 39 P5: single copy — the import screen's hand-rolled loop was deleted.
 String? ankiImportWireKeyFor(CourseProvider courseProvider, String id) {
   for (final entry in courseProvider.catalogEntries) {
-    if (entry.legacyImportId == id || entry.officialSourceId == id) {
+    if (entry.officialSourceId == id) {
       return entry.wireKey;
     }
   }

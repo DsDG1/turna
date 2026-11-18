@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_catalog.dart';
@@ -14,6 +16,7 @@ import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'storage_maintenance_platform_stub.dart'
     if (dart.library.io) 'storage_maintenance_platform_io.dart' as platform;
 
@@ -172,6 +175,17 @@ class DatabaseDoctorService {
   // ─────────────────────────────────────────────────────────────────────────
   // Inspection & Diagnostics
   // ─────────────────────────────────────────────────────────────────────────
+
+  /// Schema version of the primary [CourseDatabase], or `-1` when
+  /// unregistered (e.g. minimal widget tests).
+  int courseSchemaVersion({CourseDatabase? course}) {
+    final db = _resolveCourse(course);
+    if (db != null) return db.schemaVersion;
+    if (getIt.isRegistered<ICourseRepository>()) {
+      return getIt<ICourseRepository>().schemaVersion;
+    }
+    return -1;
+  }
 
   Future<DatabaseDoctorReport> inspectHealth({
     CourseDatabase? course,
@@ -490,6 +504,7 @@ class DatabaseDoctorService {
 
       if (resolvedEngine != null) {
         try {
+          await _ensureProfileOpen(resolvedEngine, resolvedPaths);
           final now = DateTime.now().millisecondsSinceEpoch;
           final jobs = OfficialAnkiMaintenanceJobDao(resolvedCatalog);
           final profileId = resolvedPaths.profileId;
@@ -588,6 +603,12 @@ class DatabaseDoctorService {
 
     if (resolvedEngine == null) return 0;
 
+    try {
+      await _ensureProfileOpen(resolvedEngine, resolvedPaths);
+    } catch (e) {
+      logger.w('[DatabaseDoctorService] openProfile before retry failed: $e');
+    }
+
     return await OfficialAnkiMaintenanceRunner(
       catalog: resolvedCatalog,
       paths: resolvedPaths,
@@ -627,6 +648,21 @@ class DatabaseDoctorService {
     await db.customStatement('PRAGMA optimize');
   }
 
+  /// Quick SQLite PRAGMA integrity_check for [SystemHealthMonitor], returning
+  /// `'ok'` when [CourseDatabase] is unregistered or healthy, the pragma
+  /// result string otherwise, or `'probe-error: $error'` on throw.
+  Future<String> quickProbeCourseIntegrity({CourseDatabase? course}) async {
+    final db = _resolveCourse(course);
+    if (db == null) return 'ok';
+    try {
+      final rows = await db.customSelect('PRAGMA integrity_check').get();
+      final first = rows.isNotEmpty ? rows.first.data.values.first : 'ok';
+      return first.toString();
+    } on Object catch (error) {
+      return 'probe-error: $error';
+    }
+  }
+
   /// Runs SQLite PRAGMA integrity_check on CourseDatabase.
   Future<String> checkCourseIntegrity({CourseDatabase? course}) async {
     final db = _resolveCourse(course);
@@ -636,7 +672,10 @@ class DatabaseDoctorService {
   }
 
   /// Runs Anki's native collection check if engine is available.
-  Future<bool> checkAnkiCollection({OfficialAnkiEngine? engine}) async {
+  Future<bool> checkAnkiCollection({
+    OfficialAnkiEngine? engine,
+    OfficialAnkiPaths? paths,
+  }) async {
     var resolvedEngine = _resolveEngine(engine);
     if (resolvedEngine == null) {
       try {
@@ -648,11 +687,31 @@ class DatabaseDoctorService {
     }
     if (resolvedEngine == null) return false;
     try {
+      final resolvedPaths = _resolvePaths(paths) ??
+          (engine == null
+              ? await OfficialAnkiCourseEntry.resolveDefaultPaths()
+              : null);
+      if (resolvedPaths != null) {
+        await _ensureProfileOpen(resolvedEngine, resolvedPaths);
+      }
       await resolvedEngine.checkCollection();
       return true;
     } catch (e) {
       logger.w('[DatabaseDoctorService] checkCollection failed: $e');
       return false;
+    }
+  }
+
+  static Future<void> _ensureProfileOpen(
+    OfficialAnkiEngine engine,
+    OfficialAnkiPaths paths,
+  ) async {
+    try {
+      await engine.openProfile(paths);
+    } on OfficialAnkiException catch (error) {
+      if (error.code != OfficialAnkiErrorCode.collectionAlreadyOpen) {
+        rethrow;
+      }
     }
   }
 

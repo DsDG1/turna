@@ -8,7 +8,6 @@ import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' show CourseDatabase;
 import 'package:turna/data/course_database_seeder.dart' show DatabaseSeeder;
-import 'package:turna/data/course_repository.dart';
 import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -64,17 +63,18 @@ class BuiltinLanguageLifecycleService {
       db = null;
     }
     if (db == null) return;
+    final repo = CourseLoader.repositoryFor(db);
     // Collect the language's lesson ids before their rows are deleted — the
     // persisted lesson-progress sets (prefs) must stop counting them.
     Set<String> lessonIds = const {};
     try {
-      lessonIds = await CourseRepository(db).lessonIdsForLanguage(code);
+      lessonIds = await repo.lessonIdsForLanguage(code);
     } catch (error) {
       logger.w(
         'BuiltinLanguage: lesson id collection for $code failed: $error',
       );
     }
-    await CourseRepository(db).deleteBuiltinLanguage(code);
+    await repo.deleteBuiltinLanguage(code);
     // Study logs/daily aggregates live in prefs, not the course DB.
     try {
       if (getIt.isRegistered<IStudyLogRepository>()) {
@@ -100,7 +100,7 @@ class BuiltinLanguageLifecycleService {
     // would skip (leak) the extracted `imported_courses/<code>/media` tree.
     if (!ImportedLanguageRegistry.instance.contains(code)) {
       try {
-        await ImportedLanguageRegistry.instance.hydrate(db);
+        await ImportedLanguageRegistry.instance.hydrate(repo);
       } catch (error) {
         logger.w(
           'BuiltinLanguage: overlay re-hydrate for "$code" failed: $error',
@@ -125,8 +125,9 @@ class BuiltinLanguageLifecycleService {
       db = null;
     }
     if (db == null) return;
-    await CourseRepository(db).clearLanguageUninstallMarker(code);
-    await ImportedLanguageRegistry.instance.hydrate(db);
+    final repo = CourseLoader.repositoryFor(db);
+    await repo.clearLanguageUninstallMarker(code);
+    await ImportedLanguageRegistry.instance.hydrate(repo);
     if (ImportedLanguageRegistry.instance.contains(code)) {
       final packFile = await CoursePackImporter.persistedPackFile(code);
       if (packFile == null || !packFile.existsSync()) {

@@ -1,4 +1,3 @@
-import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
@@ -6,7 +5,6 @@ import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/data/course_database.dart';
 
 OfficialAnkiFeatureFlags _fullOfficial({bool officialFirst = true}) {
   return OfficialAnkiFeatureFlags.productionAndroid.copyWith(
@@ -268,7 +266,6 @@ void main() {
       () => const OfficialAnkiOfficialFirstService().importThenPreview(
         filePath: '/tmp/deck.apkg',
         plan: plan,
-        course: CourseDatabase(NativeDatabase.memory()),
       ),
       throwsA(isA<OfficialAnkiException>()),
     );

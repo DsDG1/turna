@@ -72,6 +72,13 @@ class StudyStatsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clears all persisted study logs and refreshes listeners.
+  Future<void> clearAll() async {
+    await _repository.clearAll();
+    unawaited(_emitDailyStats());
+    notifyListeners();
+  }
+
   /// Get today's statistics snapshot.
   Future<DailyStudyStats> getTodayStats() async {
     final today = DateTime.now();

@@ -31,17 +31,16 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
-import 'package:turna/domain/repositories/i_anki_import_store.dart';
 import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 
@@ -124,7 +123,6 @@ void main() {
     getIt.registerSingleton<CourseDatabase>(course);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(course));
     getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(course));
-    getIt.registerSingleton<IAnkiImportStore>(AnkiImportDao(course));
     getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(course));
     courseProvider = CourseProvider(appPrefs);
     getIt.registerSingleton<CourseProvider>(courseProvider);
@@ -202,7 +200,8 @@ void main() {
                 {required allowedExtensions, required dialogTitle}) async =>
             pkg.path,
         officialFirst: const OfficialAnkiOfficialFirstService(),
-        courseDatabase: course,
+        v2ViewStore: OfficialAnkiV2ViewStore(course),
+        unificationStore: AnkiUnificationDao(course),
         courseProvider: courseProvider,
       ),
     );

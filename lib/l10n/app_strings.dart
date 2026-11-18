@@ -602,10 +602,14 @@ class AppStrings {
   static String get readAloudHeardPrefix => '听到的是：';
   static String get readAloudNoMatch => '没听清，再点麦克风试一次';
   static String get readAloudPermissionDenied => '麦克风权限被拒绝——请在系统设置中允许后重试';
-  static String get readAloudServiceUnavailable => '系统没有可用的语音识别服务，请安装或启用后重试';
+  static String get readAloudServiceUnavailable =>
+      '系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试';
+  static String get readAloudLanguageUnsupported =>
+      '当前默认语音识别服务不支持该语言——请在系统设置中切换为 Google 语音服务';
   static String get readAloudNetworkUnavailable =>
       '识别服务连接失败，请检查网络或下载该语言的离线识别资源后重试';
   static String get readAloudDegradedHint => '跟读识别不可用：先听示范，再自己读一遍';
+  static String get readAloudSkippedHint => '已跳过跟读：先听示范，再自己读一遍';
   static String get readAloudEnableHint => '开启后可以对着句子朗读，应用会识别比对';
   static String get readAloudEnableAction => '开启跟读练习';
   static String get settingsDailyReminderTitle => '每日提醒';
@@ -958,8 +962,6 @@ class AppStrings {
       PresentationReason.missingMedia => '缺少这道题需要的媒体',
       PresentationReason.unknownMediaSide => '媒体的正反面归属无法确认',
       PresentationReason.emptyFields => '正反面都没有内容',
-      PresentationReason.unknownStoredKind => '旧的展示记录无法识别，已重新判断',
-      PresentationReason.storedKindDrift => '展示方式与缓存记录不一致，已按当前内容重判',
       PresentationReason.payloadOverflow => '内容超长，改成轻量原卡入口',
       PresentationReason.formalReviewOriginalFirst => '正式复习先用原卡',
       PresentationReason.planMissing => '适配方案缺失，回退原卡',
@@ -1884,7 +1886,9 @@ class AppStrings {
   static String ankiProgressCount(String label, int current) =>
       '$label · $current';
   static String ankiDoneNewNotes(int count) => '本次新增 $count 条笔记';
+  static String ankiImportUpdatedNotes(int count) => '已更新笔记：$count';
   static String ankiDoneDuplicateNotes(int count) => '已存在并跳过 $count 条笔记';
+  static String ankiImportConflictingNotes(int count) => '冲突跳过笔记：$count';
   static String ankiDoneParts(int count) => '课程按牌组顺序分成 $count 个部分，从第一部分开始';
   static String ankiDoneReviewRule() =>
       '第一遍课只解锁卡片。第一次 Again 或 Good 记在记忆卡复习里，当天新卡名额会抬到至少本课张数。';
@@ -2709,4 +2713,81 @@ class AppStrings {
         return officialAnkiErrorFallback;
     }
   }
+
+  // ── B6 async error states & deck stats report ──
+  static String get insightsLoadFailed => '加载学习洞察失败，请重试。';
+  static String get learningStatsLoadFailed => '加载学习统计失败，请重试。';
+  static String get deckStatsLoadFailed => '加载牌组统计失败，请重试。';
+  static String get mistakesLoadFailed => '加载错题本失败，请重试。';
+  static String get grammarRateFailed => '保存复习评分失败，请重试。';
+  static String get repairDiagnosticsLoadFailed => '诊断体检加载失败，请重试。';
+  static String get ankiDeckStatsCardsUnit => '张';
+  static String get ankiDeckStatsDistribution => '卡片状态分布';
+  static String get ankiDeckStatsLearningLabel => '学习中';
+  static String get ankiDeckStatsReviewLabel => '复习中';
+  static String get ankiDeckStatsRetentionChartLabel => '不同间隔记忆保持率趋势图';
+  static String insightsBucketReviewSummary(String bucket, int count) =>
+      '$bucket：$count 次复习';
+
+  // ── C1 runtime UI copy & diagnostics labels ──
+  static String get changelogClipboardHistoryHeading => '## 更新历程';
+  static String get changelogClipboardDetailsHeading => '## 版本详情';
+  static String changelogJourneySummary(String latestLabel, int count) =>
+      'Turna 从原型到 $latestLabel 的 $count 个阶段';
+
+  static String get systemHealthReportTitle => 'Turna 脱敏诊断报告';
+  static String get systemHealthReportTtsUnchecked => '未检查';
+  static String get systemHealthReportTtsFailed => '检查失败';
+  static String get systemHealthReportUnknown => '未知';
+  static String systemHealthReportEvent(String id) => '事件：$id';
+  static String systemHealthReportAppVersion(String version) =>
+      '当前应用版本：$version';
+  static String systemHealthReportEventVersion(String version) =>
+      '事件创建版本：$version';
+  static String systemHealthReportSchemaVersion(String version) =>
+      '数据结构版本：$version';
+  static String systemHealthReportPlatform(String platform) => '平台：$platform';
+  static String systemHealthReportWebView(String webView) =>
+      'WebView：$webView';
+  static String systemHealthReportTts(String status) => 'TTS：$status';
+  static String systemHealthReportHealthLevel(String level) => '健康等级：$level';
+  static String systemHealthReportScore(int score) => '活跃评分：$score';
+  static String systemHealthReportAcknowledged(bool value) => '已确认：$value';
+  static String systemHealthReportCheckPassed(bool value) => '自检通过：$value';
+  static String systemHealthReportResolved(bool value) => '已解决：$value';
+  static String systemHealthReportSafeMode(bool value) => '安全模式：$value';
+  static String systemHealthReportIntegrityRisk(
+          bool hasBlock, String reason) =>
+      hasBlock ? '数据完整性风险：是（$reason）' : '数据完整性风险：否';
+  static String systemHealthReportForceDisableJs(bool value) =>
+      '强制禁用 JS：$value';
+  static String get systemHealthReportErrorSummaryHeader => '错误摘要：';
+  static String systemHealthReportErrorGroupLine(
+    int index,
+    String level,
+    String module,
+    int count,
+  ) =>
+      '- 问题组 $index [$level] $module ×$count（原始正文已省略）';
+  static String get systemHealthReportExcludedNote =>
+      '已自动排除：API 密钥、认证信息、完整卡片正文、AI 对话正文和个人路径。';
+
+  static String aiPracticeRunnerScore(int correct, int total) =>
+      '答对 $correct / $total';
+  static String get aiPracticeTopicRequired => '请先填写课程主题。';
+  static String aiPracticeEnqueueFailed(Object error) => '加入队列失败：$error';
+
+  static String ankiImportChapterNodeCount(int count) => '$count 个章节节点';
+  static String ankiImportCardCountLabel(int count) => '$count 张卡片';
+
+  static String achievementsUnlockBannerMoreSuffix(int count) => ' 等 $count 枚';
+
+  static String get aboutHeroFactOffline => '离线可用';
+  static String get aboutHeroFactLocalOnly => '数据不出本机';
+  static String get aboutHeroFactOpenSource => '开源免费';
+
+  static String settingsCourseUpdateByteProgress(int received, int total) =>
+      '$received / $total 字节';
+
+  static String cosmeticCompletionStaticLabel(String label) => '$label（静态效果）';
 }

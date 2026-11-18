@@ -150,28 +150,6 @@ class Expressions extends Table {
   Set<Column> get primaryKey => {languageCode, id};
 }
 
-/// `anki_imports` — one row per imported Anki deck (.apkg/.colpkg).
-/// `notetypesJson` stores the original notetype definitions plus the mapping
-/// decisions made at import time so re-imports can reuse them.
-/// `sourceHash` (sha256 of the package file) powers incremental-update
-/// detection; `importedAt` is epoch seconds.
-class AnkiImports extends Table {
-  TextColumn get importId => text()();
-  TextColumn get sourcePath => text()();
-  TextColumn get sourceHash => text()();
-  IntColumn get importedAt => integer()();
-  IntColumn get deckCount => integer().withDefault(const Constant(0))();
-  IntColumn get noteCount => integer().withDefault(const Constant(0))();
-  IntColumn get cardCount => integer().withDefault(const Constant(0))();
-  IntColumn get mediaCount => integer().withDefault(const Constant(0))();
-  TextColumn get notetypesJson => text().withDefault(const Constant('{}'))();
-  BoolColumn get aiEnhanced => boolean().withDefault(const Constant(false))();
-  IntColumn get version => integer().withDefault(const Constant(1))();
-
-  @override
-  Set<Column> get primaryKey => {importId};
-}
-
 /// `srs_states` - one row per tracked SRS item ([SrsWord]), keyed by `wordId`.
 /// The durable store for SRS scheduling state (migrated from the old
 /// `StreamingSharedPreferences` JSON blob in v7). `queue` discriminates the
@@ -361,7 +339,6 @@ class AiCourseVersions extends Table {
     GrammarPoints,
     CourseMeta,
     Expressions,
-    AnkiImports,
     SrsStates,
     ReviewEvents,
     Mistakes,
@@ -375,7 +352,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 34;
+  static const int kSchemaVersion = 35;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -385,8 +362,6 @@ class CourseDatabase extends _$CourseDatabase {
         onCreate: (m) async {
           await m.createAll();
           await _createAiCourseVersionIndex(m.database);
-          await _addAnkiStateColumns(m.database);
-          await _ensureAnkiCanonicalV2(m.database);
           await _ensureAnkiUnificationTables(m.database);
           await _ensureGemEconomyTables(m.database);
           await _ensureV2CourseTreeView(m.database);
@@ -412,12 +387,15 @@ class CourseDatabase extends _$CourseDatabase {
               'vocabulary',
               'grammar_points',
               'expressions',
+              'anki_imports',
               'course_meta',
               'srs_states',
               'review_events',
               'anki_card_introduction_states',
               'study_product_events',
               'anki_course_tree_view',
+              'gem_ledger',
+              'cosmetic_entitlements',
               'mistakes',
               'mistake_aggregates',
               'ai_practice_sets',
@@ -427,10 +405,11 @@ class CourseDatabase extends _$CourseDatabase {
               await m.deleteTable(tableName);
             }
             await m.createAll();
-            await _addAnkiStateColumns(m.database);
-            await _ensureAnkiCanonicalV2(m.database);
+            await _createAiCourseVersionIndex(m.database);
             await _ensureAnkiUnificationTables(m.database);
+            await _ensureGemEconomyTables(m.database);
             await _ensureV2CourseTreeView(m.database);
+            await _backfillReviewSourceIdentity(m.database);
             return;
           }
           if (from < 2) {
@@ -459,9 +438,8 @@ class CourseDatabase extends _$CourseDatabase {
             await m.createTable(expressions);
           }
           if (from < 6) {
-            // v6: Anki deck import metadata + persisted section level (CEFR /
-            // "Anki") so level-based filtering survives restarts.
-            await m.createTable(ankiImports);
+            // v6: persisted section level (CEFR / "Anki") so level-based
+            // filtering survives restarts. (`anki_imports` retired in v35.)
             await m.addColumn(sections, sections.level);
           }
           if (from < 7) {
@@ -508,27 +486,6 @@ class CourseDatabase extends _$CourseDatabase {
               CREATE UNIQUE INDEX IF NOT EXISTS review_events_source_idx
               ON review_events(source_key)
             ''');
-          }
-          if (from < 12) {
-            // v12: user-facing Anki card state used by the review menu and
-            // browser. Existing cards default to the neutral state.
-            await _addAnkiStateColumns(m.database);
-          }
-          if (from < 13) {
-            // v13: canonical import lifecycle, deck navigation index,
-            // optional practice projections, diagnostics, and count
-            // reconciliation. Raw SQL keeps this migration additive and
-            // preserves all v12 rows.
-            await _ensureAnkiCanonicalV2(m.database);
-          }
-          if (from < 14) {
-            // v14: re-key Anki SRS state from the pre-pivot note-based word
-            // id (`anki-<importId>-n<noteId>`) to the card-level
-            // `anki-<importId>-c<cardId>` (decision 2). The card-level
-            // AnkiSrsMigrator change orphaned legacy rows (the review
-            // assembler extracts the import id via `lastIndexOf('-c')`,
-            // returning '' for `-n` ids). See [_rekeyLegacyAnkiWordIds].
-            await _rekeyLegacyAnkiWordIds(m.database);
           }
           if (from < 18) {
             await _ensureAnkiUnificationTables(m.database);
@@ -745,6 +702,14 @@ class CourseDatabase extends _$CourseDatabase {
               await m.addColumn(lessons, lessons.subLessonSummaries);
             }
             await _backfillSubLessonSummaries(m.database);
+          }
+          if (from < 35) {
+            // v35: retire the legacy `anki_imports` table and drop the dead
+            // `presentation_kind` hint column from `anki_course_tree_view`.
+            await m.database.customStatement('DROP TABLE IF EXISTS anki_imports');
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS anki_course_tree_view');
+            await _ensureV2CourseTreeView(m.database);
           }
         },
       );
@@ -1344,12 +1309,13 @@ class CourseDatabase extends _$CourseDatabase {
     ''');
   }
 
-  /// Schema v23: v2 chain materialized course-tree view (ADR 0043 D3 — the
-  /// two v1 projection tables collapse into this one). No independent
-  /// state: rebuilds are DELETE+INSERT inside a single transaction, so a
-  /// kill mid-rebuild leaves the previous view fully intact (K11). Kept in
-  /// course.db (not the catalog) because it is course-tree-shaped derived
-  /// data, wipe-safe on downgrade like every other row here.
+  /// Schema v23 (rebuilt at v35 without `presentation_kind`): v2 chain
+  /// materialized course-tree view (ADR 0043 D3 — the two v1 projection tables
+  /// collapse into this one). No independent state: rebuilds are DELETE+INSERT
+  /// inside a single transaction, so a kill mid-rebuild leaves the previous
+  /// view fully intact (K11). Kept in course.db (not the catalog) because it
+  /// is course-tree-shaped derived data, wipe-safe on downgrade like every
+  /// other row here.
   static Future<void> _ensureV2CourseTreeView(
     GeneratedDatabase database,
   ) async {
@@ -1366,7 +1332,6 @@ class CourseDatabase extends _$CourseDatabase {
         unit_key TEXT NOT NULL DEFAULT '',
         lesson_id TEXT NOT NULL,
         lesson_key TEXT NOT NULL,
-        presentation_kind TEXT NOT NULL,
         source_hash TEXT NOT NULL,
         mapping_version INTEGER NOT NULL,
         rebuilt_at_millis INTEGER NOT NULL,
@@ -1419,181 +1384,5 @@ class CourseDatabase extends _$CourseDatabase {
         effects_state TEXT NOT NULL DEFAULT 'applied'
       )
     ''');
-  }
-
-  static Future<void> _addAnkiStateColumns(GeneratedDatabase database) async {
-    Future<void> addColumn(
-        String table, String column, String definition) async {
-      final columns =
-          await database.customSelect('PRAGMA table_info($table)').get();
-      if (columns.any((row) => row.read<String>('name') == column)) return;
-      await database.customStatement(
-        'ALTER TABLE $table ADD COLUMN $column $definition',
-      );
-    }
-
-    await addColumn('anki_imports', 'daily_new_limit', 'INTEGER');
-    await addColumn('anki_imports', 'daily_review_limit', 'INTEGER');
-    // The anki_cards_meta state columns retired with the table (plan P2);
-    // per-card state lives in the Official Collection only.
-  }
-
-  static Future<void> _ensureAnkiCanonicalV2(
-    GeneratedDatabase database,
-  ) async {
-    Future<void> addColumn(
-      String table,
-      String column,
-      String definition,
-    ) async {
-      final columns =
-          await database.customSelect('PRAGMA table_info($table)').get();
-      if (columns.any((row) => row.read<String>('name') == column)) return;
-      await database.customStatement(
-        'ALTER TABLE $table ADD COLUMN $column $definition',
-      );
-    }
-
-    await addColumn(
-      'anki_imports',
-      'status',
-      "TEXT NOT NULL DEFAULT 'complete'",
-    );
-    await addColumn(
-      'anki_imports',
-      'source_card_count',
-      'INTEGER NOT NULL DEFAULT 0',
-    );
-    await addColumn(
-      'anki_imports',
-      'stored_card_count',
-      'INTEGER NOT NULL DEFAULT 0',
-    );
-    await addColumn(
-      'anki_imports',
-      'indexed_card_count',
-      'INTEGER NOT NULL DEFAULT 0',
-    );
-    await addColumn(
-      'anki_imports',
-      'imported_scheduling',
-      'INTEGER NOT NULL DEFAULT 0',
-    );
-    await addColumn('anki_imports', 'last_error', 'TEXT');
-
-    // v24 (ADR 0044) dropped the v1 projection tables this helper used to
-    // create; the NoteStore indexes retired with their tables (plan P2) —
-    // only the raw-SQL columns above survive here.
-  }
-
-  /// Re-key Anki SRS rows from the pre-pivot note-based word id
-  /// (`anki-<importId>-n<noteId>`) to the card-level
-  /// `anki-<importId>-c<cardId>` (decision 2). Before this pivot, SRS state
-  /// and review history were keyed by note id; the card-level
-  /// [AnkiSrsMigrator] change orphaned them (the review assembler extracts the
-  /// import id via `lastIndexOf('-c')`, returning '' for `-n` ids, so they
-  /// dropped out of due counts and could not resolve to an interaction). This
-  /// one-time migration uses the authoritative `anki_cards_meta`
-  /// (import_id, note_id) -> word_id mapping to re-key `srs_states.word_id`
-  /// and `review_events.card_id`. Unresolvable rows (deck already unloaded)
-  /// are left untouched rather than deleted.
-  static Future<void> _rekeyLegacyAnkiWordIds(
-    GeneratedDatabase database,
-  ) async {
-    final hasTable = await database
-        .customSelect(
-          "SELECT name FROM sqlite_master WHERE type = 'table' "
-          "AND name = 'anki_cards_meta'",
-        )
-        .get();
-    if (hasTable.isEmpty) {
-      // Upgrades that never had a v9+ NoteStore (fresh chain post-P2).
-      return;
-    }
-    final meta = await database
-        .customSelect(
-          'SELECT import_id, note_id, word_id FROM anki_cards_meta',
-        )
-        .get();
-    // (importId, noteId) -> new card-level wordId.
-    final noteToWord = <String, String>{};
-    for (final row in meta) {
-      noteToWord[
-              '${row.read<String>('import_id')}|${row.read<int>('note_id')}'] =
-          row.read<String>('word_id');
-    }
-    await _rekeyLegacyColumn(
-      database,
-      'srs_states',
-      'word_id',
-      noteToWord,
-      isPrimaryKey: true,
-    );
-    await _rekeyLegacyColumn(
-      database,
-      'review_events',
-      'card_id',
-      noteToWord,
-      isPrimaryKey: false,
-    );
-  }
-
-  static Future<void> _rekeyLegacyColumn(
-    GeneratedDatabase database,
-    String table,
-    String column,
-    Map<String, String> noteToWord, {
-    required bool isPrimaryKey,
-  }) async {
-    final legacy = await database
-        .customSelect(
-          "SELECT $column AS id FROM $table "
-          "WHERE $column LIKE 'anki-%' AND $column LIKE '%-n%'",
-        )
-        .get();
-    for (final row in legacy) {
-      final legacyId = row.read<String>('id');
-      final parsed = _parseLegacyAnkiWordId(legacyId);
-      if (parsed == null) continue;
-      final newId = noteToWord['${parsed.importId}|${parsed.noteId}'];
-      if (newId == null || newId == legacyId) continue;
-      if (isPrimaryKey) {
-        // srs_states.word_id is the PK: if the target card-level row already
-        // exists (e.g. the deck was re-imported after the pivot), drop the
-        // legacy row instead of colliding on the PK.
-        final exists = await database.customSelect(
-          'SELECT 1 FROM $table WHERE $column = ? LIMIT 1',
-          variables: [Variable.withString(newId)],
-        ).get();
-        if (exists.isNotEmpty) {
-          await database.customStatement(
-            'DELETE FROM $table WHERE $column = ?',
-            [legacyId],
-          );
-          continue;
-        }
-      }
-      await database.customStatement(
-        'UPDATE $table SET $column = ? WHERE $column = ?',
-        [newId, legacyId],
-      );
-    }
-  }
-
-  /// Parse a legacy note-based Anki word id (`anki-<importId>-n<noteId>`).
-  /// `importId` is `anki_import_<ms>` (no hyphens), so the single `-n`
-  /// separates importId from noteId. Returns null for non-legacy (card-level)
-  /// ids or anything that does not parse.
-  static ({String importId, int noteId})? _parseLegacyAnkiWordId(
-    String wordId,
-  ) {
-    const prefix = 'anki-';
-    if (!wordId.startsWith(prefix)) return null;
-    final nIdx = wordId.lastIndexOf('-n');
-    if (nIdx <= prefix.length) return null;
-    final importId = wordId.substring(prefix.length, nIdx);
-    final noteId = int.tryParse(wordId.substring(nIdx + 2));
-    if (noteId == null) return null;
-    return (importId: importId, noteId: noteId);
   }
 }

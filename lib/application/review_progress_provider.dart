@@ -7,7 +7,6 @@ import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/fsrs_engine.dart';
 import 'package:turna/core/srs_scheduler.dart';
-import 'package:turna/domain/repositories/i_anki_import_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/domain/review/review_history.dart';
@@ -159,13 +158,11 @@ class ReviewProgressProvider {
     this._reviewDao,
     this._srs,
     this._grammar,
-    this._ankiImportDao,
   );
 
   final IReviewHistoryStore _reviewDao;
   final SrsProvider _srs;
   final GrammarReviewProvider _grammar;
-  final IAnkiImportStore _ankiImportDao;
 
   final SrsScheduler _scheduler = FsrsEngine(enableFuzzing: false);
 
@@ -229,19 +226,13 @@ class ReviewProgressProvider {
           .map((key) => key.substring(5)));
     final importIds = importIdSet.toList()..sort();
 
-    final imports = await _ankiImportDao.getAll();
-    final nameById = {
-      for (final r in imports)
-        r.importId: _labelFromPath(r.sourcePath, r.importId),
-    };
-
     for (final id in importIds) {
       sources.add(ReviewSource(
         kind: ReviewSourceKind.ankiDeck,
         id: 'anki:$id',
-        label: nameById[id] ?? AppStrings.reviewProgressSourceAnki(id),
+        label: AppStrings.reviewProgressSourceAnki(id),
         importId: id,
-        active: nameById.containsKey(id),
+        active: false,
       ));
     }
     final officialIdSet = tagged
@@ -264,14 +255,6 @@ class ReviewProgressProvider {
       ));
     }
     return sources;
-  }
-
-  String _labelFromPath(String path, String importId) {
-    final name = path.split(RegExp(r'[/\\]')).last;
-    if (name.isEmpty) return AppStrings.reviewProgressSourceAnki(importId);
-    final bare =
-        name.replaceAll(RegExp(r'\.(apkg|colpkg)$', caseSensitive: false), '');
-    return AppStrings.reviewProgressSourceAnkiNamed(bare);
   }
 
   /// Computes an unfiltered or filtered snapshot of review progress and

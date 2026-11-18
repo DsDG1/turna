@@ -3,15 +3,13 @@ import 'package:turna/domain/course/language_codes.dart';
 /// Typed course scope identity (ADR 0043).
 ///
 /// A course scope names exactly one selectable course: the built-in
-/// language course, one Legacy Anki import, or one Official Anki source.
+/// language course, or one Official Anki source.
 /// Business code must compare [CourseScope] values — never sniff string
-/// prefixes — and string matching is allowed only inside [CourseScopeCodec]
-/// and the one-time preference migrator.
+/// prefixes — and string matching is allowed only inside [CourseScopeCodec].
 sealed class CourseScope {
   const CourseScope();
 
   const factory CourseScope.builtin(String languageCode) = BuiltinCourseScope;
-  const factory CourseScope.legacyAnki(String importId) = LegacyAnkiCourseScope;
   const factory CourseScope.officialAnki({
     required String profileId,
     required String sourceId,
@@ -40,22 +38,6 @@ class BuiltinCourseScope extends CourseScope {
   String toString() => 'BuiltinCourseScope($languageCode)';
 }
 
-class LegacyAnkiCourseScope extends CourseScope {
-  const LegacyAnkiCourseScope(this.importId);
-
-  final String importId;
-
-  @override
-  bool operator ==(Object other) =>
-      other is LegacyAnkiCourseScope && other.importId == importId;
-
-  @override
-  int get hashCode => Object.hash('legacy', importId);
-
-  @override
-  String toString() => 'LegacyAnkiCourseScope($importId)';
-}
-
 class OfficialAnkiCourseScope extends CourseScope {
   const OfficialAnkiCourseScope(
       {required this.profileId, required this.sourceId});
@@ -81,15 +63,14 @@ class OfficialAnkiCourseScope extends CourseScope {
 /// Wire format:
 /// ```text
 /// course-scope:v1:builtin:<languageCode>
-/// course-scope:v1:legacy:<importId>
 /// course-scope:v1:official:<profileId>:<sourceId>
 /// ```
 /// Dynamic segments are percent-encoded, so ids containing `:` or other
 /// delimiters round-trip safely.
 ///
-/// Pre-cutover raw values (`''`, `anki:<id>`, bare language codes) are no
-/// longer decoded — [decode] returns null for them and callers fall back to
-/// a builtin course (plan P1; the one-shot preference migrator is retired).
+/// Pre-cutover raw values (`''`, `anki:<id>`, bare language codes) and retired
+/// `course-scope:v1:legacy:*` keys are no longer decoded — [decode] returns
+/// null for them and callers fall back to a builtin course.
 class CourseScopeCodec {
   static const String prefix = 'course-scope:v1:';
 
@@ -98,8 +79,6 @@ class CourseScopeCodec {
   static String encode(CourseScope scope) => switch (scope) {
         BuiltinCourseScope(languageCode: final code) =>
           '${prefix}builtin:${_encode(LanguageCodes.canonicalize(code))}',
-        LegacyAnkiCourseScope(importId: final importId) =>
-          '${prefix}legacy:${_encode(importId)}',
         OfficialAnkiCourseScope(
           profileId: final profileId,
           sourceId: final sourceId,
@@ -108,8 +87,7 @@ class CourseScopeCodec {
       };
 
   /// Decodes a v1 wire key. Returns `null` for anything that is not a
-  /// well-formed v1 key (legacy values included — those go through
-  /// [decodeLegacy]).
+  /// supported v1 key (retired `legacy` keys included).
   static CourseScope? decode(String raw) {
     final trimmed = raw.trim();
     if (!trimmed.startsWith(prefix)) return null;
@@ -125,7 +103,7 @@ class CourseScopeCodec {
       case 'builtin':
         return BuiltinCourseScope(LanguageCodes.canonicalize(_decode(rest)));
       case 'legacy':
-        return LegacyAnkiCourseScope(_decode(rest));
+        return null;
       case 'official':
         final second = rest.indexOf(':');
         if (second < 0) return null;

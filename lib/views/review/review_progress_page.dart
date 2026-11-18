@@ -428,16 +428,16 @@ class _SourceRow extends StatelessWidget {
 ReviewSource reviewSourceFor(LearningSourceRef ref) {
   switch (ref.kind) {
     case LearningSourceKind.course:
-      return const ReviewSource(
+      return ReviewSource(
         kind: ReviewSourceKind.course,
         id: 'course',
-        label: '课程',
+        label: AppStrings.reviewProgressSourceCourse,
       );
     case LearningSourceKind.grammar:
-      return const ReviewSource(
+      return ReviewSource(
         kind: ReviewSourceKind.grammar,
         id: 'grammar',
-        label: '语法',
+        label: AppStrings.reviewProgressSourceGrammar,
       );
     case LearningSourceKind.ankiLegacy:
       return ReviewSource(

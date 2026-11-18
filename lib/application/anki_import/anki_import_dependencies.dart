@@ -4,8 +4,10 @@ import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/data/course_database.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
 /// Explicit constructor-injected dependencies for the import wizard
@@ -16,7 +18,8 @@ class AnkiImportDependencies {
     required this.planFor,
     required this.pickFilePath,
     required this.officialFirst,
-    required this.courseDatabase,
+    required this.v2ViewStore,
+    this.unificationStore,
     required this.courseProvider,
   });
 
@@ -35,7 +38,9 @@ class AnkiImportDependencies {
 
   final OfficialAnkiOfficialFirstService officialFirst;
 
-  final CourseDatabase courseDatabase;
+  final IOfficialAnkiV2ViewStore v2ViewStore;
+
+  final IAnkiUnificationStore? unificationStore;
 
   final CourseProvider courseProvider;
 
@@ -64,7 +69,9 @@ class AnkiImportDependencies {
         return result.files.first.path;
       }),
       officialFirst: const OfficialAnkiOfficialFirstService(),
-      courseDatabase: getIt<CourseDatabase>(),
+      v2ViewStore: CourseLoader.v2ViewStoreOrNull() ??
+          getIt<IOfficialAnkiV2ViewStore>(),
+      unificationStore: CourseLoader.unificationStoreOrNull(),
       courseProvider: courseProvider,
     );
   }

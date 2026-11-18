@@ -238,6 +238,7 @@ void main() {
     });
 
     // Doc 38 P1-B/C — the NoteStore/imports write side stays deleted.
+    // Schema v35 retired `anki_imports` and its DAO/interface entirely.
     test('anki dao write side stays deleted (doc 38)', () {
       // Plan P2 went further: the NoteStore DAO itself is gone with its
       // tables (v27 drop) — the file must not come back.
@@ -247,16 +248,12 @@ void main() {
           File('lib/domain/repositories/i_anki_note_store.dart').existsSync(),
           isFalse,
           reason: 'the NoteStore interface retired with the DAO (plan P2)');
-      final imports = File('lib/data/anki_import_dao.dart').readAsStringSync();
-      for (final member in [
-        'Future<void> upsert(',
-        'markComplete',
-        'markFailed',
-        'markAiEnhanced',
-      ]) {
-        expect(imports.contains(member), isFalse,
-            reason: 'anki_import_dao.dart resurrected writer $member');
-      }
+      expect(File('lib/data/anki_import_dao.dart').existsSync(), isFalse,
+          reason: 'schema v35 retired the anki_imports DAO with its table');
+      expect(
+          File('lib/domain/repositories/i_anki_import_store.dart').existsSync(),
+          isFalse,
+          reason: 'the anki_imports interface retired with the DAO (v35)');
     });
 
     test('execution planner is strictly three-valued (no legacyOnly)', () {
@@ -276,7 +273,7 @@ void main() {
 
       // The page is a shell; the wizard never opts into a Legacy writer.
       final importScreen =
-          File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
+          File('lib/views/anki/anki_import_page.dart').readAsStringSync();
       final controller = File(
         'lib/application/anki_import/anki_import_controller.dart',
       ).readAsStringSync();
@@ -615,7 +612,7 @@ void main() {
       int lineCount(String path) =>
           File(path).readAsStringSync().split('\n').length;
 
-      expect(lineCount('lib/views/anki/anki_import_screen.dart'),
+      expect(lineCount('lib/views/anki/anki_import_page.dart'),
           lessThanOrEqualTo(700),
           reason: 'import screen must stay a shell');
       for (final step in const [
@@ -638,7 +635,7 @@ void main() {
       );
 
       final screen =
-          File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
+          File('lib/views/anki/anki_import_page.dart').readAsStringSync();
       expect(screen.contains("package:turna/data/"), isFalse,
           reason: 'the page must not import DAOs');
       expect(screen.contains('CourseDatabase'), isFalse);

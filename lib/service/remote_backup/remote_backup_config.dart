@@ -196,6 +196,12 @@ class RemoteBackupConfigStore {
         jsonEncode(config.toJson()),
       );
 
+  /// Blocking reason recorded if a staged restore could not be applied on boot.
+  String get restoreBlockedReason => _prefs.preferences
+      .getString(LocalStateKeys.remoteBackupRestoreBlockedReason,
+          defaultValue: '')
+      .getValue();
+
   // ── credential ──
 
   Future<String?> loadPassword() async {

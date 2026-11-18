@@ -46,19 +46,6 @@ void main() {
     });
   });
 
-  group('CourseCatalog.legacyImportIdFromSectionId', () {
-    test('recovers import ids containing dashes', () {
-      expect(
-        CourseCatalog.legacyImportIdFromSectionId('anki-my-import-7-s3'),
-        'my-import-7',
-      );
-      expect(
-        CourseCatalog.legacyImportIdFromSectionId('anki-imp1-s1'),
-        'imp1',
-      );
-    });
-  });
-
   group('exact ownership (R1-3)', () {
     test('sectionBelongsToScope never matches a sibling source', () {
       const a = OfficialAnkiCourseScope(
@@ -93,12 +80,16 @@ void main() {
       );
       expect(
         CourseCatalog.sectionBelongsToScope(
-          const LegacyAnkiCourseScope('imp1'),
-          'official-anki-imp1-s10',
+          const OfficialAnkiCourseScope(profileId: 'p', sourceId: 'imp1'),
+          'anki-imp1-s10',
         ),
         isFalse,
-        reason: 'an official section never belongs to a legacy scope even '
-            'when the import ids collide',
+        reason: 'a non-official section id never belongs to an official scope',
+      );
+      expect(
+        CourseScopeCodec.decode('course-scope:v1:legacy:imp1'),
+        isNull,
+        reason: 'retired legacy scope keys are no longer decoded',
       );
     });
   });

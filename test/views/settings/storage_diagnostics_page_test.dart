@@ -5,6 +5,9 @@
 // complete — the IO path itself is covered by storage_inventory_service_test).
 // Low-level diagnostics (WAL/RSS/write telemetry) must NOT appear here.
 
+// Dart imports:
+import 'dart:io';
+
 // Package imports:
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,10 +26,16 @@ class _FakeScanner implements StorageInventoryService {
   final StorageInventoryReport report;
 
   @override
+  Directory? get documentsDirectory => null;
+
+  @override
   Future<StorageInventoryReport> scan() async => report;
 }
 
 class _ThrowingScanner implements StorageInventoryService {
+  @override
+  Directory? get documentsDirectory => null;
+
   @override
   Future<StorageInventoryReport> scan() async => throw StateError('boom');
 }

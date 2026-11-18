@@ -7,8 +7,8 @@ import 'package:auto_route/auto_route.dart';
 // Project imports:
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
-import 'package:turna/views/settings/widgets/settings_about_section.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_about_section.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 
 /// About category page (formal route: `/settings/about`).
 @RoutePage()

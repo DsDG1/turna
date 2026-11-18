@@ -96,9 +96,9 @@ class TurnaMigrationExporter {
     final reviewHistory = await _selectJsonl(
       'SELECT * FROM review_events ORDER BY id',
     );
-    final ankiSources = await _selectJsonl(
-      'SELECT * FROM anki_imports ORDER BY import_id',
-    );
+    // `anki_imports` is retired; keep an empty `anki_sources.jsonl` so the
+    // `turna-migration-v1` archive required-entries contract remains satisfied.
+    const ankiSources = <Map<String, dynamic>>[];
     final introductions = await _safeSelectJsonl(
       'SELECT * FROM anki_card_introduction_states '
       'ORDER BY course_id, source_id, card_id',

@@ -10,43 +10,45 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 
-import 'dart:async' as _i64;
+import 'dart:async' as _i57;
 
 import 'package:auto_route/auto_route.dart' as _i52;
-import 'package:collection/collection.dart' as _i77;
-import 'package:flutter/foundation.dart' as _i57;
+import 'package:collection/collection.dart' as _i78;
+import 'package:flutter/foundation.dart' as _i59;
 import 'package:flutter/material.dart' as _i53;
 import 'package:turna/application/ai/ai_hint_provider.dart' as _i55;
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart' as _i56;
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart'
-    as _i62;
+    as _i64;
 import 'package:turna/application/anki_official/official_anki_paths.dart'
-    as _i60;
+    as _i62;
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart'
-    as _i65;
-import 'package:turna/application/anki_official/render/official_anki_render_state.dart'
     as _i66;
+import 'package:turna/application/anki_official/render/official_anki_render_state.dart'
+    as _i67;
+import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart'
+    as _i58;
 import 'package:turna/application/anki_official/storage/official_anki_database.dart'
-    as _i59;
-import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart'
-    as _i68;
-import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart'
-    as _i69;
-import 'package:turna/application/maintenance/database_doctor_service.dart'
-    as _i63;
-import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart'
-    as _i72;
-import 'package:turna/application/maintenance/official_storage_optimize_service.dart'
-    as _i70;
-import 'package:turna/application/maintenance/storage_inventory_service.dart'
     as _i61;
-import 'package:turna/application/review/review_ledger_resolver.dart' as _i74;
-import 'package:turna/application/review_progress_provider.dart' as _i67;
+import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart'
+    as _i69;
+import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart'
+    as _i70;
+import 'package:turna/application/maintenance/database_doctor_service.dart'
+    as _i65;
+import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart'
+    as _i73;
+import 'package:turna/application/maintenance/official_storage_optimize_service.dart'
+    as _i71;
+import 'package:turna/application/maintenance/storage_inventory_service.dart'
+    as _i63;
+import 'package:turna/application/review/review_ledger_resolver.dart' as _i75;
+import 'package:turna/application/review_progress_provider.dart' as _i68;
 import 'package:turna/application/settings/app_build_info.dart' as _i54;
-import 'package:turna/domain/course/mistake_entry.dart' as _i58;
-import 'package:turna/domain/review/recall_outcome.dart' as _i75;
-import 'package:turna/domain/review/review_item.dart' as _i73;
-import 'package:turna/domain/review/review_ledger.dart' as _i76;
+import 'package:turna/domain/course/mistake_entry.dart' as _i60;
+import 'package:turna/domain/review/recall_outcome.dart' as _i76;
+import 'package:turna/domain/review/review_item.dart' as _i74;
+import 'package:turna/domain/review/review_ledger.dart' as _i77;
 import 'package:turna/views/ai/ai_api_config_page.dart' as _i7;
 import 'package:turna/views/ai/ai_diagnosis_page.dart' as _i8;
 import 'package:turna/views/ai/ai_feature_guide_page.dart' as _i9;
@@ -60,8 +62,8 @@ import 'package:turna/views/ai/ai_tutor_chat_page.dart' as _i16;
 import 'package:turna/views/ai/textbook/textbook_import_page.dart' as _i48;
 import 'package:turna/views/anki/anki_card_browser_page.dart' as _i17;
 import 'package:turna/views/anki/anki_deck_stats_page.dart' as _i18;
-import 'package:turna/views/anki/anki_import_screen.dart' as _i19;
-import 'package:turna/views/anki/anki_review_screen.dart' as _i20;
+import 'package:turna/views/anki/anki_import_page.dart' as _i19;
+import 'package:turna/views/anki/anki_review_page.dart' as _i20;
 import 'package:turna/views/anki/anki_review_session_page.dart' as _i21;
 import 'package:turna/views/anki_official/official_anki_repair_center_page.dart'
     as _i38;
@@ -70,20 +72,20 @@ import 'package:turna/views/anki_official/official_anki_reviewer_page.dart'
 import 'package:turna/views/courses/course_management_page.dart' as _i24;
 import 'package:turna/views/dictionary/dictionary_page.dart' as _i27;
 import 'package:turna/views/home/home_page.dart' as _i29;
-import 'package:turna/views/lesson/new_lesson_screen.dart' as _i37;
-import 'package:turna/views/play/daily_challenge_screen.dart' as _i25;
+import 'package:turna/views/lesson/new_lesson_page.dart' as _i37;
+import 'package:turna/views/play/daily_challenge_page.dart' as _i25;
 import 'package:turna/views/play/weak_words_page.dart' as _i51;
 import 'package:turna/views/profile/achievements_page.dart' as _i5;
-import 'package:turna/views/review/grammar_review_screen.dart' as _i28;
+import 'package:turna/views/review/grammar_review_page.dart' as _i28;
 import 'package:turna/views/review/learning_insights_page.dart' as _i30;
 import 'package:turna/views/review/mistake_dashboard_page.dart' as _i32;
 import 'package:turna/views/review/mistake_detail_page.dart' as _i33;
 import 'package:turna/views/review/mistake_list_page.dart' as _i34;
-import 'package:turna/views/review/mistake_practice_screen.dart' as _i35;
+import 'package:turna/views/review/mistake_practice_page.dart' as _i35;
 import 'package:turna/views/review/mistake_review_page.dart' as _i36;
 import 'package:turna/views/review/review_progress_page.dart' as _i42;
 import 'package:turna/views/review/review_source_detail_page.dart' as _i43;
-import 'package:turna/views/review/srs_review_screen.dart' as _i45;
+import 'package:turna/views/review/srs_review_page.dart' as _i45;
 import 'package:turna/views/review/unified_review_page.dart' as _i50;
 import 'package:turna/views/settings/about_turna_page.dart' as _i2;
 import 'package:turna/views/settings/avatar_rings_page.dart' as _i23;
@@ -99,7 +101,7 @@ import 'package:turna/views/settings/pages/data_backup_settings_page.dart'
 import 'package:turna/views/settings/pages/learning_settings_page.dart' as _i31;
 import 'package:turna/views/settings/privacy_details_page.dart' as _i40;
 import 'package:turna/views/settings/remote_backup_page.dart' as _i41;
-import 'package:turna/views/settings/storage_category_items_page.dart' as _i71;
+import 'package:turna/views/settings/storage_category_items_page.dart' as _i72;
 import 'package:turna/views/settings/storage_diagnostics_page.dart' as _i46;
 import 'package:turna/views/settings/system_health_page.dart' as _i47;
 import 'package:turna/views/settings/transparency_log_page.dart' as _i49;
@@ -603,6 +605,8 @@ class AnkiDeckStatsRoute extends _i52.PageRouteInfo<AnkiDeckStatsRouteArgs> {
     _i53.Key? key,
     required String importId,
     required String title,
+    _i57.Future<_i58.OfficialAnkiSourceAwareStatsSnapshot>? Function(String)?
+        statsLoader,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           AnkiDeckStatsRoute.name,
@@ -610,6 +614,7 @@ class AnkiDeckStatsRoute extends _i52.PageRouteInfo<AnkiDeckStatsRouteArgs> {
             key: key,
             importId: importId,
             title: title,
+            statsLoader: statsLoader,
           ),
           initialChildren: children,
         );
@@ -624,6 +629,7 @@ class AnkiDeckStatsRoute extends _i52.PageRouteInfo<AnkiDeckStatsRouteArgs> {
         key: args.key,
         importId: args.importId,
         title: args.title,
+        statsLoader: args.statsLoader,
       );
     },
   );
@@ -634,6 +640,7 @@ class AnkiDeckStatsRouteArgs {
     this.key,
     required this.importId,
     required this.title,
+    this.statsLoader,
   });
 
   final _i53.Key? key;
@@ -642,9 +649,13 @@ class AnkiDeckStatsRouteArgs {
 
   final String title;
 
+  final _i57.Future<_i58.OfficialAnkiSourceAwareStatsSnapshot>? Function(
+    String,
+  )? statsLoader;
+
   @override
   String toString() {
-    return 'AnkiDeckStatsRouteArgs{key: $key, importId: $importId, title: $title}';
+    return 'AnkiDeckStatsRouteArgs{key: $key, importId: $importId, title: $title, statsLoader: $statsLoader}';
   }
 
   @override
@@ -697,7 +708,7 @@ class AnkiReviewRoute extends _i52.PageRouteInfo<void> {
 class AnkiReviewSessionRoute
     extends _i52.PageRouteInfo<AnkiReviewSessionRouteArgs> {
   AnkiReviewSessionRoute({
-    _i57.Key? key,
+    _i59.Key? key,
     String? sectionId,
     bool? officialOwner,
     List<_i52.PageRouteInfo>? children,
@@ -735,7 +746,7 @@ class AnkiReviewSessionRouteArgs {
     this.officialOwner,
   });
 
-  final _i57.Key? key;
+  final _i59.Key? key;
 
   final String? sectionId;
 
@@ -997,7 +1008,7 @@ class MistakeDashboardRoute extends _i52.PageRouteInfo<void> {
 class MistakeDetailRoute extends _i52.PageRouteInfo<MistakeDetailRouteArgs> {
   MistakeDetailRoute({
     _i53.Key? key,
-    required _i58.MistakeEntry entry,
+    required _i60.MistakeEntry entry,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           MistakeDetailRoute.name,
@@ -1021,7 +1032,7 @@ class MistakeDetailRouteArgs {
 
   final _i53.Key? key;
 
-  final _i58.MistakeEntry entry;
+  final _i60.MistakeEntry entry;
 
   @override
   String toString() {
@@ -1061,7 +1072,7 @@ class MistakePracticeRoute
     extends _i52.PageRouteInfo<MistakePracticeRouteArgs> {
   MistakePracticeRoute({
     _i53.Key? key,
-    required _i58.MistakeEntry entry,
+    required _i60.MistakeEntry entry,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           MistakePracticeRoute.name,
@@ -1085,7 +1096,7 @@ class MistakePracticeRouteArgs {
 
   final _i53.Key? key;
 
-  final _i58.MistakeEntry entry;
+  final _i60.MistakeEntry entry;
 
   @override
   String toString() {
@@ -1189,16 +1200,16 @@ class OfficialAnkiRepairCenterRoute
     extends _i52.PageRouteInfo<OfficialAnkiRepairCenterRouteArgs> {
   OfficialAnkiRepairCenterRoute({
     _i53.Key? key,
-    _i59.OfficialAnkiDatabase? catalog,
-    _i60.OfficialAnkiPaths? paths,
-    _i61.StorageInventoryService? scanner,
-    _i62.OfficialAnkiEngine? engine,
-    _i63.DatabaseDoctorService? doctor,
-    _i64.Future<void> Function(String)? onContinueImport,
-    _i64.Future<void> Function(String)? onDiscardImport,
-    _i64.Future<void> Function(String)? onRetryCleanup,
-    _i64.Future<void> Function(String)? onDeleteQuarantine,
-    _i64.Future<void> Function(String)? onExportDiagnostics,
+    _i61.OfficialAnkiDatabase? catalog,
+    _i62.OfficialAnkiPaths? paths,
+    _i63.StorageInventoryService? scanner,
+    _i64.OfficialAnkiEngine? engine,
+    _i65.DatabaseDoctorService? doctor,
+    _i57.Future<void> Function(String)? onContinueImport,
+    _i57.Future<void> Function(String)? onDiscardImport,
+    _i57.Future<void> Function(String)? onRetryCleanup,
+    _i57.Future<void> Function(String)? onDeleteQuarantine,
+    _i57.Future<void> Function(String)? onExportDiagnostics,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiRepairCenterRoute.name,
@@ -1260,25 +1271,25 @@ class OfficialAnkiRepairCenterRouteArgs {
 
   final _i53.Key? key;
 
-  final _i59.OfficialAnkiDatabase? catalog;
+  final _i61.OfficialAnkiDatabase? catalog;
 
-  final _i60.OfficialAnkiPaths? paths;
+  final _i62.OfficialAnkiPaths? paths;
 
-  final _i61.StorageInventoryService? scanner;
+  final _i63.StorageInventoryService? scanner;
 
-  final _i62.OfficialAnkiEngine? engine;
+  final _i64.OfficialAnkiEngine? engine;
 
-  final _i63.DatabaseDoctorService? doctor;
+  final _i65.DatabaseDoctorService? doctor;
 
-  final _i64.Future<void> Function(String)? onContinueImport;
+  final _i57.Future<void> Function(String)? onContinueImport;
 
-  final _i64.Future<void> Function(String)? onDiscardImport;
+  final _i57.Future<void> Function(String)? onDiscardImport;
 
-  final _i64.Future<void> Function(String)? onRetryCleanup;
+  final _i57.Future<void> Function(String)? onRetryCleanup;
 
-  final _i64.Future<void> Function(String)? onDeleteQuarantine;
+  final _i57.Future<void> Function(String)? onDeleteQuarantine;
 
-  final _i64.Future<void> Function(String)? onExportDiagnostics;
+  final _i57.Future<void> Function(String)? onExportDiagnostics;
 
   @override
   String toString() {
@@ -1312,12 +1323,12 @@ class OfficialAnkiRepairCenterRouteArgs {
 class OfficialAnkiReviewerRoute
     extends _i52.PageRouteInfo<OfficialAnkiReviewerRouteArgs> {
   OfficialAnkiReviewerRoute({
-    _i57.Key? key,
+    _i59.Key? key,
     required String sourceId,
     required int cardId,
-    required _i60.OfficialAnkiPaths paths,
-    _i65.OfficialAnkiRenderFacade? facade,
-    _i66.OfficialAnkiReviewerController? controller,
+    required _i62.OfficialAnkiPaths paths,
+    _i66.OfficialAnkiRenderFacade? facade,
+    _i67.OfficialAnkiReviewerController? controller,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiReviewerRoute.name,
@@ -1360,17 +1371,17 @@ class OfficialAnkiReviewerRouteArgs {
     this.controller,
   });
 
-  final _i57.Key? key;
+  final _i59.Key? key;
 
   final String sourceId;
 
   final int cardId;
 
-  final _i60.OfficialAnkiPaths paths;
+  final _i62.OfficialAnkiPaths paths;
 
-  final _i65.OfficialAnkiRenderFacade? facade;
+  final _i66.OfficialAnkiRenderFacade? facade;
 
-  final _i66.OfficialAnkiReviewerController? controller;
+  final _i67.OfficialAnkiReviewerController? controller;
 
   @override
   String toString() {
@@ -1453,7 +1464,7 @@ class ReviewSourceDetailRoute
     extends _i52.PageRouteInfo<ReviewSourceDetailRouteArgs> {
   ReviewSourceDetailRoute({
     _i53.Key? key,
-    required _i67.ReviewSource source,
+    required _i68.ReviewSource source,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           ReviewSourceDetailRoute.name,
@@ -1477,7 +1488,7 @@ class ReviewSourceDetailRouteArgs {
 
   final _i53.Key? key;
 
-  final _i67.ReviewSource source;
+  final _i68.ReviewSource source;
 
   @override
   String toString() {
@@ -1533,16 +1544,16 @@ class StorageDiagnosticsRoute
     extends _i52.PageRouteInfo<StorageDiagnosticsRouteArgs> {
   StorageDiagnosticsRoute({
     _i53.Key? key,
-    _i61.StorageInventoryService? scanner,
-    _i68.CacheDiagnosticsRegistry? cacheRegistry,
-    _i64.Future<_i69.RuntimeMemorySnapshot> Function()? memorySampler,
-    _i64.Future<_i70.OfficialStorageOptimizeResult> Function({
+    _i63.StorageInventoryService? scanner,
+    _i69.CacheDiagnosticsRegistry? cacheRegistry,
+    _i57.Future<_i70.RuntimeMemorySnapshot> Function()? memorySampler,
+    _i57.Future<_i71.OfficialStorageOptimizeResult> Function({
       required bool force,
     })? optimizeDatabases,
-    _i64.Future<List<_i71.StorageDeletableItem>> Function()?
+    _i57.Future<List<_i72.StorageDeletableItem>> Function()?
         listOfficialSources,
-    _i64.Future<bool> Function(String)? uninstall,
-    _i64.Future<_i72.OfficialAnkiGhostPurgeResult> Function()?
+    _i57.Future<bool> Function(String)? uninstall,
+    _i57.Future<_i73.OfficialAnkiGhostPurgeResult> Function()?
         forcePurgeOfficial,
     List<_i52.PageRouteInfo>? children,
   }) : super(
@@ -1596,22 +1607,22 @@ class StorageDiagnosticsRouteArgs {
 
   final _i53.Key? key;
 
-  final _i61.StorageInventoryService? scanner;
+  final _i63.StorageInventoryService? scanner;
 
-  final _i68.CacheDiagnosticsRegistry? cacheRegistry;
+  final _i69.CacheDiagnosticsRegistry? cacheRegistry;
 
-  final _i64.Future<_i69.RuntimeMemorySnapshot> Function()? memorySampler;
+  final _i57.Future<_i70.RuntimeMemorySnapshot> Function()? memorySampler;
 
-  final _i64.Future<_i70.OfficialStorageOptimizeResult> Function({
+  final _i57.Future<_i71.OfficialStorageOptimizeResult> Function({
     required bool force,
   })? optimizeDatabases;
 
-  final _i64.Future<List<_i71.StorageDeletableItem>> Function()?
+  final _i57.Future<List<_i72.StorageDeletableItem>> Function()?
       listOfficialSources;
 
-  final _i64.Future<bool> Function(String)? uninstall;
+  final _i57.Future<bool> Function(String)? uninstall;
 
-  final _i64.Future<_i72.OfficialAnkiGhostPurgeResult> Function()?
+  final _i57.Future<_i73.OfficialAnkiGhostPurgeResult> Function()?
       forcePurgeOfficial;
 
   @override
@@ -1685,14 +1696,14 @@ class TransparencyLogRoute extends _i52.PageRouteInfo<void> {
 class UnifiedReviewRoute extends _i52.PageRouteInfo<UnifiedReviewRouteArgs> {
   UnifiedReviewRoute({
     _i53.Key? key,
-    required List<_i73.ReviewItem> items,
-    required _i74.ReviewLedgerResolver ledgerResolver,
+    required List<_i74.ReviewItem> items,
+    required _i75.ReviewLedgerResolver ledgerResolver,
     String? title,
     int remainingDue = 0,
     _i53.VoidCallback? onReviewMore,
-    _i64.Future<void> Function(_i73.ReviewItem, _i75.RecallOutcome)?
+    _i57.Future<void> Function(_i74.ReviewItem, _i76.RecallOutcome)?
         onOutcomeRecorded,
-    _i64.Future<void> Function(_i76.ReviewEventReceipt)? onOutcomeUndone,
+    _i57.Future<void> Function(_i77.ReviewEventReceipt)? onOutcomeUndone,
     List<_i52.PageRouteInfo>? children,
   }) : super(
           UnifiedReviewRoute.name,
@@ -1743,9 +1754,9 @@ class UnifiedReviewRouteArgs {
 
   final _i53.Key? key;
 
-  final List<_i73.ReviewItem> items;
+  final List<_i74.ReviewItem> items;
 
-  final _i74.ReviewLedgerResolver ledgerResolver;
+  final _i75.ReviewLedgerResolver ledgerResolver;
 
   final String? title;
 
@@ -1753,10 +1764,10 @@ class UnifiedReviewRouteArgs {
 
   final _i53.VoidCallback? onReviewMore;
 
-  final _i64.Future<void> Function(_i73.ReviewItem, _i75.RecallOutcome)?
+  final _i57.Future<void> Function(_i74.ReviewItem, _i76.RecallOutcome)?
       onOutcomeRecorded;
 
-  final _i64.Future<void> Function(_i76.ReviewEventReceipt)? onOutcomeUndone;
+  final _i57.Future<void> Function(_i77.ReviewEventReceipt)? onOutcomeUndone;
 
   @override
   String toString() {
@@ -1768,7 +1779,7 @@ class UnifiedReviewRouteArgs {
     if (identical(this, other)) return true;
     if (other is! UnifiedReviewRouteArgs) return false;
     return key == other.key &&
-        const _i77.ListEquality<_i73.ReviewItem>().equals(items, other.items) &&
+        const _i78.ListEquality<_i74.ReviewItem>().equals(items, other.items) &&
         ledgerResolver == other.ledgerResolver &&
         title == other.title &&
         remainingDue == other.remainingDue &&
@@ -1778,7 +1789,7 @@ class UnifiedReviewRouteArgs {
   @override
   int get hashCode =>
       key.hashCode ^
-      const _i77.ListEquality<_i73.ReviewItem>().hash(items) ^
+      const _i78.ListEquality<_i74.ReviewItem>().hash(items) ^
       ledgerResolver.hashCode ^
       title.hashCode ^
       remainingDue.hashCode ^

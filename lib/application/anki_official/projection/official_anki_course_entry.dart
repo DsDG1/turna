@@ -7,9 +7,8 @@ import 'package:turna/application/anki_official/render/official_anki_reviewer_ro
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/course_database.dart'
-    hide Section, Unit, Lesson, LessonContent;
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 class OfficialAnkiCanonicalRef {
   const OfficialAnkiCanonicalRef({
@@ -29,7 +28,7 @@ class OfficialAnkiCourseEntry {
 
   static Set<String> Function()? activeSectionIds;
   static OfficialAnkiDatabase Function()? catalogOf;
-  static CourseDatabase Function()? courseOf;
+  static IOfficialAnkiV2ViewStore Function()? viewStoreOf;
 
   /// Test-only path override. The shipped opener still pushes
   /// [OfficialAnkiReviewerPage]; this only replaces `path_provider`.
@@ -39,7 +38,7 @@ class OfficialAnkiCourseEntry {
     flagsOf = () => OfficialAnkiFeatureFlags.current;
     activeSectionIds = null;
     catalogOf = null;
-    courseOf = null;
+    viewStoreOf = null;
     pathsOf = null;
   }
 
@@ -59,31 +58,32 @@ class OfficialAnkiCourseEntry {
 
   static Future<Set<String>> lookupActiveSectionIdsAsync({
     OfficialAnkiDatabase? catalog,
-    required CourseDatabase course,
+    required IOfficialAnkiV2ViewStore viewStore,
   }) async {
     if (catalog == null) return const <String>{};
     return await OfficialAnkiV2CourseRead(
       catalog: catalog,
-      course: course,
+      viewStore: viewStore,
     ).activeSectionIds();
   }
 
-  /// CourseDatabase index (v1 manifest) plus optional catalog (v2 views).
+  /// View store index plus optional catalog (v2 views).
   /// Never reads projection staging. Catalog may be absent on cold start
   /// before the importer opens — v1 projected sections must still resolve.
   static Future<Set<String>> resolveActiveSectionIds() async {
     final hook = activeSectionIds;
     if (hook != null) return Set<String>.from(hook());
-    CourseDatabase? course;
+    IOfficialAnkiV2ViewStore? viewStore;
     try {
-      course = courseOf?.call() ?? CourseLoader.databaseOrNull();
+      viewStore = viewStoreOf?.call() ?? CourseLoader.v2ViewStoreOrNull();
     } catch (_) {
-      course = null;
+      // best-effort 探测：视图仓储尚未装配属于冷启动路径。
+      viewStore = null;
     }
-    if (course == null) return <String>{};
+    if (viewStore == null) return <String>{};
     return lookupActiveSectionIdsAsync(
       catalog: catalogOf?.call(),
-      course: course,
+      viewStore: viewStore,
     );
   }
 

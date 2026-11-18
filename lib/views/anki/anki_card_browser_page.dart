@@ -275,7 +275,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   (1, TurnaTheme.error),
                   (2, TurnaTheme.warning),
                   (3, TurnaTheme.brandSky),
-                  (4, TurnaTheme.leagueEmerald),
+                  (4, TurnaTheme.achievementEmerald),
                 ]) ...[
                   TurnaFilterChip(
                     avatar: Icon(Icons.flag, color: entry.$2, size: 16),
@@ -452,7 +452,7 @@ class _FlagIcon extends StatelessWidget {
       1 => TurnaTheme.error,
       2 => TurnaTheme.warning,
       3 => TurnaTheme.brandSky,
-      4 => TurnaTheme.leagueEmerald,
+      4 => TurnaTheme.achievementEmerald,
       _ => TurnaTheme.brandTeal,
     };
     return Icon(Icons.flag, color: color);

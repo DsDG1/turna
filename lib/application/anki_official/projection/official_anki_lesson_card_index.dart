@@ -1,9 +1,9 @@
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/course_database.dart';
-import 'package:turna/di/injection.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// v2 视图解析的中间载体（word/card/source 三元组）。
 class _V2CardEntry {
@@ -83,10 +83,10 @@ class OfficialAnkiLessonCardIndex {
   ) async {
     final resolver = debugResolver;
     if (resolver != null) return resolver(lessonId);
-    if (!getIt.isRegistered<CourseDatabase>()) return null;
+    final viewStore = CourseLoader.v2ViewStoreOrNull();
+    if (viewStore == null) return null;
     try {
-      final course = getIt<CourseDatabase>();
-      final v2Entries = await _resolveV2Entries(course, lessonId);
+      final v2Entries = await _resolveV2Entries(viewStore, lessonId);
       if (v2Entries == null || v2Entries.isEmpty) return null;
       return OfficialAnkiLessonCardIndex(
         lessonId: lessonId,
@@ -108,13 +108,14 @@ class OfficialAnkiLessonCardIndex {
   /// v2 视图命中时返回课时条目；视图无此课时（v1 数据或 flag 关）返回
   /// null 走 v1 面。fail-closed：视图读失败按「非 v2 课时」处理。
   static Future<List<_V2CardEntry>?> _resolveV2Entries(
-    CourseDatabase course,
+    IOfficialAnkiV2ViewStore viewStore,
     String lessonId,
   ) async {
     try {
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
       if (catalog == null) return null;
-      final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
+      final read =
+          OfficialAnkiV2CourseRead(catalog: catalog, viewStore: viewStore);
       if (!await read.isV2Lesson(lessonId)) return null;
       final entries = await read.lessonCardEntriesForLesson(lessonId);
       return [

@@ -13,7 +13,7 @@ import 'package:turna/application/anki_official/v2/official_anki_v2_post_retire_
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
@@ -25,11 +25,10 @@ import 'package:turna/service/locator.dart';
 class AnkiDeckManager {
   final ICourseRepository _repo;
 
-  // [importDao] and [appPrefs] remain optional signature parameters for DI and
-  // test compatibility while v1 per-deck limit overrides are retired.
+  // [appPrefs] remains an optional signature parameter for DI and test
+  // compatibility while v1 per-deck limit overrides are retired.
   AnkiDeckManager({
     required ICourseRepository repo,
-    IAnkiImportStore? importDao,
     AppPrefs? appPrefs,
   }) : _repo = repo;
 
@@ -41,11 +40,20 @@ class AnkiDeckManager {
   /// Official cutover — the Legacy cleanup path is retired, plan P1) and
   /// report as removed. Returns false when Official cleanup is safely
   /// deferred for a later retry.
-  Future<bool> uninstall(String importId) async {
+  ///
+  /// When [awaitEnginePass] is true, awaits collection card deletion and
+  /// final ledger cleanup even when the source exceeds [OfficialAnkiV2RetireService.defaultDeleteChunk].
+  Future<bool> uninstall(
+    String importId, {
+    bool awaitEnginePass = false,
+  }) async {
     final owner = await _resolveDeletionOwner(importId);
     final officialSourceId = owner.officialSourceId;
     if (officialSourceId != null) {
-      return _uninstallV2Source(officialSourceId);
+      return _uninstallV2Source(
+        officialSourceId,
+        awaitEnginePass: awaitEnginePass,
+      );
     }
     return true;
   }
@@ -70,6 +78,7 @@ class AnkiDeckManager {
   Future<bool> _uninstallV2Source(
     String sourceId, {
     String? leaseOwnerToken,
+    bool awaitEnginePass = false,
   }) async {
     await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
@@ -93,10 +102,11 @@ class AnkiDeckManager {
     } catch (error) {
       logger.w('[AnkiDeckManager] v2 retire engine absent: $error');
     }
+    final db = _courseDatabase();
     final service = OfficialAnkiV2RetireService(
       catalog: catalog,
       paths: paths,
-      course: _courseDatabase(),
+      viewStore: db != null ? CourseLoader.v2ViewStoreFor(db) : null,
       engine: engine,
     );
     await service.beginRetire(sourceId: sourceId);
@@ -105,8 +115,13 @@ class AnkiDeckManager {
     // 配置区，记一条告警即可——retire 本身不能被它挡住。
     if (engine != null) {
       try {
-        await OfficialAnkiAdaptationStore(engine)
+        final cleaned = await OfficialAnkiAdaptationStore(engine)
             .deleteSourceNamespace(sourceId);
+        if (!cleaned) {
+          logger.w(
+            '[AnkiDeckManager] adaptation namespace cleanup incomplete: $sourceId',
+          );
+        }
       } catch (error) {
         logger.w('[AnkiDeckManager] adaptation namespace cleanup failed: $error');
       }
@@ -130,18 +145,20 @@ class AnkiDeckManager {
           catalog: catalog,
           paths: paths,
           engine: engine,
-          course: _courseDatabase(),
+          course: db,
           leaseOwnerToken: leaseOwnerToken,
         ).run();
 
     // 小源：同步走完引擎删除（F4 测试与日常小包）。大源（含 10 万卡
     // 夹具）：beginRetire 已让课程树即刻不可见，引擎分批删卡不挡 UI，
-    // 否则确认删除会卡死，表现就是「删不掉」。两种体量都不在 UI 等待
-    // 字节回收——drain 分离执行，失败留队由下次启动收敛。计数读失败
-    // 时按大源处理（后台续跑），绝不让 post-commit 的读取异常把已提交
-    // 的移除报成「未完成」。
+    // 否则确认删除会卡死，表现就是「删不掉」。替换重导传入
+    // [awaitEnginePass] 时强制等删卡落定再继续导入。两种体量都不在
+    // UI 等待字节回收——drain 分离执行，失败留队由下次启动收敛。计数
+    // 读失败时按大源处理（后台续跑），绝不让 post-commit 的读取异常把
+    // 已提交的移除报成「未完成」。
     final owned = _retireCardCount(sources, sourceId);
-    if (owned <= OfficialAnkiV2RetireService.defaultDeleteChunk) {
+    if (awaitEnginePass ||
+        owned <= OfficialAnkiV2RetireService.defaultDeleteChunk) {
       await enginePass();
       unawaited(reclaimPass());
     } else {
@@ -211,8 +228,13 @@ class AnkiDeckManager {
   Future<bool> uninstallOfficialSource(
     String sourceId, {
     String? leaseOwnerToken,
+    bool awaitEnginePass = false,
   }) =>
-      _uninstallV2Source(sourceId, leaseOwnerToken: leaseOwnerToken);
+      _uninstallV2Source(
+        sourceId,
+        leaseOwnerToken: leaseOwnerToken,
+        awaitEnginePass: awaitEnginePass,
+      );
 
   /// Retry every `pending_cleanup` or `retiring` source whose cleanup was interrupted.
   Future<int> retryPendingOfficialCleanups({String? leaseOwnerToken}) async {
@@ -256,10 +278,17 @@ class AnkiDeckManager {
   /// open, otherwise open (or fall back to) the shared importer session.
   /// Null when official anki is unavailable (flags off / worker failed).
   Future<OfficialAnkiEngine?> _resolveOfficialEngine() async {
-    final existing = OfficialAnkiCompositionRoot.engine;
-    if (existing != null) return existing;
-    await OfficialAnkiCompositionRoot.requireImporter();
-    return OfficialAnkiCompositionRoot.engine;
+    var resolved = OfficialAnkiCompositionRoot.engine;
+    if (resolved == null) {
+      await OfficialAnkiCompositionRoot.requireImporter();
+      resolved = OfficialAnkiCompositionRoot.engine;
+    }
+    if (resolved == null) return null;
+    final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (paths != null) {
+      await ensureOfficialProfileOpen(resolved, paths);
+    }
+    return resolved;
   }
 }
 

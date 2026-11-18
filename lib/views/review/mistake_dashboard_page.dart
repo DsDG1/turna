@@ -27,6 +27,7 @@ class MistakeDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasLoadError = context.select((MistakeProvider p) => p.hasLoadError);
     final entries = context.select((MistakeProvider p) => p.entries);
     final dailyCounts = context.select((MistakeProvider p) => p.dailyCounts);
     final masteredTotal =
@@ -38,42 +39,91 @@ class MistakeDashboardPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(title: Text(AppStrings.mistakeDashboardTitle)),
-      body: !hasAnyData
+      body: hasLoadError && !hasAnyData
           ? PracticeEmptyState(
-              title: AppStrings.mistakeDashboardEmptyTitle,
-              message: AppStrings.mistakeDashboardEmptyMessage,
+              title: AppStrings.mistakesLoadFailed,
+              actionLabel: AppStrings.commonRetry,
+              onAction: () => context.read<MistakeProvider>().retry(),
             )
-          : RefreshIndicator(
-              color: TurnaTheme.brandTeal,
-              onRefresh: () =>
-                  context.read<MistakeProvider>().reloadFromPrefs(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+          : !hasAnyData
+              ? PracticeEmptyState(
+                  title: AppStrings.mistakeDashboardEmptyTitle,
+                  message: AppStrings.mistakeDashboardEmptyMessage,
+                )
+              : RefreshIndicator(
+                  color: TurnaTheme.brandTeal,
+                  onRefresh: () => context.read<MistakeProvider>().retry(),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pageMargin,
+                      AppSpacing.md,
+                      AppSpacing.pageMargin,
+                      AppSpacing.xxl,
+                    ),
+                    children: [
+                      if (hasLoadError)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: _DashboardLoadErrorBanner(
+                            onRetry: () =>
+                                context.read<MistakeProvider>().retry(),
+                          ),
+                        ),
+                      _MetricOpening(
+                        entries: entries,
+                        masteredTotal: masteredTotal,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _TrendSection(dailyCounts: dailyCounts),
+                      const SizedBox(height: AppSpacing.xl),
+                      _DistributionSection(entries: entries),
+                      if (_frequentMistakes(entries).isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xl),
+                        _FrequentSection(entries: entries),
+                      ],
+                      if (entries.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xl),
+                        _OldestSection(entries: entries),
+                      ],
+                    ],
+                  ),
                 ),
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pageMargin,
-                  AppSpacing.md,
-                  AppSpacing.pageMargin,
-                  AppSpacing.xxl,
-                ),
-                children: [
-                  _MetricOpening(entries: entries, masteredTotal: masteredTotal),
-                  const SizedBox(height: AppSpacing.xl),
-                  _TrendSection(dailyCounts: dailyCounts),
-                  const SizedBox(height: AppSpacing.xl),
-                  _DistributionSection(entries: entries),
-                  if (_frequentMistakes(entries).isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.xl),
-                    _FrequentSection(entries: entries),
-                  ],
-                  if (entries.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.xl),
-                    _OldestSection(entries: entries),
-                  ],
-                ],
+    );
+  }
+}
+
+class _DashboardLoadErrorBanner extends StatelessWidget {
+  const _DashboardLoadErrorBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TurnaTheme.error.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 16, color: TurnaTheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppStrings.mistakesLoadFailed,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+            TextButton(
+              onPressed: onRetry,
+              child: Text(AppStrings.commonRetry),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -221,7 +271,7 @@ class _DistributionSection extends StatelessWidget {
               ReportSegment(
                 label: AppStrings.reviewGrammarLabel,
                 value: grammarCount.toDouble(),
-                color: TurnaTheme.leagueAmethyst,
+                color: TurnaTheme.brandSky,
                 valueLabel: _legendValue(grammarCount, total),
               ),
               if (otherCount > 0)

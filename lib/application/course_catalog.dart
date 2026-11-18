@@ -1,16 +1,16 @@
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
-import 'package:turna/data/course_database.dart' hide Section;
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// One selectable course in the course catalog (ADR 0043).
 ///
@@ -22,7 +22,6 @@ class CourseCatalogEntry {
     required this.scope,
     required this.displayName,
     required this.isBuiltin,
-    this.legacyImportId,
     this.officialSourceId,
     this.sectionCount = 0,
     this.cardCount = 0,
@@ -32,16 +31,12 @@ class CourseCatalogEntry {
   final String displayName;
   final bool isBuiltin;
 
-  /// Non-null for Legacy Anki imports.
-  final String? legacyImportId;
-
   /// Non-null for Official Anki sources (the complete sourceId).
   final String? officialSourceId;
 
   final int sectionCount;
 
-  /// Cards owned by this source (projection index for Official, cards_meta
-  /// for Legacy). Shown in the uninstall confirmation (ADR 0043).
+  /// Cards owned by this source. Shown in the uninstall confirmation (ADR 0043).
   final int cardCount;
 
   String get wireKey => scope.wireKey;
@@ -52,7 +47,7 @@ class CourseCatalogEntry {
       final id = officialSourceId!;
       return id.length <= 12 ? id : id.substring(0, 12);
     }
-    return legacyImportId ?? '';
+    return '';
   }
 }
 
@@ -61,11 +56,8 @@ class CourseCatalogEntry {
 /// - Built-in language courses: one entry per language with content in the
 ///   DB (or, when the DB has no builtin content at all, per manifest
 ///   language), minus languages the user uninstalled.
-/// - Legacy Anki decks come from the section shells (level `Anki`).
 /// - Official Anki sources come from `anki_course_sources` (the v21
-///   authority) plus the projection manifest for sources imported before
-///   the authority table existed — both validated so staging generations
-///   are never visible.
+///   authority) backed by the v2 course-tree view.
 class CourseCatalog {
   CourseCatalog._();
 
@@ -85,18 +77,6 @@ class CourseCatalog {
     final deck = body.substring(marker + 2);
     if (sourceId.isEmpty || int.tryParse(deck) == null) return null;
     return sourceId;
-  }
-
-  /// Legacy import id from a `anki-<importId>-s<deckId>` section id.
-  static String? legacyImportIdFromSectionId(String sectionId) {
-    if (!sectionId.startsWith('anki-')) return null;
-    final body = sectionId.substring('anki-'.length);
-    final marker = body.lastIndexOf('-s');
-    if (marker <= 0) return null;
-    final importId = body.substring(0, marker);
-    final deck = body.substring(marker + 2);
-    if (importId.isEmpty || int.tryParse(deck) == null) return null;
-    return importId;
   }
 
   /// Attribute a section to a builtin language: its recorded `language_code`,
@@ -120,20 +100,31 @@ class CourseCatalog {
   /// catalog; [builtinCardCounts] fills the builtin entries' [CourseCatalogEntry.cardCount].
   static Future<List<CourseCatalogEntry>> load({
     List<Section>? shells,
-    CourseDatabase? courseDb,
+    ICourseRepository? courseRepository,
+    IOfficialAnkiV2ViewStore? v2ViewStore,
     Set<String> uninstalledLanguageCodes = const {},
     Map<String, int> builtinCardCounts = const {},
   }) async {
     final sections = shells ?? await loadSectionShells();
-    CourseDatabase? db = courseDb;
+    ICourseRepository? repo = courseRepository;
     try {
-      db ??= CourseLoader.databaseOrNull();
+      repo ??= CourseLoader.repositoryOrNull();
     } catch (_) {
-      db = null;
+      // Optional dependency guard: manifest builtin entries remain available
+      // even before CourseDatabase / ICourseRepository is registered.
+      repo = null;
+    }
+    IOfficialAnkiV2ViewStore? viewStore = v2ViewStore;
+    try {
+      viewStore ??= CourseLoader.v2ViewStoreOrNull();
+    } catch (_) {
+      // Optional dependency guard: official entries are omitted when no view
+      // store is wired.
+      viewStore = null;
     }
 
     final languageBySection = <String, String>{};
-    if (db != null) {
+    if (CourseLoader.databaseOrNull() != null) {
       try {
         languageBySection.addAll(await CourseLoader.sectionLanguageCodes());
       } catch (e, st) {
@@ -144,15 +135,16 @@ class CourseCatalog {
     final codesFromDb = <String>{};
     for (final section in sections) {
       if (section.level == 'Anki' ||
+          section.level == 'OfficialAnki' ||
           OfficialAnkiCourseEntry.isOfficialSectionId(section.id)) {
         continue;
       }
       final sectionCode = builtinLanguageOf(section.id, languageBySection);
       if (sectionCode != null) codesFromDb.add(sectionCode);
     }
-    if (db != null) {
+    if (repo != null) {
       try {
-        await ImportedLanguageRegistry.instance.hydrate(db);
+        await ImportedLanguageRegistry.instance.hydrate(repo);
       } catch (e, st) {
         logger.w('CourseCatalog: imported-language registry hydrate failed',
             error: e, stackTrace: st);
@@ -184,6 +176,7 @@ class CourseCatalog {
           isBuiltin: true,
           sectionCount: sections.where((s) {
             if (s.level == 'Anki' ||
+                s.level == 'OfficialAnki' ||
                 OfficialAnkiCourseEntry.isOfficialSectionId(s.id)) {
               return false;
             }
@@ -193,40 +186,17 @@ class CourseCatalog {
         ),
     ];
 
-    // Legacy decks — one entry per import id found in the shells (card-meta
-    // table dropped in v27, so shell card counts stay 0).
-    final legacyIds = <String>{};
-    for (final section in sections) {
-      if (section.level != 'Anki') continue;
-      if (OfficialAnkiCourseEntry.isOfficialSectionId(section.id)) continue;
-      final importId = legacyImportIdFromSectionId(section.id);
-      if (importId == null) continue;
-      if (!legacyIds.add(importId)) continue;
-      entries.add(CourseCatalogEntry(
-        scope: LegacyAnkiCourseScope(importId),
-        displayName: section.name,
-        isBuiltin: false,
-        legacyImportId: importId,
-        sectionCount: sections
-            .where((s) =>
-                legacyImportIdFromSectionId(s.id) == importId &&
-                s.level == 'Anki')
-            .length,
-        cardCount: 0,
-      ));
-    }
-
     // Official sources (v2 monolith read)
     try {
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-      if (catalog != null && db != null) {
+      if (catalog != null && viewStore != null) {
         final activeSources = {
           for (final source in OfficialAnkiSourceDao(catalog).listSources(
             officialProfileId,
           ))
             if (source.state == 'active') source.sourceId: source,
         };
-        final summaries = await OfficialAnkiV2ViewStore(db).sectionSummaries();
+        final summaries = await viewStore.sectionSummaries();
         final sectionCounts = <String, int>{};
         final cardCounts = <String, int>{};
         for (final summary in summaries) {
@@ -268,8 +238,6 @@ class CourseCatalog {
       BuiltinCourseScope(languageCode: final code) => languageCode != null &&
           LanguageCodes.canonicalize(languageCode) ==
               LanguageCodes.canonicalize(code),
-      LegacyAnkiCourseScope(importId: final id) =>
-        legacyImportIdFromSectionId(sectionId) == id,
       OfficialAnkiCourseScope(sourceId: final id) =>
         officialSourceIdFromSectionId(sectionId) == id,
     };

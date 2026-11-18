@@ -16,6 +16,8 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -113,16 +115,24 @@ void main() {
         ),
       ),
     );
-    await db.customStatement(
-      'INSERT INTO anki_course_tree_view '
-      "(source_id, card_id, note_id, deck_id, word_id, section_key, section_id, "
-      ' unit_id, lesson_id, lesson_key, presentation_kind, source_hash, '
-      ' mapping_version, rebuilt_at_millis) VALUES '
-      '${List<String>.generate(cardCount, (index) {
-        final id = index + 1;
-        return "('$importId', $id, $id, 1, 'w$id', 'sk', 's', 'u', 'l', 'lk', "
-            "'flip', 'fp', 1, 1)";
-      }).join(',')}',
+    await OfficialAnkiV2ViewStore(db).replaceAll(
+      rows: [
+        for (var index = 0; index < cardCount; index++)
+          OfficialAnkiV2ViewRow(
+            sourceId: importId,
+            cardId: index + 1,
+            noteId: index + 1,
+            deckId: 1,
+            wordId: 'w${index + 1}',
+            sectionKey: 'sk',
+            sectionId: 's',
+            unitId: 'u',
+            lessonId: 'l',
+            lessonKey: 'lk',
+            sourceHash: 'fp',
+          ),
+      ],
+      rebuiltAtMillis: 1,
     );
     GetIt.instance.registerSingleton<CourseDatabase>(db);
 

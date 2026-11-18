@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 

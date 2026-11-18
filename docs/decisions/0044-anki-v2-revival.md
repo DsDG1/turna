@@ -2,7 +2,7 @@
 
 > 状态：**已接受**（2026-09-02）
 >
-> 关联：[ADR 0043](./0043-anki-v2-single-source-of-truth.md)（架构设计原文，状态由本 ADR 修订为「执行中」）；首夜真机发现（F1–F6 定性与三项固有限制）；R1–R4 的执行收据以本 ADR 与 [`test/BASELINE.md`](../../test/BASELINE.md) 的对应条目为准。**过程档说明**：Step 1–6 施工单、C3/R4 runbook 与 2026-09-01 失败结论档（`ankiUpdate/`）已随精简批次删除，见 Git 历史。
+> 关联：[ADR 0043](./0043-anki-v2-single-source-of-truth.md)（架构设计原文，由本 ADR 复活后已收口并通过验收，见 [`docs/status.md`](../status.md)）；首夜真机发现（F1–F6 定性与三项固有限制）；R1–R4 的执行收据以本 ADR 与 [`test/BASELINE.md`](../../test/BASELINE.md) 的对应条目为准。**过程档说明**：Step 1–6 施工单、C3/R4 runbook 与 2026-09-01 失败结论档（`ankiUpdate/`）已随精简批次删除，见 Git 历史。
 >
 > 取代：原「PR2：catalog 迁 drift 后台」计划（作废，由 v2 的 D4 删表终局吸收）
 

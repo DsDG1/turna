@@ -134,14 +134,6 @@ class TurnaTheme {
   static const Color textOnPrimary = Colors.white;
   static const Color textOnSecondary = Colors.white;
 
-  // LEAGUE COLORS (Jewel Tones)
-  static const Color leagueBronze = Color(0xFFCD7F32);
-  static const Color leagueGold = Color(0xFFFFD700);
-  static const Color leagueAmethyst = Color(0xFF9B59B6);
-  static const Color leagueRuby = Color(0xFFE74C3C);
-  static const Color leagueEmerald = Color(0xFF27AE60);
-  static const Color leagueDiamond = Color(0xFF3498DB);
-
   // SURFACE & OVERLAY TOKENS (shared view primitives)
   /// Reed indent guide stroke along nested sub-lesson rows in the course tree.
   static const Color subLessonIndentGuide = Color(0x6678C7B8);
@@ -150,6 +142,7 @@ class TurnaTheme {
   static const Color popupScrim = Color(0x46000000);
 
   // ACHIEVEMENT UI CATALOG PALETTE
+  static const Color achievementBronze = Color(0xFFCD7F32);
   static const Color achievementGold = Color(0xFFD9A62E);
   static const Color achievementSky = Color(0xFF42A5F5);
   static const Color achievementSage = Color(0xFF8FBF9F);
@@ -157,6 +150,7 @@ class TurnaTheme {
   static const Color achievementEmerald = Color(0xFF2EAF7D);
   static const Color achievementCrimson = Color(0xFFD64560);
   static const Color achievementCyan = Color(0xFF6FC3DF);
+  static const Color achievementAmethyst = Color(0xFF9B59B6);
 
   // SHARE POSTER DARK-CARD ACCENTS
   static const Color sharePosterTitleTop = Color(0xFFEAFBF5);

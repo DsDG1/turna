@@ -20,7 +20,6 @@ import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart'
     hide Section, GrammarPoint, Unit, Lesson, LessonContent, Vocabulary;
 import 'package:turna/data/course_database_seeder.dart';
-import 'package:turna/data/course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
@@ -321,7 +320,7 @@ class CoursePackImporter {
       throw CoursePackImportException(cross);
     }
 
-    final repository = CourseRepository(db);
+    final repository = CourseLoader.repositoryFor(db);
     // Replacing an installed course is destructive-ish (SRS state for ids
     // the new pack drops is pruned below) — give the caller one chance to
     // back out before anything is written.
@@ -357,7 +356,7 @@ class CoursePackImporter {
     await seeder.seedLanguageFromSource(code, force: true);
     // Cleared only after a successful seed: a failed reimport of a previously
     // uninstalled language must leave the marker so it stays restorable.
-    await CourseRepository(db).clearLanguageUninstallMarker(code);
+    await repository.clearLanguageUninstallMarker(code);
 
     // Ghost rows (due cards and mistakes whose word/lesson no longer
     // resolves, e.g. after importing a *different* pack under the same
@@ -382,12 +381,10 @@ class CoursePackImporter {
     }
 
     final meta = pack.toMetaJson();
-    await db.into(db.courseMeta).insertOnConflictUpdate(
-          CourseMetaCompanion.insert(
-            key: ImportedLanguageRegistry.metaKeyFor(code),
-            value: jsonEncode(meta),
-          ),
-        );
+    await repository.upsertCourseMeta(
+      ImportedLanguageRegistry.metaKeyFor(code),
+      jsonEncode(meta),
+    );
     ImportedLanguageRegistry.instance.remember(code, meta);
 
     final dest = File('${persistDir.path}/$code.turnapack');

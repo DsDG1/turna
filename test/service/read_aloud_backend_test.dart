@@ -196,12 +196,35 @@ void main() {
       expect(fake.listenLocales, ['tr']);
     });
 
+    test('full BCP-47 locale bypasses hanging locales() discovery immediately',
+        () async {
+      final fake = _FakeSpeechToText()
+        ..localesCompleter = Completer<List<LocaleName>>();
+      final backend = SpeechToTextReadAloudBackend(fake);
+
+      await backend.start(
+        locale: 'tr-TR',
+        onResult: (_, __) {},
+        onError: (_) {},
+      );
+
+      expect(fake.listenLocales, ['tr-TR']);
+    });
+
     test('stop reaches the plugin', () async {
       final fake = _FakeSpeechToText();
       final backend = SpeechToTextReadAloudBackend(fake);
 
       await backend.stop();
       expect(fake.stopCount, 1);
+    });
+
+    test('cancel reaches the plugin', () async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+
+      await backend.cancel();
+      expect(fake.cancelCount, 1);
     });
   });
 
@@ -267,6 +290,27 @@ void main() {
 
       expect(failures, [ReadAloudFailure.recognitionFailed]);
       expect(fake.stopCount, 1);
+    });
+
+    testWidgets('cancel aborts the session and suppresses final-grace failure',
+        (tester) async {
+      final fake = _FakeSpeechToText();
+      final backend = SpeechToTextReadAloudBackend(fake);
+      await backend.ensureReady();
+
+      final failures = <ReadAloudFailure>[];
+      await backend.start(
+        locale: 'tr-TR',
+        onResult: (_, __) {},
+        onError: failures.add,
+      );
+      fake.statusListener!(SpeechToText.listeningStatus);
+      await backend.cancel();
+      fake.statusListener!(SpeechToText.notListeningStatus);
+      await tester.pump(const Duration(seconds: 6));
+
+      expect(failures, isEmpty);
+      expect(fake.cancelCount, 1);
     });
 
     testWidgets('a delivered final transcript is never declared dead',
@@ -344,18 +388,18 @@ void main() {
       );
     });
 
-    test('missing-language errors map to serviceUnavailable', () {
+    test('missing-language errors map to languageUnsupported', () {
       expect(
         SpeechToTextReadAloudBackend.categorizeFailure(
           'error_language_not_supported',
         ),
-        ReadAloudFailure.serviceUnavailable,
+        ReadAloudFailure.languageUnsupported,
       );
       expect(
         SpeechToTextReadAloudBackend.categorizeFailure(
           'error_language_unavailable',
         ),
-        ReadAloudFailure.serviceUnavailable,
+        ReadAloudFailure.languageUnsupported,
       );
     });
 
@@ -410,9 +454,8 @@ void main() {
       expect(await backend.ensureReady(), isFalse);
     });
 
-    test(
-        'start fails loudly — pretending to listen is the one bug worse '
-        'than being absent', () {
+    test('start fails loudly — pretending to listen is the one bug worse '
+        'than being absent', () async {
       expect(
         () => backend.start(
           locale: 'tr',
@@ -421,6 +464,7 @@ void main() {
         ),
         throwsStateError,
       );
+      await backend.cancel();
     });
   });
 }

@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/storage/official_anki_import_att
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -166,7 +167,7 @@ void main() {
     final committed = await OfficialAnkiV2ImportService(
       catalog: h.catalog,
       paths: h.paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: h.live,
     ).commit(
       sourceId: h.sources.listSources(h.paths.profileId).single.sourceId,

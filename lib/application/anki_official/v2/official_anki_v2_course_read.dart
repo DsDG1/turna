@@ -1,14 +1,12 @@
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/course_database.dart'
-    hide Section, Unit, Lesson, LessonContent;
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 
 /// B6：v2 课程树读面（ADR 0043）。
 ///
@@ -21,29 +19,30 @@ import 'package:turna/domain/course/unit.dart';
 /// CourseProvider.setScope 写穿）+ 视图过滤——不再有跨库状态机
 /// （Step 1 发现 #2 的 v2 答复）。
 class OfficialAnkiV2CourseRead {
-  OfficialAnkiV2CourseRead({required this.catalog, required this.course});
+  OfficialAnkiV2CourseRead({required this.catalog, required this.viewStore});
 
   final OfficialAnkiDatabase catalog;
-  final CourseDatabase course;
+  final IOfficialAnkiV2ViewStore viewStore;
 
-  /// catalog/course 可得 + 视图有内容时返回 true；任何一步不可用都
+  /// catalog/viewStore 可得 + 视图有内容时返回 true；任何一步不可用都
   /// 回落 v1 读面。
   static Future<bool> get enabled {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    CourseDatabase? course;
+    IOfficialAnkiV2ViewStore? viewStore;
     try {
-      course = CourseLoader.databaseOrNull();
+      viewStore = CourseLoader.v2ViewStoreOrNull();
     } catch (_) {
-      course = null;
+      // best-effort 探测：视图仓储尚未装配属于冷启动路径。
+      viewStore = null;
     }
-    if (catalog == null || course == null) return Future.value(false);
-    return OfficialAnkiV2CourseRead(catalog: catalog, course: course)
+    if (catalog == null || viewStore == null) return Future.value(false);
+    return OfficialAnkiV2CourseRead(catalog: catalog, viewStore: viewStore)
         ._hasContent;
   }
 
   Future<bool> get _hasContent async {
     try {
-      return await OfficialAnkiV2ViewStore(course).isAvailable;
+      return await viewStore.isAvailable;
     } catch (_) {
       return false;
     }
@@ -53,7 +52,7 @@ class OfficialAnkiV2CourseRead {
   /// v2 供给）。section id 由重建器按 owned-tree 规则生成，天然通过
   /// `officialAnkiIsOwnedTreeId` 校验。
   Future<Set<String>> activeSectionIds() async {
-    final summaries = await OfficialAnkiV2ViewStore(course).sectionSummaries();
+    final summaries = await viewStore.sectionSummaries();
     final activeSources = _activeV2SourceIds();
     return {
       for (final summary in summaries)
@@ -77,8 +76,7 @@ class OfficialAnkiV2CourseRead {
   /// 课时 id 驱动，卡映射经 lesson card index 的 v2 分支解析——视图是
   /// 结构事实的唯一来源，正文派生自卡（D3：可重建）。
   Future<List<Section>> sectionShells() async {
-    final store = OfficialAnkiV2ViewStore(course);
-    final summaries = await store.sectionSummaries();
+    final summaries = await viewStore.sectionSummaries();
     if (summaries.isEmpty) return const [];
     final activeSources = _activeV2SourceIds();
 
@@ -90,7 +88,7 @@ class OfficialAnkiV2CourseRead {
     // （最小 card_id）排序，切分课时后 Lesson 1..N 才按卡序出现。
     final lessonOrder = <String, int>{}; // lessonId → 最小 cardId
     final unitOrder = <String, int>{}; // unitId → 最小 cardId
-    for (final row in await _treeRows()) {
+    for (final row in await viewStore.treeRows()) {
       if (!activeSources.contains(row.sourceId)) continue;
       unitNames.putIfAbsent(
         row.unitId,
@@ -150,41 +148,10 @@ class OfficialAnkiV2CourseRead {
     return sections;
   }
 
-  Future<List<OfficialAnkiV2ViewRow>> _treeRows() async {
-    final rows = await course
-        .customSelect(
-          'SELECT source_id, card_id, note_id, deck_id, word_id, section_key, '
-          'section_id, unit_id, unit_key, lesson_id, lesson_key, '
-          'presentation_kind, source_hash, mapping_version '
-          'FROM anki_course_tree_view '
-          'ORDER BY source_id, section_id, unit_id, lesson_id, card_id',
-        )
-        .get();
-    return [
-      for (final row in rows)
-        OfficialAnkiV2ViewRow(
-          sourceId: row.read<String>('source_id'),
-          cardId: row.read<int>('card_id'),
-          noteId: row.read<int>('note_id'),
-          deckId: row.read<int>('deck_id'),
-          wordId: row.read<String>('word_id'),
-          sectionKey: row.read<String>('section_key'),
-          sectionId: row.read<String>('section_id'),
-          unitId: row.read<String>('unit_id'),
-          unitKey: row.read<String>('unit_key'),
-          lessonId: row.read<String>('lesson_id'),
-          lessonKey: row.read<String>('lesson_key'),
-          presentationKind: row.read<String>('presentation_kind'),
-          sourceHash: row.read<String>('source_hash'),
-          mappingVersion: row.read<int>('mapping_version'),
-        ),
-    ];
-  }
-
   /// 复习链课时→卡映射（lesson card index 的 v2 供给，稳定 card-id 序）。
   Future<List<({String wordId, int cardId, String sourceId})>>
       lessonCardEntriesForLesson(String lessonId) async {
-    final rows = await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId);
+    final rows = await viewStore.rowsForLesson(lessonId);
     final activeSources = _activeV2SourceIds();
     return [
       for (final row in rows)
@@ -195,7 +162,7 @@ class OfficialAnkiV2CourseRead {
 
   /// 该课时是否由 v2 视图供給（lesson card index 的分叉判定）。
   Future<bool> isV2Lesson(String lessonId) async {
-    final rows = await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId);
+    final rows = await viewStore.rowsForLesson(lessonId);
     return rows.isNotEmpty;
   }
 }

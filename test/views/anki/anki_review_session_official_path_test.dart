@@ -19,7 +19,6 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/data/anki_import_dao.dart';
 
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
@@ -74,7 +73,6 @@ void main() {
     getIt.registerSingleton<AnkiDeckManager>(
       AnkiDeckManager(
         repo: CourseRepository(db),
-        importDao: AnkiImportDao(db),
         appPrefs: appPrefs,
       ),
     );

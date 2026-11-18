@@ -152,7 +152,21 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
           await m.createTable(grammarPoints);
           await m.createTable(courseMeta);
           await m.createTable(expressions);
-          await m.createTable(ankiImports);
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS anki_imports (
+              import_id TEXT PRIMARY KEY NOT NULL,
+              source_path TEXT NOT NULL,
+              source_hash TEXT NOT NULL,
+              imported_at INTEGER NOT NULL,
+              deck_count INTEGER NOT NULL DEFAULT 0,
+              note_count INTEGER NOT NULL DEFAULT 0,
+              card_count INTEGER NOT NULL DEFAULT 0,
+              media_count INTEGER NOT NULL DEFAULT 0,
+              notetypes_json TEXT NOT NULL DEFAULT '[]',
+              ai_enhanced INTEGER NOT NULL DEFAULT 0,
+              version INTEGER NOT NULL DEFAULT 1
+            )
+          ''');
         },
       );
 }
@@ -184,6 +198,57 @@ class _CourseDatabaseV33 extends db.CourseDatabase {
           await m.database.customStatement(
             'ALTER TABLE lessons DROP COLUMN sub_lesson_summaries',
           );
+        },
+      );
+}
+
+/// v34 is the last schema that still carried the legacy `anki_imports` table
+/// and the `presentation_kind` column on `anki_course_tree_view`.
+class _CourseDatabaseV34 extends db.CourseDatabase {
+  _CourseDatabaseV34(super.e);
+
+  @override
+  int get schemaVersion => 34;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS anki_imports (
+              import_id TEXT PRIMARY KEY NOT NULL,
+              source_path TEXT NOT NULL,
+              source_hash TEXT NOT NULL,
+              imported_at INTEGER NOT NULL,
+              deck_count INTEGER NOT NULL DEFAULT 0,
+              note_count INTEGER NOT NULL DEFAULT 0,
+              card_count INTEGER NOT NULL DEFAULT 0,
+              media_count INTEGER NOT NULL DEFAULT 0,
+              notetypes_json TEXT NOT NULL DEFAULT '[]',
+              ai_enhanced INTEGER NOT NULL DEFAULT 0,
+              version INTEGER NOT NULL DEFAULT 1
+            )
+          ''');
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS anki_course_tree_view (
+              source_id TEXT NOT NULL,
+              card_id INTEGER NOT NULL,
+              note_id INTEGER NOT NULL,
+              deck_id INTEGER NOT NULL,
+              word_id TEXT NOT NULL,
+              section_key TEXT NOT NULL,
+              section_id TEXT NOT NULL,
+              unit_id TEXT NOT NULL,
+              unit_key TEXT NOT NULL DEFAULT '',
+              lesson_id TEXT NOT NULL,
+              lesson_key TEXT NOT NULL,
+              presentation_kind TEXT NOT NULL,
+              source_hash TEXT NOT NULL,
+              mapping_version INTEGER NOT NULL,
+              rebuilt_at_millis INTEGER NOT NULL,
+              PRIMARY KEY(source_id, card_id)
+            )
+          ''');
         },
       );
 }
@@ -252,27 +317,6 @@ Future<void> _createRetiredFunLabTables(dynamic database) async {
     'import_id TEXT NOT NULL, card_id INTEGER NOT NULL, '
     'PRIMARY KEY (import_id, card_id))',
   );
-}
-
-/// A v13 schema (the version before the card-level Anki wordId re-key) used to
-/// verify the v13 -> v14 migration re-keys legacy note-based SRS ids. onCreate
-/// builds the full current table set; the re-key only touches Drift-defined
-/// columns on anki_cards_meta / srs_states / review_events.
-class _CourseDatabaseV13 extends db.CourseDatabase {
-  _CourseDatabaseV13(super.e);
-
-  @override
-  int get schemaVersion => 13;
-
-  @override
-  MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          // Real v13 databases still carried the NoteStore tables; the
-          // v13 -> v14 re-key reads anki_cards_meta (dropped at v27).
-          await _createRetiredNoteStoreTables(m.database);
-        },
-      );
 }
 
 /// The AI companion tables the retired feature created. Listed in one place so
@@ -776,6 +820,69 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
+    test(
+        'v34 -> v35 drops anki_imports and rebuilds anki_course_tree_view '
+        'without presentation_kind', () async {
+      final path = await _tempDbPath();
+      final oldDb = _CourseDatabaseV34(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await oldDb.into(oldDb.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-v34'),
+              name: Value('Section V34'),
+            ),
+          );
+      await oldDb.customStatement(
+        "INSERT INTO anki_imports "
+        "(import_id, source_path, source_hash, imported_at) VALUES "
+        "('imp-v34', '/tmp/deck.apkg', 'hash-v34', 1)",
+      );
+      await oldDb.customStatement(
+        "INSERT INTO anki_course_tree_view ("
+        "source_id, card_id, note_id, deck_id, word_id, section_key, "
+        "section_id, unit_id, unit_key, lesson_id, lesson_key, "
+        "presentation_kind, source_hash, mapping_version, rebuilt_at_millis) "
+        "VALUES ('src', 1, 2, 3, 'w', 'Deck', 'sec', 'unit', 'Unit', "
+        "'lesson', 'Lesson', 'flip', 'hash', 1, 4)",
+      );
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      expect(migrated.schemaVersion, db.CourseDatabase.kSchemaVersion);
+      final retired = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'anki_imports'",
+          )
+          .get();
+      expect(retired, isEmpty,
+          reason: 'v35 retires the legacy anki_imports table');
+
+      final viewTable = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'anki_course_tree_view'",
+          )
+          .get();
+      expect(viewTable, hasLength(1));
+
+      final columns = await migrated
+          .customSelect('PRAGMA table_info(anki_course_tree_view)')
+          .get();
+      final columnNames = {for (final r in columns) r.read<String>('name')};
+      expect(columnNames.contains('presentation_kind'), isFalse,
+          reason: 'v35 drops the dead presentation_kind hint column');
+      expect(columnNames.contains('unit_key'), isTrue);
+
+      final sections = await migrated.select(migrated.sections).get();
+      expect(sections.map((r) => r.id), ['s-v34']);
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
     test('v15 -> v17 adds projection index and manifest and keeps rows',
         () async {
       final path = await _tempDbPath();
@@ -870,6 +977,20 @@ void main() {
       final after = await downgraded.select(downgraded.sections).get();
       expect(after.map((r) => r.id), ['s-fresh']);
 
+      final economyAndRetired = await downgraded
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('gem_ledger','cosmetic_entitlements','anki_imports') "
+            "ORDER BY name",
+          )
+          .get();
+      expect(
+        economyAndRetired.map((r) => r.read<String>('name')),
+        ['cosmetic_entitlements', 'gem_ledger'],
+        reason: 'downgrade recreates gem economy tables and does not recreate '
+            'retired anki_imports',
+      );
+
       await downgraded.close();
       await File(path).parent.delete(recursive: true);
     });
@@ -940,7 +1061,7 @@ void main() {
       final tables = await database
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table' "
-            "AND name IN ('anki_course_tree_view','anki_card_introduction_states','anki_course_sources') "
+            "AND name IN ('anki_course_tree_view','anki_card_introduction_states','anki_course_sources','anki_imports') "
             "ORDER BY name",
           )
           .get();
@@ -1067,55 +1188,6 @@ void main() {
       expect(sections.map((r) => r.id), ['s-v26'],
           reason: 'unrelated data survives the drop');
       expect(migrated.schemaVersion, db.CourseDatabase.kSchemaVersion);
-
-      await migrated.close();
-      await File(path).parent.delete(recursive: true);
-    });
-
-    test('v13 -> v14 re-keys legacy note-based Anki word ids to card-level',
-        () async {
-      final path = await _tempDbPath();
-      final oldDb = _CourseDatabaseV13(NativeDatabase(File(path)));
-      await _forceOpen(oldDb);
-      // anki_cards_meta carries the authoritative card-level word id; SRS
-      // state + review history still carry legacy note-based ids.
-      await oldDb.customStatement(
-        "INSERT INTO anki_cards_meta "
-        "(import_id, card_id, note_id, ord, did, word_id, render_mode, "
-        "scheduling_json) VALUES ('anki_import_123', 456, 100, 0, 1, "
-        "'anki-anki_import_123-c456', 'hybrid', '{}')",
-      );
-      await oldDb.customStatement(
-        "INSERT INTO srs_states (word_id, queue, due_at, interval_days, "
-        "ease, reps, lapses, is_leech, is_suspended, is_buried, type) VALUES "
-        "('anki-anki_import_123-n100', 'srs', 0, 1, 2.5, 0, 0, 0, 0, 0, 'word')",
-      );
-      await oldDb.customStatement(
-        "INSERT INTO review_events (card_id, queue, reviewed_at, quality, "
-        "prev_interval_days, next_interval_days, prev_ease, next_ease, reps, "
-        "lapses, type) VALUES ('anki-anki_import_123-n100', 'srs', 0, 4, 0, "
-        "1, 2.5, 2.5, 1, 0, 'word')",
-      );
-      await oldDb.close();
-
-      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
-      await _forceOpen(migrated);
-
-      final srs = await migrated
-          .customSelect(
-            "SELECT word_id FROM srs_states WHERE word_id LIKE 'anki-%'",
-          )
-          .get();
-      expect(srs.map((r) => r.read<String>('word_id')),
-          ['anki-anki_import_123-c456']);
-
-      final ev = await migrated
-          .customSelect(
-            "SELECT card_id FROM review_events WHERE card_id LIKE 'anki-%'",
-          )
-          .get();
-      expect(ev.map((r) => r.read<String>('card_id')),
-          ['anki-anki_import_123-c456']);
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);

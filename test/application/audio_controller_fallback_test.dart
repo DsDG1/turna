@@ -15,7 +15,6 @@ import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/service/locator.dart';
 import '../support/fake_audio_backend.dart';
@@ -34,15 +33,6 @@ class _FakeLanguageProvider implements LanguageProvider {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeAnkiAudioResolver extends AnkiAudioResolver {
-  final Map<String, String> paths;
-
-  _FakeAnkiAudioResolver(this.paths);
-
-  @override
-  Future<String?> resolveMediaPath(String assetPath) async => paths[assetPath];
-}
-
 /// In-memory [VocabAudioResolver] for speakWord routing tests.
 class _MapVocabAudioResolver implements VocabAudioResolver {
   final Map<String, ResolvedVocabAudio> entries;
@@ -58,7 +48,6 @@ class _MapVocabAudioResolver implements VocabAudioResolver {
 class _TestAudioController extends AudioController {
   final List<String> ttsCalls = [];
   final List<String> assetCalls = [];
-  final List<String> ankiCalls = [];
   final List<String> packCalls = [];
 
   _TestAudioController(VocabAudioResolver resolver)
@@ -90,12 +79,6 @@ class _TestAudioController extends AudioController {
   @override
   Future<void> speakFromAsset(String assetPath) async {
     assetCalls.add(assetPath);
-  }
-
-  @override
-  Future<bool> playAnkiMedia(String ref) async {
-    ankiCalls.add(ref);
-    return true;
   }
 
   @override
@@ -246,18 +229,6 @@ void main() {
       expect(controller.ttsCalls, isEmpty);
     });
 
-    test('anki reference → local Anki playback before generic asset routing',
-        () async {
-      await controller.speakListenContent(
-        audioAsset: 'anki://imp/voice.mp3',
-        transcript: 'must not use TTS',
-      );
-
-      expect(controller.ankiCalls, ['anki://imp/voice.mp3']);
-      expect(controller.assetCalls, isEmpty);
-      expect(controller.ttsCalls, isEmpty);
-    });
-
     test('turnapack reference → pack playback before asset routing', () async {
       await controller.speakListenContent(
         audioAsset: 'turnapack://es/hola.mp3',
@@ -285,67 +256,6 @@ void main() {
     test('transcript only → speak transcript', () async {
       await controller.speakListenContent(transcript: 'Karibu');
       expect(controller.ttsCalls, ['Karibu']);
-    });
-  });
-
-  group('AudioController.playAnkiMedia', () {
-    setUp(() async {
-      await getIt.reset();
-      SharedPreferences.setMockInitialValues({});
-      final sp = await StreamingSharedPreferences.instance;
-      final prefs = AppPrefs(sp);
-      getIt.registerLazySingleton<AppPrefs>(() => prefs);
-      getIt.registerLazySingleton<SettingsProvider>(
-        () => SettingsProvider(prefs),
-      );
-      getIt.registerLazySingleton<AccessibilityProvider>(
-        () => AccessibilityProvider(prefs),
-      );
-    });
-
-    tearDown(() async => getIt.reset());
-
-    test('resolved anki reference plays from the sandbox file', () async {
-      final speechPlayer = FakeAudioBackend(name: 'speech');
-      final controller = AudioController(
-        FlutterTtsSpeechBackend(_FakeFlutterTts()),
-        _FakeLanguageProvider(),
-        getIt<SettingsProvider>(),
-        getIt<AccessibilityProvider>(),
-        _MapVocabAudioResolver({}),
-        effects: FakeAudioBackend(name: 'effects'),
-        speech: speechPlayer,
-        ankiMediaResolver: _FakeAnkiAudioResolver({
-          'anki://imp/voice.mp3': r'C:\media\voice.mp3',
-        }),
-      );
-
-      expect(await controller.playAnkiMedia('anki://imp/voice.mp3'), isTrue);
-      expect(speechPlayer.playedFiles, hasLength(1));
-      // The asset list staying empty is what proves this went out as a sandbox
-      // file rather than a bundled asset: the backend has two entry points and
-      // picking the wrong one is how media silently fails to play.
-      expect(speechPlayer.playedAssets, isEmpty);
-      expect(speechPlayer.playedFiles.single, r'C:\media\voice.mp3');
-    });
-
-    test('missing or non-Anki references return false without playback',
-        () async {
-      final speechPlayer = FakeAudioBackend(name: 'speech');
-      final controller = AudioController(
-        FlutterTtsSpeechBackend(_FakeFlutterTts()),
-        _FakeLanguageProvider(),
-        getIt<SettingsProvider>(),
-        getIt<AccessibilityProvider>(),
-        _MapVocabAudioResolver({}),
-        effects: FakeAudioBackend(name: 'effects'),
-        speech: speechPlayer,
-        ankiMediaResolver: _FakeAnkiAudioResolver({}),
-      );
-
-      expect(await controller.playAnkiMedia('anki://imp/missing.mp3'), isFalse);
-      expect(await controller.playAnkiMedia('assets/audio.mp3'), isFalse);
-      expect(speechPlayer.playedFiles, isEmpty);
     });
   });
 

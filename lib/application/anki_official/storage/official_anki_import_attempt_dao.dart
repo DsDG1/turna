@@ -186,17 +186,27 @@ WHERE attempt_id = ? AND state = ?
   /// receipt 窗口」压到最小；重放同值幂等。
   void absorbReceipt({
     required String attemptId,
-    required List<int> noteIds,
+    List<int>? noteIds,
+    Set<int>? importedOrSharedNoteIds,
     required int nowMillis,
     String? scopeJson,
     int? preImportUsn,
   }) {
+    final effectiveNoteIds =
+        (importedOrSharedNoteIds ?? noteIds ?? const <int>[])
+            .toList(growable: false);
     _db.execute(
       'UPDATE anki_import_attempts SET receipt_note_ids_json = ?, '
       'receipt_scope_json = COALESCE(?, receipt_scope_json), '
       'pre_import_usn = COALESCE(?, pre_import_usn), '
       'heartbeat_at_millis = ? WHERE attempt_id = ?',
-      [jsonEncode(noteIds), scopeJson, preImportUsn, nowMillis, attemptId],
+      [
+        jsonEncode(effectiveNoteIds),
+        scopeJson,
+        preImportUsn,
+        nowMillis,
+        attemptId,
+      ],
     );
   }
 

@@ -15,6 +15,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/review/mistake_list_page.dart';
@@ -143,4 +144,88 @@ void main() {
     expect(find.text('为什么错'), findsNothing);
     expect(find.byIcon(Icons.auto_awesome_rounded), findsNothing);
   });
+
+  testWidgets('load error shows retry state and recovers on retry',
+      (tester) async {
+    mistakes.useRepository(_FlakyMistakeRepo([entry('w-retry', wordId: 'w1')]));
+    await mistakes.ensureLoaded();
+    expect(mistakes.hasLoadError, isTrue);
+
+    await pumpPage(tester);
+    expect(find.text(AppStrings.mistakesLoadFailed), findsOneWidget);
+    expect(find.text(AppStrings.commonRetry), findsOneWidget);
+
+    await tester.tap(find.text(AppStrings.commonRetry));
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.mistakesLoadFailed), findsNothing);
+    expect(find.text('item-w-retry'), findsOneWidget);
+  });
+}
+
+class _FlakyMistakeRepo implements IMistakeRepository {
+  _FlakyMistakeRepo(this._entries);
+
+  final List<MistakeEntry> _entries;
+  int _calls = 0;
+
+  @override
+  Future<List<MistakeEntry>> load(String languageCode) async {
+    _calls++;
+    if (_calls == 1) throw StateError('mistake load error');
+    return _entries;
+  }
+
+  @override
+  Future<Map<String, int>> loadDailyCounts(String languageCode) async =>
+      const <String, int>{};
+
+  @override
+  Future<int> loadMasteredTotal(String languageCode) async => 0;
+
+  @override
+  Future<void> replaceAll({
+    required String languageCode,
+    required List<MistakeEntry> entries,
+    required Map<String, int> dailyCounts,
+    required int masteredTotal,
+    int maxEntries = IMistakeRepository.defaultMaxEntries,
+  }) async {}
+
+  @override
+  Future<void> insertEntry({
+    required String languageCode,
+    required MistakeEntry entry,
+    required Map<String, int> dailyCounts,
+    required int masteredTotal,
+    bool evictOldest = false,
+  }) async {}
+
+  @override
+  Future<void> updateEntry({
+    required String languageCode,
+    required MistakeEntry entry,
+    Map<String, int>? dailyCounts,
+    int? masteredTotal,
+  }) async {}
+
+  @override
+  Future<void> deleteEntriesByIds({
+    required String languageCode,
+    required Iterable<String> ids,
+    Map<String, int>? dailyCounts,
+    int? masteredTotal,
+  }) async {}
+
+  @override
+  Future<void> deleteLanguage(String languageCode) async {}
+
+  @override
+  Future<bool> migrateFromPrefsJson({
+    required String languageCode,
+    required String logJson,
+    required String dailyCountsJson,
+    required int masteredTotal,
+  }) async =>
+      false;
 }

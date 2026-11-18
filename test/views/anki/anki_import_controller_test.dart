@@ -15,12 +15,14 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki_import/anki_import_controller.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
@@ -37,10 +39,10 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
@@ -48,8 +50,8 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
-import 'package:turna/domain/repositories/i_anki_import_store.dart';
 import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_official_anki_v2_view_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 
 void main() {
@@ -75,7 +77,9 @@ void main() {
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(db));
     getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(db));
-    getIt.registerSingleton<IAnkiImportStore>(AnkiImportDao(db));
+    getIt.registerSingleton<IOfficialAnkiV2ViewStore>(
+      OfficialAnkiV2ViewStore(db),
+    );
     getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
 
     courseProvider = CourseProvider(appPrefs);
@@ -113,7 +117,8 @@ void main() {
                 {required allowedExtensions, required dialogTitle}) async =>
             pickedPath,
         officialFirst: const OfficialAnkiOfficialFirstService(),
-        courseDatabase: db,
+        v2ViewStore: OfficialAnkiV2ViewStore(db),
+        unificationStore: AnkiUnificationDao(db),
         courseProvider: courseProvider,
       ),
     );
@@ -136,7 +141,7 @@ void main() {
     expect(controller.state, isA<AnkiImportFailed>());
     expect((controller.state as AnkiImportFailed).returnState,
         isA<AnkiImportSelecting>());
-    expect(await getIt<IAnkiImportStore>().getAll(), isEmpty);
+    expect(await OfficialAnkiV2ViewStore(db).isAvailable, isFalse);
   });
 
   test('official-first failure leaves zero Legacy writes', () async {
@@ -163,8 +168,8 @@ void main() {
         reason: 'the wizard surfaces the failure');
     expect((controller.state as AnkiImportFailed).returnState,
         isA<AnkiImportSelecting>());
-    expect(await getIt<IAnkiImportStore>().getAll(), isEmpty,
-        reason: 'no anki_imports row');
+    expect(await OfficialAnkiV2ViewStore(db).isAvailable, isFalse,
+        reason: 'no v2 view rows');
     expect(
       srsProvider.state.keys.where((id) => id.startsWith('anki-')),
       isEmpty,
@@ -399,7 +404,7 @@ void main() {
         }) async =>
             null,
         officialFirst: _HoldPreview(gate),
-        courseDatabase: db,
+        v2ViewStore: OfficialAnkiV2ViewStore(db),
         courseProvider: courseProvider,
       ),
     );
@@ -459,7 +464,7 @@ void main() {
         }) async =>
             null,
         officialFirst: _ArrangeThenHold(gate, arranged, engine),
-        courseDatabase: db,
+        v2ViewStore: OfficialAnkiV2ViewStore(db),
         courseProvider: courseProvider,
       ),
     );
@@ -477,6 +482,192 @@ void main() {
     gate.complete();
     await pending;
   });
+
+  test(
+      'replaceExisting passes awaitEnginePass: true before staging the '
+      'replacement import', () async {
+    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+      projection: true,
+      courseEntry: true,
+      officialFirstImport: true,
+    );
+    final root = Directory.systemTemp.createTempSync('turna-replace-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final package = File(p.join(root.path, 'deck.apkg'))
+      ..writeAsBytesSync(const [4, 5, 6]);
+    final digest =
+        await const OfficialAnkiSourceHasher().hashFile(package.path);
+    final catalog = OfficialAnkiDatabase.memory();
+    addTearDown(catalog.close);
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: 'src-live',
+      profileId: 'profile-default-01',
+      sourceHash: digest.sha256,
+      sourceSize: digest.bytes,
+      displayName: 'Already',
+      state: 'active',
+      backendCommit: 'ok',
+      nowMillis: 1,
+    );
+    final stagingEngine = FakeOfficialAnkiEngine()
+      ..seedPackage(packagePath: package.path, notes: 1, cards: 1);
+    final savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final savedPaths = OfficialAnkiCompositionRoot.locatorPaths;
+    final savedStaging = OfficialAnkiCompositionRoot.debugStagingEngineOverride;
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+    OfficialAnkiCompositionRoot.locatorPaths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: Directory(p.join(root.path, 'live'))..createSync(),
+    );
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = stagingEngine;
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
+      OfficialAnkiCompositionRoot.locatorPaths = savedPaths;
+      OfficialAnkiCompositionRoot.debugStagingEngineOverride = savedStaging;
+      OfficialAnkiCompositionRoot.stagingEngine = null;
+      OfficialAnkiCompositionRoot.stagingSession = null;
+    });
+
+    final uninstallGate = Completer<void>();
+    final uninstallStarted = Completer<void>();
+    final recordingDeckManager = _RecordingAnkiDeckManager(
+      repo: getIt<ICourseRepository>(),
+      onUninstall: () async {
+        if (!uninstallStarted.isCompleted) uninstallStarted.complete();
+        await uninstallGate.future;
+        OfficialAnkiSourceDao(catalog).deleteSourceV2(sourceId: 'src-live');
+      },
+    );
+    getIt.registerSingleton<AnkiDeckManager>(recordingDeckManager);
+
+    final controller = controllerWith();
+    addTearDown(controller.dispose);
+    await controller.proceedWithPath(package.path);
+    expect(controller.state, isA<AnkiImportAlreadyImported>());
+
+    final replacing = controller.replaceExisting();
+    await uninstallStarted.future;
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      recordingDeckManager.uninstallCalls,
+      [('src-live', true)],
+      reason: 'replaceExisting must pass awaitEnginePass: true',
+    );
+    expect(
+      stagingEngine.importCount,
+      0,
+      reason: 'replacement import must wait until awaited uninstall completes',
+    );
+
+    uninstallGate.complete();
+    await replacing;
+    expect(stagingEngine.importCount, 1);
+    expect(controller.state, isA<AnkiImportPreviewing>());
+  });
+
+  test(
+      'AnkiDeckManager.uninstall with awaitEnginePass: true awaits large-deck '
+      'engine card deletion before returning', () async {
+    final root = Directory.systemTemp.createTempSync('turna-large-retire-');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } catch (_) {/* best-effort temp cleanup */}
+    });
+    final liveRoot = Directory(p.join(root.path, 'live'))..createSync();
+    final catalog = OfficialAnkiDatabase.memory();
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: liveRoot,
+    );
+    const cardTotal = 5005;
+    final sources = OfficialAnkiSourceDao(catalog);
+    sources.upsertSource(
+      sourceId: 'src-large',
+      profileId: paths.profileId,
+      sourceHash: 'hash-large',
+      sourceSize: cardTotal,
+      displayName: 'Large Deck',
+      state: 'active',
+      backendCommit: 'ok',
+      nowMillis: 1,
+    );
+    sources.markChainV2(sourceId: 'src-large', nowMillis: 1);
+    sources.upsertCardBatch(
+      sourceId: 'src-large',
+      cards: [
+        for (var i = 1; i <= cardTotal; i++)
+          OfficialAnkiCardDescriptor(
+            cardId: i,
+            noteId: i,
+            deckId: 1,
+            templateOrd: 0,
+            notetypeId: 1,
+          ),
+      ],
+    );
+
+    final engine = _BlockingDeleteEngine();
+    for (var i = 1; i <= cardTotal; i++) {
+      engine.cards[i] = OfficialAnkiCardDescriptor(
+        cardId: i,
+        noteId: i,
+        deckId: 1,
+        templateOrd: 0,
+        notetypeId: 1,
+      );
+      engine.cardsByNote[i] = [i];
+    }
+
+    final savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final savedPaths = OfficialAnkiCompositionRoot.locatorPaths;
+    final savedEngine = OfficialAnkiCompositionRoot.debugEngineOverride;
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+    OfficialAnkiCompositionRoot.locatorPaths = paths;
+    OfficialAnkiCompositionRoot.debugEngineOverride = engine;
+    addTearDown(() async {
+      for (var i = 0; i < 40; i++) {
+        if (OfficialAnkiMaintenanceJobDao(catalog)
+            .pending(profileId: paths.profileId)
+            .isEmpty) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
+      OfficialAnkiCompositionRoot.locatorPaths = savedPaths;
+      OfficialAnkiCompositionRoot.debugEngineOverride = savedEngine;
+      catalog.close();
+    });
+
+    final manager = AnkiDeckManager(repo: getIt<ICourseRepository>());
+    var finished = false;
+    final uninstallFuture = manager
+        .uninstall('src-large', awaitEnginePass: true)
+        .then((ok) {
+      finished = true;
+      return ok;
+    });
+
+    await engine.firstDeleteEntered.future;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(
+      finished,
+      isFalse,
+      reason: 'awaitEnginePass: true must block even when cardCount > 5000',
+    );
+
+    engine.allowDeleteFinish.complete();
+    expect(await uninstallFuture, isTrue);
+    expect(engine.cards, isEmpty);
+    expect(sources.findById('src-large'), isNull);
+  });
 }
 
 class _HoldPreview extends OfficialAnkiOfficialFirstService {
@@ -488,7 +679,6 @@ class _HoldPreview extends OfficialAnkiOfficialFirstService {
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
     required String filePath,
     required AnkiImportExecutionPlan plan,
-    required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
     OfficialAnkiSourceDigest? digest,
     bool withMedia = true,
@@ -514,7 +704,6 @@ class _ArrangeThenHold extends OfficialAnkiOfficialFirstService {
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
     required String filePath,
     required AnkiImportExecutionPlan plan,
-    required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
     OfficialAnkiSourceDigest? digest,
     bool withMedia = true,
@@ -534,5 +723,37 @@ class _ArrangeThenHold extends OfficialAnkiOfficialFirstService {
       messageKey: 'official_anki.import_cancelled',
       recoverable: true,
     );
+  }
+}
+
+class _RecordingAnkiDeckManager extends AnkiDeckManager {
+  _RecordingAnkiDeckManager({
+    required super.repo,
+    required this.onUninstall,
+  });
+
+  final Future<void> Function() onUninstall;
+  final uninstallCalls = <(String, bool)>[];
+
+  @override
+  Future<bool> uninstall(
+    String importId, {
+    bool awaitEnginePass = false,
+  }) async {
+    uninstallCalls.add((importId, awaitEnginePass));
+    await onUninstall();
+    return true;
+  }
+}
+
+class _BlockingDeleteEngine extends FakeOfficialAnkiEngine {
+  final firstDeleteEntered = Completer<void>();
+  final allowDeleteFinish = Completer<void>();
+
+  @override
+  Future<int> deleteCards(List<int> cardIds) async {
+    if (!firstDeleteEntered.isCompleted) firstDeleteEntered.complete();
+    await allowDeleteFinish.future;
+    return super.deleteCards(cardIds);
   }
 }

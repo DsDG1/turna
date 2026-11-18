@@ -13,7 +13,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: AnkiMediaStrip(
-            audioAssets: const ['anki://imp/voice.mp3'],
+            audioAssets: const ['voice.mp3'],
             resolveMediaPath: resolve,
             playAudio: play,
           ),
@@ -42,7 +42,7 @@ void main() {
     await tester.tap(button);
     await tester.pump();
 
-    expect(calls, ['anki://imp/voice.mp3']);
+    expect(calls, ['voice.mp3']);
   });
 
   testWidgets('missing audio keeps a visible disabled button', (tester) async {

@@ -41,10 +41,6 @@ class OfficialCardPlanResolution {
 /// Every caller — preview summaries, v2 lesson loading, and (in a later
 /// increment) formal review — goes through this class so the same card in the
 /// same context cannot end up with two different presentations.
-///
-/// [storedKindName] is the v2 view row's expected kind. It is **advisory**: the
-/// fresh decision always wins, and a disagreement is recorded as
-/// [PresentationReason.storedKindDrift] instead of being silently obeyed.
 class OfficialCardPresentationResolver {
   const OfficialCardPresentationResolver();
 
@@ -64,7 +60,6 @@ class OfficialCardPresentationResolver {
     required OfficialAnkiProjectionRow row,
     required OfficialAnkiMappingSuggestion? mapping,
     required AdaptationLookup applied,
-    String? storedKindName,
     OfficialAnkiProjectionPayloads payloads =
         const OfficialAnkiProjectionPayloads(),
     List<String> siblingAnswers = const <String>[],
@@ -106,7 +101,6 @@ class OfficialCardPresentationResolver {
           values: values,
           mapping: effective,
           typeAnswerEnabled: effective.enabledKinds.contains('typeAnswer'),
-          storedKindName: storedKindName,
         );
         return OfficialCardPlanResolution(
           kind: resolution.kind,
@@ -136,7 +130,6 @@ class OfficialCardPresentationResolver {
           values: values,
           mapping: mapping,
           typeAnswerEnabled: mapping.enabledKinds.contains('typeAnswer'),
-          storedKindName: storedKindName,
         );
         return OfficialCardPlanResolution(
           kind: resolution.kind,
@@ -223,7 +216,6 @@ class OfficialCardPresentationResolver {
     required OfficialAnkiRoleValues values,
     required OfficialAnkiMappingSuggestion? mapping,
     bool typeAnswerEnabled = true,
-    String? storedKindName,
     bool formalReview = false,
   }) {
     const policy = OfficialAnkiPresentationPolicy();
@@ -234,16 +226,7 @@ class OfficialCardPresentationResolver {
       formalReview: formalReview,
     );
 
-    final reasons = <PresentationReason>[...decided.reasons];
-    if (storedKindName != null) {
-      final stored = _kindFromName(storedKindName);
-      if (stored == null) {
-        reasons.add(PresentationReason.unknownStoredKind);
-      } else if (stored != decided.kind) {
-        reasons.add(PresentationReason.storedKindDrift);
-      }
-    }
-    final frozen = List<PresentationReason>.unmodifiable(reasons);
+    final frozen = List<PresentationReason>.unmodifiable(decided.reasons);
 
     final decision = decided.kind == OfficialAnkiProjectionKind.canonicalLink
         ? OriginalCardDecision(reasons: frozen)
@@ -252,16 +235,6 @@ class OfficialCardPresentationResolver {
             reasons: frozen,
           );
     return CardPresentationResolution(kind: decided.kind, decision: decision);
-  }
-
-  /// Resolve a stored kind name, or null when this build does not know it.
-  /// Unknown kinds are never coerced to flip: they are re-decided from the
-  /// card's own facts (ADR 0057 §1).
-  static OfficialAnkiProjectionKind? _kindFromName(String name) {
-    for (final kind in OfficialAnkiProjectionKind.values) {
-      if (kind.name == name) return kind;
-    }
-    return null;
   }
 }
 

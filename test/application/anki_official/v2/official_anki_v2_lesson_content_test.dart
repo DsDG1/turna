@@ -15,10 +15,12 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_lesson_content.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/adaptation/card_adaptation_plan.dart';
+import 'package:turna/domain/anki/official_anki_v2_view_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
@@ -124,7 +126,6 @@ void main() {
           unitId: 'official-anki-src-v2-content-u-1',
           lessonId: lessonId,
           lessonKey: 'Lesson A',
-          presentationKind: 'flip',
           sourceHash: 'hash-content',
         ),
         OfficialAnkiV2ViewRow(
@@ -138,7 +139,6 @@ void main() {
           unitId: 'official-anki-src-v2-content-u-1',
           lessonId: lessonId,
           lessonKey: 'Lesson A',
-          presentationKind: 'flip',
           sourceHash: 'hash-content',
         ),
       ],
@@ -218,34 +218,21 @@ void main() {
     }
   });
 
-  test('unknown presentation kind is ignored, card facts decide', () async {
-    await OfficialAnkiV2ViewStore(course).replaceAll(
-      rows: const [
-        OfficialAnkiV2ViewRow(
-          sourceId: sourceId,
-          cardId: 7,
-          noteId: 70,
-          deckId: 10,
-          wordId: 'w-7',
-          sectionKey: 'Deck A',
-          sectionId: 'official-anki-src-v2-content-s-1',
-          unitId: 'official-anki-src-v2-content-u-1',
-          lessonId: lessonId,
-          lessonKey: 'Lesson A',
-          presentationKind: 'not-a-kind',
-          sourceHash: 'hash-content',
-        ),
-      ],
-      rebuiltAtMillis: 2,
-    );
+  test('honors CourseLoader.overrideDatabase and opens unopened engine',
+      () async {
+    await getIt.reset();
+    CourseLoader.overrideDatabase(() => course);
+    addTearDown(CourseLoader.clearDatabaseOverride);
+    expect(engine.openProfileId, isNull);
+
     final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
     expect(lesson, isNotNull);
-    // ADR 0057 §1：未知的视图 kind 不再被当成 flip，也不拖垮整课时——
-    // 卡级事实（这里是 basicPair）重新决定；本 fixture 下仍是 flip。
+    expect(engine.openProfileId, 'profile-v2-content');
+    expect(engine.openCount, 1);
     expect(
-      lesson!.content.stages.single.items.single.id,
+      lesson!.content.stages.single.items.first.id,
       startsWith('w-7-pflip-'),
-      reason: '未知 kind 不阻断派生，展示由卡级解析器重判',
+      reason: '展示由卡级解析器与真实牌型决定，无需视图行存储 kind',
     );
   });
 

@@ -13,8 +13,8 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/official_anki_v2_view_store.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 
@@ -126,7 +126,7 @@ void main() {
     final service = OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     );
     final result = await service.commit(
@@ -193,7 +193,7 @@ void main() {
     await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -223,7 +223,7 @@ void main() {
     await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -289,7 +289,7 @@ void main() {
     await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -317,7 +317,7 @@ void main() {
     final service = OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     );
     await service.commit(
@@ -351,7 +351,7 @@ void main() {
     await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -411,7 +411,7 @@ void main() {
     await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -441,7 +441,7 @@ void main() {
     await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -471,7 +471,7 @@ void main() {
     final result = await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -491,7 +491,7 @@ void main() {
     final result = await OfficialAnkiV2ImportService(
       catalog: catalog,
       paths: paths,
-      course: course,
+      viewStore: OfficialAnkiV2ViewStore(course),
       engine: engine,
     ).commit(
       sourceId: sourceId,
@@ -510,5 +510,70 @@ void main() {
         await OfficialAnkiV2DecisionStore(engine).readImportMapping(sourceId);
     expect(decision!.excludedDeckIds, contains(12));
     expect(result.cardCount, 4, reason: '整包仍进 collection，索引不丢卡');
+  });
+
+  test(
+      'conflictingNoteIds are excluded from importedOrSharedNoteIds and '
+      'absorbReceipt while updatedNoteCount & conflictingNoteCount are returned',
+      () async {
+    const log = OfficialAnkiImportLog(
+      newNoteIds: [1],
+      updatedNoteIds: [2],
+      duplicateNoteIds: [3],
+      conflictingNoteIds: [4],
+      noteCount: 4,
+      cardCount: 5,
+    );
+    expect(log.associatedNoteIds, containsAll([1, 2, 3, 4]));
+    expect(log.importedOrSharedNoteIds, {1, 2, 3});
+    expect(log.importedOrSharedNoteIds, isNot(contains(4)));
+
+    engine.logsByPackage['pkg.apkg'] = log;
+    engine.cards[5] = const OfficialAnkiCardDescriptor(
+      cardId: 5,
+      noteId: 4,
+      deckId: 11,
+      templateOrd: 0,
+      noteGuid: 'guid-conflict',
+      notetypeId: 1,
+    );
+    engine.cardsByNote[4] = [5];
+
+    final (sourceId, attemptId) = seedStagedSource(sourceId: 'src-v2-conflict');
+    final result = await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      viewStore: OfficialAnkiV2ViewStore(course),
+      engine: engine,
+    ).commit(
+      sourceId: sourceId,
+      packagePath: 'pkg.apkg',
+      displayName: 'Conflict',
+    );
+
+    expect(result.newNoteCount, 1);
+    expect(result.updatedNoteCount, 1);
+    expect(result.duplicateNoteCount, 1);
+    expect(result.conflictingNoteCount, 1);
+    expect(result.cardCount, 4,
+        reason: 'conflicting note card 5 must not enter source ownership');
+
+    expect(
+      OfficialAnkiImportAttemptDao(catalog).receiptNoteIds(attemptId),
+      [1, 2, 3],
+      reason: 'absorbReceipt stores importedOrSharedNoteIds without conflicts',
+    );
+    expect(
+      OfficialAnkiSourceDao(catalog)
+          .listCards(sourceId)
+          .map((card) => card.cardId)
+          .toSet(),
+      {1, 2, 3, 4},
+    );
+    expect(
+      await OfficialAnkiV2ViewStore(course).cardIdsForSource(sourceId),
+      [1, 2, 3, 4],
+    );
+    expect(engine.suspended, isNot(contains(5)));
   });
 }

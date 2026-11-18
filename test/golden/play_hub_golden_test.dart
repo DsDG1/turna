@@ -14,7 +14,7 @@ import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/play/play_hub_screen.dart';
+import 'package:turna/views/play/play_hub_page.dart';
 import 'package:turna/core/theme.dart';
 
 import '../helpers/in_memory_course_db.dart';
@@ -57,7 +57,7 @@ void main() {
           theme: TurnaTheme.lightTheme,
           darkTheme: TurnaTheme.darkTheme,
           themeMode: mode,
-          home: const Scaffold(body: PlayHubScreen()),
+          home: const Scaffold(body: PlayHubPage()),
         ),
       ),
     );

@@ -92,34 +92,20 @@ List<String> _scanPrefix(List<String> roots, String forbiddenDir) {
 
 /// Batch-6 outcome: application must not import `lib/data` at all — DAOs and
 /// repositories are consumed through `domain/repositories` interfaces. The
-/// map below is the only exception list; each entry names the exact allowed
-/// import target so an exception cannot silently widen, and a stale entry
-/// (allowlisted but no longer imported) fails the guard too.
+/// map below is the only exception list (12 files); each entry names the exact
+/// allowed import target so an exception cannot silently widen, and a stale
+/// entry (allowlisted but no longer imported) fails the guard too.
 ///
 /// Justification classes:
 ///  * **handle** — threads the `CourseDatabase` connection as a typed
 ///    parameter into storage helpers. The handle itself is the dependency;
 ///    hiding Drift behind a domain type gains nothing at these seams.
 ///  * **drift-ops** — runs Drift queries/transactions/companions that are
-///    inherently data-layer (maintenance, migration serialization, V2 store).
-///  * **local-handle construction** — builds a DAO/repository against a
-///    `CourseDatabase` handle that may differ from the registered singleton
-///    (`CourseLoader.databaseOrNull()` / `overrideDatabase` test seam), so
-///    resolving via GetIt would change semantics.
+///    inherently data-layer (maintenance, migration serialization, seeding).
 const Map<String, Set<String>> _allowedApplicationDataImports = {
-  // ── Drift connection threading ─────────────────────────────────────────
-  'lib/application/anki_import/anki_import_dependencies.dart': {
-    'lib/data/course_database.dart', // handle: wires db into the import DAG
-  },
-  'lib/application/anki_import/anki_import_official_flow.dart': {
-    'lib/data/course_database.dart', // handle: import flow ctor param
-  },
+  // ── Drift connection threading & official lifecycle ────────────────────
   'lib/application/anki_official/anki_deck_manager.dart': {
     'lib/data/course_database.dart', // handle: lazy _courseDatabase() seam
-  },
-  'lib/application/anki_official/import/official_anki_official_first_service.dart':
-      {
-    'lib/data/course_database.dart', // handle: ctor param threading
   },
   'lib/application/anki_official/lifecycle/official_anki_maintenance.dart': {
     'lib/data/course_database.dart', // drift-ops: rebuild/verify queries
@@ -132,60 +118,18 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
       {
     'lib/data/course_database.dart', // handle: threads db into recoverers
   },
-  'lib/application/anki_official/projection/official_anki_course_entry.dart': {
-    'lib/data/course_database.dart', // handle: static courseOf seam + params
-  },
-  'lib/application/anki_official/projection/official_anki_lesson_card_index.dart':
-      {
-    'lib/data/course_database.dart', // handle: resolves db for index reads
-  },
-  // ── Official V2 storage services (own their tables directly) ────────────
-  'lib/application/anki_official/v2/official_anki_v2_course_read.dart': {
-    'lib/data/course_database.dart', // drift-ops: V2 read model queries
-  },
-  'lib/application/anki_official/v2/official_anki_v2_import_service.dart': {
-    'lib/data/course_database.dart', // drift-ops: V2 import writes
-    'lib/data/anki_unification_dao.dart', // local-handle construction
-  },
-  'lib/application/anki_official/v2/official_anki_v2_lesson_content.dart': {
-    'lib/data/course_database.dart', // drift-ops: lesson content queries
-  },
   'lib/application/anki_official/v2/official_anki_v2_post_retire_reclaimer.dart':
       {
     'lib/data/course_database.dart', // drift-ops: retire reclaimer writes
   },
-  'lib/application/anki_official/v2/official_anki_v2_retire_service.dart': {
-    'lib/data/course_database.dart', // drift-ops: retire writes
-  },
-  'lib/application/anki_official/v2/official_anki_v2_view_rebuilder.dart': {
-    'lib/data/course_database.dart', // drift-ops: filtered-view rebuild SQL
-  },
-  'lib/application/anki_official/v2/official_anki_v2_view_store.dart': {
-    'lib/data/course_database.dart', // drift-ops: filtered-view store
-  },
-  // ── Course tree writers / importers ─────────────────────────────────────
-  'lib/application/ai/ai_course_provider.dart': {
-    'lib/data/course_database.dart', // drift-ops: lesson writes w/ companions
-  },
+  // ── Builtin seeding / course-pack import ───────────────────────────────
   'lib/application/builtin_language_service.dart': {
     'lib/data/course_database.dart', // handle: databaseOrNull + seeder wiring
     'lib/data/course_database_seeder.dart', // DatabaseSeeder + static helpers
-    'lib/data/course_repository.dart', // local-handle construction
   },
   'lib/application/course_pack/course_pack_importer.dart': {
     'lib/data/course_database.dart', // drift-ops: import staging queries
     'lib/data/course_database_seeder.dart', // DatabaseSeeder (pack seeding)
-    'lib/data/course_repository.dart', // local-handle construction
-  },
-  'lib/application/course_pack/imported_languages.dart': {
-    'lib/data/course_database.dart', // drift-ops: registry hydration queries
-  },
-  'lib/application/course_catalog.dart': {
-    'lib/data/course_database.dart', // handle: threads db into OfficialAnkiV2ViewStore
-  },
-  'lib/application/course_provider.dart': {
-    'lib/data/course_database.dart', // handle: databaseOrNull + V2 read seam
-    'lib/data/course_repository.dart', // local-handle construction
   },
   // ── Maintenance / diagnostics / migration serialization ─────────────────
   'lib/application/maintenance/database_doctor_service.dart': {
@@ -195,7 +139,6 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
     'lib/data/course_database.dart', // drift-ops: VACUUM/PRAGMA optimize
   },
   'lib/application/maintenance/storage_inventory_service.dart': {
-    'lib/data/anki_import_dao.dart', // local-handle construction
     'lib/data/course_database.dart', // handle + drift-ops: size queries
   },
   'lib/application/migration/turna_migration_export.dart': {
@@ -203,9 +146,6 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
   },
   'lib/application/migration/turna_migration_import.dart': {
     'lib/data/course_database.dart', // drift-ops: restores raw tables
-  },
-  'lib/application/system_health_monitor.dart': {
-    'lib/data/course_database.dart', // drift-ops: health probes
   },
 };
 

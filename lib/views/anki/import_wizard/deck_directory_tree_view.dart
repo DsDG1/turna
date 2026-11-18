@@ -174,7 +174,7 @@ class DeckDirectoryTreeView extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      '$totalDecks 个章节节点',
+                      AppStrings.ankiImportChapterNodeCount(totalDecks),
                       style: TextStyle(
                         fontSize: 12,
                         color: TurnaTheme.textHintColor(context),
@@ -327,7 +327,7 @@ class DeckTreeNodeWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                 ),
                 child: Text(
-                  '$count 张卡片',
+                  AppStrings.ankiImportCardCountLabel(count),
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,

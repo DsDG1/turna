@@ -16,11 +16,16 @@ class SpeechLanguages {
   const SpeechLanguages({
     required this.target,
     required this.native,
+    this.targetLocale = 'tr-TR',
     this.signatureChars,
   });
 
   /// BCP-47 base code of the language being learned (e.g. `tr`).
   final String target;
+
+  /// Full BCP-47 locale tag of the target language (e.g. `tr-TR`) for speech
+  /// recognition services that reject bare language subtags.
+  final String targetLocale;
 
   /// BCP-47 base code of the learner's translation / native language for this
   /// course (e.g. `en`), used as the TTS fallback for plain-Latin text.
@@ -42,10 +47,18 @@ SpeechLanguages currentSpeechLanguages() {
     final languageProvider = getIt<LanguageProvider>();
     final code = languageProvider.selectedLanguageCode;
     final target = languageProvider.ttsLanguageCode;
+    var targetLocale = target == LanguageCodes.turkish ? 'tr-TR' : target;
+    try {
+      final rawLocale = languageProvider.ttsLocale.replaceAll('_', '-').trim();
+      if (rawLocale.isNotEmpty) targetLocale = rawLocale;
+    } catch (_) {
+      // Partial test doubles may stub `ttsLanguageCode` without `ttsLocale`.
+    }
     final scope = getIt<CourseProvider>().courseScope;
     final native = getIt<SettingsProvider>().nativeLanguageCodeFor(scope);
     return SpeechLanguages(
       target: target,
+      targetLocale: targetLocale,
       native: native,
       // The trailing `?? ''` is "no signature", NOT "keep the detector's
       // Turkish default": a course that declares no signature set (e.g. an
@@ -62,6 +75,7 @@ SpeechLanguages currentSpeechLanguages() {
   } catch (_) {
     return const SpeechLanguages(
       target: LanguageCodes.turkish,
+      targetLocale: 'tr-TR',
       native: 'en',
       signatureChars: LanguageDetector.defaultSignatureChars,
     );

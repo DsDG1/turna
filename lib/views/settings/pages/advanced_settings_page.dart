@@ -9,8 +9,8 @@ import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
-import 'package:turna/views/settings/widgets/settings_advanced_section.dart';
-import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/components/settings_advanced_section.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
 
 /// Advanced hub page (formal route: `/settings/advanced`). The
 /// legacy-compatibility sub-page is its own route (`/settings/advanced/

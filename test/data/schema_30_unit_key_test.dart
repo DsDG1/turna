@@ -7,8 +7,9 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:turna/data/course_database.dart';
 
 void main() {
-  test('schema 29 course-tree view gains unit_key and keeps its rows',
-      () async {
+  test(
+      'schema 29 course-tree view migrates to v35 with unit_key and without '
+      'presentation_kind', () async {
     final dir = await Directory.systemTemp.createTemp('turna_schema30_');
     addTearDown(() async {
       if (dir.existsSync()) await dir.delete(recursive: true);
@@ -53,17 +54,14 @@ void main() {
     expect(db.schemaVersion, CourseDatabase.kSchemaVersion);
     final columns =
         await db.customSelect('PRAGMA table_info(anki_course_tree_view)').get();
-    expect(
-      columns.any((row) => row.read<String>('name') == 'unit_key'),
-      isTrue,
-    );
-    final row = await db
-        .customSelect(
-          'SELECT lesson_key, unit_key FROM anki_course_tree_view',
-        )
-        .getSingle();
-    expect(row.read<String>('lesson_key'), 'Noun');
-    expect(row.read<String>('unit_key'), '');
+    final columnNames = {for (final row in columns) row.read<String>('name')};
+    expect(columnNames.contains('unit_key'), isTrue);
+    expect(columnNames.contains('presentation_kind'), isFalse);
+    final rows =
+        await db.customSelect('SELECT * FROM anki_course_tree_view').get();
+    expect(rows, isEmpty,
+        reason: 'v35 drops and rebuilds the stateless view without '
+            'presentation_kind');
     final version = await db.customSelect('PRAGMA user_version').getSingle();
     expect(version.read<int>('user_version'), CourseDatabase.kSchemaVersion);
   });
