@@ -1,12 +1,19 @@
 name: GUI Release
 
 # Builds the PySide6 course editor into a onefile exe and attaches it to a
-# GitHub Release. Push a `gui-v*` tag to ship; workflow_dispatch runs the same
-# pipeline but only uploads a build artifact (no release is created).
+# GitHub Release. GUI changes pushed to master create a numbered prerelease;
+# pushing a `gui-v*` tag creates a regular release. workflow_dispatch runs the
+# same pipeline but only uploads a build artifact (no release is created).
 on:
   push:
+    branches:
+      - master
     tags:
       - "gui-v*"
+    paths:
+      - "tool/gui/**"
+      - "tool/course_cli.py"
+      - ".github/workflows/gui_release.yml"
   workflow_dispatch:
 
 permissions:
@@ -34,19 +41,25 @@ jobs:
         # exe whose OCR / voice features are silently unavailable.
         run: python -m pip install "./tool/gui[dev,ocr,voice]" pyinstaller
 
-      - name: Stamp the version into pyproject.toml
-        # The exe reads its version from pyproject.toml (single source). A
-        # `gui-v*` tag must therefore write the version back, or every
-        # shipped exe reports 0.0.0 and a bug report cannot be tied to a
-        # build.
+      - name: Resolve and stamp the build version
+        # The exe reads its version from pyproject.toml (single source). Branch
+        # pushes get a unique prerelease tag and a four-part Windows version;
+        # re-running the same workflow keeps both stable. A `gui-v*` tag remains
+        # the version source for regular releases.
         run: |
-          $tag = "${GITHUB_REF_NAME}"
-          if ($tag -like "gui-v*") {
-            $version = $tag.Substring(6)
-            python -c "import pathlib, re, sys; p = pathlib.Path('tool/gui/pyproject.toml'); t = p.read_text(encoding='utf-8'); v = sys.argv[1]; p.write_text(re.sub(r'(?m)^version\s*=\s*\"[^\"]+\"', f'version = \"{v}\"', t, count=1), encoding='utf-8'); print('stamped', v)" $version
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $releaseTag = $env:GITHUB_REF_NAME
+            $version = $releaseTag.Substring(5)
+          } elseif ($env:GITHUB_EVENT_NAME -eq "push") {
+            $releaseTag = "gui-build-$($env:GITHUB_RUN_NUMBER)"
+            $version = "0.0.0.$($env:GITHUB_RUN_NUMBER)"
           } else {
-            python -c "import pathlib, re; p = pathlib.Path('tool/gui/pyproject.toml'); t = p.read_text(encoding='utf-8'); m = re.search(r'(?m)^version\s*=\s*\"([^\"]+)\"', t); print('workflow_dispatch: version', m.group(1) if m else '0.0.0')"
+            $releaseTag = ""
+            $version = python -c "import sys; sys.path.insert(0, 'tool/gui'); import build_gui; print(build_gui.read_version())"
           }
+          python -c "import sys; sys.path.insert(0, 'tool/gui'); import build_gui; build_gui.stamp_version(sys.argv[1])" $version
+          "RELEASE_TAG=$releaseTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Lint GUI editor (ruff)
         run: ruff check tool/gui
@@ -88,8 +101,12 @@ jobs:
           path: dist/turna-gui.exe
 
       - name: Attach exe to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/gui-v')
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Turna GUI ${{ env.RELEASE_VERSION }}
           files: dist/turna-gui.exe
+          prerelease: ${{ github.ref_type == 'branch' }}
           generate_release_notes: true

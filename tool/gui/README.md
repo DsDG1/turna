@@ -383,7 +383,7 @@ python tool/gui/build_gui.py
 python tool/gui/build_gui.py --clean
 ```
 
-打包配置见 [`turna_gui.spec`](./turna_gui.spec)。也可让 CI 出包：推 `gui-v*` tag（或手动触发 `.github/workflows/gui_release.yml` 的 workflow_dispatch），GitHub Actions 在 windows-latest 上跑 ci 档测试门禁 + PyInstaller 打包，把 `turna-gui.exe` 挂到对应 GitHub Release（workflow_dispatch 只产出 artifact，不建 Release）。
+打包配置见 [`turna_gui.spec`](./turna_gui.spec)。也可让 CI 出包：向 GitHub `master` 推送 `tool/gui/`、`tool/course_cli.py` 或发布工作流的改动时，GitHub Actions 会在 windows-latest 上跑全量测试门禁 + PyInstaller 打包，创建 `gui-build-<运行号>` 预发布并附上 `turna-gui.exe`；推 `gui-v*` tag 则创建同版本号正式发布。手动触发 `.github/workflows/gui_release.yml` 的 workflow_dispatch 只产出 artifact，不建 Release。
 
 > 📌 **独立 exe 与媒体**：使用 `export_author_workspace.py` 导出的工作区，打开其中 `course/`。媒体解析以工作区为基准，不依赖 exe 的当前工作目录；只复制课程目录而漏掉媒体仍会报告缺失。
 
