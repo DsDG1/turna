@@ -25,16 +25,6 @@ class CollisionReport {
   int get totalNew => newWords + newExpressions + newGrammar;
   int get totalDuplicates =>
       duplicateWords + duplicateExpressions + duplicateGrammar;
-
-  /// Legacy map shape (for older call sites).
-  Map<String, int> toMap() => {
-        'newWords': newWords,
-        'newExpressions': newExpressions,
-        'newGrammar': newGrammar,
-        'duplicateWords': duplicateWords,
-        'duplicateExpressions': duplicateExpressions,
-        'duplicateGrammar': duplicateGrammar,
-      };
 }
 
 /// Analyzes and resolves collisions between extracted textbook knowledge and

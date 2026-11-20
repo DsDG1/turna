@@ -11,13 +11,9 @@ enum StrictSchemaMode { auto, on, off }
 
 /// Unified configuration for the AI engine.
 ///
-/// Supersedes the legacy [AiApiConfig] (kept for back-compat during migration).
-/// Adds the three capabilities the legacy config lacked:
-///   * a [preset] (DeepSeek / MiMo / custom) so the
-///     Settings UI can switch vendors;
-///   * dual-model routing ([modelChat] / [modelJson]) so cheap conversational
-///     calls can go to a smaller model;
-///   * a [strictSchema] policy with auto-fallback.
+/// Includes a provider [preset], dual-model routing through [modelChat] and
+/// [modelJson], a [strictSchema] policy with automatic fallback, and controls
+/// for caching and reasoning.
 ///
 /// This class is a plain immutable value; persistence is the responsibility of
 /// [AiEngineConfigHolder]. Non-secret fields are serialized to Shared-
@@ -110,9 +106,10 @@ class AiEngineConfig {
   String get baseUrl =>
       preset.id == AiProvider.custom ? (customBaseUrl ?? '') : preset.baseUrl;
 
-  /// Normalized chat-completions URL. Strips any trailing slash on [baseUrl]
-  /// and appends `/chat/completions` if the user only provided the base. Mirrors
-  /// `AiApiConfig.chatCompletionsUrl`.
+  /// Normalized chat-completions URL derived from [baseUrl].
+  ///
+  /// Removes a trailing slash and appends `/chat/completions` when the user
+  /// only provided the base URL.
   String get chatCompletionsUrl {
     var b = baseUrl.trim();
     if (b.endsWith('/')) b = b.substring(0, b.length - 1);
