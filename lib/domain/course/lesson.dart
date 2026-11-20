@@ -29,6 +29,9 @@ enum LessonType {
 /// used by the loader/renderer to pick the right content shape (e.g. sub-lessons
 /// for intro lessons, listening phases for listening lessons).
 enum LessonTemplate {
+  /// Page-based, ungraded exploration with interactive content blocks.
+  guide,
+
   /// Four sub-lessons introducing new knowledge/vocab/expressions.
   intro,
 

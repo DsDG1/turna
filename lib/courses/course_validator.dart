@@ -1,6 +1,7 @@
 // Project imports:
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/guide_page.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/interaction_rules.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -52,7 +53,7 @@ class CourseValidationException implements Exception {
 ///  - Sub-lesson ids are unique within a lesson; listening phase ids are unique
 ///    within a lesson.
 ///  - Every stage has at least one item; every lesson has at least one content
-///    structure (stages, subLessons, or listeningPhases).
+///    structure (guide pages, stages, subLessons, or listeningPhases).
 ///  - Every [ShowWord.wordId] resolves to a [WordEntry] in [vocabulary].
 ///  - Every [ShowWord.expressionId] (when present) resolves to an [Expression]
 ///    in [expressions].
@@ -298,11 +299,23 @@ void _validateLessonContent(
   final hasStages = stages.isNotEmpty;
   final hasSubLessons = subLessons.isNotEmpty;
   final hasListeningPhases = listeningPhases.isNotEmpty;
+  final hasPages = content.pages.isNotEmpty;
   final hasReadingPassage =
       content.readingPassage != null || content.passage.isNotEmpty;
 
   // Template / content shape consistency.
   switch (lesson.template) {
+    case LessonTemplate.guide:
+      if (!hasPages) {
+        errors.add('Lesson ${lesson.id} uses template "guide" but has no '
+            'pages.');
+        return;
+      }
+      if (hasStages || hasSubLessons || hasListeningPhases) {
+        errors
+            .add('Guide lesson ${lesson.id} must contain only ungraded pages.');
+      }
+      break;
     case LessonTemplate.intro:
     case LessonTemplate.practice:
       if (!hasSubLessons) {
@@ -362,6 +375,10 @@ void _validateLessonContent(
     _validateStages(lesson, stages, vocabIds, expressionIds, errors);
   }
 
+  if (hasPages) {
+    _validateGuidePages(lesson, content.pages, vocabIds, errors);
+  }
+
   if (hasSubLessons) {
     _validateSubLessons(lesson, subLessons, vocabIds, expressionIds, errors);
   }
@@ -376,6 +393,138 @@ void _validateLessonContent(
   }
   if (content.reviewPolicy != null) {
     _validateReviewPolicy(lesson, errors);
+  }
+}
+
+void _validateGuidePages(
+  Lesson lesson,
+  List<GuidePage> pages,
+  Set<String> vocabIds,
+  List<String> errors,
+) {
+  final pageIds = <String>{};
+  final blockIds = <String>{};
+  for (final page in pages) {
+    if (page.id.isEmpty) {
+      errors.add('Guide lesson ${lesson.id} has a page with an empty id.');
+    } else if (!pageIds.add(page.id)) {
+      errors.add('Duplicate guide page id "${page.id}" in ${lesson.id}.');
+    }
+    if (page.title.trim().isEmpty) {
+      errors.add('Guide page ${page.id} in ${lesson.id} has an empty title.');
+    }
+    if (page.blocks.isEmpty) {
+      errors.add('Guide page ${page.id} in ${lesson.id} has no blocks.');
+    }
+    if (page.nextSubLessonId != null && page.nextLessonId == null) {
+      errors.add('Guide page ${page.id} has nextSubLessonId without '
+          'nextLessonId.');
+    }
+    for (final block in page.blocks) {
+      if (block.id.isEmpty) {
+        errors.add('Guide page ${page.id} has a block with an empty id.');
+      } else if (!blockIds.add(block.id)) {
+        errors.add('Duplicate guide block id "${block.id}" in ${lesson.id}.');
+      }
+      switch (block) {
+        case GuideTextBlock():
+          if (block.body.trim().isEmpty) {
+            errors.add('Guide text block ${block.id} has an empty body.');
+          }
+        case GuideTermsBlock():
+          if (block.items.isEmpty) {
+            errors.add('Guide terms block ${block.id} has no items.');
+          }
+          for (final term in block.items) {
+            if (term.text.trim().isEmpty) {
+              errors.add('Guide terms block ${block.id} has an empty term.');
+            }
+            final wordId = term.wordId;
+            if (wordId != null && !vocabIds.contains(wordId)) {
+              errors.add('Guide term ${term.text} references missing wordId '
+                  '$wordId.');
+            }
+          }
+        case GuideClassificationBlock():
+          if (block.categories.length < 2 || block.cards.isEmpty) {
+            errors.add('Guide classification ${block.id} needs at least two '
+                'categories and one card.');
+          }
+          final categoryIds = <String>{};
+          for (final category in block.categories) {
+            if (category.id.isEmpty || category.label.trim().isEmpty) {
+              errors.add('Guide classification ${block.id} has an invalid '
+                  'category.');
+            } else if (!categoryIds.add(category.id)) {
+              errors.add('Duplicate category id "${category.id}" in guide '
+                  'block ${block.id}.');
+            }
+          }
+          final cardIds = <String>{};
+          for (final card in block.cards) {
+            if (card.id.isEmpty || card.text.trim().isEmpty) {
+              errors.add('Guide classification ${block.id} has an invalid '
+                  'card.');
+            } else if (!cardIds.add(card.id)) {
+              errors.add('Duplicate classification card id "${card.id}" in '
+                  'guide block ${block.id}.');
+            }
+            if (!categoryIds.contains(card.categoryId)) {
+              errors.add('Guide classification card ${card.id} references '
+                  'missing category ${card.categoryId}.');
+            }
+          }
+        case GuideSuffixBuilderBlock():
+          if (block.examples.isEmpty) {
+            errors.add('Guide suffix builder ${block.id} has no examples.');
+          }
+          final exampleIds = <String>{};
+          for (final example in block.examples) {
+            if (example.id.isEmpty ||
+                example.root.trim().isEmpty ||
+                example.rootMeaning.trim().isEmpty) {
+              errors.add('Guide suffix builder ${block.id} has an invalid '
+                  'example.');
+            } else if (!exampleIds.add(example.id)) {
+              errors.add('Duplicate suffix example id "${example.id}" in '
+                  'guide block ${block.id}.');
+            }
+            if (example.steps.isEmpty) {
+              errors.add('Guide suffix example ${example.id} has no steps.');
+            }
+            for (final step in example.steps) {
+              if (step.suffix.trim().isEmpty ||
+                  step.result.trim().isEmpty ||
+                  step.meaning.trim().isEmpty) {
+                errors.add('Guide suffix example ${example.id} has an '
+                    'incomplete step.');
+              }
+            }
+          }
+        case GuideWordOrderBlock():
+          if (block.tokens.isEmpty) {
+            errors.add('Guide word order block ${block.id} has no tokens.');
+          }
+          final tokenIds = <String>{};
+          for (final token in block.tokens) {
+            if (token.id.isEmpty ||
+                token.text.trim().isEmpty ||
+                token.role.trim().isEmpty ||
+                token.meaning.trim().isEmpty) {
+              errors.add('Guide word order block ${block.id} has an invalid '
+                  'token.');
+            } else if (!tokenIds.add(token.id)) {
+              errors.add('Duplicate sentence token id "${token.id}" in guide '
+                  'block ${block.id}.');
+            }
+          }
+          if (block.tokens.any((token) => token.optional) &&
+              block.optionalToggleLabel.trim().isEmpty) {
+            errors.add('Guide word order block ${block.id} has optional '
+                'tokens but no optionalToggleLabel.');
+          }
+      }
+    }
   }
 }
 

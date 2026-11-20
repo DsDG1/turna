@@ -128,6 +128,18 @@ class LessonCompletionCoordinator {
     });
   }
 
+  /// Guide pages have no correctness or study-activity settlement: only the
+  /// course-tree completion bit is recorded, without XP, gems or SRS.
+  Future<void> completeGuide({required String lessonId}) async {
+    await _runSideEffect(
+      'record guide completion',
+      () => _gameProvider.recordLessonCompletion(
+        lessonId: lessonId,
+        wasPerfect: false,
+      ),
+    );
+  }
+
   Future<void> _runSideEffect(
     String label,
     Future<void> Function() action,

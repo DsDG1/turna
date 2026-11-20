@@ -8,6 +8,7 @@ and supports inline editing. Per template:
 - reading: a passage card (title/difficulty/paragraphs) + comprehension
   question cards.
 - mastery: a single stage's question cards.
+- guide: read-only page cards with their ungraded content blocks.
 - intro/practice/review/legacy: sub-lesson columns, each with stage -> item
   cards (kanban-style).
 
@@ -298,6 +299,8 @@ class LessonBlueprint(QWidget):
         ids = set()
         content = self.lesson.get("content", {})
         template = self.lesson.get("template", "legacy")
+        if template == TemplateType.GUIDE:
+            return set()
         if template == TemplateType.LISTENING:
             for phase in content.get(ContentKey.LISTENING_PHASES, []):
                 for item in phase.get(ContentKey.ITEMS, []):
@@ -325,7 +328,9 @@ class LessonBlueprint(QWidget):
             self._first_build = False
             content = self.lesson.setdefault("content", {})
             template = self.lesson.get("template", TemplateType.LEGACY)
-            if template == TemplateType.LISTENING:
+            if template == TemplateType.GUIDE:
+                pass
+            elif template == TemplateType.LISTENING:
                 for phase in content.setdefault(ContentKey.LISTENING_PHASES, []):
                     items = phase.setdefault(ContentKey.ITEMS, [])
                     if items:
@@ -362,7 +367,9 @@ class LessonBlueprint(QWidget):
                 widget.setParent(None)
                 widget.deleteLater()
         template = self.lesson.get("template", "legacy")
-        if template == "listening":
+        if template == "guide":
+            self._build_guide()
+        elif template == "listening":
             self._build_listening()
         elif template == "reading":
             self._build_reading()
@@ -375,6 +382,35 @@ class LessonBlueprint(QWidget):
         """Re-render so reference dropdowns inside QuestionCards pick up
         resource changes (mirrors LessonEditor.refresh_references)."""
         self._rebuild()
+
+    # --- guide ----------------------------------------------------------
+
+    def _build_guide(self) -> None:
+        content = self.lesson.get("content", {})
+        pages = content.get(ContentKey.PAGES, [])
+        for index, page in enumerate(pages):
+            blocks = page.get("blocks", [])
+            card = _Card(
+                f"第 {index + 1} 页 · {page.get('title', page.get('id', ''))}",
+                f"{len(blocks)} 个内容块",
+            )
+            if page.get("intro"):
+                intro = QLabel(page["intro"])
+                intro.setWordWrap(True)
+                intro.setStyleSheet(f"color: {_pal('text_secondary')};")
+                card.add_body(intro)
+            for block in blocks:
+                runtime_type = block.get("runtimeType", "?")
+                title = block.get("title") or block.get("id") or runtime_type
+                summary = QLabel(f"[{runtime_type}] {title}")
+                summary.setWordWrap(True)
+                summary.setStyleSheet(f"color: {_pal('text')};")
+                card.add_body(summary)
+            self._host_layout.insertWidget(index, card)
+        if not pages:
+            hint = QLabel("（暂无导览页面）")
+            hint.setStyleSheet(f"color: {_pal('text_secondary')};")
+            self._host_layout.insertWidget(0, hint)
 
     # --- listening ------------------------------------------------------
 

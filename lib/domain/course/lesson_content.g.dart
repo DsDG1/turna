@@ -12,6 +12,10 @@ _LessonContent _$LessonContentFromJson(Map<String, dynamic> json) =>
               ?.map((e) => Stage.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <Stage>[],
+      pages: (json['pages'] as List<dynamic>?)
+              ?.map((e) => GuidePage.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const <GuidePage>[],
       subLessons: (json['subLessons'] as List<dynamic>?)
               ?.map((e) => SubLesson.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -42,6 +46,7 @@ _LessonContent _$LessonContentFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$LessonContentToJson(_LessonContent instance) =>
     <String, dynamic>{
       'stages': instance.stages,
+      'pages': instance.pages,
       'subLessons': instance.subLessons,
       'listeningPhases': instance.listeningPhases,
       'dialogueScene': instance.dialogueScene,

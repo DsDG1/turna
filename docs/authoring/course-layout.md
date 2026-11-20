@@ -35,8 +35,8 @@ Composite reseed key is `indexVersion+expressionsVersion`.
 - Top-level: `{ id, name, description?, units: [...] }`
 - Unit: `{ id, name, description?, lessons: [...] }`
 - Lesson: `{ id, name, type, template, content, ... }`
-- Prefer **canonical** content shapes (`stages` / `subLessons` / `listeningPhases`).
-  Dialogue lessons additionally use `dialogueScene`; flat review pools may declare
+- Prefer **canonical** content shapes (`pages` / `stages` / `subLessons` / `listeningPhases`).
+  Guide lessons use ungraded `pages`; dialogue lessons additionally use `dialogueScene`; flat review pools may declare
   `reviewPolicy`. Flat `questions` is still normalized at seed time, but new
   authoring should write canonical shapes.
 

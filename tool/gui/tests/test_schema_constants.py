@@ -90,7 +90,7 @@ class TestSchemaConstants(unittest.TestCase):
         from src.backend.lesson_content import CONTENT_BY_TEMPLATE
 
         enum_values = {member.value for member in TemplateType}
-        self.assertEqual(len(enum_values), 8)
+        self.assertEqual(len(enum_values), 9)
         self.assertEqual(enum_values, set(CONTENT_BY_TEMPLATE.keys()))
 
 

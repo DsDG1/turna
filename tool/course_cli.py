@@ -222,6 +222,10 @@ def collect_word_ids(obj: Any) -> set[str]:
     if isinstance(obj, dict):
         if obj.get("runtimeType") == "showWord" and "wordId" in obj:
             ids.add(obj["wordId"])
+        if obj.get("runtimeType") == "terms":
+            for term in obj.get("items") or []:
+                if isinstance(term, dict) and term.get("wordId"):
+                    ids.add(term["wordId"])
         if "linkedWordIds" in obj:
             ids.update(obj["linkedWordIds"])
         if "wordFormMap" in obj and isinstance(obj["wordFormMap"], dict):
@@ -546,9 +550,23 @@ def _validate_lesson(
     has_stages = bool(stages)
     has_sub_lessons = bool(sub_lessons)
     has_listening = bool(listening_phases)
+    has_pages = bool(content.get("pages"))
 
     # Template / content shape consistency.
-    if template in ("intro", "practice"):
+    if template == "guide":
+        if not has_pages:
+            problems.append(
+                Problem("error", f"Lesson {lid} uses template guide but has no pages")
+            )
+            return
+        if has_stages or has_sub_lessons or has_listening:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Guide lesson {lid} must contain only ungraded pages",
+                )
+            )
+    elif template in ("intro", "practice"):
         if not has_sub_lessons:
             problems.append(
                 Problem(
@@ -638,6 +656,8 @@ def _validate_lesson(
 
     if has_stages:
         _validate_stages(lid, stages, vocab_ids, expression_ids, problems)
+    if has_pages:
+        _validate_guide_pages(lid, content["pages"], vocab_ids, problems)
     if has_sub_lessons:
         _validate_sub_lessons(
             lid, sub_lessons, vocab_ids, expression_ids, problems
@@ -676,6 +696,173 @@ _REVIEW_POOL_TYPES = {
     "readingShortAnswer",
     "readAloud",
 }
+
+
+def _validate_guide_pages(
+    lesson_id: str,
+    pages: Any,
+    vocab_ids: set[str],
+    problems: list[Problem],
+) -> None:
+    if not isinstance(pages, list):
+        problems.append(Problem("error", f"Guide lesson {lesson_id} pages must be a list"))
+        return
+    page_ids: set[str] = set()
+    block_ids: set[str] = set()
+    for page in pages:
+        if not isinstance(page, dict):
+            problems.append(Problem("error", f"Guide lesson {lesson_id} has an invalid page"))
+            continue
+        page_id = str(page.get("id") or "")
+        if not page_id:
+            problems.append(Problem("error", f"Guide lesson {lesson_id} has a page with an empty id"))
+        elif page_id in page_ids:
+            problems.append(Problem("error", f"Duplicate guide page id {page_id} in {lesson_id}"))
+        page_ids.add(page_id)
+        if not str(page.get("title") or "").strip():
+            problems.append(Problem("error", f"Guide page {page_id} has an empty title"))
+        blocks = page.get("blocks")
+        if not isinstance(blocks, list) or not blocks:
+            problems.append(Problem("error", f"Guide page {page_id} has no blocks"))
+            continue
+        if page.get("nextSubLessonId") is not None and page.get("nextLessonId") is None:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Guide page {page_id} has nextSubLessonId without nextLessonId",
+                )
+            )
+        for block in blocks:
+            if not isinstance(block, dict):
+                problems.append(Problem("error", f"Guide page {page_id} has an invalid block"))
+                continue
+            block_id = str(block.get("id") or "")
+            if not block_id:
+                problems.append(Problem("error", f"Guide page {page_id} has a block with an empty id"))
+            elif block_id in block_ids:
+                problems.append(Problem("error", f"Duplicate guide block id {block_id} in {lesson_id}"))
+            block_ids.add(block_id)
+            runtime_type = block.get("runtimeType")
+            if runtime_type == "text":
+                if not str(block.get("body") or "").strip():
+                    problems.append(Problem("error", f"Guide text block {block_id} has an empty body"))
+            elif runtime_type == "terms":
+                items = block.get("items")
+                if not isinstance(items, list) or not items:
+                    problems.append(Problem("error", f"Guide terms block {block_id} has no items"))
+                    continue
+                for term in items:
+                    if not isinstance(term, dict) or not str(term.get("text") or "").strip():
+                        problems.append(Problem("error", f"Guide terms block {block_id} has an empty term"))
+                        continue
+                    word_id = term.get("wordId")
+                    if word_id is not None and word_id not in vocab_ids:
+                        problems.append(
+                            Problem(
+                                "error",
+                                f"Guide term {term['text']} references missing wordId {word_id}",
+                            )
+                        )
+            elif runtime_type == "classification":
+                categories = block.get("categories")
+                cards = block.get("cards")
+                if not isinstance(categories, list) or len(categories) < 2:
+                    problems.append(Problem("error", f"Guide classification {block_id} needs at least two categories"))
+                    categories = []
+                if not isinstance(cards, list) or not cards:
+                    problems.append(Problem("error", f"Guide classification {block_id} has no cards"))
+                    cards = []
+                category_ids: set[str] = set()
+                for category in categories:
+                    if not isinstance(category, dict):
+                        continue
+                    category_id = str(category.get("id") or "")
+                    if not category_id or not str(category.get("label") or "").strip():
+                        problems.append(Problem("error", f"Guide classification {block_id} has an invalid category"))
+                    elif category_id in category_ids:
+                        problems.append(Problem("error", f"Duplicate category id {category_id} in {block_id}"))
+                    category_ids.add(category_id)
+                card_ids: set[str] = set()
+                for card in cards:
+                    if not isinstance(card, dict):
+                        continue
+                    card_id = str(card.get("id") or "")
+                    if not card_id or not str(card.get("text") or "").strip():
+                        problems.append(Problem("error", f"Guide classification {block_id} has an invalid card"))
+                    elif card_id in card_ids:
+                        problems.append(Problem("error", f"Duplicate classification card id {card_id} in {block_id}"))
+                    card_ids.add(card_id)
+                    category_id = str(card.get("categoryId") or "")
+                    if category_id not in category_ids:
+                        problems.append(
+                            Problem(
+                                "error",
+                                f"Guide classification card {card_id} references missing category {category_id}",
+                            )
+                        )
+            elif runtime_type == "suffixBuilder":
+                examples = block.get("examples")
+                if not isinstance(examples, list) or not examples:
+                    problems.append(Problem("error", f"Guide suffix builder {block_id} has no examples"))
+                    continue
+                example_ids: set[str] = set()
+                for example in examples:
+                    if not isinstance(example, dict):
+                        continue
+                    example_id = str(example.get("id") or "")
+                    if (
+                        not example_id
+                        or not str(example.get("root") or "").strip()
+                        or not str(example.get("rootMeaning") or "").strip()
+                    ):
+                        problems.append(Problem("error", f"Guide suffix builder {block_id} has an invalid example"))
+                    elif example_id in example_ids:
+                        problems.append(Problem("error", f"Duplicate suffix example id {example_id} in {block_id}"))
+                    example_ids.add(example_id)
+                    steps = example.get("steps")
+                    if not isinstance(steps, list) or not steps:
+                        problems.append(Problem("error", f"Guide suffix example {example_id} has no steps"))
+                        continue
+                    for step in steps:
+                        if not isinstance(step, dict) or any(
+                            not str(step.get(key) or "").strip()
+                            for key in ("suffix", "result", "meaning")
+                        ):
+                            problems.append(Problem("error", f"Guide suffix example {example_id} has an incomplete step"))
+            elif runtime_type == "wordOrder":
+                tokens = block.get("tokens")
+                if not isinstance(tokens, list) or not tokens:
+                    problems.append(Problem("error", f"Guide word order block {block_id} has no tokens"))
+                    continue
+                token_ids: set[str] = set()
+                has_optional = False
+                for token in tokens:
+                    if not isinstance(token, dict):
+                        continue
+                    token_id = str(token.get("id") or "")
+                    if not token_id or any(
+                        not str(token.get(key) or "").strip()
+                        for key in ("text", "role", "meaning")
+                    ):
+                        problems.append(Problem("error", f"Guide word order block {block_id} has an invalid token"))
+                    elif token_id in token_ids:
+                        problems.append(Problem("error", f"Duplicate sentence token id {token_id} in {block_id}"))
+                    token_ids.add(token_id)
+                    has_optional = has_optional or token.get("optional") is True
+                if has_optional and not str(block.get("optionalToggleLabel") or "").strip():
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"Guide word order block {block_id} has optional tokens but no optionalToggleLabel",
+                        )
+                    )
+            else:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Guide block {block_id} has unknown runtimeType {runtime_type!r}",
+                    )
+                )
 
 
 def _validate_dialogue_scene(
@@ -1810,7 +1997,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
                 loc = f"{section_id}/{unit.get('id', '')}/{lid}"
                 content = lesson.get("content", {})
                 for finding in evaluate_lesson_pedagogy(
-                    lesson, level=str(section.get("level") or "A1")
+                    lesson, level=str(section.get("level") or "A1"), vocab=vocab
                 ):
                     problems.append(
                         Problem(

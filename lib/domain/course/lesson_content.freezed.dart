@@ -18,6 +18,9 @@ mixin _$LessonContent {
   /// and reading-comprehension questions.
   List<Stage> get stages;
 
+  /// Guide lessons present ungraded, page-based interactive explanations.
+  List<GuidePage> get pages;
+
   /// Intro / practice lessons split their content into sub-lessons.
   List<SubLesson> get subLessons;
 
@@ -61,6 +64,7 @@ mixin _$LessonContent {
         (other.runtimeType == runtimeType &&
             other is LessonContent &&
             const DeepCollectionEquality().equals(other.stages, stages) &&
+            const DeepCollectionEquality().equals(other.pages, pages) &&
             const DeepCollectionEquality()
                 .equals(other.subLessons, subLessons) &&
             const DeepCollectionEquality()
@@ -83,6 +87,7 @@ mixin _$LessonContent {
   int get hashCode => Object.hash(
       runtimeType,
       const DeepCollectionEquality().hash(stages),
+      const DeepCollectionEquality().hash(pages),
       const DeepCollectionEquality().hash(subLessons),
       const DeepCollectionEquality().hash(listeningPhases),
       dialogueScene,
@@ -94,7 +99,7 @@ mixin _$LessonContent {
 
   @override
   String toString() {
-    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, dialogueScene: $dialogueScene, reviewPolicy: $reviewPolicy, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
+    return 'LessonContent(stages: $stages, pages: $pages, subLessons: $subLessons, listeningPhases: $listeningPhases, dialogueScene: $dialogueScene, reviewPolicy: $reviewPolicy, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
   }
 }
 
@@ -106,6 +111,7 @@ abstract mixin class $LessonContentCopyWith<$Res> {
   @useResult
   $Res call(
       {List<Stage> stages,
+      List<GuidePage> pages,
       List<SubLesson> subLessons,
       List<ListeningPhase> listeningPhases,
       DialogueScene? dialogueScene,
@@ -134,6 +140,7 @@ class _$LessonContentCopyWithImpl<$Res>
   @override
   $Res call({
     Object? stages = null,
+    Object? pages = null,
     Object? subLessons = null,
     Object? listeningPhases = null,
     Object? dialogueScene = freezed,
@@ -148,6 +155,10 @@ class _$LessonContentCopyWithImpl<$Res>
           ? _self.stages
           : stages // ignore: cast_nullable_to_non_nullable
               as List<Stage>,
+      pages: null == pages
+          ? _self.pages
+          : pages // ignore: cast_nullable_to_non_nullable
+              as List<GuidePage>,
       subLessons: null == subLessons
           ? _self.subLessons
           : subLessons // ignore: cast_nullable_to_non_nullable
@@ -321,6 +332,7 @@ extension LessonContentPatterns on LessonContent {
   TResult maybeWhen<TResult extends Object?>(
     TResult Function(
             List<Stage> stages,
+            List<GuidePage> pages,
             List<SubLesson> subLessons,
             List<ListeningPhase> listeningPhases,
             DialogueScene? dialogueScene,
@@ -337,6 +349,7 @@ extension LessonContentPatterns on LessonContent {
       case _LessonContent() when $default != null:
         return $default(
             _that.stages,
+            _that.pages,
             _that.subLessons,
             _that.listeningPhases,
             _that.dialogueScene,
@@ -367,6 +380,7 @@ extension LessonContentPatterns on LessonContent {
   TResult when<TResult extends Object?>(
     TResult Function(
             List<Stage> stages,
+            List<GuidePage> pages,
             List<SubLesson> subLessons,
             List<ListeningPhase> listeningPhases,
             DialogueScene? dialogueScene,
@@ -382,6 +396,7 @@ extension LessonContentPatterns on LessonContent {
       case _LessonContent():
         return $default(
             _that.stages,
+            _that.pages,
             _that.subLessons,
             _that.listeningPhases,
             _that.dialogueScene,
@@ -411,6 +426,7 @@ extension LessonContentPatterns on LessonContent {
   TResult? whenOrNull<TResult extends Object?>(
     TResult? Function(
             List<Stage> stages,
+            List<GuidePage> pages,
             List<SubLesson> subLessons,
             List<ListeningPhase> listeningPhases,
             DialogueScene? dialogueScene,
@@ -426,6 +442,7 @@ extension LessonContentPatterns on LessonContent {
       case _LessonContent() when $default != null:
         return $default(
             _that.stages,
+            _that.pages,
             _that.subLessons,
             _that.listeningPhases,
             _that.dialogueScene,
@@ -445,6 +462,7 @@ extension LessonContentPatterns on LessonContent {
 class _LessonContent implements LessonContent {
   const _LessonContent(
       {final List<Stage> stages = const <Stage>[],
+      final List<GuidePage> pages = const <GuidePage>[],
       final List<SubLesson> subLessons = const <SubLesson>[],
       final List<ListeningPhase> listeningPhases = const <ListeningPhase>[],
       this.dialogueScene,
@@ -454,6 +472,7 @@ class _LessonContent implements LessonContent {
       this.audioAsset,
       final List<String> linkedGrammarPointIds = const <String>[]})
       : _stages = stages,
+        _pages = pages,
         _subLessons = subLessons,
         _listeningPhases = listeningPhases,
         _linkedGrammarPointIds = linkedGrammarPointIds;
@@ -472,6 +491,18 @@ class _LessonContent implements LessonContent {
     if (_stages is EqualUnmodifiableListView) return _stages;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_stages);
+  }
+
+  /// Guide lessons present ungraded, page-based interactive explanations.
+  final List<GuidePage> _pages;
+
+  /// Guide lessons present ungraded, page-based interactive explanations.
+  @override
+  @JsonKey()
+  List<GuidePage> get pages {
+    if (_pages is EqualUnmodifiableListView) return _pages;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_pages);
   }
 
   /// Intro / practice lessons split their content into sub-lessons.
@@ -556,6 +587,7 @@ class _LessonContent implements LessonContent {
         (other.runtimeType == runtimeType &&
             other is _LessonContent &&
             const DeepCollectionEquality().equals(other._stages, _stages) &&
+            const DeepCollectionEquality().equals(other._pages, _pages) &&
             const DeepCollectionEquality()
                 .equals(other._subLessons, _subLessons) &&
             const DeepCollectionEquality()
@@ -578,6 +610,7 @@ class _LessonContent implements LessonContent {
   int get hashCode => Object.hash(
       runtimeType,
       const DeepCollectionEquality().hash(_stages),
+      const DeepCollectionEquality().hash(_pages),
       const DeepCollectionEquality().hash(_subLessons),
       const DeepCollectionEquality().hash(_listeningPhases),
       dialogueScene,
@@ -589,7 +622,7 @@ class _LessonContent implements LessonContent {
 
   @override
   String toString() {
-    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, dialogueScene: $dialogueScene, reviewPolicy: $reviewPolicy, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
+    return 'LessonContent(stages: $stages, pages: $pages, subLessons: $subLessons, listeningPhases: $listeningPhases, dialogueScene: $dialogueScene, reviewPolicy: $reviewPolicy, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
   }
 }
 
@@ -603,6 +636,7 @@ abstract mixin class _$LessonContentCopyWith<$Res>
   @useResult
   $Res call(
       {List<Stage> stages,
+      List<GuidePage> pages,
       List<SubLesson> subLessons,
       List<ListeningPhase> listeningPhases,
       DialogueScene? dialogueScene,
@@ -634,6 +668,7 @@ class __$LessonContentCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   $Res call({
     Object? stages = null,
+    Object? pages = null,
     Object? subLessons = null,
     Object? listeningPhases = null,
     Object? dialogueScene = freezed,
@@ -648,6 +683,10 @@ class __$LessonContentCopyWithImpl<$Res>
           ? _self._stages
           : stages // ignore: cast_nullable_to_non_nullable
               as List<Stage>,
+      pages: null == pages
+          ? _self._pages
+          : pages // ignore: cast_nullable_to_non_nullable
+              as List<GuidePage>,
       subLessons: null == subLessons
           ? _self._subLessons
           : subLessons // ignore: cast_nullable_to_non_nullable

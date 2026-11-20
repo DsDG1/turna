@@ -42,6 +42,7 @@ const _$LessonTypeEnumMap = {
 };
 
 const _$LessonTemplateEnumMap = {
+  LessonTemplate.guide: 'guide',
   LessonTemplate.intro: 'intro',
   LessonTemplate.listening: 'listening',
   LessonTemplate.dialogue: 'dialogue',

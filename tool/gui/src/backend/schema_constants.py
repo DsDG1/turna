@@ -15,6 +15,7 @@ class ContentKey(StrEnum):
     """Structural container and content keys within lesson definitions."""
 
     STAGES = "stages"
+    PAGES = "pages"
     SUB_LESSONS = "subLessons"
     LISTENING_PHASES = "listeningPhases"
     READING_PASSAGE = "readingPassage"
@@ -105,6 +106,7 @@ class CourseKey(StrEnum):
 class TemplateType(StrEnum):
     """Functional lesson template identifiers (ADR 0021)."""
 
+    GUIDE = "guide"
     INTRO = "intro"
     PRACTICE = "practice"
     REVIEW = "review"

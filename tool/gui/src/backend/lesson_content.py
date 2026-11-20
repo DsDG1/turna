@@ -34,6 +34,7 @@ from src.backend.schema_constants import (
 )
 
 CONTENT_BY_TEMPLATE: dict[str, set[str]] = {
+    TemplateType.GUIDE: {ContentKey.PAGES},
     TemplateType.INTRO: {ContentKey.SUB_LESSONS},
     TemplateType.PRACTICE: {ContentKey.SUB_LESSONS},
     TemplateType.REVIEW: {
@@ -49,6 +50,7 @@ CONTENT_BY_TEMPLATE: dict[str, set[str]] = {
 }
 
 PRIMARY_CONTENT_KEY: dict[str, str] = {
+    TemplateType.GUIDE: ContentKey.PAGES,
     TemplateType.INTRO: ContentKey.SUB_LESSONS,
     TemplateType.PRACTICE: ContentKey.SUB_LESSONS,
     TemplateType.REVIEW: ContentKey.SUB_LESSONS,
@@ -86,6 +88,7 @@ INTERACTION_LABELS: dict[str, str] = {
 }
 
 TEMPLATE_LABELS: dict[str, str] = {
+    TemplateType.GUIDE: "分页导览",
     TemplateType.INTRO: "认识新词",
     TemplateType.PRACTICE: "巩固练习",
     TemplateType.REVIEW: "复习",
@@ -101,6 +104,7 @@ TEMPLATE_LABELS: dict[str, str] = {
 #: Theme-independent chips (white text); ``listening`` carries the Turna brand
 #: teal — keep the hex in sync with ``theme_tokens.BRAND_TEAL`` (ADR 0033).
 TEMPLATE_COLORS: dict[str, str] = {
+    TemplateType.GUIDE: "#4A95A8",      # brandSky
     TemplateType.LISTENING: "#1F727E",  # ≡ theme_tokens.BRAND_TEAL
     TemplateType.DIALOGUE: "#B85C3F",   # anatolianClay
     TemplateType.READING: "#10B981",    # emerald
@@ -355,22 +359,39 @@ def _word_groups(words: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     return [words[start : start + 4] for start in range(0, len(words), 4)]
 
 
+def _example_parts(word: dict[str, Any]) -> tuple[str, str]:
+    raw = str(word.get("example") or word.get("context") or "").strip()
+    if not raw:
+        return "", ""
+    parts = re.split(r"\s*[—–|]\s*", raw, maxsplit=1)
+    target = parts[0].strip()
+    meaning = parts[1].strip() if len(parts) > 1 else ""
+    return target, meaning
+
+
 def _word_item(
     runtime_type: str,
     word: dict[str, Any],
     terms: list[str],
     sequence: int,
+    *,
+    partner_word: dict[str, Any] | None = None,
+    choice_slot: int | None = None,
 ) -> dict[str, Any]:
     wid = word["id"]
     term = word.get("term", wid)
     translation = word.get("translation", "")
+    partner_term = str(partner_word.get("term") or "").strip() if partner_word else ""
+    partner_tr = str(partner_word.get("translation") or "").strip() if partner_word else ""
+    has_partner = bool(partner_term and partner_term != term)
     item: dict[str, Any] = {"runtimeType": runtime_type, "id": short_id(runtime_type[:2])}
     if runtime_type == "multipleChoice":
+        preferred = choice_slot if choice_slot is not None else sequence
         options, correct_index = course_pedagogy.arrange_choice(
             _mcq_options(term, terms),
             0,
             seed=f"{wid}:{sequence}",
-            preferred_index=sequence,
+            preferred_index=preferred,
         )
         item.update(
             {
@@ -382,14 +403,46 @@ def _word_item(
             }
         )
     elif runtime_type == "fillBlank":
-        item.update(
-            {
-                "sentence": f"请写出「{translation}」：_____",
-                "answer": term,
-                "hint": "",
-                "grammarPointId": "",
-            }
+        example_target, example_meaning = _example_parts(word)
+        blanked = ""
+        hint_text = ""
+        if example_target and term:
+            replaced, count = re.subn(
+                rf"(?<!\w){re.escape(term)}(?!\w)",
+                "_____",
+                example_target,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            if count == 1 and len(course_pedagogy.latin_tokens(re.sub(r"_+", " ", replaced))) >= 1:
+                blanked = replaced
+                hint_text = example_meaning or translation
+        if not blanked:
+            if has_partner:
+                blanked = f"— {partner_term}!\n— _____!（{translation}）"
+            else:
+                blanked = f"{term} → _____（{translation}）"
+        choices = (
+            [term, partner_term]
+            if has_partner
+            else ([term, *[t for t in terms if t != term][:1]] if len(terms) >= 2 else [])
         )
+        if len(choices) >= 2:
+            choices, _ = course_pedagogy.arrange_choice(
+                choices,
+                0,
+                seed=f"{wid}:fb:{sequence}",
+                preferred_index=sequence,
+            )
+        payload: dict[str, Any] = {
+            "sentence": blanked,
+            "answer": term,
+            "hint": hint_text,
+            "grammarPointId": "",
+        }
+        if len(choices) >= 2:
+            payload["choices"] = choices
+        item.update(payload)
     elif runtime_type == "typeTheWord" and word.get("audioAsset"):
         item.update(
             {
@@ -399,22 +452,33 @@ def _word_item(
                 "grammarPointId": "",
             }
         )
-    elif runtime_type == "reorderSentence" and len(term.split()) > 1:
-        correct = term.split()
+    elif runtime_type == "reorderSentence" and (len(term.split()) > 1 or has_partner):
+        if len(term.split()) > 1:
+            correct = term.split()
+            prompt_text = translation
+        else:
+            correct = [f"{partner_term},", term]
+            prompt_text = f"{partner_tr}，{translation}" if partner_tr else translation
         item.update(
             {
-                "prompt": translation,
+                "prompt": prompt_text,
                 "scrambled": list(reversed(correct)),
                 "correct": correct,
                 "grammarPointId": "",
             }
         )
     else:
+        if has_partner and (len(term.split()) == 1):
+            source_text = f"{partner_tr}，{translation}" if partner_tr else translation
+            expected_text = f"{partner_term}, {term}"
+        else:
+            source_text = translation
+            expected_text = term
         item.update(
             {
                 "runtimeType": "translateSentence",
-                "source": translation,
-                "expected": term,
+                "source": source_text,
+                "expected": expected_text,
                 "hints": [],
                 "grammarPointId": "",
             }
@@ -439,7 +503,9 @@ def build_intro_lesson(
     for group_index, group in enumerate(_word_groups(words)):
         terms = [word.get("term", word["id"]) for word in group]
         items: list[dict[str, Any]] = []
-        for word in group:
+        mc_count = 0
+        for word_index, word in enumerate(group):
+            partner = group[(word_index + 1) % len(group)] if len(group) >= 2 else None
             items.append(
                 {
                     "runtimeType": "showWord",
@@ -450,21 +516,60 @@ def build_intro_lesson(
                     "expressionId": "",
                 }
             )
-            exercise_types = (
-                ("fillBlank", "translateSentence")
-                if len(group) == 4
-                else ("multipleChoice", "fillBlank", "translateSentence")
-            )
-            for runtime_type in exercise_types:
-                items.append(_word_item(runtime_type, word, terms, len(items)))
+            if mc_count < course_pedagogy.INTRO_MAX_WORD_MEANING_MCQ:
+                items.append(
+                    _word_item(
+                        "multipleChoice",
+                        word,
+                        terms,
+                        len(items),
+                        partner_word=partner,
+                        choice_slot=mc_count,
+                    )
+                )
+                mc_count += 1
+                items.append(
+                    _word_item(
+                        "fillBlank" if word_index % 2 == 0 else "translateSentence",
+                        word,
+                        terms,
+                        len(items),
+                        partner_word=partner,
+                    )
+                )
+            else:
+                for runtime_type in ("fillBlank", "translateSentence"):
+                    items.append(
+                        _word_item(
+                            runtime_type,
+                            word,
+                            terms,
+                            len(items),
+                            partner_word=partner,
+                        )
+                    )
         target = 15 if len(group) == 4 else course_pedagogy.MIN_SUB_LESSON_ITEMS
         while len(items) < target:
             index = len(items)
             word = group[index % len(group)]
-            runtime_type = ("translateSentence", "multipleChoice", "fillBlank")[
-                index % 3
-            ]
-            items.append(_word_item(runtime_type, word, terms, index))
+            partner = group[(index + 1) % len(group)] if len(group) >= 2 else None
+            if mc_count < course_pedagogy.INTRO_MAX_WORD_MEANING_MCQ:
+                runtime_type = "multipleChoice"
+                choice_slot: int | None = mc_count
+                mc_count += 1
+            else:
+                runtime_type = "fillBlank" if index % 2 == 0 else "translateSentence"
+                choice_slot = None
+            items.append(
+                _word_item(
+                    runtime_type,
+                    word,
+                    terms,
+                    index,
+                    partner_word=partner,
+                    choice_slot=choice_slot,
+                )
+            )
         sub_name = name or "认识新词"
         if len(_word_groups(words)) > 1:
             sub_name = f"{sub_name} {group_index + 1}"
@@ -502,8 +607,10 @@ def build_practice_lesson(
         while len(items) < course_pedagogy.MIN_SUB_LESSON_ITEMS:
             index = len(items)
             runtime_type = types[index % len(types)]
-            word = group[(index // len(types)) % len(group)]
-            items.append(_word_item(runtime_type, word, terms, index))
+            word_idx = (index // len(types)) % len(group)
+            word = group[word_idx]
+            partner = group[(word_idx + 1) % len(group)] if len(group) >= 2 else None
+            items.append(_word_item(runtime_type, word, terms, index, partner_word=partner))
         sub_name = name or "巩固练习"
         if len(groups) > 1:
             sub_name = f"{sub_name} {group_index + 1}"
@@ -535,13 +642,24 @@ def build_review_lesson(
     else:
         terms = [word.get("term", word["id"]) for word in source_words]
         items: list[dict[str, Any]] = []
-        runtime_types = ("multipleChoice", "fillBlank", "translateSentence")
+        runtime_types = ("fillBlank", "translateSentence", "reorderSentence")
         for index in range(course_pedagogy.REVIEW_POOL_SIZE):
             kind, resource = resources[index % len(resources)]
+            partner = (
+                source_words[(index + 1) % len(source_words)]
+                if len(source_words) >= 2
+                else None
+            )
+            if partner is resource:
+                partner = source_words[(index + 2) % len(source_words)] if len(source_words) >= 2 else None
             if kind == "word":
                 items.append(
                     _word_item(
-                        runtime_types[index % len(runtime_types)], resource, terms, index
+                        runtime_types[index % len(runtime_types)],
+                        resource,
+                        terms,
+                        index,
+                        partner_word=partner,
                     )
                 )
                 continue
@@ -552,6 +670,7 @@ def build_review_lesson(
                     {"id": resource["id"], "term": term, "translation": resource.get("translation", "")},
                     terms,
                     index,
+                    partner_word=partner,
                 )
             )
         content = {

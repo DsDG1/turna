@@ -31,6 +31,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
 import 'package:turna/views/lesson/components/dialogue_scene_header.dart';
+import 'package:turna/views/lesson/components/guide_session_body.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_presentation.dart';
@@ -74,6 +75,7 @@ class _NewLessonPageState extends State<NewLessonPage>
   bool _loadFailed = false;
   final ScrollController _lessonScroll = ScrollController();
   String? _scrolledInteractionId;
+  String _scrolledGuideViewKey = '';
 
   @override
   void initState() {
@@ -117,6 +119,14 @@ class _NewLessonPageState extends State<NewLessonPage>
   void _onVmChanged() {
     if (!mounted) return;
     final vm = _vm;
+    if (vm.isGuide) {
+      final viewKey = '${vm.guidePageIndex}-${vm.isComplete}';
+      if (viewKey != _scrolledGuideViewKey) {
+        _scrolledGuideViewKey = viewKey;
+        if (_lessonScroll.hasClients) _lessonScroll.jumpTo(0);
+      }
+      return;
+    }
     if (vm.awaitingSegmentContinue) {
       _showSubLessonDialog();
       return;
@@ -466,8 +476,8 @@ class _LessonTopBand extends StatelessWidget implements PreferredSizeWidget {
         ({bool aiEligible, int question, int total, LessonTemplate template})>(
       selector: (context, vm) => (
         aiEligible: _aiEligible(vm),
-        question: vm.currentQuestionNumber,
-        total: vm.totalInteractionCount,
+        question: vm.isGuide ? vm.guidePageIndex + 1 : vm.currentQuestionNumber,
+        total: vm.isGuide ? vm.guidePageCount : vm.totalInteractionCount,
         template: vm.lesson?.template ?? LessonTemplate.legacy,
       ),
       builder: (context, s, _) => SessionProgressBand(
@@ -572,6 +582,12 @@ class _LessonBody extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context, Lesson lesson) {
+    if (lesson.template == LessonTemplate.guide) {
+      return GuideSessionBody(
+        lesson: lesson,
+        scrollController: scrollController,
+      );
+    }
     // Rebuild when either the current interaction OR its submission state
     // changes. InteractionState has value-equality so a submission (which
     // stores a new InteractionState for the same item id) flips the selector

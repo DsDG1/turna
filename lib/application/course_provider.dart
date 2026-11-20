@@ -164,18 +164,6 @@ class CourseProvider extends ChangeNotifier {
   List<({String code, String displayName})> get restorableBuiltinLanguages =>
       List.unmodifiable(_restorableLanguages);
 
-  /// Legacy view over [catalogEntries]. Prefer [catalogEntries].
-  List<({String scope, String name, bool isBuiltin})> get courseEntries {
-    return List.unmodifiable([
-      for (final entry in _catalogEntries)
-        (
-          scope: entry.wireKey,
-          name: entry.displayName,
-          isBuiltin: entry.isBuiltin
-        ),
-    ]);
-  }
-
   /// Persist the course order shown in the course-management page. [wires]
   /// uses the v1 codec wire keys (see [CourseScopeCodec]).
   ///

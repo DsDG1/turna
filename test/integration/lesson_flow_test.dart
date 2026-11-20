@@ -208,9 +208,9 @@ void main() {
       File('assets/courses/nouveau-turkish/sections/section1.json')
           .readAsStringSync(),
     );
-    final lesson = section.units.single.lessons.firstWhere(
-      (lesson) => lesson.id == 'nt-u1-l2-dialogue',
-    );
+    final lesson = section.units
+        .expand((unit) => unit.lessons)
+        .firstWhere((lesson) => lesson.id == 'nt-u1-l2-dialogue');
     final game = GameProvider.forTesting(prefs);
     final link = LessonLinkStore(prefs);
     final srsDao = emptySrsStateDao();

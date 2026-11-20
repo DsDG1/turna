@@ -1202,7 +1202,7 @@ class AppStrings {
   // ── Retired legacy Anki card renderer ──
   static String get ankiRetiredCardTitle => '旧版导入的记忆卡';
   static String get ankiRetiredCardBody =>
-      '该卡片来自已停用的旧版导入源，已不再逐卡渲染。\n请通过「设置 → 旧版与兼容性」迁移到官方引擎。';
+      '该卡片来自已停用的旧版导入源，已不再逐卡渲染。\n请在「课程管理」中重新导入对应牌组文件。';
   static String get ankiRetiredCardContinue => '继续';
 
   // ── Official Anki reviewer stage (typed answer / preview) ──
@@ -1341,6 +1341,7 @@ class AppStrings {
   static String get lessonTranscriptAvailable => '文本已解锁';
   static String get lessonShowTranscript => '查看听力原文';
   static String get lessonHideTranscript => '收起听力原文';
+  static String get lessonTemplateGuide => '语言认识';
   static String get lessonTemplateIntro => '新词导学';
   static String get lessonTemplatePractice => '巩固练习';
   static String get lessonTemplateListening => '听力训练';
@@ -1349,6 +1350,20 @@ class AppStrings {
   static String get lessonTemplateReview => '混合复习';
   static String get lessonTemplateMastery => '掌握检测';
   static String get lessonTemplateLegacy => '课程练习';
+  static String get guidePreviousPage => '上一页';
+  static String get guideNextPage => '下一页';
+  static String get guideFinishReading => '完成阅读';
+  static String get guideCompleteTitle => '认识完成！';
+  static String get guideCompleteBody => '没有测验，也没有正确率。带着这些印象，到真实句子里继续探索。';
+  static String get guideDefaultNext => '进入下一单元';
+  static String get guideReadAgain => '再读一遍';
+  static String get guideReset => '重新探索';
+  static String get guideTapToListen => '点一下听发音';
+  static String get guideClassificationHint =>
+      '先点一张词卡，再点分类区域；也可以把词卡拖过去。放错了会得到提示，不计分。';
+  static String get guideClassificationDone => '全部归类好了。可以重置再玩，也可以直接继续阅读。';
+  static String get guideSuffixListen => '朗读当前词形';
+  static String get guideSentenceListen => '朗读当前语序';
   static String get lessonDialogueYourTurn => '轮到你了，请完成这句回应';
   static String get lessonDialogueFullTranscript => '查看已进行对话';
   static String lessonDialogueSpeakLine(String speaker) => '朗读 $speaker 的这句台词';
@@ -2112,6 +2127,7 @@ class AppStrings {
     }
     return buffer.toString();
   }
+
   static String ankiImportFailed(Object error) => '导入失败：$error';
   static String get ankiReviewTitle => '记忆卡复习';
   static String get ankiNoCardsDue => '暂无待复习的记忆卡。';
@@ -2747,8 +2763,7 @@ class AppStrings {
   static String systemHealthReportSchemaVersion(String version) =>
       '数据结构版本：$version';
   static String systemHealthReportPlatform(String platform) => '平台：$platform';
-  static String systemHealthReportWebView(String webView) =>
-      'WebView：$webView';
+  static String systemHealthReportWebView(String webView) => 'WebView：$webView';
   static String systemHealthReportTts(String status) => 'TTS：$status';
   static String systemHealthReportHealthLevel(String level) => '健康等级：$level';
   static String systemHealthReportScore(int score) => '活跃评分：$score';
@@ -2756,8 +2771,7 @@ class AppStrings {
   static String systemHealthReportCheckPassed(bool value) => '自检通过：$value';
   static String systemHealthReportResolved(bool value) => '已解决：$value';
   static String systemHealthReportSafeMode(bool value) => '安全模式：$value';
-  static String systemHealthReportIntegrityRisk(
-          bool hasBlock, String reason) =>
+  static String systemHealthReportIntegrityRisk(bool hasBlock, String reason) =>
       hasBlock ? '数据完整性风险：是（$reason）' : '数据完整性风险：否';
   static String systemHealthReportForceDisableJs(bool value) =>
       '强制禁用 JS：$value';

@@ -10,8 +10,8 @@ from src.backend.api import course_pedagogy
 _LEVEL_GUIDE: dict[str, dict[str, str]] = {
     "A1": {
         "new_words": "每课新词建议 4–8 个",
-        "sentence": "句子短（约 3–8 词），现在时为主，少从句",
-        "focus": "认读与跟说：showWord / listenAndPick / 简单 translate",
+        "sentence": "以 2–8 词真实短句和双轮对话为主，新词确认后立即入句",
+        "focus": "短句直接运用：showWord 隔题穿插 + 语境 fillBlank / 翻译拼句 reorderSentence / 短句 translateSentence；严控孤立单词选义题",
     },
     "A2": {
         "new_words": "每课新词建议 6–12 个",
@@ -31,12 +31,12 @@ _LEVEL_GUIDE: dict[str, dict[str, str]] = {
 }
 
 _TEMPLATE_GRADIENT: dict[str, str] = {
-    "intro": "intro：先 showWord 展示，再轻量识别/翻译，避免一上来高产出。",
-    "practice": "practice：以练习为主（选择、填空、翻译、排序），复现本课词。",
-    "review": "review：以复现与对比为主，少引入全新词。",
+    "intro": "intro：先 showWord 展示，再少量认义并立即把新词放进短句挖空/拼句/翻译（少出单个词选意思，禁止「词 = _____」伪填空）。",
+    "practice": "practice：以完整短句和双轮对话产出为主（语境 fillBlank、拼句 reorderSentence、整句 translateSentence），不出孤立单词选义题。",
+    "review": "review：以句子级复现与对比为主，禁止孤立词义单选、伪填空与重复题。",
     "listening": "listening：wordPairing → dialogue → summary 递进；听前有提示。",
     "reading": "reading：短文 + 理解题（MCQ/判断/简答），生词先在文中可猜。",
-    "mastery": "mastery：综合测验，题型多样，覆盖本单元核心词与结构。",
+    "mastery": "mastery：综合测验，以完整句子产出与理解为主，覆盖本单元核心词与结构。",
     "mixed": "mixed：单元内按 intro→practice→listening/reading→mastery 梯度排布。",
     "legacy": "legacy：保持题型自洽，优先可教性。",
 }
@@ -84,7 +84,8 @@ def distractor_rules_block() -> str:
         "1. 提供 4 个选项时，正确项唯一；options 内不要重复字符串。\n"
         "2. 干扰项与正确项词性相近、长度接近，优先近义/主题相关词。\n"
         "3. 不要用明显错误编码、空串或与题干语言不一致的乱码当唯一干扰策略。\n"
-        "4. correctIndex / correctIndices 必须指向真实正确选项。"
+        "4. correctIndex / correctIndices 必须指向真实正确选项。\n"
+        "5. 逐一代入通读：fillBlank 的 choices 与选择题的 options 放进题干后，除标准答案外其余干扰项必须在词性搭配或上下句语境（如否定改点、时间问候）上不成立，严禁出现「三个都能填」；多词音频的听力题必须指明第几个词或说话人。"
     )
 
 

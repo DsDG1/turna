@@ -103,6 +103,7 @@ P0 清点产物，服务于 [`app-design-refresh-plan.md`](./app-design-refresh-
 | [0068](./decisions/0068-ambient-light-and-frosted-glass.md) | L0 环境天光与真毛玻璃档 | [0069](./decisions/0069-course-draft-web-preview.md) | 课程网页目录、草稿预览与反馈修订 |
 | [0070](./decisions/0070-scenario-dialogue-lessons.md) | 情景对话场景与既有题型组合 | [0071](./decisions/0071-review-question-pool.md) | 复习题池与课内错题权重 |
 | [0072](./decisions/0072-phase-two-authoring-and-release-contract.md) | Phase Two 作者契约、媒体与版本边界 | [0073](./decisions/0073-anki-engine-lifecycle-and-shared-card-ownership.md) | 记忆卡引擎生命周期收口与共享来源所有权 |
+| [0074](./decisions/0074-ungraded-guide-lessons.md) | 无判分页式导览课 | — | — |
 
 ## 其它位置
 

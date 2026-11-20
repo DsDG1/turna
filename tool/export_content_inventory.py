@@ -55,6 +55,10 @@ def find_word_ids(obj: Any) -> set[str]:
     if isinstance(obj, dict):
         if obj.get("runtimeType") == "showWord" and "wordId" in obj:
             ids.add(obj["wordId"])
+        if obj.get("runtimeType") == "terms":
+            for term in obj.get("items") or []:
+                if isinstance(term, dict) and term.get("wordId"):
+                    ids.add(term["wordId"])
         if "linkedWordIds" in obj:
             ids.update(obj["linkedWordIds"])
         for value in obj.values():

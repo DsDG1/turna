@@ -45,9 +45,9 @@ void main() {
         File('assets/courses/nouveau-turkish/sections/section1.json')
             .readAsStringSync(),
       );
-      final lesson = section.units.single.lessons.firstWhere(
-        (lesson) => lesson.id == 'nt-u1-l2-dialogue',
-      );
+      final lesson = section.units
+          .expand((unit) => unit.lessons)
+          .firstWhere((lesson) => lesson.id == 'nt-u1-l2-dialogue');
       final scene = lesson.content.dialogueScene;
       expect(lesson.type, LessonType.dialogue);
       expect(lesson.template, LessonTemplate.dialogue);
@@ -84,9 +84,9 @@ void main() {
         File('assets/courses/nouveau-turkish/sections/section1.json')
             .readAsStringSync(),
       );
-      final lesson = section.units.single.lessons.firstWhere(
-        (lesson) => lesson.id == 'nt-u1-l2-dialogue',
-      );
+      final lesson = section.units
+          .expand((unit) => unit.lessons)
+          .firstWhere((lesson) => lesson.id == 'nt-u1-l2-dialogue');
       final scene = lesson.content.dialogueScene!;
       final turns = scene.turns.toList();
       turns[0] = turns[0].copyWith(speakerId: 'missing');
@@ -97,7 +97,9 @@ void main() {
       );
       final brokenSection = section.copyWith(
         units: [
-          section.units.single.copyWith(lessons: [broken]),
+          section.units
+              .firstWhere((unit) => unit.id == 'nt-u1')
+              .copyWith(lessons: [broken]),
         ],
       );
       expect(
@@ -119,7 +121,16 @@ void main() {
         File('assets/courses/nouveau-turkish/sections/section1.json')
             .readAsStringSync(),
       );
-      final lessons = section.units.single.lessons;
+      final guide = section.units
+          .firstWhere((unit) => unit.id == 'nt-u0-turkce-guide')
+          .lessons
+          .single;
+      expect(guide.template, LessonTemplate.guide);
+      expect(guide.content.pages, hasLength(6));
+      expect(guide.flattenedStages, isEmpty);
+
+      final lessons =
+          section.units.firstWhere((unit) => unit.id == 'nt-u1').lessons;
       final playableNodes = lessons.fold<int>(
         0,
         (total, lesson) =>

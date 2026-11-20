@@ -6,7 +6,16 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from course_pedagogy import CHOICE_TYPES, PRODUCTION_TYPES, lesson_items, lesson_sub_lessons, sub_lesson_items
+from course_pedagogy import (
+    CHOICE_TYPES,
+    PRODUCTION_TYPES,
+    is_gradable_pedagogy_item,
+    is_sentence_level_item,
+    is_single_word_meaning_mcq,
+    lesson_items,
+    lesson_sub_lessons,
+    sub_lesson_items,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -58,6 +67,8 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
     template_counts: Counter[str] = Counter()
     answer_positions: Counter[str] = Counter()
     activity_counts: Counter[str] = Counter()
+    sentence_counts: Counter[str] = Counter()
+    single_word_mcq_count = 0
     sublesson_lengths: list[dict[str, Any]] = []
     media: dict[tuple[str, str], dict[str, Any]] = {}
     listening_rows: list[dict[str, Any]] = []
@@ -79,7 +90,11 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
                 sublesson_lengths.append(
                     {"id": sub_lesson.get("id", ""), "items": len(sub_items), "location": location}
                 )
-        elif items or (lesson.get("content") or {}).get("readingPassage"):
+        elif (
+            items
+            or (lesson.get("content") or {}).get("readingPassage")
+            or (lesson.get("content") or {}).get("pages")
+        ):
             playable_nodes += 1
 
         current_terms: set[str] = set()
@@ -92,6 +107,13 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
                 activity_counts["production"] += 1
             else:
                 activity_counts["recognition"] += 1
+            if is_gradable_pedagogy_item(item):
+                if is_sentence_level_item(item):
+                    sentence_counts["sentence"] += 1
+                else:
+                    sentence_counts["word"] += 1
+            if is_single_word_meaning_mcq(item):
+                single_word_mcq_count += 1
             if runtime_type in CHOICE_TYPES and type(item.get("correctIndex")) is int:
                 answer_positions[str(item["correctIndex"])] += 1
             for word_id, term in word_terms.items():
@@ -145,7 +167,7 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
                 }
             )
 
-        def walk_media(value: Any) -> None:
+        def walk_media(value: Any, loc: str) -> None:
             if isinstance(value, dict):
                 for field, child in value.items():
                     if field in {"audioAsset", "imageAsset"} and isinstance(child, str) and child.strip():
@@ -161,13 +183,13 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
                             key,
                             {"asset": asset, "kind": kind, "exists": _media_exists(course_dir, asset, kind), "locations": set()},
                         )
-                        row["locations"].add(location)
-                    walk_media(child)
+                        row["locations"].add(loc)
+                    walk_media(child, loc)
             elif isinstance(value, list):
                 for child in value:
-                    walk_media(child)
+                    walk_media(child, loc)
 
-        walk_media(content)
+        walk_media(content, location)
 
     return {
         "playable_nodes": playable_nodes,
@@ -175,6 +197,8 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
         "template_counts": dict(sorted(template_counts.items())),
         "answer_positions": dict(sorted(answer_positions.items())),
         "activity_counts": dict(sorted(activity_counts.items())),
+        "sentence_counts": dict(sorted(sentence_counts.items())),
+        "single_word_mcq_count": single_word_mcq_count,
         "sublesson_lengths": sublesson_lengths,
         "media": sorted(media.values(), key=lambda row: (row["kind"], row["asset"])),
         "words": word_stats,
@@ -185,12 +209,18 @@ def build_quality_report(course_dir: Path) -> dict[str, Any]:
 
 
 def render_quality_markdown(report: dict[str, Any]) -> str:
+    sentence_n = report.get("sentence_counts", {}).get("sentence", 0)
+    word_n = report.get("sentence_counts", {}).get("word", 0)
+    gradable_n = sentence_n + word_n
+    sentence_pct = (sentence_n / gradable_n * 100.0) if gradable_n else 0.0
     lines = [
         "## Course Quality Metrics",
         "",
         f"- Playable nodes: {report['playable_nodes']}",
         f"- Interaction items: {sum(report['interaction_counts'].values())}",
         f"- Display / recognition / production: {report['activity_counts'].get('display', 0)} / {report['activity_counts'].get('recognition', 0)} / {report['activity_counts'].get('production', 0)}",
+        f"- Sentence / word-level gradable items: {sentence_n} / {word_n} ({sentence_pct:.1f}% sentence-level)",
+        f"- Single-word meaning MCQs: {report.get('single_word_mcq_count', 0)}",
         f"- Choice answer positions: {report['answer_positions']}",
         f"- Lesson templates: {report['template_counts']}",
         "- Learning metrics: 未导入经学习者同意的真实记录，因此不报告完成率或学习效果。",

@@ -21,6 +21,12 @@ class LessonPresentationProfile {
 
 LessonPresentationProfile lessonPresentationProfile(LessonTemplate template) {
   return switch (template) {
+    LessonTemplate.guide => LessonPresentationProfile(
+        icon: Icons.explore_rounded,
+        label: AppStrings.lessonTemplateGuide,
+        progressStyle: SessionProgressStyle.dots,
+        maxWidth: 760,
+      ),
     LessonTemplate.intro => LessonPresentationProfile(
         icon: Icons.school_rounded,
         label: AppStrings.lessonTemplateIntro,

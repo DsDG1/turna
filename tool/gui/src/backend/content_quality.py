@@ -374,6 +374,22 @@ def _score_balance(section: dict[str, Any], issues: list[ContentQualityIssue]) -
         lid = str(lesson.get("id") or "?")
         template = str(lesson.get("template") or "mixed").strip() or "mixed"
         types = _lesson_runtime_types(lesson)
+        if template == TemplateType.GUIDE:
+            pages = (lesson.get("content") or {}).get(ContentKey.PAGES) or []
+            if not pages:
+                issues.append(
+                    ContentQualityIssue(
+                        level="error",
+                        dimension="balance",
+                        message=f"导览课 {lid} 没有页面",
+                        path=f"lessons/{lid}/pages",
+                        lesson_id=lid,
+                    )
+                )
+                scores.append(0.0)
+            else:
+                scores.append(1.0)
+            continue
         if not types:
             issues.append(
                 ContentQualityIssue(
@@ -787,8 +803,15 @@ def score_section(
     scores["distractor"] = _score_distractor(section, issues)
     scores["level_fit"] = _score_level_fit(section, level=level, issues=issues)
     scores["audio_ready"] = _score_audio_ready(section, issues)
+    vocab_list = (
+        resource_pool
+        if resource_pool
+        else [w for w in (section.get("words") or []) if isinstance(w, dict)]
+    )
     for _unit, lesson in _iter_lessons(section):
-        for finding in course_pedagogy.evaluate_lesson_pedagogy(lesson, level=level):
+        for finding in course_pedagogy.evaluate_lesson_pedagogy(
+            lesson, level=level, vocab=vocab_list
+        ):
             issues.append(
                 ContentQualityIssue(
                     level="warning",

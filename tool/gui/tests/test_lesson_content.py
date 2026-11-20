@@ -288,6 +288,32 @@ class LessonBuilderTest(unittest.TestCase):
         for item in choices:
             self.assertIn(item["options"][item["correctIndex"]], {"hello", "thanks"})
 
+    def test_intro_fill_blank_from_example_preserves_meaning_hint(self) -> None:
+        words = [
+            {
+                "id": "w-cay",
+                "term": "çay",
+                "translation": "茶",
+                "example": "Bir çay lütfen. — 请给我一杯茶。",
+            },
+            {
+                "id": "w-kahve",
+                "term": "kahve",
+                "translation": "咖啡",
+                "example": "Bir kahve lütfen. — 请给我一杯咖啡。",
+            },
+        ]
+        lesson = build_intro_lesson("点饮品", "", words)
+        items = lesson["content"]["subLessons"][0]["stages"][0]["items"]
+        fill_blanks = [item for item in items if item["runtimeType"] == "fillBlank"]
+        self.assertTrue(fill_blanks)
+        for fb in fill_blanks:
+            if "请给我" in fb["hint"] or "（" in fb["sentence"]:
+                self.assertTrue(fb["hint"] or "（" in fb["sentence"])
+            else:
+                self.fail(f"fillBlank missing Chinese meaning cue: {fb}")
+        self.assertTrue(any("请给我一杯" in fb["hint"] for fb in fill_blanks))
+
     def test_build_practice_lesson_default_mix(self) -> None:
         lesson = build_practice_lesson("练习", "巩固练习", self.words)
         self.assertEqual(lesson["template"], "practice")

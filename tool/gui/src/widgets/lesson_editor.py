@@ -1,6 +1,7 @@
 """Lesson content editor: dispatches by template to the right content form.
 
 Covers §6.2 template↔content shapes:
+- guide                                -> GuidePagesEditor (read-only inspector)
 - intro / practice / review / legacy  -> SubLessonTreeEditor
 - listening                            -> ListeningPhasesEditor
 - reading                              -> ReadingEditor
@@ -233,6 +234,50 @@ class SubLessonTreeEditor(QWidget):
         add_stage(self._current_sub)
         self._refresh_stages(self._current_sub)
         self.stage_list.setCurrentRow(len(self._current_sub[ContentKey.STAGES]) - 1)
+
+
+class GuidePagesEditor(QWidget):
+    """Read-only page/block inspector that preserves guide JSON on save."""
+
+    def __init__(self, lesson: dict[str, Any]) -> None:
+        super().__init__()
+        self.pages = lesson.setdefault("content", {}).setdefault(ContentKey.PAGES, [])
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("分页导览不含题目；这里检查页面与互动内容，保存时保留原结构。"))
+        splitter = QSplitter()
+        self.page_list = QListWidget()
+        self.detail = QTextEdit()
+        self.detail.setReadOnly(True)
+        splitter.addWidget(self.page_list)
+        splitter.addWidget(self.detail)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 3)
+        layout.addWidget(splitter)
+        for page in self.pages:
+            self.page_list.addItem(page.get("title", page.get("id", "")))
+        self.page_list.currentRowChanged.connect(self._show_page)
+        if self.pages:
+            self.page_list.setCurrentRow(0)
+
+    def _show_page(self, row: int) -> None:
+        if row < 0 or row >= len(self.pages):
+            self.detail.clear()
+            return
+        page = self.pages[row]
+        lines = [page.get("title", ""), page.get("intro", ""), ""]
+        for block in page.get("blocks", []):
+            runtime_type = block.get("runtimeType", "?")
+            title = block.get("title") or block.get("id") or runtime_type
+            lines.append(f"[{runtime_type}] {title}")
+            for key in ("body", "instruction", "translation", "note", "completionNote"):
+                if block.get(key):
+                    lines.append(str(block[key]))
+            for key in ("items", "categories", "cards", "examples", "tokens"):
+                values = block.get(key) or []
+                if values:
+                    lines.append(f"{key}: {len(values)} 项")
+            lines.append("")
+        self.detail.setPlainText("\n".join(lines))
 
 
 class MasteryEditor(QWidget):
@@ -676,6 +721,7 @@ class LessonEditor(QWidget):
     """Container that picks the right editor by lesson template."""
 
     TEMPLATES = (
+        "guide",
         "intro",
         "practice",
         "review",
@@ -727,6 +773,8 @@ class LessonEditor(QWidget):
             self.body_layout.addWidget(ReviewPolicyEditor(self.lesson))
         if template in ("intro", "practice", "review", "legacy"):
             editor: QWidget = SubLessonTreeEditor(self.adapter, self.lesson)
+        elif template == "guide":
+            editor = GuidePagesEditor(self.lesson)
         elif template == "listening":
             editor = ListeningPhasesEditor(self.adapter, self.lesson)
         elif template == "dialogue":

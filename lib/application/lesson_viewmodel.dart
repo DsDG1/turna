@@ -32,6 +32,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/domain/review/review_grade.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/guide_page.dart';
 import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_segment.dart';
@@ -93,15 +94,14 @@ class _SubmittedInteraction {
 
 /// ViewModel for the lesson flow.
 ///
-/// Owns progression through [Stage]s inside a [Lesson]. Every lesson —
+/// Owns progression through [Stage]s inside a [Lesson]. Practice lessons —
 /// normal, listening, reading, review, challenge, or a flat list of
-/// questions — is modelled as `lesson.content.stages`, each holding a
-/// `List<Interaction>`. The viewmodel walks that single list; it never
-/// branches on content type, so adding a new [LessonType] or a new
-/// [Interaction] variant needs no changes here.
+/// questions — are modelled as `lesson.content.stages`, each holding a
+/// `List<Interaction>`. Guide lessons instead advance through ungraded
+/// `content.pages` and settle only their course-completion record.
 ///
-/// Renderers report correctness via [submitInteraction]; the ViewModel
-/// decides when to advance and when the lesson is complete.
+/// Practice renderers report correctness via [submitInteraction]; the
+/// ViewModel decides when to advance and when the lesson is complete.
 @lazySingleton
 class LessonViewModel extends ChangeNotifier {
   final CourseProvider _courseProvider;
@@ -135,6 +135,7 @@ class LessonViewModel extends ChangeNotifier {
   // --- Lesson state ---
   Lesson? _lesson;
   List<Stage> _cachedStages = const [];
+  int _currentGuidePageIndex = 0;
   int _currentStageIndex = 0;
   int _currentInteractionIndex = 0;
   int _totalMistakes = 0;
@@ -222,7 +223,16 @@ class LessonViewModel extends ChangeNotifier {
 
   Lesson? get lesson => _lesson;
   LessonType get lessonType => _lesson?.type ?? LessonType.normal;
+  bool get isGuide => _lesson?.template == LessonTemplate.guide;
   bool get isComplete => _isComplete;
+
+  int get guidePageIndex => _currentGuidePageIndex;
+  int get guidePageCount => _lesson?.content.pages.length ?? 0;
+  GuidePage? get currentGuidePage {
+    final pages = _lesson?.content.pages;
+    if (pages == null || pages.isEmpty) return null;
+    return pages[_currentGuidePageIndex.clamp(0, pages.length - 1)];
+  }
 
   // --- Sub-lesson playback API ---
 
@@ -502,6 +512,7 @@ class LessonViewModel extends ChangeNotifier {
   static bool _lessonHasBody(Lesson lesson) {
     final c = lesson.content;
     return c.stages.isNotEmpty ||
+        c.pages.isNotEmpty ||
         c.subLessons.isNotEmpty ||
         c.listeningPhases.isNotEmpty ||
         c.dialogueScene != null ||
@@ -538,6 +549,7 @@ class LessonViewModel extends ChangeNotifier {
   /// Shared by [loadLesson] and [loadLessonInstance] so the two entry points
   /// can never drift apart.
   void _resetToLesson(Lesson lesson) {
+    _currentGuidePageIndex = 0;
     _segments = lesson.segments;
     _cachedStages = [
       for (final segment in _segments) ...segment.stages,
@@ -615,6 +627,46 @@ class LessonViewModel extends ChangeNotifier {
     _segmentCorrectBase = _correctAnswers;
     _segmentIncorrectBase = _incorrectAnswers;
     _segmentResultsBase = _questionResults.length;
+  }
+
+  void previousGuidePage() {
+    if (!isGuide || _isComplete || _currentGuidePageIndex == 0) return;
+    _currentGuidePageIndex--;
+    notifyListeners();
+  }
+
+  void nextGuidePage() {
+    if (!isGuide || _isComplete || guidePageCount == 0) return;
+    if (_currentGuidePageIndex < guidePageCount - 1) {
+      _currentGuidePageIndex++;
+      notifyListeners();
+      return;
+    }
+    unawaited(_completeGuide());
+  }
+
+  void restartGuide() {
+    if (!isGuide) return;
+    _currentGuidePageIndex = 0;
+    _isComplete = false;
+    _completionStarted = false;
+    notifyListeners();
+  }
+
+  Future<void> _completeGuide() async {
+    if (_completionStarted) return;
+    _completionStarted = true;
+    _isComplete = true;
+    notifyListeners();
+    try {
+      await _completionCoordinator.completeGuide(lessonId: _lesson!.id);
+    } catch (e, st) {
+      logger.w(
+        'Guide completion failed: ${_lesson!.id}',
+        error: e,
+        stackTrace: st,
+      );
+    }
   }
 
   /// Submit the current interaction with a correctness verdict.

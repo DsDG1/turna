@@ -63,6 +63,13 @@ def iter_lesson_refs(lesson: dict[str, Any]) -> Iterator[tuple[str, str]]:
             if ref:
                 yield kind, str(ref)
     content = lesson.get("content") or {}
+    for page in content.get("pages", []) or []:
+        for block in page.get("blocks", []) or []:
+            if block.get("runtimeType") != "terms":
+                continue
+            for term in block.get("items", []) or []:
+                if term.get("wordId"):
+                    yield "word", str(term["wordId"])
     for gid in content.get("linkedGrammarPointIds", []) or []:
         if gid:
             yield "grammar", str(gid)

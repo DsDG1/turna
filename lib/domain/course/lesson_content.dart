@@ -2,6 +2,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'dialogue_scene.dart';
+import 'guide_page.dart';
 import 'listening_phase.dart';
 import 'reading_passage.dart';
 import 'review_policy.dart';
@@ -14,6 +15,7 @@ part 'lesson_content.g.dart';
 /// The body of a [Lesson].
 ///
 /// Different lesson templates use different parts of this union-like shape:
+/// - **Guide** lessons use ungraded [pages].
 /// - **Normal / review / challenge** lessons use [stages].
 /// - **Intro / practice** lessons use [subLessons].
 /// - **Listening** lessons use [listeningPhases].
@@ -28,6 +30,9 @@ abstract class LessonContent with _$LessonContent {
     /// Legacy / default flat stage list. Used by dialogue, review, challenge,
     /// and reading-comprehension questions.
     @Default(<Stage>[]) List<Stage> stages,
+
+    /// Guide lessons present ungraded, page-based interactive explanations.
+    @Default(<GuidePage>[]) List<GuidePage> pages,
 
     /// Intro / practice lessons split their content into sub-lessons.
     @Default(<SubLesson>[]) List<SubLesson> subLessons,

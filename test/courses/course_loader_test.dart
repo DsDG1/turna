@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/course_validator.dart';
+import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
@@ -373,10 +374,14 @@ void main() {
 
   group('validateCourse', () {
     late List<WordEntry> vocab;
+    late List<Expression> expressions;
 
     setUpAll(() {
       vocab = parseVocabulary(
           File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync());
+      expressions = parseExpressions(
+          File('assets/courses/nouveau-turkish/expressions.json')
+              .readAsStringSync());
     });
 
     List<Section> oneLessonSections(Lesson lesson) => [
@@ -398,7 +403,7 @@ void main() {
     test('accepts a well-formed course (no throw)', () {
       final sections = _loadAllSections();
       // The bundled course must pass its own validator.
-      expect(() => validateCourse(sections, vocab), returnsNormally);
+      expect(() => validateCourse(sections, vocab, expressions), returnsNormally);
     });
 
     test('throws on a duplicate stage id within a lesson', () {
@@ -597,11 +602,16 @@ void main() {
 
   group('validateSection', () {
     late Set<String> vocabIds;
+    late Set<String> expressionIds;
 
     setUpAll(() {
       final vocab = parseVocabulary(
           File('assets/courses/nouveau-turkish/vocab.json').readAsStringSync());
       vocabIds = {for (final w in vocab) w.id};
+      final expressions = parseExpressions(
+          File('assets/courses/nouveau-turkish/expressions.json')
+              .readAsStringSync());
+      expressionIds = {for (final e in expressions) e.id};
     });
 
     Section oneLessonSection(Lesson lesson) => Section(
@@ -620,7 +630,9 @@ void main() {
 
     test('accepts each bundled section in isolation (no throw)', () {
       for (final section in _loadAllSections()) {
-        expect(() => validateSection(section, vocabIds), returnsNormally,
+        expect(
+            () => validateSection(section, vocabIds, expressionIds),
+            returnsNormally,
             reason: 'section ${section.id} should pass per-section validation');
       }
     });

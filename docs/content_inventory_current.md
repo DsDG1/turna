@@ -11,21 +11,21 @@
 - Distinct audio asset references: 12
 - Vocabulary words referenced by at least one lesson: 17
 - Sections: 8
-- Units (all sections): 1
-- Lessons (all sections): 24
+- Units (all sections): 2
+- Lessons (all sections): 25
 
 ## Section scale (design contract: ≤60 units/section, ≤40 lessons/unit)
 
 | section | name | units | lessons | max lessons/unit |
 |---|---|---:|---:|---:|
-| nt-s1 | 起步 · Merhaba | 1 | 24 | 24 |
-| nt-s2 | 规划 · 家与日常 | 0 | 0 | 0 |
-| nt-s3 | 规划 · 城里怎么走 | 0 | 0 | 0 |
-| nt-s4 | 规划 · 购物与办事 | 0 | 0 | 0 |
-| nt-s5 | 规划 · 旅行与经历 | 0 | 0 | 0 |
-| nt-s6 | 规划 · 学习与工作 | 0 | 0 | 0 |
-| nt-s7 | 规划 · 文化与社会 | 0 | 0 | 0 |
-| nt-s8 | 规划 · 未来与可持续生活 | 0 | 0 | 0 |
+| nt-s1 | Merhaba! · İlk Adımlar | 2 | 25 | 24 |
+| nt-s2 | Ev ve Günlük Yaşam | 0 | 0 | 0 |
+| nt-s3 | Şehirde Yol Bulma | 0 | 0 | 0 |
+| nt-s4 | Alışveriş ve Günlük İşler | 0 | 0 | 0 |
+| nt-s5 | Seyahat ve Deneyimler | 0 | 0 | 0 |
+| nt-s6 | Eğitim, İş ve Gelecek Planları | 0 | 0 | 0 |
+| nt-s7 | Kültür, Medya ve Toplum | 0 | 0 | 0 |
+| nt-s8 | Gelecek ve Sürdürülebilir Yaşam | 0 | 0 | 0 |
 
 ## Vocabulary
 
@@ -34,7 +34,7 @@
 | nt-w-bir | bir | 一 | number | nt-s1/nt-u1/nt-u1-l3-order; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-buyuk | büyük | 大的 | adjective | nt-s1/nt-u1/nt-u1-l4-politeness; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-cay | çay | 茶 | noun | nt-s1/nt-u1/nt-u1-l3-order; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
-| nt-w-ev | ev | 房子 | noun | nt-s1/nt-u1/nt-u1-l1; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
+| nt-w-ev | ev | 房子 | noun | nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-evet | Evet | 是；对 | particle | nt-s1/nt-u1/nt-u1-l4-politeness; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-gunaydin | Günaydın | 早上好 | greeting | nt-s1/nt-u1/nt-u1-l4-politeness; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-hayir | Hayır | 不；不是 | particle | nt-s1/nt-u1/nt-u1-l4-politeness; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
@@ -46,8 +46,8 @@
 | nt-w-sicak | sıcak | 热的 | adjective | nt-s1/nt-u1/nt-u1-l4-politeness; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-soguk | soğuk | 冷的 | adjective | nt-s1/nt-u1/nt-u1-l4-politeness; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-w-su | su | 水 | noun | nt-s1/nt-u1/nt-u1-l3-order; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
-| nt-w-tesekkurler | teşekkürler | 谢谢 | greeting | nt-s1/nt-u1/nt-u1-l1; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
-| nt-w-turkce | Türkçe | 土耳其语 | noun | nt-s1/nt-u1/nt-u1-l1 |
+| nt-w-tesekkurler | teşekkürler | 谢谢 | greeting | nt-s1/nt-u1/nt-u1-l1; nt-s1/nt-u1/nt-u1-p4-thanks; nt-s1/nt-u1/nt-u1-read-1; nt-s1/nt-u1/nt-u1-read-2; nt-s1/nt-u1/nt-u1-read-3 |
+| nt-w-turkce | Türkçe | 土耳其语 | noun | nt-s1/nt-u0-turkce-guide/nt-u0-l1-turkce-guide |
 
 ## Expressions
 
@@ -55,7 +55,7 @@
 |---|---|---|---|---|
 | nt-e-buyurun | Buyurun! | 您请；请进；请说 | greeting | nt-s1/nt-u1/nt-u1-read-2 |
 | nt-e-ne-istersiniz | Ne istersiniz? | 您想要什么？ | question | nt-s1/nt-u1/nt-u1-read-2 |
-| nt-e-rica-ederim | Rica ederim | 不客气 | greeting | nt-s1/nt-u1/nt-u1-read-3 |
+| nt-e-rica-ederim | Rica ederim | 不客气 | greeting | nt-s1/nt-u1/nt-u1-p4-thanks; nt-s1/nt-u1/nt-u1-read-3 |
 | nt-e-tesekkur-ederim | Teşekkür ederim | 谢谢您 | greeting | nt-s1/nt-u1/nt-u1-read-1 |
 
 ## Grammar Points
@@ -82,25 +82,27 @@
 
 ## Course Quality Metrics
 
-- Playable nodes: 27
-- Interaction items: 248
-- Display / recognition / production: 18 / 73 / 157
-- Choice answer positions: {'0': 22, '1': 21, '2': 15}
-- Lesson templates: {'dialogue': 3, 'intro': 3, 'legacy': 2, 'listening': 4, 'mastery': 1, 'practice': 7, 'reading': 3, 'review': 1}
+- Playable nodes: 28
+- Interaction items: 256
+- Display / recognition / production: 17 / 47 / 192
+- Sentence / word-level gradable items: 217 / 18 (92.3% sentence-level)
+- Single-word meaning MCQs: 5
+- Choice answer positions: {'0': 11, '1': 14, '2': 8}
+- Lesson templates: {'dialogue': 3, 'guide': 1, 'intro': 3, 'legacy': 2, 'listening': 4, 'mastery': 1, 'practice': 7, 'reading': 3, 'review': 1}
 - Learning metrics: 未导入经学习者同意的真实记录，因此不报告完成率或学习效果。
 
 ### SubLesson sizes
 
 | subLesson | items | location |
 |---|---:|---|
-| nt-u1-l1-sl1 | 13 | nt-s1/nt-u1/nt-u1-l1 |
+| nt-u1-l1-sl1 | 12 | nt-s1/nt-u1/nt-u1-l1 |
 | nt-u1-l1-sl2 | 13 | nt-s1/nt-u1/nt-u1-l1 |
 | nt-u1-l3-sl1 | 12 | nt-s1/nt-u1/nt-u1-l3-order |
 | nt-u1-l3-sl2 | 12 | nt-s1/nt-u1/nt-u1-l3-order |
 | nt-u1-p2-drinks-sl | 12 | nt-s1/nt-u1/nt-u1-p2-drinks |
 | nt-u1-p3-order-sl | 12 | nt-s1/nt-u1/nt-u1-p3-order |
-| nt-u1-l4-sl1 | 12 | nt-s1/nt-u1/nt-u1-l4-politeness |
-| nt-u1-l4-sl2 | 12 | nt-s1/nt-u1/nt-u1-l4-politeness |
+| nt-u1-l4-sl1 | 13 | nt-s1/nt-u1/nt-u1-l4-politeness |
+| nt-u1-l4-sl2 | 13 | nt-s1/nt-u1/nt-u1-l4-politeness |
 | nt-u1-p1-greetings-sl | 12 | nt-s1/nt-u1/nt-u1-p1-greetings |
 | nt-u1-p4-thanks-sl | 12 | nt-s1/nt-u1/nt-u1-p4-thanks |
 | nt-u1-p5-answers-sl | 12 | nt-s1/nt-u1/nt-u1-p5-answers |
@@ -111,41 +113,40 @@
 
 | type | count |
 |---|---:|
-| fillBlank | 66 |
+| fillBlank | 55 |
 | listenAndPick | 4 |
 | listenOnly | 4 |
-| multiSelect | 1 |
-| multipleChoice | 51 |
-| readAloud | 21 |
+| multipleChoice | 26 |
+| readAloud | 34 |
 | readingMcq | 3 |
 | readingShortAnswer | 3 |
 | readingTrueFalse | 3 |
-| reorderSentence | 20 |
-| showWord | 18 |
-| translateSentence | 50 |
+| reorderSentence | 55 |
+| showWord | 17 |
+| translateSentence | 48 |
 | typeTheWord | 4 |
 
 ### Vocabulary recurrence
 
 | word | first exposure | production | later lesson |
 |---|---|---|---|
-| nt-w-turkce | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l2-dialogue |
-| nt-w-ev | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | — |
+| nt-w-turkce | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l3-order |
+| nt-w-ev | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l3-order |
 | nt-w-merhaba | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l2-dialogue |
 | nt-w-tesekkurler | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l2-dialogue |
-| nt-w-cay | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order |
-| nt-w-kahve | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l3-order |
-| nt-w-su | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order |
-| nt-w-lutfen | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-p3-order |
-| nt-w-bir | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l1 | nt-s1/nt-u1/nt-u1-l3-order |
+| nt-w-cay | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-p2-drinks |
+| nt-w-kahve | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-p2-drinks |
+| nt-w-su | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-p2-drinks |
+| nt-w-lutfen | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-p2-drinks |
+| nt-w-bir | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-l3-order | nt-s1/nt-u1/nt-u1-p2-drinks |
 | nt-w-gunaydin | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p1-greetings |
-| nt-w-hoscakal | nt-s1/nt-u1/nt-u1-l5-order-dialogue | nt-s1/nt-u1/nt-u1-l5-order-dialogue | nt-s1/nt-u1/nt-u1-l4-politeness |
-| nt-w-evet | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p5-answers |
-| nt-w-hayir | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p5-answers |
-| nt-w-buyuk | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p6-preferences |
-| nt-w-kucuk | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p6-preferences |
-| nt-w-sicak | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p6-preferences |
-| nt-w-soguk | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-speak-2 |
+| nt-w-hoscakal | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p1-greetings |
+| nt-w-evet | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p4-thanks |
+| nt-w-hayir | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p1-greetings |
+| nt-w-buyuk | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p1-greetings |
+| nt-w-kucuk | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p5-answers |
+| nt-w-sicak | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p1-greetings |
+| nt-w-soguk | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-l4-politeness | nt-s1/nt-u1/nt-u1-p1-greetings |
 
 ### Listening coverage
 
@@ -192,4 +193,4 @@
 | assets/images/course/nt/story-ev.svg | image | ok | nt-s1/nt-u1/nt-u1-read-1 |
 | assets/images/course/nt/story-order.svg | image | ok | nt-s1/nt-u1/nt-u1-read-2 |
 | assets/images/course/nt/story-preferences.svg | image | ok | nt-s1/nt-u1/nt-u1-read-3 |
-| assets/images/course/nt/su.svg | image | ok | nt-s1/nt-u1/nt-u1-l3-order |
+| assets/images/course/nt/su.svg | image | ok | nt-s1/nt-u1/nt-u1-l3-order; nt-s1/nt-u1/nt-u1-p2-drinks |

@@ -17,7 +17,7 @@
 
 | 类型 | 用途 | 推荐模板 | 核心内容字段 |
 |------|------|----------|--------------|
-| `normal` | 普通新课或常规练习 | `intro` / `practice` / `legacy` | `subLessons` 或 `stages` |
+| `normal` | 普通新课或常规练习 | `guide` / `intro` / `practice` / `legacy` | `pages`、`subLessons` 或 `stages` |
 | `listening` | 听力专项训练 | `listening` | `listeningPhases` |
 | `dialogue` | 角色对话与学习者回应 | `dialogue` | `dialogueScene` + `stages` |
 | `reading` | 阅读理解训练 | `reading` | `readingPassage` + `stages` |
@@ -135,9 +135,12 @@
 ### 设计检查清单
 
 - [ ] 是否明确了这节课要教授的 `linkedGrammarPointIds`
-- [ ] 新词是否先在 `vocab.json` 中定义
-- [ ] 子课数量是否在 2–5 个之间（体量契约见上文：n ≥ 2，材料量决定，不设固定值）
-- [ ] 是否有至少一种产出型练习（翻译 / 填空 / 排序）
+- [ ] 新词是否先在 `vocab.json` 中定义，`showWord` 的 `context`/`example` 是否采用 `目标语句 — 中文说明` 格式
+- [ ] 两个首次新词之间是否至少间隔 2 道题（索引差 ≥ 3）
+- [ ] 子课数量是否在 2–5 个之间（每个子课 12–15 题）
+- [ ] 孤立单词选义单选是否已控制到位（`intro` 每子课 ≤ 2 道，`practice` 为 0 道）
+- [ ] 是否已杜绝 `「词」= _____` 等号式伪填空，且可作答题以真实句子为主（`intro` ≥ 55%，`practice` ≥ 80%）
+- [ ] 逐个代入 `fillBlank` 候选词与选择题选项后是否仅有唯一解（无「多个同类词都能填」且 `fillBlank` 未挂载 `assets/` 路径图片）
 
 ---
 
@@ -241,6 +244,7 @@
 
 - [ ] 音频资源是否已放入 `assets/sounds/` 并在 `pubspec.yaml` 注册
 - [ ] 是否有 `wordPairing` → `dialogue` → `summary` 的完整三阶段
+- [ ] 多词音频的 `listenAndPick` / `typeTheWord` 是否在题干指明词序或说话人（不让音频中的多个选项同时满足题干）
 - [ ] 对话阶段题目是否基于音频内容而非常识
 - [ ] 是否为每个听力阶段提供了 `transcript`
 
@@ -389,11 +393,18 @@
             "name": "Recall",
             "items": [
               {
-                "runtimeType": "multipleChoice",
+                "runtimeType": "fillBlank",
                 "id": "rv-1",
-                "prompt": "How do you say 'Thank you'?",
-                "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
-                "correctIndex": 1
+                "sentence": "— Bir çay _____!\n— Buyurun!",
+                "answer": "lütfen",
+                "choices": ["lütfen", "Merhaba"]
+              },
+              {
+                "runtimeType": "reorderSentence",
+                "id": "rv-2",
+                "prompt": "请给我一杯茶",
+                "scrambled": ["çay", "lütfen", "Bir"],
+                "correct": ["Bir", "çay", "lütfen"]
               }
             ]
           }
@@ -406,10 +417,12 @@
 
 ### 设计检查清单
 
-- [ ] 是否只包含已学过的内容
+- [ ] 是否只包含已学过的内容，且题池内无重复题目
 - [ ] 是否跨多个前置课时进行综合复习
 - [ ] 是否设置了正确的前置依赖 `prerequisiteLessonIds`
+- [ ] 句子级题目占比是否达到 ≥ 80%，且不出孤立单词选义单选与 `= _____` 伪填空
 - [ ] 题目数量是否足够覆盖每个前置课时的核心点
+- [ ] 每道填空/选择题代入所有候选词后是否仅有唯一正确答案，无多个同类词可同时成立
 
 ---
 
@@ -481,7 +494,70 @@
 - [ ] 是否位于单元末尾并依赖本单元所有核心课
 - [ ] 题目是否覆盖了本单元的核心词汇和语法
 - [ ] 是否避免引入未学过的表达
+- [ ] 句子级题目占比是否达到 ≥ 80%，且不出孤立单词选义单选与 `= _____` 伪填空
 - [ ] 是否设置了合理的通过门槛（由 App 层控制）
+- [ ] 逐一自读通读每道题并代入所有候选词，确认唯一解且不要求产出「只听不说」的店员侧表达
+
+---
+
+## 6. `guide` — 分页导览课
+
+用于语言认识、文化背景和规则观察。`type` 仍为 `normal`，`template` 为 `guide`，正文只写 `content.pages`，不得混入 `stages`、`subLessons` 或 `listeningPhases`。页面不是逐题 Interaction：没有正确率、错题、SRS 或答题奖励，到达最后一页后仅记录课程完成。
+
+每页包含稳定 `id`、`title`，可选 `kicker`、`intro` 与 `blocks`。末页可设置 `nextLabel`、`nextLessonId`、可选 `nextSubLessonId`，完成页据此进入下一课；`nextSubLessonId` 不得单独出现。
+
+### 内容块
+
+| `runtimeType` | 用途 | 核心字段 |
+|---|---|---|
+| `text` | 标题与长段介绍 | `title?`、`body` |
+| `terms` | 点读词卡或字母卡 | `items[]`，每项 `text`、`translation`、`note`、`speechText?`、`wordId?`；`compact: true` 使用紧凑网格 |
+| `classification` | 通用拖拽／点选分类 | `categories[]` 与 `cards[]`；卡片用 `categoryId` 指向应探索的分类，并可写 `hint`、`highlight` |
+| `suffixBuilder` | 词根与词尾组合探索 | `examples[]`；每个例子的 `steps[]` 写 `suffix`、完整 `result`、`meaning` |
+| `wordOrder` | 语序与句子成分探索 | `tokens[]`，每项 `text`、`role`、`meaning`，可选 `optional`；有可选词块时必须写 `optionalToggleLabel` |
+
+分类的 `categoryId` 只用于即时解释，不计对错，不阻止翻页。`terms.wordId` 只追踪课程资源引用，不注册复习调度。所有页面与块 ID 在课内唯一；分类至少两个区域，互动列表不得为空。
+
+```json
+{
+  "id": "nt-u0-l1-turkce-guide",
+  "name": "认识土耳其语",
+  "type": "normal",
+  "template": "guide",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "pages": [
+      {
+        "id": "guide-tr-1-world",
+        "kicker": "第一印象",
+        "title": "你已经在接触土耳其语",
+        "intro": "先不背词，也不做题。",
+        "blocks": [
+          {
+            "runtimeType": "text",
+            "id": "guide-tr-1-where",
+            "title": "它在什么地方",
+            "body": "土耳其语（Türkçe）属于突厥语族。"
+          },
+          {
+            "runtimeType": "terms",
+            "id": "guide-tr-1-terms",
+            "title": "点一点，先听个大概",
+            "items": [
+              {
+                "text": "Türkçe",
+                "translation": "土耳其语",
+                "note": "语言的名字",
+                "wordId": "nt-w-turkce"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -496,6 +572,7 @@
 
 | 模板 | 使用字段 | 不要混用 |
 |------|----------|----------|
+| `guide` | `pages` | 任何答题阶段或子课 |
 | `intro` / `practice` | `subLessons` | 与 `stages` 同时作为主线 |
 | `review` | `subLessons`，或平铺 `stages` + 可选 `reviewPolicy` | 随机题池不与子课混用 |
 | `listening` | `listeningPhases` | — |
