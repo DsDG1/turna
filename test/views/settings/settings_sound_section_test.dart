@@ -55,7 +55,7 @@ void main() {
     expect(find.text('Haptic feedback'), findsOneWidget);
     expect(settings.soundEffectsEnabled, isTrue);
 
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byKey(const Key('settings-square-switch')).first);
     await tester.pumpAndSettle();
     expect(settings.soundEffectsEnabled, isFalse);
   });

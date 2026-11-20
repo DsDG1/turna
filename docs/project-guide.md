@@ -56,13 +56,13 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 
 ```
 Section → Unit → Lesson
-  → SubLesson / ListeningPhase / DialogueScene / ReadingPassage
-  → Stage → Interaction
+  → SubLesson / ListeningPhase / DialogueScene / ReadingPassage / GuidePage
+  → Stage → Interaction，或无判分 GuideBlock
 ```
 
 全是 Freezed 不可变类 + JSON 序列化，`Lesson.flattenedStages` 把嵌套内容展平成渲染器可遍历的 `List<Stage>`。Interaction 题型清单以 `lib/domain/course/interaction.dart` 为准（不在此处数数），均 `@injectable` 注册到 GetIt：`showWord`、`multipleChoice`、`multiSelect`、`fillBlank`（打字比对走 `foldTurkish`）、`translateSentence`、`reorderSentence`、`typeTheWord`、`listenAndPick`、`listenOnly`、`imageRecall`、`dictation`、`readingMcq`、`readingTrueFalse`、`readingShortAnswer`、`ankiCard`、`ankiHtmlCard`（官方复习路径用 WebView 渲染原 notetype HTML，存量卡降级为占位卡）、`readAloud`（跟读，[ADR 0061](./decisions/0061-read-aloud-word-matching.md)：平台识别 + 词面匹配，Android/iOS；其余平台降级为听示范卡）。
 
-7 种教学模板 + 1 种兜底：intro 认识新词；practice 受控语境反复操练填空 / 翻译 / 组句；listening 听力训练（自下而上的语音解码）；dialogue 情景对话（角色轮次 + 学习者以既有题型回应，[ADR 0070](./decisions/0070-scenario-dialogue-lessons.md)）；reading 阅读理解（短文 + 三道递进题）；review 跨单元回顾，可用 `reviewPolicy` 从平铺题池按作者权重与课内错题加权随机抽题（[ADR 0071](./decisions/0071-review-question-pool.md)）；mastery 混合题型限时完成；legacy 兜底模板，兼容旧版课程数据。课时视图由 `lesson_presentation.dart` 的 `LessonPresentationProfile` 集中提供模板图标、进度样式与内容宽度；题型仍由 renderer 插件负责，听力对话的阶段音频与原文经 `ListeningPhaseHeader` 接入共用会话骨架，情景对话经 `DialogueSceneHeader` 接入同一骨架。
+8 种教学模板 + 1 种兜底：guide 分页语言认识课，以无判分的内容块提供介绍、点读与探索互动，读完只记课程完成，不写正确率、错题或 SRS（[ADR 0074](./decisions/0074-ungraded-guide-lessons.md)）；intro 认识新词；practice 受控语境反复操练填空 / 翻译 / 组句；listening 听力训练（自下而上的语音解码）；dialogue 情景对话（角色轮次 + 学习者以既有题型回应，[ADR 0070](./decisions/0070-scenario-dialogue-lessons.md)）；reading 阅读理解（短文 + 三道递进题）；review 跨单元回顾，可用 `reviewPolicy` 从平铺题池按作者权重与课内错题加权随机抽题（[ADR 0071](./decisions/0071-review-question-pool.md)）；mastery 混合题型限时完成；legacy 兜底模板，兼容旧版课程数据。课时视图由 `lesson_presentation.dart` 的 `LessonPresentationProfile` 集中提供模板图标、进度样式与内容宽度；题型仍由 renderer 插件负责，听力对话的阶段音频与原文经 `ListeningPhaseHeader` 接入共用会话骨架，情景对话经 `DialogueSceneHeader` 接入同一骨架。
 
 > 写课时内容的完整契约见 [`authoring/lesson-type-templates.md`](./authoring/lesson-type-templates.md)、[`authoring/course-layout.md`](./authoring/course-layout.md)、[`authoring/listening-show-format.md`](./authoring/listening-show-format.md)。
 
@@ -154,7 +154,7 @@ AI 练习生成：`lib/application/ai/practice/` 是唯一入口。`AiPracticeGe
 
 主 CTA 渐变 `brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`；做题页底栏主按钮走竖向变体 `primaryCtaDecoration(vertical: true)`——轴向自下往上，视觉上"上亮下暗"）。角色边界：success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip；高对比模式下 secondary 可以偏离 clay。Android 状态栏/导航栏对齐 AppBar 表面（不是铺一条 teal）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。
 
-材质分为纸面、静态彩色玻璃、扁平控件与磨砂浮层；分别由 `TurnaTheme.flatPaperDecoration`、`GlassSurface`、按钮/选项组件和底部胶囊承担，不在长列表逐项做背景模糊。间距使用 `lib/core/spacing.dart` 的 4 点节奏，圆角使用 `TurnaTheme.radiusSmall` 至 `radiusXLarge`，卡片 / 卡片容器统一走 `TurnaTheme.cardRadius`（4）；`lib/core/motion.dart` 是跨功能动效 token。跨功能卡片与图标井在 `lib/views/widgets/turna_cards.dart`，几何品牌图形在 `turna_geometry.dart`，以静态 CustomPainter 提供涟漪、旅程、连接与成就四种构图，深色和高对比自动切换且不进入语义树。两个组件文件附 `@Preview` 浅色/深色样板。
+材质分为纸面、静态彩色玻璃、扁平控件与磨砂浮层；分别由 `TurnaTheme.flatPaperDecoration`、`GlassSurface`、按钮/选项组件和底部胶囊承担，不在长列表逐项做背景模糊。间距使用 `lib/core/spacing.dart` 的 4 点节奏，圆角使用 `TurnaTheme.radiusSmall` 至 `radiusXLarge`，卡片 / 卡片容器统一走 `TurnaTheme.cardRadius`（4）；设置域的按钮、开关、滑杆、分段选择与下拉通过局部 `SettingsSquareControlTheme` 使用直角，不改全局圆角令牌。`lib/core/motion.dart` 是跨功能动效 token。跨功能卡片与图标井在 `lib/views/widgets/turna_cards.dart`，几何品牌图形在 `turna_geometry.dart`，由 CustomPainter 绘制且不进入语义树；页级 `TurnaGeometryBackdrop` 增加小幅滚动视差与展开时局部模糊/淡化，减少动效时静止，高对比时不绘制。两个组件文件附 `@Preview` 浅色/深色样板。
 
 宽屏内容由 `TurnaPageContent` 居中约束：学习主列约 720，工具与数据页约 840，主 Tab 壳约 960；手机布局不增加额外断点。启动页复用应用标识和旅程几何构图，但不为品牌展示增加等待。`PracticeEmptyState` 统一空内容、可恢复失败与下一步操作，完成页保留真实结算数据、装饰徽章和可滚动的大字号布局。
 

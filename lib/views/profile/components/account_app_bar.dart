@@ -1,7 +1,5 @@
 // Flutter imports:
-// dart:ui 的 ImageFilter 供 ADR 0068 的真毛玻璃档使用。
 import 'dart:async' show unawaited;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -22,7 +20,6 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/components/avatar_picker_sheet.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
-import 'package:turna/views/widgets/turna_geometry.dart';
 
 /// Hero-style profile header: avatar, name, one-line bio, edit + share.
 ///
@@ -74,191 +71,147 @@ class AccountWidget extends StatelessWidget {
     required CosmeticItem? profileTheme,
     required SettingsProvider? settings,
   }) {
-        final displayName =
-            user.displayName ?? AppStrings.profileLearnerFallback;
-        final bio = user.bio?.trim() ?? '';
-        final avatar = AvatarCatalog.resolve(user.avatarId);
+    final displayName = user.displayName ?? AppStrings.profileLearnerFallback;
+    final bio = user.bio?.trim() ?? '';
+    final avatar = AvatarCatalog.resolve(user.avatarId);
 
-        // ADR 0068：个人头卡是「一屏里唯一的主体卡」，因此走真毛玻璃档 ——
-        // 半透明淡彩 + 实时背景模糊，把 L0 那三片天光糊开透上来。高对比 /
-        // 降级模式退回实色卡（`GlassMode.off` 下模糊等于白烧采样）。
-        final radius = BorderRadius.circular(TurnaTheme.cardRadius);
-        final fill = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: profileTheme != null
+    // 滚动头卡使用静态淡彩玻璃，不做实时背景采样，避免合成层在滚动时闪烁。
+    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
+    final fill = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: profileTheme != null
+          ? [
+              profileTheme.accentColor!.withValues(
+                alpha: isDark ? 0.42 : 0.18,
+              ),
+              (profileTheme.secondaryColor ?? profileTheme.accentColor!)
+                  .withValues(alpha: isDark ? 0.3 : 0.22),
+            ]
+          : isDark
               ? [
-                  profileTheme.accentColor!.withValues(
-                    alpha: isDark ? 0.42 : 0.18,
-                  ),
-                  (profileTheme.secondaryColor ?? profileTheme.accentColor!)
-                      .withValues(alpha: isDark ? 0.3 : 0.22),
+                  TurnaTheme.brandTeal.withValues(alpha: 0.35),
+                  TurnaTheme.brandNavy.withValues(alpha: 0.45),
                 ]
-              : isDark
-                  ? [
-                      TurnaTheme.brandTeal.withValues(alpha: 0.35),
-                      TurnaTheme.brandNavy.withValues(alpha: 0.45),
-                    ]
-                  : [
-                      TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                      TurnaTheme.brandSky.withValues(alpha: 0.18),
+              : [
+                  TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                  TurnaTheme.brandSky.withValues(alpha: 0.18),
+                ],
+    );
+    // Clip + column so the clay→sand brand strip sits under rounded corners.
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Always-on secondary brand strip (wetland clay visibility polish).
+        Container(
+          height: 3,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                TurnaTheme.anatolianClay,
+                TurnaTheme.warmSand.withValues(alpha: 0.85),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 15, 14, 18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                button: true,
+                label: AppStrings.accountAvatarChangeTooltip,
+                child: GestureDetector(
+                  onTap: () => showAvatarPickerSheet(context, user: user),
+                  child: AvatarWithRing(
+                    radius: 32,
+                    ring: equippedRing,
+                    gapColor: TurnaTheme.cardBg(context),
+                    backgroundColor: avatar.background.withValues(alpha: 0.15),
+                    child: Text(
+                      avatar.emoji,
+                      style: const TextStyle(fontSize: 30),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    if (bio.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        bio,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: TurnaTheme.textSecondaryColor(context),
+                            ),
+                      ),
                     ],
-        );
-        // Clip + column so the clay→sand brand strip sits under rounded corners.
-        final body = Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Always-on secondary brand strip (wetland clay visibility polish).
-            Container(
-              height: 3,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    TurnaTheme.anatolianClay,
-                    TurnaTheme.warmSand.withValues(alpha: 0.85),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 15, 14, 18),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
                 children: [
-                  Semantics(
-                    button: true,
-                    label: AppStrings.accountAvatarChangeTooltip,
-                    child: GestureDetector(
-                      onTap: () => showAvatarPickerSheet(context, user: user),
-                      child: AvatarWithRing(
-                        radius: 32,
-                        ring: equippedRing,
-                        gapColor: TurnaTheme.cardBg(context),
-                        backgroundColor:
-                            avatar.background.withValues(alpha: 0.15),
-                        child: Text(
-                          avatar.emoji,
-                          style: const TextStyle(fontSize: 30),
-                        ),
-                      ),
+                  _HeroIconButton(
+                    icon: Icons.edit_rounded,
+                    tooltip: AppStrings.accountEditName,
+                    onTap: () => _showEditNameDialog(context, user, settings),
+                  ),
+                  if (onShare != null) ...[
+                    const SizedBox(height: 8),
+                    _HeroIconButton(
+                      icon: Icons.share_rounded,
+                      tooltip: AppStrings.profileShare,
+                      onTap: onShare!,
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                        ),
-                        if (bio.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            bio,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: TurnaTheme.textSecondaryColor(context),
-                                ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      _HeroIconButton(
-                        icon: Icons.edit_rounded,
-                        tooltip: AppStrings.accountEditName,
-                        onTap: () =>
-                            _showEditNameDialog(context, user, settings),
-                      ),
-                      if (onShare != null) ...[
-                        const SizedBox(height: 8),
-                        _HeroIconButton(
-                          icon: Icons.share_rounded,
-                          tooltip: AppStrings.profileShare,
-                          onTap: onShare!,
-                        ),
-                      ],
-                    ],
-                  ),
+                  ],
                 ],
               ),
-            ),
-          ],
-        );
-
-        final fillDecoration = BoxDecoration(
-          borderRadius: radius,
-          gradient: fill,
-          border: Border.all(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
+            ],
           ),
-        );
-        // 阴影走档位参数，不手写：这张卡是 `l2Frost`，投影就该是这一档的
-        // 近/远两层（同一份 [GlassSpec] 决定填充、描边与投影，改档位三者
-        // 一起动）。手写的单层 teal 8% 投影是改造前的旧值。
-        final shadows = TurnaTheme.glassEnabled(context)
-            ? TurnaTheme.glassShadow(
-                context,
-                profileTheme?.accentColor ?? TurnaTheme.brandTeal,
-                level: GlassLevel.l2Frost,
-              )
-            : const <BoxShadow>[];
+        ),
+      ],
+    );
 
-        return Container(
-          key: const Key('profile-cosmetic-theme'),
-          decoration: fillDecoration.copyWith(boxShadow: shadows),
-          clipBehavior: Clip.antiAlias,
-          // 叠放顺序（自下而上）：卡面渐变 → 模糊层 → 成就环 → 正文。
-          //
-          // 环印在糊过的那一层**之上**、正文之下：这是一枚"印在玻璃上的
-          // 图形"，不是"玻璃后面的图形"。上一版画在模糊层之下，环被 14
-          // sigma 抹平再乘 0.72 遮罩，肉眼几乎不可见（实拍验证过）。
-          // 环的右缘越过卡边、由 Clip 切断 —— 所以它不必按卡高挑尺寸，
-          // 也不会漏到下面的纸面行上（页级大环会漏，这是它缩进卡内的原因）。
-          child: TurnaTheme.glassEnabled(context)
-              ? ClipRRect(
-                  borderRadius: radius,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                            sigmaX: TurnaTheme.frostSigma,
-                            sigmaY: TurnaTheme.frostSigma,
-                          ),
-                          child: const SizedBox.expand(),
-                        ),
-                      ),
-                      // 环心落在右侧动作列的中心：两枚圆形按钮正好在环的
-                      // 空心内，环成了动作簇的光环，而不是压住它们的图形。
-                      const Positioned(
-                        right: -4,
-                        top: -8,
-                        child: TurnaGeometry(
-                          kind: TurnaGeometryKind.ring,
-                          size: 120,
-                          intensity: 1.0,
-                        ),
-                      ),
-                      body,
-                    ],
-                  ),
-                )
-              : body,
-        );
+    final fillDecoration = BoxDecoration(
+      borderRadius: radius,
+      gradient: fill,
+      border: Border.all(
+        color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
+      ),
+    );
+    // 阴影沿用 `l2Frost` 档位的近/远两层参数；静态化只移除实时模糊，
+    // 不改变卡片的色相、描边与投影层级。
+    final shadows = TurnaTheme.glassEnabled(context)
+        ? TurnaTheme.glassShadow(
+            context,
+            profileTheme?.accentColor ?? TurnaTheme.brandTeal,
+            level: GlassLevel.l2Frost,
+          )
+        : const <BoxShadow>[];
+
+    return RepaintBoundary(
+      child: Container(
+        key: const Key('profile-cosmetic-theme'),
+        decoration: fillDecoration.copyWith(boxShadow: shadows),
+        clipBehavior: Clip.antiAlias,
+        child: body,
+      ),
+    );
   }
 
   Future<void> _showEditNameDialog(

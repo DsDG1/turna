@@ -25,9 +25,7 @@ abstract final class AppSpacing {
   static const SizedBox gapMd = SizedBox(height: md, width: md);
   static const SizedBox gapLg = SizedBox(height: lg, width: lg);
 
-  // Composite EdgeInsets used by page-level content and cards.
-  static const EdgeInsets pageGutter =
-      EdgeInsets.symmetric(horizontal: 20, vertical: 16);
+  // Composite EdgeInsets used by cards.
   static const EdgeInsets cardPadding = EdgeInsets.all(lg);
 
   // ──「湿地雾光」栅格 token（P1 定型，P2 组件起消费）────────────────────

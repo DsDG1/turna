@@ -265,7 +265,7 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(left: 52),
-            child: Slider.adaptive(
+            child: SettingsSquareSlider(
               value: sliderValue,
               min: 0,
               max: divisions.toDouble(),

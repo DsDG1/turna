@@ -1,11 +1,10 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
-/// Profile / Settings Tab 的顶栏占位（「湿地雾光」R15 / R16）。
+/// Play / Profile / Settings Tab 的顶栏占位。
 ///
-/// 两个 Tab 的页头已改为**页内** `pageTitle` 开篇，不再有 Tab 级 AppBar
-/// （`ProfileAppBar` / `SettingsAppBar` 退役；积分与宝石回到个人页的学习
-/// 积累区）。本占位让 [HomePage] 的 appBars 数组保持每 Tab 一项，同时只
+/// 三个 Tab 都以**页内** `pageTitle` 开篇，不再有 Tab 级 AppBar。
+/// 本占位让 [HomePage] 的 appBars 数组保持每 Tab 一项，同时只
 /// 占住状态栏高度：
 ///
 /// - `preferredSize` 为零，外层 Scaffold 会在其上叠加状态栏 padding；

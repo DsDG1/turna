@@ -143,6 +143,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
           alignment: Alignment.bottomCenter,
           size: (MediaQuery.sizeOf(context).width * 1.05).clamp(260.0, 480.0),
           intensity: 0.8,
+          muted: section != null && _expandedUnitBySection[section.id] != null,
           child: viewport,
         );
 

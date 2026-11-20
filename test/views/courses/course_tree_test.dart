@@ -500,6 +500,48 @@ void main() {
       expect(find.textContaining('需加强'), findsNothing);
     });
 
+    testWidgets('expanding a unit blurs and fades the decorative backdrop',
+        (tester) async {
+      final section = _testSection(
+        id: 's-muted-backdrop',
+        unitName: 'Muted Backdrop Unit',
+        lessons: [_testLesson('muted-lesson', 'Muted Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('turna-geometry-muted-blur')), findsNothing);
+
+      await tester.tap(find.text('Muted Backdrop Unit'));
+      await tester.pumpAndSettle();
+      expect(
+          find.byKey(const Key('turna-geometry-muted-blur')), findsOneWidget);
+      expect(
+        tester
+            .widget<Opacity>(
+              find.byKey(const Key('turna-geometry-opacity')),
+            )
+            .opacity,
+        closeTo(0.3, 0.0001),
+      );
+
+      await tester.tap(find.text('Muted Backdrop Unit'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('turna-geometry-muted-blur')), findsNothing);
+      expect(
+        tester
+            .widget<Opacity>(
+              find.byKey(const Key('turna-geometry-opacity')),
+            )
+            .opacity,
+        1,
+      );
+    });
+
     testWidgets('uses a short shared reveal animation for visible lessons',
         (tester) async {
       final section = _testSection(

@@ -36,7 +36,6 @@ import 'package:turna/views/home/components/scroll_hide_bar.dart';
 import 'package:turna/views/home/components/tab_stack.dart';
 import 'package:turna/views/home/scroll_hide_policy.dart';
 import 'package:turna/views/home/streak_broken_dialog.dart';
-import 'package:turna/views/play/play_app_bar.dart';
 import 'package:turna/views/play/play_hub_page.dart';
 import 'package:turna/views/profile/profile_page.dart';
 import 'package:turna/views/settings/settings_page.dart';
@@ -228,11 +227,11 @@ class _HomePageState extends State<HomePage> {
     await _acknowledgeContentUpdate();
   }
 
-  // Profile / Settings 的 Tab 级 AppBar 已退役（R15 / R16）：两页改为页内
-  // pageTitle 开篇，这里只占住状态栏条。Learn 与 Play 的顶栏仍各归其位。
+  // Play / Profile / Settings 都以页内 pageTitle 开篇，这里只占状态栏；
+  // Learn 保留课程切换与连胜顶栏。
   final List<PreferredSizeWidget> appBars = [
     const LearnTopBar(),
-    const PlayAppBar(),
+    const TabBodySpacer(),
     const TabBodySpacer(),
     const TabBodySpacer(),
   ];

@@ -40,8 +40,8 @@ import 'package:turna/core/theme.dart';
 /// 练习页主页（「湿地雾光」R07 · 今日任务台版式）。
 ///
 /// 信息架构（P1「今日任务台」模式，自上而下）：
-/// 1. 页内页头：「练习」pageTitle + 日期 captionSm（PlayAppBar 退化为透明
-///    占位，标题在正文里）
+/// 1. 页内页头：「练习」pageTitle + 日期 captionSm（Tab 级只占状态栏，
+///    标题在正文里，与我的 / 设置同基线）
 /// 2. 今日复习玻璃对象（全页唯一玻璃）：「今日复习」小标签 + 特大数字
 ///    （46）+ 单位 + 预计分钟，下方全宽「开始复习」主行动；长按弹全队列
 ///    浮窗。短按智能进入最高优先级队列
@@ -68,8 +68,7 @@ class PlayHubPage extends StatefulWidget {
   State<PlayHubPage> createState() => _PlayHubPageState();
 }
 
-class _PlayHubPageState extends State<PlayHubPage>
-    with WidgetsBindingObserver {
+class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
   /// 防抖窗口：只压「切 tab 回到本页」「app 从后台恢复」这类高频事件。
   /// 挂载与复习返回走 force，永远不被它挡住。
   static const _dueRefreshDebounce = Duration(seconds: 3);
@@ -274,7 +273,7 @@ class _PlayHubPageState extends State<PlayHubPage>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.pageMargin,
-                AppSpacing.lg,
+                AppSpacing.sm + 4,
                 AppSpacing.pageMargin,
                 0,
               ),

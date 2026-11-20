@@ -107,7 +107,7 @@
 
 ## 7. 课程内容更新
 
-**当前内置课程**：`tr` 由 [`assets/courses/manifest.json`](../assets/courses/manifest.json) 指向 `assets/courses/nouveau-turkish/`。旧 `turkish/` 已迁为 `test/fixtures/turkish_course/`，不再随 app 打包。第 1 章有首单元候选内容：1 个单元、24 课、27 个可玩节点、17 个词和 4 个固定表达；第 2–8 章只有真实主题/等级规划，仍为 `units: []`。实际指标以 [`content_inventory_current.md`](./content_inventory_current.md) 为准，课程地图见 [`authoring/nouveau-turkish-course-map.md`](./authoring/nouveau-turkish-course-map.md)。**12 条真实听力音频、人工语言审校、移动真机与学习效果验收尚未完成。**
+**当前内置课程**：`tr` 由 [`assets/courses/manifest.json`](../assets/courses/manifest.json) 指向 `assets/courses/nouveau-turkish/`。旧 `turkish/` 已迁为 `test/fixtures/turkish_course/`，不再随 app 打包。第 1 章包含第 0 单元「认识土耳其语」（1 门无判分 `guide` 课、6 页，见 [ADR 0074](./decisions/0074-ungraded-guide-lessons.md)）与首单元候选内容（24 课、27 个可玩节点），共 2 个单元、25 课、17 个词和 4 个固定表达；第 2–8 章只有真实主题/等级规划，仍为 `units: []`。实际指标以 [`content_inventory_current.md`](./content_inventory_current.md) 为准，课程地图见 [`authoring/nouveau-turkish-course-map.md`](./authoring/nouveau-turkish-course-map.md)。**12 条真实听力音频、人工语言审校、移动真机与学习效果验收尚未完成。**
 
 **对话与复习课能力**：`dialogue` 模板复用角色轮次、逐句 TTS 与既有判分管线；首单元现有 3 个对话课候选。平铺复习课 `reviewPolicy` 已用于正式候选复习池：18 题，抽取 15–16 题。见 [ADR 0070](./decisions/0070-scenario-dialogue-lessons.md) 与 [ADR 0071](./decisions/0071-review-question-pool.md)。
 
@@ -127,9 +127,9 @@
 
 **课程模板呈现二次优化已落地（纯 UI）**：视图层 `LessonPresentationProfile` 统一七种课程模板的图标、进度样式与内容宽度；听力对话阶段恢复消费已有 `ListeningPhase.audioAsset / transcript`，听选、听写与概要共用带播放状态和按需原文揭示的听力面板；选择、书写与阅读题面按任务重组，课程包图片路径解析按 asset 复用。非 golden 全量测试、静态分析和 Android debug 构建通过；组件渲染已核对听力 / 阅读与浅色 / 深色，窄屏 200% 和 reduced-motion 有回归用例。**移动真机流程与帧耗时仍未验收**。
 
-「湿地雾光」的公共色彩、纸面/玻璃材质、L0 环境天光与毛玻璃档、间距圆角、跨域卡片、几何图形（含页级贴边形态）、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。课程 / 练习 / 个人 / 设置四个 Tab 各有几何主视觉位（拱、斜切、环、交叠色片）。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
+「湿地雾光」的公共色彩、纸面/玻璃材质、L0 环境天光与毛玻璃档、间距圆角、跨域卡片、几何图形（含页级贴边形态）、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。课程 / 练习 / 个人 / 设置四个 Tab 各有几何主视觉位（拱、斜切、环、交叠色片），装饰层随垂直滚动做受限视差，学习单元展开时局部模糊并淡化；减少动效时静止。设置域交互控件使用局部方形主题。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
 
-**材质第三轮（[ADR 0068](./decisions/0068-ambient-light-and-frosted-glass.md)）**：L0 从纯白改为「白 + 三片极淡天光」（`AmbientLight`，峰值 ≤8.6%，只落边缘），`AmbientBackdrop` 从零调用点接回主外壳 / 课时作答页 / 三个长文阅读页；新增 `GlassLevel.l2Frost`（半透明填充 + `BackdropFilter sigma 14` + 1px 顶部受光边，每页 ≤2 张），首个落地为个人页头卡。ADR 0062 §2 的淡彩、白高光、同色相投影与积色描边参数一个未动。
+**材质第三轮（[ADR 0068](./decisions/0068-ambient-light-and-frosted-glass.md)）**：L0 从纯白改为「白 + 三片极淡天光」（`AmbientLight`，峰值 ≤8.6%，只落边缘），`AmbientBackdrop` 接回主外壳 / 课时作答页 / 三个长文阅读页；`GlassLevel.l2Frost`（半透明填充 + `BackdropFilter sigma 14` + 1px 顶部受光边，每页 ≤2 张）由受控 `GlassSurface.frost` 承载。个人页头卡为避免滚动时实时采样闪烁，已改为静态淡彩玻璃，保留原有渐变、描边与投影；L0 天光本身仍保持静态。
 
 **ADR 0067 记忆卡回归课程域已落地**（统一底座界面口径，原 ADR 0066 已随文档精简删除，数据 / 引擎层零改动）：记忆卡牌组恢复为课程——课程管理列出牌组条目（切换 / 排序 / 卸载 / 适配恢复）并恢复「从记忆卡导入课程」卡、未完成导入横幅与修复中心入口；导入完成「立即学习」切到牌组课程、「查看牌组」高亮打开课程管理；`CourseProvider.setScope` 重新接受 anki scope，持久化 scope 原样恢复；练习台与个人页按当前课程裁剪——记忆卡课程激活时语言队列让位给「记忆卡复习」行（点按直开正式复习，同步失败有页内重试条），语言课程激活时无任何记忆卡入口；记忆卡中枢页（`MemoryCardHubPage`）与 `ankiDeckEntries` 窄缝删除，牌组管理回归课程管理页与 `AnkiReviewPage`。ADR 0066 的 `turna.course.scope` 配置区越界写删除保留（prefs 是唯一持久层）。
 

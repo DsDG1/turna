@@ -1,13 +1,15 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';
+import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
 
 /// 包豪斯几何语汇。
 ///
 /// 前四种是**方框内**的图形（徽章 / 空态 / 分享卡都按 112 的方框设计）；
-/// 后两种（[arch] / [diagonalCut]）刻意画到方框**之外**，只用于贴边的
+/// 后三种（[arch] / [diagonalCut] / [ring]）刻意画到方框**之外**，只用于贴边的
 /// 页级主视觉位（[TurnaGeometryBackdrop]）——它们靠"被屏幕边缘切掉"才成立，
 /// 放进方框中央会读成一张贴纸。
 enum TurnaGeometryKind {
@@ -22,7 +24,7 @@ enum TurnaGeometryKind {
   /// 斜切留白：45° 楔形从右上角切进来，切口另一侧压一方一圆。
   diagonalCut,
 
-  /// 成就环：两层同心弧 + 环心一点，环心偏右，等右缘切掉一截。
+  /// 单环：环心偏右，右缘由页面或卡片边缘切掉一截。
   ///
   /// 和 [achievement] 的区别是**没有那两根短条**——短条是徽章的装饰，
   /// 放到页级/卡级尺度上会变成两块漂浮的色块。要徽章用 [achievement]，
@@ -110,18 +112,9 @@ class TurnaGeometryBadge extends StatelessWidget {
 
 /// 页级几何主视觉位：把一个贴边的大尺度几何形垫在页面内容背后。
 ///
-/// 用法上只有一条规矩：**它只能放在有暴露背景或半透明玻璃的位置**。
-/// 不透明纸面（[TurnaTheme.flatPaperDecoration]，行族与统计卡）会把几何
-/// 整个盖住 —— 那些位置用了等于白画。可用的位置只有三类：
-///
-/// 1. 页内标题带（个人 / 设置 / 练习的 pageTitle 行）；
-/// 2. 列表收尾之后的空白（课程页底部）；
-/// 3. 半透明玻璃面背后（个人页 frost 身份卡）—— 只有这一类是给
-///    `BackdropFilter` 糊的，也是几何铺开的真正目的。
-///
-/// 高对比 / [GlassMode.off] 时整层不画：那种模式下背景本来就该干净，
-/// 几何只会变成第二层干扰。
-class TurnaGeometryBackdrop extends StatelessWidget {
+/// 装饰层以小幅视差跟随子滚动视口，并可在内容展开时局部模糊、淡化。
+/// 它不参与命中测试或语义；减少动效时静止，高对比 / [GlassMode.off] 时不画。
+class TurnaGeometryBackdrop extends StatefulWidget {
   const TurnaGeometryBackdrop({
     required this.kind,
     required this.child,
@@ -131,6 +124,7 @@ class TurnaGeometryBackdrop extends StatelessWidget {
     this.accent,
     this.intensity = 0.86,
     this.flip = false,
+    this.muted = false,
     super.key,
   });
 
@@ -156,36 +150,104 @@ class TurnaGeometryBackdrop extends StatelessWidget {
   /// 水平镜像。同一个形可以同时服务左右两侧（[diagonalCut] 常用）。
   final bool flip;
 
+  /// 内容展开时弱化装饰，避免几何线条与正文争夺注意力。
+  final bool muted;
+
+  @override
+  State<TurnaGeometryBackdrop> createState() => _TurnaGeometryBackdropState();
+}
+
+class _TurnaGeometryBackdropState extends State<TurnaGeometryBackdrop> {
+  static const _parallaxFactor = 0.12;
+  static const _maxParallax = 72.0;
+  static const _mutedBlurSigma = 6.0;
+  static const _minimumMutedOpacity = 0.30;
+
+  double _parallaxOffset = 0;
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is! ScrollUpdateNotification ||
+        notification.depth != 0 ||
+        notification.metrics.axis != Axis.vertical ||
+        MediaQuery.disableAnimationsOf(context)) {
+      return false;
+    }
+    final next = (-notification.metrics.pixels * _parallaxFactor)
+        .clamp(-_maxParallax, _maxParallax)
+        .toDouble();
+    if (next == _parallaxOffset) return false;
+    setState(() => _parallaxOffset = next);
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!TurnaTheme.glassEnabled(context)) return child;
+    if (!TurnaTheme.glassEnabled(context)) return widget.child;
+
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration = TurnaMotion.scaled(TurnaMotion.fast, reduceMotion);
 
     Widget field = TurnaGeometry(
-      kind: kind,
-      size: size,
-      accent: accent,
-      intensity: intensity,
+      kind: widget.kind,
+      size: widget.size,
+      accent: widget.accent,
+      intensity: widget.intensity,
     );
-    if (flip) field = Transform.flip(flipX: true, child: field);
+    if (widget.flip) field = Transform.flip(flipX: true, child: field);
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // 静态构图单独成层：内容滚动时它不该跟着重绘。
-        Positioned.fill(
-          child: IgnorePointer(
-            child: ExcludeSemantics(
-              child: RepaintBoundary(
+    final mutedField = TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.muted ? 1 : 0),
+      duration: duration,
+      curve: TurnaMotion.easeOut,
+      builder: (context, progress, child) {
+        Widget result = Opacity(
+          key: const Key('turna-geometry-opacity'),
+          opacity: 1 - progress * (1 - _minimumMutedOpacity),
+          child: child,
+        );
+        if (progress > 0.001) {
+          result = ImageFiltered(
+            key: const Key('turna-geometry-muted-blur'),
+            imageFilter: ImageFilter.blur(
+              sigmaX: _mutedBlurSigma * progress,
+              sigmaY: _mutedBlurSigma * progress,
+            ),
+            child: result,
+          );
+        }
+        return result;
+      },
+      child: RepaintBoundary(child: field),
+    );
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onScrollNotification,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: ExcludeSemantics(
                 child: Align(
-                  alignment: alignment,
-                  child: Transform.translate(offset: offset, child: field),
+                  alignment: widget.alignment,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: reduceMotion ? 0 : _parallaxOffset),
+                    duration: duration,
+                    curve: TurnaMotion.easeOut,
+                    builder: (context, parallax, child) => Transform.translate(
+                      key: const Key('turna-geometry-parallax'),
+                      offset: widget.offset + Offset(0, parallax),
+                      child: child,
+                    ),
+                    child: mutedField,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        child,
-      ],
+          widget.child,
+        ],
+      ),
     );
   }
 }

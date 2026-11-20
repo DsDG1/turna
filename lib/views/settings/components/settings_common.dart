@@ -5,6 +5,7 @@
 //  * feedback/settings_feedback.dart  — info/empty cards, pills, dialogs,
 //    buttons, shared scaffold
 //  * controls/settings_controls.dart  — switch tile, form rows, dropdowns
+//  * controls/settings_square_controls.dart — square theme, switches, sliders
 //  * diagnostics/settings_diagnostics_view.dart — key-value tiles, segmented
 //    bars
 // Import from the split files in new code; this barrel exists so the dozens
@@ -12,4 +13,5 @@
 export 'primitives/settings_section.dart';
 export 'feedback/settings_feedback.dart';
 export 'controls/settings_controls.dart';
+export 'controls/settings_square_controls.dart';
 export 'diagnostics/settings_diagnostics_view.dart';

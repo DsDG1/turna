@@ -10,6 +10,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
 import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
@@ -64,139 +65,143 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(
-          AppStrings.privacyDetailsTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+    return SettingsSquareControlTheme(
+      child: Scaffold(
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        appBar: AppBar(
+          title: Text(
+            AppStrings.privacyDetailsTitle,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
         ),
-      ),
-      body: AmbientBackdrop(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: _onScroll,
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pageMargin, 8, AppSpacing.pageMargin, 24),
-                  child: TurnaPageContent(
-                    maxWidth: AppSpacing.formColumnMaxWidth,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _PrivacyHero(),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsOverviewTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsOverviewIntro,
-                            body: AppStrings.privacyDetailsOverviewBody,
+        body: AmbientBackdrop(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScroll,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pageMargin, 8, AppSpacing.pageMargin, 24),
+                    child: TurnaPageContent(
+                      maxWidth: AppSpacing.formColumnMaxWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _PrivacyHero(),
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsOverviewTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro: AppStrings.privacyDetailsOverviewIntro,
+                              body: AppStrings.privacyDetailsOverviewBody,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsNotCollectTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsNotCollectIntro,
-                            body: AppStrings.privacyDetailsNotCollectBody,
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsNotCollectTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro: AppStrings.privacyDetailsNotCollectIntro,
+                              body: AppStrings.privacyDetailsNotCollectBody,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsStorageTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsStorageIntro,
-                            body: AppStrings.privacyDetailsStorageBody,
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsStorageTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro: AppStrings.privacyDetailsStorageIntro,
+                              body: AppStrings.privacyDetailsStorageBody,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsNetworkTitle),
-                        const SizedBox(height: 4),
-                        _SectionIntro(
-                            text: AppStrings.privacyDetailsNetworkIntro),
-                        const SizedBox(height: 10),
-                        const _NetworkCalloutRow(),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsExternalLinksTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsExternalLinksIntro,
-                            body: AppStrings.privacyDetailsExternalLinksBody,
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsNetworkTitle),
+                          const SizedBox(height: 4),
+                          _SectionIntro(
+                              text: AppStrings.privacyDetailsNetworkIntro),
+                          const SizedBox(height: 10),
+                          const _NetworkCalloutRow(),
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text:
+                                  AppStrings.privacyDetailsExternalLinksTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro:
+                                  AppStrings.privacyDetailsExternalLinksIntro,
+                              body: AppStrings.privacyDetailsExternalLinksBody,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsYourRightsTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsYourRightsIntro,
-                            body: AppStrings.privacyDetailsYourRightsBody,
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsYourRightsTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro: AppStrings.privacyDetailsYourRightsIntro,
+                              body: AppStrings.privacyDetailsYourRightsBody,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsUpdatesTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsUpdatesIntro,
-                            body: AppStrings.privacyDetailsUpdatesBody,
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsUpdatesTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro: AppStrings.privacyDetailsUpdatesIntro,
+                              body: AppStrings.privacyDetailsUpdatesBody,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
-                            text: AppStrings.privacyDetailsContactTitle),
-                        const SizedBox(height: 10),
-                        _AboutCard(
-                          child: _SectionBody(
-                            intro: AppStrings.privacyDetailsContactIntro,
-                            body: AppStrings.privacyDetailsContactBody,
+                          const SizedBox(height: 20),
+                          _SectionHeader(
+                              text: AppStrings.privacyDetailsContactTitle),
+                          const SizedBox(height: 10),
+                          _AboutCard(
+                            child: _SectionBody(
+                              intro: AppStrings.privacyDetailsContactIntro,
+                              body: AppStrings.privacyDetailsContactBody,
+                            ),
                           ),
-                        ),
-                        // 给药丸留底部空间,避免覆盖最后一张卡片。
-                        const SizedBox(height: 80),
-                      ],
+                          // 给药丸留底部空间,避免覆盖最后一张卡片。
+                          const SizedBox(height: 80),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: IgnorePointer(
-                ignoring: !_pillVisible,
-                child: AnimatedSlide(
-                  offset: _pillVisible ? Offset.zero : const Offset(0, 1.6),
-                  duration: const Duration(milliseconds: 360),
-                  curve: Curves.easeOutCubic,
-                  child: AnimatedOpacity(
-                    opacity: _pillVisible ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 220),
-                    child: _TransparencyHintPill(
-                      onTap: _openTransparencyLog,
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: IgnorePointer(
+                  ignoring: !_pillVisible,
+                  child: AnimatedSlide(
+                    offset: _pillVisible ? Offset.zero : const Offset(0, 1.6),
+                    duration: const Duration(milliseconds: 360),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedOpacity(
+                      opacity: _pillVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 220),
+                      child: _TransparencyHintPill(
+                        onTap: _openTransparencyLog,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

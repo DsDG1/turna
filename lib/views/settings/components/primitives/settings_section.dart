@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
 
 Widget settingsTileDivider(BuildContext context) => Divider(
       height: 1,
@@ -12,29 +13,12 @@ Widget settingsTileDivider(BuildContext context) => Divider(
       color: TurnaTheme.dividerBg(context),
     );
 
-/// Shared Turna teal adaptive switch used across settings toggle tiles.
-///
-/// The ON state is a brand-teal track with a **white** thumb. The thumb must
-/// not be tinted with the track colour: `Switch` resolves `thumbColor` before
-/// it falls back to the theme default, so returning the same teal here makes
-/// the thumb vanish into the track and the switch reads as one solid blob.
-/// Off state is left to the platform default (white / outline thumb) so the
-/// two states stay visually distinct.
+/// Settings switch with a rectangular track and square thumb.
 Widget settingsAdaptiveSwitch({
   required bool value,
   required ValueChanged<bool>? onChanged,
 }) {
-  return Switch.adaptive(
-    value: value,
-    activeTrackColor: TurnaTheme.brandTeal,
-    thumbColor: WidgetStateProperty.resolveWith((states) {
-      if (states.contains(WidgetState.selected)) {
-        return TurnaTheme.textOnPrimary;
-      }
-      return null;
-    }),
-    onChanged: onChanged,
-  );
+  return SettingsSquareSwitch(value: value, onChanged: onChanged);
 }
 
 class SettingsSectionTitle extends StatelessWidget {

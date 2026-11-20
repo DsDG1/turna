@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
-import 'package:turna/views/settings/components/controls/settings_controls.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
@@ -163,7 +162,7 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(left: 52),
-            child: Slider.adaptive(
+            child: SettingsSquareSlider(
               value: value.toDouble(),
               min: 100,
               max: 200,

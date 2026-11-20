@@ -7,9 +7,8 @@
 //    现在只有 `TurnaTheme.brandHeroDecoration`。
 //
 // 2. `BackdropFilter` 是一次全屏背景采样。ADR 0068 定的是「每页至多两张」，
-//    实际只允许四处：底部胶囊导航、SnackBar、`GlassSurface.frost`、个人页
-//    身份卡（它自己管理环与糊的叠放顺序，没有走 GlassSurface）。别的地方要
-//    真模糊，先把 `GlassSurface(frost: true)` 用起来。
+//    实际只允许三处：底部胶囊导航、SnackBar 与 `GlassSurface.frost`。个人页
+//    身份卡为避免滚动闪烁已退回静态玻璃；别的地方要真模糊，先走 GlassSurface。
 //
 // 扫描的是源码文本（这两条都是「有没有内联这段字面量」的问题），生成文件与
 // 注释行跳过。
@@ -28,7 +27,6 @@ const Set<String> _frostBudgets = {
   'lib/views/home/components/text_tab_bar.dart',
   'lib/views/widgets/turna_snack_bar.dart',
   'lib/views/widgets/glass_surface.dart',
-  'lib/views/profile/components/account_app_bar.dart',
 };
 
 bool _isGenerated(String path) =>
@@ -74,7 +72,7 @@ void main() {
     );
   });
 
-  test('BackdropFilter 只出现在预算内的四个文件', () {
+  test('BackdropFilter 只出现在预算内的三个文件', () {
     final offenders = <String>[];
     for (final file in _viewSources()) {
       final code = _codeOnly(file.readAsStringSync());

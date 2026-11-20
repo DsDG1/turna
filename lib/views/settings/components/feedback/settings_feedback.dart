@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/primitives/settings_section.dart';
+import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
 import 'package:turna/core/theme.dart';
 
 /// Visual tone for [SettingsInfoCard]. Maps to a tinted surface + accent
@@ -48,25 +49,27 @@ class SettingsScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TurnaTheme.surfaceColor(context),
-      appBar: AppBar(
-        // AppBar 比页面高一档中性灰，走主题而不是 surfaceColor ——
-        // 深色下 surface 与 scaffold 同值（#000000），顶栏再取 surface
-        // 就会和页面糊成一片，丢掉边缘分离。
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        centerTitle: true,
-        automaticallyImplyLeading: allowPop,
-        title: Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+    return SettingsSquareControlTheme(
+      child: Scaffold(
+        backgroundColor: TurnaTheme.surfaceColor(context),
+        appBar: AppBar(
+          // AppBar 比页面高一档中性灰，走主题而不是 surfaceColor ——
+          // 深色下 surface 与 scaffold 同值（#000000），顶栏再取 surface
+          // 就会和页面糊成一片，丢掉边缘分离。
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+          elevation: 0,
+          centerTitle: true,
+          automaticallyImplyLeading: allowPop,
+          title: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          actions: actions,
         ),
-        actions: actions,
+        body: body,
       ),
-      body: body,
     );
   }
 }
@@ -292,7 +295,7 @@ class SettingsStatusPill extends StatelessWidget {
   }
 }
 
-/// Turna-styled form dropdown with rounded border and subtle background.
+/// Turna-styled form dropdown with a square border and subtle background.
 
 class SettingsConfirmDialog extends StatelessWidget {
   final String title;
@@ -308,25 +311,25 @@ class SettingsConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(AppStrings.commonCancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(
-            confirmText,
-            style: const TextStyle(color: TurnaTheme.error),
+    return SettingsSquareControlTheme(
+      child: AlertDialog(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(AppStrings.commonCancel),
           ),
-        ),
-      ],
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              confirmText,
+              style: const TextStyle(color: TurnaTheme.error),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -363,27 +366,27 @@ class SettingsInfoDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = messageIsSelectable ? SelectableText(message) : Text(message);
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      title: Text(title),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxContentWidth),
-        child: text,
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(doneText ?? AppStrings.commonDone),
+    return SettingsSquareControlTheme(
+      child: AlertDialog(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        title: Text(title),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth),
+          child: text,
         ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(doneText ?? AppStrings.commonDone),
+          ),
+        ],
+      ),
     );
   }
 }
 
 /// Form-style dialog that wraps [SettingsConfirmDialog]'s shape +
-/// button-order + radius but takes an arbitrary body for inputs. Used by
+/// button-order + square controls but takes an arbitrary body for inputs. Used by
 /// the deck-override editor (multiple switches + dropdowns + slider).
 ///
 /// [destructive] flips the confirm button to [TurnaTheme.error] (default).
@@ -391,7 +394,7 @@ class SettingsInfoDialog extends StatelessWidget {
 /// "保存" style: brandTeal text instead of error.
 
 /// Form-style dialog that wraps [SettingsConfirmDialog]'s shape +
-/// button-order + radius but takes an arbitrary body for inputs. Used by
+/// button-order + square controls but takes an arbitrary body for inputs. Used by
 /// the deck-override editor (multiple switches + dropdowns + slider).
 ///
 /// [destructive] flips the confirm button to [TurnaTheme.error] (default).
@@ -417,45 +420,45 @@ class SettingsFormDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      title: Text(title),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [body],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(AppStrings.commonCancel),
-        ),
-        TextButton(
-          onPressed: enabled ? () => Navigator.of(context).pop(true) : null,
-          child: Text(
-            confirmText ?? AppStrings.commonSave,
-            style: TextStyle(
-              color: destructive ? TurnaTheme.error : TurnaTheme.brandTeal,
-            ),
+    return SettingsSquareControlTheme(
+      child: AlertDialog(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [body],
           ),
         ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          TextButton(
+            onPressed: enabled ? () => Navigator.of(context).pop(true) : null,
+            child: Text(
+              confirmText ?? AppStrings.commonSave,
+              style: TextStyle(
+                color: destructive ? TurnaTheme.error : TurnaTheme.brandTeal,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 /// Primary CTA style for the Settings → 高级 sub-pages. Renders a teal
-/// filled button with the standard radius — used in place of the legacy
+/// filled button with square corners — used in place of the legacy
 /// `FilledButton.tonalIcon` (which is a different shade on every platform)
 /// and the default `FilledButton` (which is primary container, not
 /// brandTeal). Mirrors the main settings page's teal CTA rhythm.
 
 /// Primary CTA style for the Settings → 高级 sub-pages. Renders a teal
-/// filled button with the standard radius — used in place of the legacy
+/// filled button with square corners — used in place of the legacy
 /// `FilledButton.tonalIcon` (which is a different shade on every platform)
 /// and the default `FilledButton` (which is primary container, not
 /// brandTeal). Mirrors the main settings page's teal CTA rhythm.
@@ -479,9 +482,7 @@ class SettingsPrimaryButton extends StatelessWidget {
       disabledBackgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.35),
       disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
     );
     if (icon != null) {

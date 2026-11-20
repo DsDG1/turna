@@ -243,7 +243,7 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(left: 52),
-            child: Slider.adaptive(
+            child: SettingsSquareSlider(
               value: value,
               min: 0.5,
               max: 2.0,
@@ -460,7 +460,7 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(left: 52),
-            child: Slider.adaptive(
+            child: SettingsSquareSlider(
               value: value,
               min: 0.80,
               max: 0.95,

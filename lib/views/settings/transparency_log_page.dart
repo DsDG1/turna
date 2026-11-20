@@ -13,6 +13,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
 import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -34,46 +35,48 @@ class TransparencyLogPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(
-          AppStrings.transparencyTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: AppStrings.transparencyClearAll,
-            icon: const Icon(Icons.delete_sweep_outlined),
-            onPressed: () => _confirmClear(context),
+    return SettingsSquareControlTheme(
+      child: Scaffold(
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        appBar: AppBar(
+          title: Text(
+            AppStrings.transparencyTitle,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
-        ],
-      ),
-      body: AmbientBackdrop(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _TransparencyHero(),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.transparencyOpsTitle),
-              const SizedBox(height: 10),
-              const _OpsLogCard(),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.transparencyErrorTitle),
-              const SizedBox(height: 10),
-              const _ErrorLogCard(),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.transparencyDeviceTitle),
-              const SizedBox(height: 10),
-              const _DeviceInfoCard(),
-              const SizedBox(height: 20),
-              const _FooterNote(),
-              const SizedBox(height: 8),
-            ],
+          actions: [
+            IconButton(
+              tooltip: AppStrings.transparencyClearAll,
+              icon: const Icon(Icons.delete_sweep_outlined),
+              onPressed: () => _confirmClear(context),
+            ),
+          ],
+        ),
+        body: AmbientBackdrop(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _TransparencyHero(),
+                const SizedBox(height: 20),
+                _SectionHeader(text: AppStrings.transparencyOpsTitle),
+                const SizedBox(height: 10),
+                const _OpsLogCard(),
+                const SizedBox(height: 20),
+                _SectionHeader(text: AppStrings.transparencyErrorTitle),
+                const SizedBox(height: 10),
+                const _ErrorLogCard(),
+                const SizedBox(height: 20),
+                _SectionHeader(text: AppStrings.transparencyDeviceTitle),
+                const SizedBox(height: 10),
+                const _DeviceInfoCard(),
+                const SizedBox(height: 20),
+                const _FooterNote(),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),

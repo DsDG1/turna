@@ -74,7 +74,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final switchFinder = find.byType(Switch);
+    final switchFinder = find.byKey(const Key('settings-square-switch'));
     expect(switchFinder, findsOneWidget);
 
     await tester.tap(switchFinder);

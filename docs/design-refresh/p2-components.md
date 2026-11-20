@@ -10,7 +10,7 @@
 
 | 文件 | 增量 | 说明 |
 |---|---|---|
-| `spacing.dart` | `xxxl = 48`；`pageMargin`(24) / `pageMarginCompact`(16)；`pageGutterMist`；`studyColumnMaxWidth`(720) / `formColumnMaxWidth`(840) | P1 栅格行（主边距 24 / 紧凑 16、节奏至 48、学习主列 ≤720、统计表单 ≤840）。既有 `pageGutter`(20) 是旧页面在用的兼容值，不动 |
+| `spacing.dart` | `xxxl = 48`；`pageMargin`(24) / `pageMarginCompact`(16)；`pageGutterMist`；`studyColumnMaxWidth`(720) / `formColumnMaxWidth`(840) | P1 栅格行（主边距 24 / 紧凑 16、节奏至 48、学习主列 ≤720、统计表单 ≤840） |
 | `text_styles.dart` | 版面文字角色：`pageTitle`(30/700) `sectionTitle`(19/600) `cardTitle`(16/600) `bodyText`(16/400) `captionSm`(13/500) `metricHero`(34/700) | P1 排版表。做题域既有 `caption` / `promptLg` / `promptMd` / `buttonLabel` 角色不变 |
 
 品牌 hex、语义色、玻璃四档浓度与纸面 / 控件 / 磨砂三表面角色未动——ADR 0062 / 0063 / 0065 继续有效，P2 组件全部消费既有表面（纸面 `flatPaperDecoration`、主题感知色 helpers），不新增材质档。

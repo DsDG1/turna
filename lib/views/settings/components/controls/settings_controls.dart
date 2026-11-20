@@ -145,7 +145,7 @@ class SettingsInfoRow extends StatelessWidget {
 
 /// Single segment in [SettingsSegmentedBar].
 
-/// Turna-styled form dropdown with rounded border and subtle background.
+/// Turna-styled form dropdown with a square border and subtle background.
 class SettingsFormDropdown<T> extends StatelessWidget {
   const SettingsFormDropdown({
     super.key,
@@ -168,7 +168,7 @@ class SettingsFormDropdown<T> extends StatelessWidget {
         color: enabled
             ? TurnaTheme.brandTeal.withValues(alpha: 0.05)
             : TurnaTheme.dividerBg(context).withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: enabled
               ? TurnaTheme.brandTeal.withValues(alpha: 0.25)
@@ -179,6 +179,7 @@ class SettingsFormDropdown<T> extends StatelessWidget {
         child: DropdownButton<T>(
           value: value,
           isDense: true,
+          borderRadius: BorderRadius.zero,
           icon: Icon(
             Icons.expand_more_rounded,
             color: enabled

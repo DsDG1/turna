@@ -23,6 +23,7 @@ import 'package:turna/views/profile/components/profile_quick_actions.dart';
 import 'package:turna/views/profile/components/share_progress_sheet.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
 
 /// Profile page（「湿地雾光」R15 学习档案）。
 ///
@@ -35,50 +36,54 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 本页没有页级几何主视觉位：身份行以下全是纸面行族，页级大形会从行
-    // 缝里漏出来。成就环缩进身份卡内、垫在模糊层之下（见 AccountWidget），
-    // 由卡自身的圆角裁掉一截——那才是"玻璃盖在几何上"。
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pageMargin,
-              AppSpacing.sm + 4,
-              AppSpacing.pageMargin,
-              0,
-            ),
-            child: Text(
-              AppStrings.profileTitle,
-              style: AppTextStyles.pageTitle(context),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-        // 身份行：本页唯一的玻璃对象（装饰主题卡），其余区块走纸面与行族。
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: AppSpacing.pageGutterMist,
-            child: AccountWidget(
-              onShare: () => showShareProgressSheet(context),
+    return TurnaGeometryBackdrop(
+      kind: TurnaGeometryKind.ring,
+      alignment: Alignment.topRight,
+      size: 180,
+      offset: const Offset(64, 48),
+      intensity: 0.8,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageMargin,
+                AppSpacing.sm + 4,
+                AppSpacing.pageMargin,
+                0,
+              ),
+              child: Text(
+                AppStrings.profileTitle,
+                style: AppTextStyles.pageTitle(context),
+              ),
             ),
           ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-        const SliverToBoxAdapter(child: TodaySummaryCard()),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-        const SliverToBoxAdapter(child: _AccumulationSection()),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-        const SliverToBoxAdapter(child: ProfileQuickActions()),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-        const SliverToBoxAdapter(child: _RecordEntries()),
-        SliverPadding(
-          padding: EdgeInsets.only(
-            bottom: AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+          // 身份行：本页唯一的玻璃对象（装饰主题卡），其余区块走纸面与行族。
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: AppSpacing.pageGutterMist,
+              child: AccountWidget(
+                onShare: () => showShareProgressSheet(context),
+              ),
+            ),
           ),
-        ),
-      ],
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+          const SliverToBoxAdapter(child: TodaySummaryCard()),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+          const SliverToBoxAdapter(child: _AccumulationSection()),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+          const SliverToBoxAdapter(child: ProfileQuickActions()),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+          const SliverToBoxAdapter(child: _RecordEntries()),
+          SliverPadding(
+            padding: EdgeInsets.only(
+              bottom: AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

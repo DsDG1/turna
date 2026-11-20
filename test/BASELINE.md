@@ -7,6 +7,22 @@
 
 ---
 
+### 2026-11-20 历史尾巴收口：补齐 course_loader_test 表达校验与旧卡指引文案
+
+- **性质**：历史尾巴清理批次（测试数不变）。修复 `course_loader_test` 对当前内置课程的两项校验失败（补传 `expressions.json` / `expressionIds` 到 `validateCourse` 与 `validateSection`），同步 [docs/status.md](../docs/status.md) §7 第 0 单元 `guide` 课口径，并将 `AppStrings.ankiRetiredCardBody` 过时的「设置 → 旧版与兼容性迁移」指引改为「课程管理重新导入」。
+- **验证**：定向执行 `flutter test test/courses/course_loader_test.dart test/architecture/app_wording_terminology_guard_test.dart test/architecture/docs_hygiene_test.dart` **46 passed / 0 failed**。未重跑全量非 golden 与 golden。
+
+---
+
+### 2026-11-20 四个主 Tab 滚动修复与设置方形控件
+
+- **性质**：个人页头卡、根 Tab 顶栏、页级几何背景与设置控件的 UI 修复批次；**非 golden 测试净 +8**（共享几何背景 3 例、设置方形控件 3 例、学习展开背景联动 1 例、根 Tab 顶栏契约 1 例）。非 golden 全量 **2626 passed / 2 failed**；两项失败均为 `course_loader_test` 对当前工作区课程内容的校验：`nt-u1-p4-sw-rica` 引用缺失的 `nt-e-rica-ederim`，与本次 UI 改动无关。其余测试（含本次全部触达测试与架构守卫）通过。
+- **改动**：`TurnaGeometryBackdrop` 增加受限滚动视差与展开时装饰层局部模糊/淡化，减少动效时静止；个人头卡移除滚动中的实时 `BackdropFilter` 并接入页级环形背景；练习 Tab 退役 60dp 透明顶栏并与我的 / 设置对齐页内标题；学习单元展开联动背景弱化；设置按钮族、开关、滑杆、分段选择与下拉改用设置域局部方形样式，保留原交互和提交时机。
+- **验证**：`flutter analyze` **No issues found**；相关定向测试全部通过；`flutter test --exclude-tags golden` 复测为上述 **2626 / 2**；`flutter build apk --debug` 成功，产物 `build/app/outputs/flutter-apk/app-debug.apk`。Android 15 模拟器已安装并实际核对学习页展开背景、个人头卡与设置落地页截图。
+- **未验**：未跑 golden；模拟器随后自行重启并出现包管理服务 Broken pipe，练习页、设置深页的补充实机截图及个人页连续滚动帧稳定性未完成验收。既有课程校验失败未在本 UI 批次中修改。
+
+---
+
 ### 2026-11-18 方向 1–3 遗留技术债系统收口与全量门禁复绿
 
 - **性质**：跨架构分层、记忆卡尾项与 UI 尾项的全量清债批次；**非 golden 测试净 +8**（清理 `anki_media_delete_test`、`card_presentation_resolver_test` 旧 drift 用例与 `v13 -> v14` 迁移用例，新增 [ADR 0073](../docs/decisions/0073-anki-engine-lifecycle-and-shared-card-ownership.md) 生命周期/跨源共享保护/冲突隔离、`adaptation_input_builder_test` 分层抽样及 `anki_deck_stats_page_test` / `official_anki_reviewer_page_test` / `learning_insights_page_test` / `grammar_review_page_test` 等 B6 失败重试测试）。非 golden 全量 **2613 passed / 0 failed**；Golden 7 组全量重录与对比 **14 passed / 0 failed**。
