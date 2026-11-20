@@ -18,6 +18,11 @@ on:
         required: false
         type: boolean
         default: false
+      cleanup_old_releases:
+        description: After publishing, delete older published Releases (keeps Git tags, drafts, and newer Releases)
+        required: false
+        type: boolean
+        default: false
       upload_firebase:
         description: Upload APK to Firebase App Distribution when secrets are configured
         required: false
@@ -95,6 +100,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
           INPUT_PUBLISH_RELEASE: ${{ github.event.inputs.publish_github_release }}
+          INPUT_CLEANUP_OLD_RELEASES: ${{ github.event.inputs.cleanup_old_releases }}
           INPUT_UPLOAD_FIREBASE: ${{ github.event.inputs.upload_firebase }}
           INPUT_NOTES: ${{ github.event.inputs.release_notes }}
           INPUT_GROUPS: ${{ github.event.inputs.groups }}
@@ -124,6 +130,11 @@ jobs:
               VERSION="${PUBSPEC_VERSION}-dist.${GITHUB_RUN_NUMBER}"
             fi
             RELEASE_TAG="v${VERSION}"
+          fi
+
+          CLEANUP_OLD_RELEASES="false"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_CLEANUP_OLD_RELEASES:-false}" = "true" ]; then
+            CLEANUP_OLD_RELEASES="true"
           fi
 
           python3 - "$VERSION" <<'PY'
@@ -169,12 +180,13 @@ jobs:
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "release_tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "publish_github_release=${PUBLISH_GITHUB_RELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "cleanup_old_releases=${CLEANUP_OLD_RELEASES}" >> "${GITHUB_OUTPUT}"
           echo "is_prerelease=${IS_PRERELEASE}" >> "${GITHUB_OUTPUT}"
           echo "firebase_enabled=${FIREBASE_ENABLED}" >> "${GITHUB_OUTPUT}"
           echo "groups=${GROUPS}" >> "${GITHUB_OUTPUT}"
           echo "notes_file=${NOTES_FILE}" >> "${GITHUB_OUTPUT}"
           echo "apk_path=build/releases/${VERSION}/turna-v${VERSION}-release.apk" >> "${GITHUB_OUTPUT}"
-          echo "Resolved version=${VERSION} release_tag=${RELEASE_TAG} publish_github_release=${PUBLISH_GITHUB_RELEASE} firebase_enabled=${FIREBASE_ENABLED} groups=${GROUPS}"
+          echo "Resolved version=${VERSION} release_tag=${RELEASE_TAG} publish_github_release=${PUBLISH_GITHUB_RELEASE} cleanup_old_releases=${CLEANUP_OLD_RELEASES} firebase_enabled=${FIREBASE_ENABLED} groups=${GROUPS}"
           echo "Release notes:"
           cat "${NOTES_FILE}"
 
@@ -252,6 +264,40 @@ jobs:
           files: |
             ${{ steps.meta.outputs.apk_path }}
             ${{ steps.meta.outputs.apk_path }}.sha256
+
+      - name: Delete older GitHub Releases
+        if: steps.meta.outputs.publish_github_release == 'true' && steps.meta.outputs.cleanup_old_releases == 'true'
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const current = await github.rest.repos.getReleaseByTag({
+              owner,
+              repo,
+              tag: process.env.RELEASE_TAG,
+            });
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+            const currentCreatedAt = Date.parse(current.data.created_at);
+            const older = releases.filter((release) =>
+              !release.draft &&
+              release.id !== current.data.id &&
+              Date.parse(release.created_at) < currentCreatedAt
+            );
+            for (const release of older) {
+              core.info(`Deleting older Release ${release.tag_name} (${release.id}); its Git tag is kept.`);
+              await github.rest.repos.deleteRelease({
+                owner,
+                repo,
+                release_id: release.id,
+              });
+            }
+            core.info(`Deleted ${older.length} older published Release(s).`);
 
       - name: Upload APK to Firebase App Distribution
         if: steps.meta.outputs.firebase_enabled == 'true'

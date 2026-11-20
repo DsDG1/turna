@@ -50,9 +50,20 @@ Android 应用配置已入库：`android/app/google-services.json`、`lib/fireba
 2. 可选参数：
    - `version`（发布 GitHub Release 时默认取 `pubspec.yaml` 主版本号如 `0.9.1`，否则默认为 `<pubspec>-dist.<run_number>`）
    - `publish_github_release`（勾选后会同步创建/更新 GitHub Release 并挂载 APK）
+   - `cleanup_old_releases`（默认关闭；与 `publish_github_release` 同时勾选时，发布成功后清理更早的已发布 Release）
    - `upload_firebase`（默认开启；未配置 secrets 时自动跳过）
    - `groups`（默认 `testers`）、`release_notes`（默认自动生成或取最近一次 commit subject）
 3. 成功后：同一 run 下会保留 APK + `.sha256` artifact（14 天）；若由 `v*` tag 触发或勾选了 `publish_github_release`，仓库 **Releases** 页面会直接挂载 `turna-v<version>-release.apk` 与校验文件。
+
+### 发布后清理旧 Release
+
+`cleanup_old_releases` 只在手动触发时生效，且必须先勾选 `publish_github_release`。清理步骤在本次 Release 和 APK 资产发布成功后运行，按 Release 的创建时间判断新旧：
+
+- 删除所有**创建时间早于本次 Release**的已发布 Release，包括旧 prerelease；其 APK 等资产随 Release 一起删除，原下载链接会失效。
+- 保留本次 Release、创建时间更晚的 Release 和所有草稿，避免重跑旧工作流时误删新版。
+- **不删除任何 Git tag 或提交**，旧版本源代码仍可经 tag 取回。
+
+普通 `v*` 标签推送的默认行为不变，不会自动清理旧 Release。
 
 ## 限制
 
