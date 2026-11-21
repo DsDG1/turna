@@ -200,12 +200,21 @@ class TextbookProjectStore:
                     stale = True
                     continue
                 try:
-                    mtime = project_path.stat().st_mtime
+                    st = project_path.stat()
                 except OSError:
                     stale = True
                     continue
+                cached_mtime_ns = entry.get("_mtime_ns")
+                cached_size = entry.get("_size")
                 cached_mtime = entry.get("_mtime")
-                if cached_mtime is None or mtime > cached_mtime:
+                if cached_mtime_ns is not None and cached_size is not None:
+                    changed = (
+                        st.st_mtime_ns != cached_mtime_ns
+                        or st.st_size != cached_size
+                    )
+                else:
+                    changed = cached_mtime is None or st.st_mtime > cached_mtime
+                if changed:
                     project = self.load_project(summary.project_id)
                     if project is None:
                         stale = True
@@ -232,9 +241,14 @@ class TextbookProjectStore:
             entry = summary.to_dict()
             project_path = self.project_file(summary.project_id)
             try:
-                entry["_mtime"] = project_path.stat().st_mtime
+                st = project_path.stat()
+                entry["_mtime"] = st.st_mtime
+                entry["_mtime_ns"] = st.st_mtime_ns
+                entry["_size"] = st.st_size
             except OSError:
                 entry["_mtime"] = 0.0
+                entry["_mtime_ns"] = 0
+                entry["_size"] = -1
             entries.append(entry)
         data = {"version": _INDEX_VERSION, "projects": entries}
         tmp = index_path.with_suffix(index_path.suffix + ".tmp")

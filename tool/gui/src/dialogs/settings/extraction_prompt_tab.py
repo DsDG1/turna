@@ -183,14 +183,13 @@ def commit_extraction_pending(dlg) -> bool:
                     language, source_language, dict(payload or {})
                 )
                 wrote += 1
-            elif kind == "delete":
-                if dlg._prompt_library.delete_extraction_override(
+            elif kind == "delete" and dlg._prompt_library.delete_extraction_override(
+                language, source_language
+            ):
+                default_library().unregister_persisted(
                     language, source_language
-                ):
-                    default_library().unregister_persisted(
-                        language, source_language
-                    )
-                    wrote += 1
+                )
+                wrote += 1
         except Exception:
             # One bad pair must not abandon the rest; the accept path logs.
             logger.warning(

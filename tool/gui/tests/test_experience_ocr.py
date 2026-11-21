@@ -120,10 +120,13 @@ class IsOcrEnabledTest(unittest.TestCase):
 
 class OcrAvailableTest(unittest.TestCase):
     def test_real_env_missing_dep(self) -> None:
-        # pytesseract is not installed or binary missing in this environment.
+        # In minimal envs pytesseract or the tesseract binary is absent;
+        # in full envs with both present, ocr_available reports (True, "ok").
         avail, reason = ocr_available()
-        self.assertFalse(avail)
-        self.assertIn(reason, ("missing_dep", "missing_binary"))
+        if avail:
+            self.assertEqual(reason, "ok")
+        else:
+            self.assertIn(reason, ("missing_dep", "missing_binary"))
 
     def test_ok_with_fake_dep_and_binary(self) -> None:
         fake = _FakeTesseract()
@@ -150,12 +153,17 @@ class RunOcrTest(unittest.TestCase):
         self.assertEqual((text, status), ("", "no_text"))
 
     def test_real_env_image_missing_dep(self) -> None:
-        # Real PNG, but pytesseract absent or binary missing -> missing_dep or missing_binary.
+        # Blank PNG: returns no_text if OCR is available locally, otherwise
+        # missing_dep or missing_binary.
         png = _make_png()
         self.addCleanup(png.unlink, missing_ok=True)
         text, status = run_ocr(png)
         self.assertEqual(text, "")
-        self.assertIn(status, ("missing_dep", "missing_binary"))
+        avail, _ = ocr_available()
+        if avail:
+            self.assertEqual(status, "no_text")
+        else:
+            self.assertIn(status, ("missing_dep", "missing_binary"))
 
     def test_ok_with_fake_tesseract(self) -> None:
         png = _make_png()

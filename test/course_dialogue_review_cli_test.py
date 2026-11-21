@@ -76,7 +76,8 @@ class DialogueReviewValidationTest(unittest.TestCase):
         section = json.loads(self.section_path.read_text(encoding="utf-8"))
         lesson = next(
             lesson
-            for lesson in section["units"][0]["lessons"]
+            for unit in section["units"]
+            for lesson in unit["lessons"]
             if lesson["id"] == "nt-u1-l2-dialogue"
         )
         lesson["content"]["dialogueScene"]["turns"][0]["speakerId"] = "missing"

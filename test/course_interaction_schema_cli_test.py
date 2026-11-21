@@ -14,7 +14,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tool"))
 
-from course_cli import _validate_course, _validate_interaction, cmd_validate  # type: ignore
+from course_cli import (  # type: ignore
+    _validate_course,
+    _validate_guide_pages,
+    _validate_interaction,
+    cmd_validate,
+)
 
 
 class Args:
@@ -177,6 +182,27 @@ class AuthoringExampleValidationTest(unittest.TestCase):
 
         def walk(value: object, label: str) -> None:
             if isinstance(value, dict):
+                if (
+                    value.get("template") == "guide"
+                    and isinstance(value.get("content"), dict)
+                    and "pages" in value["content"]
+                ):
+                    pages = value["content"]["pages"]
+                    vocab_ids = {
+                        str(term["wordId"])
+                        for page in (pages if isinstance(pages, list) else [])
+                        if isinstance(page, dict)
+                        for block in (page.get("blocks") or [])
+                        if isinstance(block, dict)
+                        for term in (block.get("items") or [])
+                        if isinstance(term, dict) and term.get("wordId") is not None
+                    }
+                    problems: list = []
+                    _validate_guide_pages(
+                        str(value.get("id") or "doc"), pages, vocab_ids, problems
+                    )
+                    self.assertEqual(problems, [], msg=f"{label}: {value}")
+                    return
                 if "runtimeType" in value:
                     problems = []
                     _validate_interaction("doc", "example", value, problems)
@@ -204,7 +230,13 @@ class DocumentStyleCourseRegressionTest(unittest.TestCase):
             )
             section_path = course_dir / "sections" / "section1.json"
             section = json.loads(section_path.read_text(encoding="utf-8"))
-            item = section["units"][0]["lessons"][0]["content"]["subLessons"][0]["stages"][0]["items"][1]
+            lesson = next(
+                lesson
+                for unit in section["units"]
+                for lesson in unit["lessons"]
+                if lesson["id"] == "nt-u1-l1"
+            )
+            item = lesson["content"]["subLessons"][0]["stages"][0]["items"][1]
             item["correctAnswer"] = item.pop("correctIndex")
             section_path.write_text(json.dumps(section, ensure_ascii=False), encoding="utf-8")
             output = io.StringIO()
@@ -212,7 +244,7 @@ class DocumentStyleCourseRegressionTest(unittest.TestCase):
                 result = cmd_validate(Args(course_dir))
             self.assertEqual(result, 1)
             self.assertIn("correctIndex", output.getvalue())
-            self.assertIn("mc-turkce", output.getvalue())
+            self.assertIn(item["id"], output.getvalue())
 
 
 if __name__ == "__main__":

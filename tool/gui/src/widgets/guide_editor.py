@@ -13,6 +13,7 @@ to preserve ``max_ui_backend_imports``.
 """
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
@@ -95,13 +96,13 @@ class _GuideBlockCard(QFrame):
         up_btn = QPushButton("↑")
         up_btn.setFixedWidth(28)
         up_btn.setEnabled(can_up)
-        up_btn.clicked.connect(lambda: self.move_requested.emit(-1))
+        up_btn.clicked.connect(self._on_move_up)
         row.addWidget(up_btn)
 
         down_btn = QPushButton("↓")
         down_btn.setFixedWidth(28)
         down_btn.setEnabled(can_down)
-        down_btn.clicked.connect(lambda: self.move_requested.emit(1))
+        down_btn.clicked.connect(self._on_move_down)
         row.addWidget(down_btn)
 
         del_btn = QPushButton("删除块")
@@ -109,10 +110,16 @@ class _GuideBlockCard(QFrame):
         row.addWidget(del_btn)
         self._layout.addLayout(row)
 
+    def _on_move_up(self, _checked: bool = False) -> None:
+        self.move_requested.emit(-1)
+
+    def _on_move_down(self, _checked: bool = False) -> None:
+        self.move_requested.emit(1)
+
     def _line(self, field: str, placeholder: str = "") -> QLineEdit:
         edit = QLineEdit(str(self.block.get(field) or ""))
         edit.setPlaceholderText(placeholder)
-        edit.textChanged.connect(lambda text, f=field: self._set(f, text))
+        edit.textChanged.connect(functools.partial(self._set, field))
         return edit
 
     def _set(self, field: str, value: Any) -> None:
@@ -139,7 +146,11 @@ class _GuideBlockCard(QFrame):
         form.addRow("标题（可选）：", self._line("title", "小节标题"))
         body = QTextEdit(str(self.block.get("body") or ""))
         body.setMaximumHeight(110)
-        body.textChanged.connect(lambda: self._set("body", body.toPlainText()))
+
+        def _on_body_changed() -> None:
+            self._set("body", body.toPlainText())
+
+        body.textChanged.connect(_on_body_changed)
         form.addRow("正文：", body)
         self._layout.addLayout(form)
 
@@ -148,7 +159,7 @@ class _GuideBlockCard(QFrame):
         form.addRow("标题（可选）：", self._line("title", "词卡组标题"))
         compact = QCheckBox("紧凑排版 (compact)")
         compact.setChecked(bool(self.block.get("compact", False)))
-        compact.toggled.connect(lambda checked: self._set("compact", checked))
+        compact.toggled.connect(functools.partial(self._set, "compact"))
         form.addRow("", compact)
         self._layout.addLayout(form)
 
@@ -501,8 +512,8 @@ class GuideEditor(QWidget):
             dn_p.setFixedWidth(28)
             add_p.clicked.connect(self._on_add_page)
             del_p.clicked.connect(self._on_del_page)
-            up_p.clicked.connect(lambda: self._on_move_page(-1))
-            dn_p.clicked.connect(lambda: self._on_move_page(1))
+            up_p.clicked.connect(self._on_move_page_up)
+            dn_p.clicked.connect(self._on_move_page_down)
             for b in (add_p, del_p, up_p, dn_p):
                 prow.addWidget(b)
             lv.addLayout(prow)
@@ -581,37 +592,45 @@ class GuideEditor(QWidget):
         meta = QFormLayout()
         meta.setSpacing(6)
         title_edit = QLineEdit(str(page.get("title") or ""))
-        title_edit.textChanged.connect(lambda t: self._set_page_field(page, "title", t, refresh_list=True))
+        title_edit.textChanged.connect(
+            functools.partial(self._set_page_field, page, "title", refresh_list=True)
+        )
         meta.addRow("页面标题：", title_edit)
 
         kicker_edit = QLineEdit(str(page.get("kicker") or ""))
         kicker_edit.setPlaceholderText("顶部角标（可选）")
-        kicker_edit.textChanged.connect(lambda t: self._set_page_field(page, "kicker", t))
+        kicker_edit.textChanged.connect(
+            functools.partial(self._set_page_field, page, "kicker")
+        )
         meta.addRow("角标 (kicker)：", kicker_edit)
 
         intro_edit = QTextEdit(str(page.get("intro") or ""))
         intro_edit.setMaximumHeight(72)
-        intro_edit.textChanged.connect(lambda: self._set_page_field(page, "intro", intro_edit.toPlainText()))
+
+        def _on_intro_changed() -> None:
+            self._set_page_field(page, "intro", intro_edit.toPlainText())
+
+        intro_edit.textChanged.connect(_on_intro_changed)
         meta.addRow("导语 (intro)：", intro_edit)
 
         next_label_edit = QLineEdit(str(page.get("nextLabel") or ""))
         next_label_edit.setPlaceholderText("末页按钮文案（可选）")
         next_label_edit.textChanged.connect(
-            lambda t: self._set_page_field(page, "nextLabel", t.strip() or None)
+            functools.partial(self._set_optional_page_field, page, "nextLabel")
         )
         meta.addRow("跳转按钮文案：", next_label_edit)
 
         next_lesson_edit = QLineEdit(str(page.get("nextLessonId") or ""))
         next_lesson_edit.setPlaceholderText("可选：完成后跳转的 lessonId")
         next_lesson_edit.textChanged.connect(
-            lambda t: self._set_page_field(page, "nextLessonId", t.strip() or None)
+            functools.partial(self._set_optional_page_field, page, "nextLessonId")
         )
         meta.addRow("下一课 ID：", next_lesson_edit)
 
         next_sub_edit = QLineEdit(str(page.get("nextSubLessonId") or ""))
         next_sub_edit.setPlaceholderText("可选：指定 subLessonId（需同时设下一课 ID）")
         next_sub_edit.textChanged.connect(
-            lambda t: self._set_page_field(page, "nextSubLessonId", t.strip() or None)
+            functools.partial(self._set_optional_page_field, page, "nextSubLessonId")
         )
         meta.addRow("下一子课 ID：", next_sub_edit)
 
@@ -629,10 +648,10 @@ class GuideEditor(QWidget):
             )
             card.changed.connect(self.changed.emit)
             card.move_requested.connect(
-                lambda delta, i=idx, p=page: self._on_move_block(p, i, delta)
+                functools.partial(self._on_move_block, page, idx)
             )
             card.delete_requested.connect(
-                lambda b=block, p=page: self._on_del_block(p, b)
+                functools.partial(self._on_del_block, page, block)
             )
             self.right_layout.addWidget(card)
 
@@ -641,9 +660,11 @@ class GuideEditor(QWidget):
         for bt in GUIDE_BLOCK_TYPES:
             block_combo.addItem(f"{GUIDE_BLOCK_LABELS[bt]} ({bt})", bt)
         add_block_btn = QPushButton("+ 添加内容块")
-        add_block_btn.clicked.connect(
-            lambda: self._on_add_block(page, str(block_combo.currentData() or "text"))
-        )
+
+        def _on_add_block_clicked(_checked: bool = False) -> None:
+            self._on_add_block(page, str(block_combo.currentData() or "text"))
+
+        add_block_btn.clicked.connect(_on_add_block_clicked)
         add_bar.addWidget(block_combo)
         add_bar.addWidget(add_block_btn)
         add_bar.addStretch()
@@ -651,6 +672,11 @@ class GuideEditor(QWidget):
         bar_wrap.setLayout(add_bar)
         self.right_layout.addWidget(bar_wrap)
         self.right_layout.addStretch()
+
+    def _set_optional_page_field(
+        self, page: dict[str, Any], field: str, text: str
+    ) -> None:
+        self._set_page_field(page, field, text.strip() or None)
 
     def _set_page_field(
         self, page: dict[str, Any], field: str, value: Any, *, refresh_list: bool = False
@@ -689,6 +715,12 @@ class GuideEditor(QWidget):
         else:
             self._render_empty_right()
         self.changed.emit()
+
+    def _on_move_page_up(self, _checked: bool = False) -> None:
+        self._on_move_page(-1)
+
+    def _on_move_page_down(self, _checked: bool = False) -> None:
+        self._on_move_page(1)
 
     def _on_move_page(self, delta: int) -> None:
         row = self.page_list.currentRow()

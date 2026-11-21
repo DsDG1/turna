@@ -314,7 +314,11 @@ class SubLessonFlowWidget(LinearFlowWidget):
             for stage in flat_stages:
                 self._content_layout.addWidget(self._build_stage(stage, synthetic_parent))
             add_stage_btn = QPushButton("+ 添加题池步骤")
-            add_stage_btn.clicked.connect(lambda: self._on_add_stage(content))
+
+            def _on_add_flat_stage(_checked: bool = False) -> None:
+                self._on_add_stage(content)
+
+            add_stage_btn.clicked.connect(_on_add_flat_stage)
             self._content_layout.addWidget(add_stage_btn)
             self._content_layout.addStretch()
             return
