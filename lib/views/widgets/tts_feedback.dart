@@ -11,7 +11,8 @@ String? ttsFailureMessage(TtsSpeakResult result) {
   if (result.source != TtsSpeakSource.failed) return null;
   return switch (result.failureReason) {
     TtsFailureReason.voiceMissing => AppStrings.ttsFailureVoiceMissing,
-    TtsFailureReason.engineUnavailable => AppStrings.ttsFailureEngineUnavailable,
+    TtsFailureReason.engineUnavailable =>
+      AppStrings.ttsFailureEngineUnavailable,
     TtsFailureReason.synthesisFailed => AppStrings.ttsFailureSynthesis,
     TtsFailureReason.timeout => AppStrings.ttsFailureTimeout,
     TtsFailureReason.emptyText => AppStrings.ttsFailureEmptyText,

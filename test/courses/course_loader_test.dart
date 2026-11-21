@@ -217,9 +217,9 @@ void main() {
         () async {
       await CourseLoader.load();
       final fromDb = await CourseLoader.loadSection('nt-s1');
-      final fromFile = parseSection(File(
-              'assets/courses/nouveau-turkish/sections/section1.json')
-          .readAsStringSync());
+      final fromFile = parseSection(
+          File('assets/courses/nouveau-turkish/sections/section1.json')
+              .readAsStringSync());
       expect(fromDb.id, fromFile.id);
       expect(fromDb.name, fromFile.name);
       expect(
@@ -403,7 +403,8 @@ void main() {
     test('accepts a well-formed course (no throw)', () {
       final sections = _loadAllSections();
       // The bundled course must pass its own validator.
-      expect(() => validateCourse(sections, vocab, expressions), returnsNormally);
+      expect(
+          () => validateCourse(sections, vocab, expressions), returnsNormally);
     });
 
     test('throws on a duplicate stage id within a lesson', () {
@@ -630,8 +631,7 @@ void main() {
 
     test('accepts each bundled section in isolation (no throw)', () {
       for (final section in _loadAllSections()) {
-        expect(
-            () => validateSection(section, vocabIds, expressionIds),
+        expect(() => validateSection(section, vocabIds, expressionIds),
             returnsNormally,
             reason: 'section ${section.id} should pass per-section validation');
       }

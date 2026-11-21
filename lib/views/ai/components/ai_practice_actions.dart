@@ -107,8 +107,7 @@ Future<void> adjustAiPractice(
         TurnaSheetAction(
           label: AppStrings.commonApply,
           primary: true,
-          onPressed: () =>
-              Navigator.of(context).pop(controller.text.trim()),
+          onPressed: () => Navigator.of(context).pop(controller.text.trim()),
         ),
       ],
     );

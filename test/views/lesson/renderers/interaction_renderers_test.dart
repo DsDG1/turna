@@ -1348,7 +1348,8 @@ void main() {
       expect(harness.submissions, [(true, 'read-aloud-skipped')]);
     });
 
-    testWidgets('degraded card renders inline continue outside LessonActionScope',
+    testWidgets(
+        'degraded card renders inline continue outside LessonActionScope',
         (tester) async {
       final renderer =
           ReadAloudRenderer(FakeReadAloudBackend(supported: false));

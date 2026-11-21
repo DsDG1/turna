@@ -96,10 +96,10 @@ class _DetailContent extends StatelessWidget {
                 return Text(
                   '$progressLabel $unit',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 );
               }),
             ),

@@ -86,9 +86,9 @@ class OfficialAnkiV2ViewStore implements IOfficialAnkiV2ViewStore {
     for (var start = 0; start < rows.length; start += _insertChunk) {
       final end = start + _insertChunk;
       final chunk = rows.sublist(start, end > rows.length ? rows.length : end);
-      final values =
-          List.filled(chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-              .join(',');
+      final values = List.filled(
+              chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .join(',');
       await course.customStatement(
         'INSERT INTO anki_course_tree_view '
         '(source_id, card_id, note_id, deck_id, word_id, section_key, '

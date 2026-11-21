@@ -74,10 +74,10 @@ class SessionProgressBand extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
-    final effectiveStyle = style == SessionProgressStyle.dots &&
-            totalCount > _maxDots
-        ? SessionProgressStyle.bar
-        : style;
+    final effectiveStyle =
+        style == SessionProgressStyle.dots && totalCount > _maxDots
+            ? SessionProgressStyle.bar
+            : style;
 
     final content = SizedBox(
       height: bandHeight,
@@ -116,9 +116,7 @@ class SessionProgressBand extends StatelessWidget
         ),
       ),
     );
-    return includeSafeArea
-        ? SafeArea(bottom: false, child: content)
-        : content;
+    return includeSafeArea ? SafeArea(bottom: false, child: content) : content;
   }
 
   static const int _maxDots = 16;
@@ -205,8 +203,7 @@ class SessionThinProgressBar extends StatelessWidget {
         value: value.clamp(0.0, 1.0),
         minHeight: 3,
         backgroundColor: TurnaTheme.dividerBg(context),
-        valueColor:
-            const AlwaysStoppedAnimation<Color>(TurnaTheme.brandTeal),
+        valueColor: const AlwaysStoppedAnimation<Color>(TurnaTheme.brandTeal),
       ),
     );
   }
@@ -282,9 +279,8 @@ class SessionRecallCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: minHeight == null
-          ? null
-          : BoxConstraints(minHeight: minHeight!),
+      constraints:
+          minHeight == null ? null : BoxConstraints(minHeight: minHeight!),
       alignment: alignment,
       padding: padding,
       decoration: TurnaTheme.flatPaperDecoration(
@@ -323,7 +319,8 @@ class SessionActionBand extends StatelessWidget {
           top: BorderSide(color: TurnaTheme.dividerBg(context)),
         ),
       ),
-      child: SafeArea(top: false, child: Padding(padding: padding, child: child)),
+      child:
+          SafeArea(top: false, child: Padding(padding: padding, child: child)),
     );
   }
 }
@@ -483,8 +480,7 @@ class _RatingButton extends StatelessWidget {
     final color = tone == SessionRatingTone.primary
         ? TurnaTheme.brandTeal
         : TurnaTheme.brandSky;
-    final showInterval =
-        action.interval != null && action.interval!.isNotEmpty;
+    final showInterval = action.interval != null && action.interval!.isNotEmpty;
 
     return SizedBox(
       height: 56,
@@ -492,9 +488,8 @@ class _RatingButton extends StatelessWidget {
         onPressed: enabled ? action.onPressed : null,
         // styleFrom treats elevation as a base level (pressed: +6); pin flat.
         style: ElevatedButton.styleFrom(
-          backgroundColor: tone == SessionRatingTone.primary
-              ? color
-              : Colors.transparent,
+          backgroundColor:
+              tone == SessionRatingTone.primary ? color : Colors.transparent,
           foregroundColor: color,
           disabledBackgroundColor: tone == SessionRatingTone.primary
               ? color.withValues(alpha: 0.30)
@@ -547,7 +542,9 @@ class _RatingButton extends StatelessWidget {
 
 @Preview(name: 'Session shell · light', group: 'Wetland mist')
 @Preview(
-    name: 'Session shell · dark', group: 'Wetland mist', brightness: Brightness.dark)
+    name: 'Session shell · dark',
+    group: 'Wetland mist',
+    brightness: Brightness.dark)
 Widget sessionShellPreview() {
   return const _SessionShellPreview();
 }
@@ -576,7 +573,8 @@ class _SessionShellPreview extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('döner', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700)),
+              Text('döner',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700)),
               SizedBox(height: AppSpacing.md),
               Text('转 · 名词'),
             ],

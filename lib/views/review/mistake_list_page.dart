@@ -149,7 +149,8 @@ class _MistakeLoadErrorBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 16, color: TurnaTheme.error),
+            const Icon(Icons.cloud_off_rounded,
+                size: 16, color: TurnaTheme.error),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -276,8 +277,7 @@ class _MistakeEntryRow extends StatelessWidget {
         ),
         child: _RewriteDots(count: mistake.rewriteCount),
       ),
-      onTap: () =>
-          context.router.push(MistakeDetailRoute(entry: mistake)),
+      onTap: () => context.router.push(MistakeDetailRoute(entry: mistake)),
     );
   }
 }

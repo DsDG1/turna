@@ -435,7 +435,8 @@ void main() {
       // Turkish from the shipped bundle, French from the fixture overlay: the
       // order assertions below cover two builtin courses plus two decks, and
       // 0.9 ships a single builtin language.
-      db = await seedInMemoryCourseDb(bundle: await frenchCourseFixtureBundle());
+      db =
+          await seedInMemoryCourseDb(bundle: await frenchCourseFixtureBundle());
       catalog = OfficialAnkiDatabase.memory();
       OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
       await _seedOfficialDeck(

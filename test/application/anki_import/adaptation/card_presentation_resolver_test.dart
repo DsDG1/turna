@@ -63,8 +63,7 @@ void main() {
     );
   }
 
-  test('a plain pair resolves to a structured flip and says nothing else',
-      () {
+  test('a plain pair resolves to a structured flip and says nothing else', () {
     final resolution = resolver.resolve(
       values: values(),
       mapping: mapping(),
@@ -321,10 +320,12 @@ void main() {
     test('counts every outcome and never hides the fallbacks', () {
       final decisions = <CardPresentationDecision>[
         resolver.resolve(values: values(), mapping: mapping()).decision,
-        resolver.resolve(
-          values: values(truncated: true),
-          mapping: mapping(),
-        ).decision,
+        resolver
+            .resolve(
+              values: values(truncated: true),
+              mapping: mapping(),
+            )
+            .decision,
         const NeedsCorrectionDecision(reasons: []),
         const UnavailableCardDecision(reasons: []),
       ];

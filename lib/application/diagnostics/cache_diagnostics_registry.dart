@@ -72,6 +72,7 @@ class _AiCacheAdapter implements CacheDiagnosticsAdapter {
       estimatedBytes: stats.estimatedBytes,
     );
   }
+
   @override
   Future<CacheClearResult> clearRegenerable() async {
     final before = engine.cacheStats().entries;

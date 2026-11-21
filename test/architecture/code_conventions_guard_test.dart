@@ -153,18 +153,20 @@ void main() {
       expect(
         hits,
         equals({allowedPath}),
-        reason: 'Use Turna logger (lib/core/logger.dart) instead of debugPrint. '
+        reason:
+            'Use Turna logger (lib/core/logger.dart) instead of debugPrint. '
             'Only $allowedPath recursion guards may call debugPrint directly.',
       );
     });
 
-    test('raw .like() / SQL LIKE is restricted to sql_like.dart and constant ratchet',
+    test(
+        'raw .like() / SQL LIKE is restricted to sql_like.dart and constant ratchet',
         () {
       const helperPath = 'lib/data/sql_like.dart';
       final driftLikeCall = RegExp(r'\.like\s*\(');
       final sqlLikeKeyword = RegExp(r'\bLIKE\b');
-      final sqlLowerLike = RegExp(r'(?:\bnot\s+like\b|\blike\s+[\x27?])',
-          caseSensitive: false);
+      final sqlLowerLike =
+          RegExp(r'(?:\bnot\s+like\b|\blike\s+[\x27?])', caseSensitive: false);
 
       final hits = <String>{};
       for (final file in libFiles) {
@@ -183,7 +185,8 @@ void main() {
       expect(
         unapproved,
         isEmpty,
-        reason: 'New SQL LIKE queries must use escapeLikePattern / containsLike / '
+        reason:
+            'New SQL LIKE queries must use escapeLikePattern / containsLike / '
             'prefixLike from $helperPath.',
       );
       expect(
@@ -202,7 +205,8 @@ void main() {
       expect(
         actualScreens.difference(_legacyScreenFiles),
         isEmpty,
-        reason: 'New UI routes/screens must be named *_page.dart, not *_screen.dart.',
+        reason:
+            'New UI routes/screens must be named *_page.dart, not *_screen.dart.',
       );
       expect(
         _legacyScreenFiles.difference(actualScreens),
@@ -232,10 +236,12 @@ void main() {
       );
     });
 
-    test('lib/views/ has zero bare Color(0x...) and lib/ has zero peacock* aliases',
+    test(
+        'lib/views/ has zero bare Color(0x...) and lib/ has zero peacock* aliases',
         () {
       final bareHexColor = RegExp(r'\bColor\s*\(\s*0[xX][0-9a-fA-F]+\s*\)');
-      final peacockAlias = RegExp(r'\bpeacock[A-Za-z0-9_]*\b', caseSensitive: false);
+      final peacockAlias =
+          RegExp(r'\bpeacock[A-Za-z0-9_]*\b', caseSensitive: false);
       final leagueAlias = RegExp(r'\bleague[A-Z][A-Za-z0-9_]*\b');
       final bareColorHits = <String>[];
       final peacockHits = <String>[];
@@ -245,7 +251,8 @@ void main() {
         final rel = _norm(file.path);
         if (_isGeneratedDart(rel)) continue;
         final tokens = _tokenizeDart(file.readAsStringSync());
-        if (rel.startsWith('lib/views/') && bareHexColor.hasMatch(tokens.codeOnly)) {
+        if (rel.startsWith('lib/views/') &&
+            bareHexColor.hasMatch(tokens.codeOnly)) {
           bareColorHits.add(rel);
         }
         if (peacockAlias.hasMatch(tokens.codeOnly)) {
@@ -271,7 +278,8 @@ void main() {
       expect(
         leagueHits,
         isEmpty,
-        reason: 'Retired league* palette tokens must not be used; use TurnaTheme '
+        reason:
+            'Retired league* palette tokens must not be used; use TurnaTheme '
             'semantic tokens.',
       );
     });

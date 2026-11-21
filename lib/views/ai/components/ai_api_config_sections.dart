@@ -280,8 +280,7 @@ class AiConfigConnectionTestSectionState
         _probeResult = (
           ok: result.ok,
           latencyMs: result.latencyMs,
-          errorCategory:
-              result.ok ? '' : _classifyProbeError(result.error),
+          errorCategory: result.ok ? '' : _classifyProbeError(result.error),
         );
       });
     } catch (error) {
@@ -396,9 +395,7 @@ class AiConfigConnectionTestSectionState
     return Row(
       children: [
         Icon(
-          ok
-              ? Icons.check_circle_outline_rounded
-              : Icons.error_outline_rounded,
+          ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
           size: 18,
           color: accent,
         ),

@@ -82,6 +82,6 @@ class OfficialAnkiV2DecisionStore {
 
   Future<void> deleteDeckPlacement(int deckId) async {
     await _engine.setConfig(
-      OfficialAnkiV2ConfigKeys.coursePlacement(deckId), null);
+        OfficialAnkiV2ConfigKeys.coursePlacement(deckId), null);
   }
 }

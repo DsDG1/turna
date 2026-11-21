@@ -56,7 +56,8 @@ enum AdaptationIssue {
 class AdaptationValidation {
   const AdaptationValidation(this.issues);
 
-  static const AdaptationValidation valid = AdaptationValidation(<AdaptationIssue>[]);
+  static const AdaptationValidation valid =
+      AdaptationValidation(<AdaptationIssue>[]);
 
   final List<AdaptationIssue> issues;
 

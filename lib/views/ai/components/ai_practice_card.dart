@@ -53,9 +53,7 @@ class AiPracticeCard extends StatelessWidget {
     final failed = item.status == AiPracticeStatus.failed ||
         item.status == AiPracticeStatus.interrupted;
     final row = InkWell(
-      onTap: selectionMode
-          ? onTap
-          : (onTap ?? (_playable ? onStart : null)),
+      onTap: selectionMode ? onTap : (onTap ?? (_playable ? onStart : null)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md + 1),
         child: Row(
@@ -86,11 +84,11 @@ class AiPracticeCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.captionSm(context).copyWith(
-                          fontSize: 12.5,
-                          color: failed
-                              ? TurnaTheme.error
-                              : TurnaTheme.textSecondaryColor(context),
-                        ),
+                      fontSize: 12.5,
+                      color: failed
+                          ? TurnaTheme.error
+                          : TurnaTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ],
               ),
@@ -278,9 +276,7 @@ class AiPracticeCard extends StatelessWidget {
       AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
       AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
     };
-    return expiry == null
-        ? '$source · $status'
-        : '$source · $status · $expiry';
+    return expiry == null ? '$source · $status' : '$source · $status · $expiry';
   }
 
   /// "还剩 3 天" / "今天过期" for plain drafts; null for favourites (permanent)

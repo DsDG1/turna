@@ -209,9 +209,8 @@ class AiCardAdaptationService {
       map['scope'] ??= <String, Object?>{
         'sourceId': facts.sourceId,
         'notetypeId': facts.notetypeId,
-        'templateOrdinal': facts.templateOrdinals.isEmpty
-            ? 0
-            : facts.templateOrdinals.first,
+        'templateOrdinal':
+            facts.templateOrdinals.isEmpty ? 0 : facts.templateOrdinals.first,
       };
       return CardAdaptationPlan.fromJson(map);
     } on AdaptationPlanFormatException {

@@ -65,7 +65,8 @@ String officialAnkiTemplateDirection({
   int? responseFieldOrd,
 }) {
   final front = frontFieldOrds.toSet();
-  final promptOnFront = promptFieldOrd != null && front.contains(promptFieldOrd);
+  final promptOnFront =
+      promptFieldOrd != null && front.contains(promptFieldOrd);
   final responseOnFront =
       responseFieldOrd != null && front.contains(responseFieldOrd);
   // Both on the front ({{FrontSide}} / single-field notetypes) is not a

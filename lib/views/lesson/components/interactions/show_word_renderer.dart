@@ -186,8 +186,7 @@ class _ShowWordCardState extends State<_ShowWordCard> {
               ),
               const SizedBox(height: 8),
               if (widget.posLabel.isNotEmpty)
-                Text(widget.posLabel,
-                    style: AppTextStyles.captionSm(context)),
+                Text(widget.posLabel, style: AppTextStyles.captionSm(context)),
               // 辅区: 图像、释义与例句。
               if (widget.imageAsset != null &&
                   widget.imageAsset!.isNotEmpty) ...[

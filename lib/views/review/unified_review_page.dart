@@ -343,21 +343,20 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
             IconButton(
               tooltip: AppStrings.commonUndoLastCard,
               icon: const Icon(Icons.undo_rounded),
-              onPressed:
-                  (_controller.lastReceipt != null &&
-                          !_controller.isSubmitting &&
-                          !_controller.isPersisting &&
-                          _controller.writeError == null)
-                      ? () async {
-                          final ok = await _controller.undoLast();
-                          if (!ok || !context.mounted) return;
-                          TurnaSnackBar.show(
-                            context,
-                            AppStrings.reviewUndoRatingDone,
-                            duration: const Duration(seconds: 2),
-                          );
-                        }
-                      : null,
+              onPressed: (_controller.lastReceipt != null &&
+                      !_controller.isSubmitting &&
+                      !_controller.isPersisting &&
+                      _controller.writeError == null)
+                  ? () async {
+                      final ok = await _controller.undoLast();
+                      if (!ok || !context.mounted) return;
+                      TurnaSnackBar.show(
+                        context,
+                        AppStrings.reviewUndoRatingDone,
+                        duration: const Duration(seconds: 2),
+                      );
+                    }
+                  : null,
             ),
           ],
         ),
@@ -434,9 +433,8 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                 ),
                 TextButton.icon(
                   key: const Key('unified-review-retry'),
-                  onPressed: _controller.isPersisting
-                      ? null
-                      : _controller.retryWrite,
+                  onPressed:
+                      _controller.isPersisting ? null : _controller.retryWrite,
                   icon: const Icon(Icons.refresh, size: 18),
                   label: Text(AppStrings.reviewRetry),
                 ),
@@ -477,18 +475,16 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                     SessionRatingAction(
                       label: AppStrings.reviewBinaryForgotten,
                       tone: SessionRatingTone.outline,
-                      interval:
-                          _controller.forgottenPreview?.intervalLabel,
-                      onPressed: () => _controller
-                          .answer(RecallOutcome.forgotten),
+                      interval: _controller.forgottenPreview?.intervalLabel,
+                      onPressed: () =>
+                          _controller.answer(RecallOutcome.forgotten),
                     ),
                     SessionRatingAction(
                       label: AppStrings.reviewBinaryRemembered,
                       tone: SessionRatingTone.primary,
-                      interval:
-                          _controller.rememberedPreview?.intervalLabel,
-                      onPressed: () => _controller
-                          .answer(RecallOutcome.remembered),
+                      interval: _controller.rememberedPreview?.intervalLabel,
+                      onPressed: () =>
+                          _controller.answer(RecallOutcome.remembered),
                     ),
                   ],
                   enabled: !_controller.isSubmitting &&

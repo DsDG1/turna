@@ -118,28 +118,28 @@ void main() {
     // search index starts from this file's own seeding.
     LanguageContentStore.resetForTest();
     vocabById.addAll({
-        'w-habari': const WordEntry(
-          id: 'w-habari',
-          term: 'Habari',
-          translation: 'Hello',
-          tags: ['greeting'],
-        ),
-        'w-asante': const WordEntry(
-          id: 'w-asante',
-          term: 'Asante',
-          translation: 'Thanks',
-        ),
-        'w-sawa': const WordEntry(
-          id: 'w-sawa',
-          term: 'Sawa',
-          translation: 'OK',
-        ),
-        'w-ndio': const WordEntry(
-          id: 'w-ndio',
-          term: 'Ndio',
-          translation: 'Yes',
-        ),
-      });
+      'w-habari': const WordEntry(
+        id: 'w-habari',
+        term: 'Habari',
+        translation: 'Hello',
+        tags: ['greeting'],
+      ),
+      'w-asante': const WordEntry(
+        id: 'w-asante',
+        term: 'Asante',
+        translation: 'Thanks',
+      ),
+      'w-sawa': const WordEntry(
+        id: 'w-sawa',
+        term: 'Sawa',
+        translation: 'OK',
+      ),
+      'w-ndio': const WordEntry(
+        id: 'w-ndio',
+        term: 'Ndio',
+        translation: 'Yes',
+      ),
+    });
   });
 
   tearDown(() async {

@@ -269,9 +269,9 @@ class SystemHealthPage extends StatelessWidget {
     SystemHealthMonitor monitor,
   ) async {
     final settings = context.read<SettingsProvider>();
-    final lang = readOptionalProvider<LanguageProvider>(context)
-            ?.ttsLanguageCode ??
-        LanguageCodes.turkish;
+    final lang =
+        readOptionalProvider<LanguageProvider>(context)?.ttsLanguageCode ??
+            LanguageCodes.turkish;
     final event = monitor.event;
     final schemaVersion = const DatabaseDoctorService().courseSchemaVersion();
     var ttsStatus = AppStrings.systemHealthReportTtsUnchecked;

@@ -54,8 +54,7 @@ class ContentAuthoringMovedBody extends StatelessWidget {
             SessionPrimaryAction(
               label: AppStrings.authoringMovedOpenGui,
               onPressed: gui.enabled
-                  ? () =>
-                      openExternalLink(context, ExternalLinkId.guiPlatform)
+                  ? () => openExternalLink(context, ExternalLinkId.guiPlatform)
                   : null,
               trailingIcon: Icons.open_in_new_rounded,
             ),

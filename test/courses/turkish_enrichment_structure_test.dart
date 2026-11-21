@@ -39,15 +39,16 @@ void main() {
 
   setUpAll(() {
     sections = _loadAllSections();
-    index =
-        jsonDecode(File('test/fixtures/turkish_course/index.json').readAsStringSync())
-            as Map<String, dynamic>;
+    index = jsonDecode(
+            File('test/fixtures/turkish_course/index.json').readAsStringSync())
+        as Map<String, dynamic>;
     words = (jsonDecode(
             File('test/fixtures/turkish_course/vocab.json').readAsStringSync())
         as Map<String, dynamic>)['words'] as List<dynamic>;
     expressions = (jsonDecode(
-            File('test/fixtures/turkish_course/expressions.json').readAsStringSync())
-        as Map<String, dynamic>)['expressions'] as List<dynamic>;
+            File('test/fixtures/turkish_course/expressions.json')
+                .readAsStringSync()) as Map<String, dynamic>)['expressions']
+        as List<dynamic>;
     grammarPoints = (jsonDecode(
             File('test/fixtures/turkish_course/grammar_points.json')
                 .readAsStringSync()) as Map<String, dynamic>)['grammarPoints']

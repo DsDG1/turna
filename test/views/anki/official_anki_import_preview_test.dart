@@ -735,4 +735,3 @@ class _RecordingController implements AnkiImportController {
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }
-

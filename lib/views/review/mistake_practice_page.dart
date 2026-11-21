@@ -75,8 +75,7 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
               InteractionState(
                 submitted: _submitted,
                 correct: _correct,
-                userAnswerText:
-                    _submitted ? widget.entry.userAnswer : null,
+                userAnswerText: _submitted ? widget.entry.userAnswer : null,
               ),
               (correct, {userAnswerText, reviewQuality}) {
                 setState(() {

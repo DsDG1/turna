@@ -168,7 +168,8 @@ class _TrendSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final windowTotal = window.fold<int>(0, (sum, row) => sum + row.reviewedCount);
+    final windowTotal =
+        window.fold<int>(0, (sum, row) => sum + row.reviewedCount);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

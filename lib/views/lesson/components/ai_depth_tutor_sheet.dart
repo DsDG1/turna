@@ -219,7 +219,6 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     );
   }
 
-
   Widget _genreGrid(BuildContext context) {
     final tiles = <(DepthGenre, String, IconData)>[
       (DepthGenre.grammar, AppStrings.aiDepthGrammar, Icons.menu_book_outlined),

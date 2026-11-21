@@ -165,7 +165,8 @@ void main() {
     const fields = ['hello', 'merhaba', '[sound:a.mp3]', '<img src="pic.png">'];
 
     test('the forward template keeps prompt on the front', () {
-      final values = payloads.values(row(fields, ordinal: 0), mapping(faces: faces));
+      final values =
+          payloads.values(row(fields, ordinal: 0), mapping(faces: faces));
 
       expect(values.target, 'hello');
       expect(values.native, 'merhaba');
@@ -174,7 +175,8 @@ void main() {
     });
 
     test('the reverse template swaps the faces, not just the text', () {
-      final values = payloads.values(row(fields, ordinal: 1), mapping(faces: faces));
+      final values =
+          payloads.values(row(fields, ordinal: 1), mapping(faces: faces));
 
       expect(values.target, 'merhaba', reason: '反向卡正面是释义');
       expect(values.native, 'hello');

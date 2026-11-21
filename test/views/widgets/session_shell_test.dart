@@ -61,7 +61,8 @@ void main() {
         const MaterialApp(
           home: Scaffold(
             body: Center(
-              child: SessionSegmentedDots(done: 2, isCurrentReached: true, total: 5),
+              child: SessionSegmentedDots(
+                  done: 2, isCurrentReached: true, total: 5),
             ),
           ),
         ),

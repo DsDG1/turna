@@ -438,8 +438,8 @@ class _TargetWords extends StatelessWidget {
         targetText,
         key: const ValueKey('read-aloud-target'),
         textAlign: TextAlign.center,
-        style: AppTextStyles.termHero(context)
-            .copyWith(fontSize: 24, height: 1.4),
+        style:
+            AppTextStyles.termHero(context).copyWith(fontSize: 24, height: 1.4),
       );
     }
     return Wrap(

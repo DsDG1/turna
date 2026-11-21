@@ -122,8 +122,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 _error!,
-                style: const TextStyle(
-                    color: TurnaTheme.error, height: 1.4),
+                style: const TextStyle(color: TurnaTheme.error, height: 1.4),
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
@@ -153,10 +152,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
           onTap: () => _pick(
             title: AppStrings.aiPracticeSourceLabel,
             options: [
-              (
-                AiPracticeSource.mistakes,
-                AppStrings.aiPracticeSourceMistakes
-              ),
+              (AiPracticeSource.mistakes, AppStrings.aiPracticeSourceMistakes),
               (
                 AiPracticeSource.weakWords,
                 AppStrings.aiPracticeSourceWeakWords
@@ -215,8 +211,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
               for (var i = 1; i <= 4; i++) ('$i', '$i'),
             ],
             current: '$_units',
-            onSelected: (value) =>
-                setState(() => _units = int.parse(value)),
+            onSelected: (value) => setState(() => _units = int.parse(value)),
           ),
         ),
         DirectoryValueRow(
@@ -228,8 +223,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
               for (var i = 1; i <= 4; i++) ('$i', '$i'),
             ],
             current: '$_lessons',
-            onSelected: (value) =>
-                setState(() => _lessons = int.parse(value)),
+            onSelected: (value) => setState(() => _lessons = int.parse(value)),
           ),
         ),
         DirectoryValueRow(

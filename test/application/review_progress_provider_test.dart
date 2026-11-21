@@ -70,12 +70,14 @@ void main() {
     );
     grammar.registerGrammarPoint('gp-1');
 
-    final courseOnly = await progress.computeSnapshot(const ReviewProgressFilter(
+    final courseOnly =
+        await progress.computeSnapshot(const ReviewProgressFilter(
       source: ReviewSource.course,
     ));
     expect(courseOnly.aggregate.totalCards, 1);
 
-    final grammarOnly = await progress.computeSnapshot(const ReviewProgressFilter(
+    final grammarOnly =
+        await progress.computeSnapshot(const ReviewProgressFilter(
       source: ReviewSource.grammar,
     ));
     expect(grammarOnly.aggregate.totalCards, 1);

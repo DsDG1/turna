@@ -28,7 +28,6 @@ class AnkiImportAdaptationDrafts extends ChangeNotifier {
     notifyListeners();
   }
 
-
   /// 「恢复原卡」按组操作：清掉这个笔记类型下所有暂存方案。
   void clearNotetype(int notetypeId) {
     final prefix = '$notetypeId:';
@@ -50,4 +49,3 @@ class AnkiImportAdaptationDrafts extends ChangeNotifier {
     notifyListeners();
   }
 }
-

@@ -80,4 +80,3 @@ Variable<String> prefixLikeVariable(String prefix) =>
 /// Bound [Variable] matching `%<escaped needle>%` for [sqlLikeEscapedClause].
 Variable<String> containsLikeVariable(String needle) =>
     Variable.withString('%${escapeLikePattern(needle)}%');
-

@@ -51,15 +51,16 @@ abstract final class AdaptationInputBuilder {
   static const int _maxStratifiedPool = 30;
   static const int _shortLengthMax = 40;
   static const int _mediumLengthMax = 160;
-  static final RegExp _clozeMarker = RegExp(r'\{\{c\d+::', caseSensitive: false);
+  static final RegExp _clozeMarker =
+      RegExp(r'\{\{c\d+::', caseSensitive: false);
 
   static AdaptationInput build({
     required OfficialAnkiProjectionSchema schema,
     AdaptationInputBudget budget = const AdaptationInputBudget(),
   }) {
     final fieldNames = schema.fieldNames;
-    final templates = schema.templateFacts?.templates ??
-        const <OfficialAnkiTemplateFact>[];
+    final templates =
+        schema.templateFacts?.templates ?? const <OfficialAnkiTemplateFact>[];
 
     final maxSamples = budget.sampleLimit.clamp(0, _maxStratifiedPool);
     final selected = _selectStratifiedSamples(
@@ -169,13 +170,14 @@ abstract final class AdaptationInputBuilder {
     final seenFingerprints = <String>{};
     for (var i = 0; i < samples.length; i++) {
       final sample = samples[i];
-      final fingerprint =
-          sample.fields.map((f) => f.trim()).join('\u001f');
+      final fingerprint = sample.fields.map((f) => f.trim()).join('\u001f');
       if (!seenFingerprints.add(fingerprint)) continue;
 
       final occurrences = CardMediaExtractor.extract(
         fields: sample.fields,
-        fallbackFieldIndices: {for (var f = 0; f < sample.fields.length; f++) f},
+        fallbackFieldIndices: {
+          for (var f = 0; f < sample.fields.length; f++) f
+        },
       );
       var hasAudio = false;
       var hasImage = false;
@@ -281,9 +283,8 @@ abstract final class AdaptationInputBuilder {
         fallbackFieldIndices: {for (var i = 0; i < fields.length; i++) i},
       );
       for (final occurrence in occurrences) {
-        final bucket = occurrence.kind == CanonicalMediaKind.audio
-            ? audio
-            : image;
+        final bucket =
+            occurrence.kind == CanonicalMediaKind.audio ? audio : image;
         bucket[occurrence.fieldIndex] =
             (bucket[occurrence.fieldIndex] ?? 0) + 1;
       }

@@ -143,7 +143,8 @@ class _StatsReportBody extends StatelessWidget {
           _ForecastSection(officialSnap: officialSnap),
           if (officialSnap.retentionByInterval.length >= 2) ...[
             const SizedBox(height: AppSpacing.xl),
-            ReportSectionHeading(title: AppStrings.ankiStatsRetentionByInterval),
+            ReportSectionHeading(
+                title: AppStrings.ankiStatsRetentionByInterval),
             ReportLineChart(
               semanticsLabel: AppStrings.ankiDeckStatsRetentionChartLabel,
               maxValue: 100,

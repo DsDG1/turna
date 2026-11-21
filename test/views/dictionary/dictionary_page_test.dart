@@ -97,7 +97,8 @@ void main() {
     expect(find.text(AppStrings.dictionaryNoMatches), findsOneWidget);
   });
 
-  testWidgets('clear returns to the full directory without waiting the debounce',
+  testWidgets(
+      'clear returns to the full directory without waiting the debounce',
       (tester) async {
     await pumpPage(tester);
 
@@ -112,7 +113,8 @@ void main() {
     expect(find.text('Asante'), findsOneWidget);
   });
 
-  testWidgets('narrow screens swap the list for the entry detail', (tester) async {
+  testWidgets('narrow screens swap the list for the entry detail',
+      (tester) async {
     // 默认测试画布 800×600 逻辑宽 < 840 → 单栏。
     await pumpPage(tester);
 
@@ -120,7 +122,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // 词条正文：主词 + 发音 + 44 点读键 + 返回目录。
-    expect(find.byTooltip(AppStrings.dictionaryPlayPronunciation), findsOneWidget);
+    expect(
+        find.byTooltip(AppStrings.dictionaryPlayPronunciation), findsOneWidget);
     expect(find.text('ha-BA-ri'), findsOneWidget);
     expect(find.text(AppStrings.dictionaryBackToList), findsOneWidget);
     expect(find.text('Hello'), findsOneWidget);
@@ -151,7 +154,8 @@ void main() {
 
     // 并排：目录与词条正文同屏，且没有返回键（返回语义属于单栏）。
     expect(find.text(AppStrings.dictionaryAllEntriesTitle), findsOneWidget);
-    expect(find.byTooltip(AppStrings.dictionaryPlayPronunciation), findsOneWidget);
+    expect(
+        find.byTooltip(AppStrings.dictionaryPlayPronunciation), findsOneWidget);
     expect(find.text(AppStrings.dictionaryBackToList), findsNothing);
   });
 

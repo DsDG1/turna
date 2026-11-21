@@ -39,8 +39,7 @@ void main() {
     );
   }
 
-  OfficialAnkiAvTag sound(String filename) =>
-      OfficialAnkiAvTag.sound(filename);
+  OfficialAnkiAvTag sound(String filename) => OfficialAnkiAvTag.sound(filename);
 
   test('HTML markup becomes FidelityCardPresentation, never a stripped flip',
       () async {
@@ -196,4 +195,3 @@ void main() {
     });
   });
 }
-

@@ -937,7 +937,8 @@ class CourseRepository implements ICourseRepository {
     final rows = await database.select(database.sections).get();
     final nextOrder = rows.isEmpty
         ? 0
-        : rows.map((r) => r.sortOrder).fold<int>(0, (a, b) => a > b ? a : b) + 1;
+        : rows.map((r) => r.sortOrder).fold<int>(0, (a, b) => a > b ? a : b) +
+            1;
     final code = LanguageCodes.canonicalize(
       '${rawPayload['language'] ?? defaultLanguageCode}',
     );

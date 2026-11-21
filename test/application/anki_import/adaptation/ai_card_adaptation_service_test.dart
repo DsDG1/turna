@@ -218,7 +218,8 @@ void main() {
         Map<String, dynamic>? jsonSchema,
       }) async {
         calls++;
-        return const AdaptationRawReply(content: '{"planId":"p"', truncated: true);
+        return const AdaptationRawReply(
+            content: '{"planId":"p"', truncated: true);
       },
     );
 

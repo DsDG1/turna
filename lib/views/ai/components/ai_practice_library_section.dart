@@ -104,8 +104,7 @@ class _AiPracticeLibrarySectionState extends State<AiPracticeLibrarySection> {
             child: AiPracticeJobBanner(
               job: active,
               onCancel: () => cancelAiPractice(context, active),
-              onOpen: () =>
-                  context.router.push(const AiPracticeLibraryRoute()),
+              onOpen: () => context.router.push(const AiPracticeLibraryRoute()),
             ),
           ),
         if (queue.items.isEmpty)

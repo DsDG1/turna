@@ -61,7 +61,9 @@ String? _resolveTarget(String containingFile, String target) {
   if (clean.isEmpty) return null;
   if (clean.startsWith('/')) return clean;
   final base = _posix(File(containingFile).parent.path);
-  final segments = <String>[if (base != '.' && base.isNotEmpty) ...base.split('/')];
+  final segments = <String>[
+    if (base != '.' && base.isNotEmpty) ...base.split('/')
+  ];
   for (final segment in clean.split('/')) {
     if (segment == '.') continue;
     if (segment == '..') {

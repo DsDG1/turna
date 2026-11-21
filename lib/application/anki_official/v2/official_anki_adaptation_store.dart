@@ -52,7 +52,8 @@ String adaptationScopeKey(
 
 /// Inverse of [adaptationScopeKey]. Null for a malformed key: a corrupt
 /// manifest entry is skipped, never guessed at.
-({int notetypeId, int templateOrdinal, int? clozeTarget})? parseAdaptationScopeKey(
+({int notetypeId, int templateOrdinal, int? clozeTarget})?
+    parseAdaptationScopeKey(
   String key,
 ) {
   final parts = key.split(':');
@@ -88,10 +89,10 @@ class AdaptationSnapshot {
   final AdaptationManifest _manifest;
   final AdaptationCardOverrideTable _overrides;
   final Future<CardAdaptationPlan?> Function(String, int) _readRevision;
-  final Map<String, CardAdaptationPlan?> _revisions = <String, CardAdaptationPlan?>{};
+  final Map<String, CardAdaptationPlan?> _revisions =
+      <String, CardAdaptationPlan?>{};
 
-  bool get isEmpty =>
-      _manifest.entries.isEmpty && _overrides.overrides.isEmpty;
+  bool get isEmpty => _manifest.entries.isEmpty && _overrides.overrides.isEmpty;
 
   Future<CardAdaptationPlan?> _revision(String planId, int revision) async {
     final key = '$planId@$revision';
@@ -159,8 +160,8 @@ class OfficialAnkiAdaptationStore {
   final OfficialAnkiEngine _engine;
 
   Future<AdaptationManifest> readManifest(String sourceId) async {
-    final value =
-        await _engine.getConfig(OfficialAnkiAdaptationConfigKeys.manifest(sourceId));
+    final value = await _engine
+        .getConfig(OfficialAnkiAdaptationConfigKeys.manifest(sourceId));
     if (!value.found) return AdaptationManifest.empty;
     final decoded = AdaptationManifest.decode(value.value);
     if (decoded == null) {
@@ -188,8 +189,8 @@ class OfficialAnkiAdaptationStore {
   }
 
   Future<AdaptationCardOverrideTable> readCardOverrides(String sourceId) async {
-    final value =
-        await _engine.getConfig(OfficialAnkiAdaptationConfigKeys.cards(sourceId));
+    final value = await _engine
+        .getConfig(OfficialAnkiAdaptationConfigKeys.cards(sourceId));
     if (!value.found) return AdaptationCardOverrideTable.empty;
     final decoded = AdaptationCardOverrideTable.decode(value.value);
     if (decoded == null) {
@@ -200,7 +201,8 @@ class OfficialAnkiAdaptationStore {
       );
       return AdaptationCardOverrideTable.empty;
     }
-    if (decoded.schemaVersion > AdaptationCardOverrideTable.currentSchemaVersion) {
+    if (decoded.schemaVersion >
+        AdaptationCardOverrideTable.currentSchemaVersion) {
       officialAnkiV2Log(
         'adaptation card overrides for $sourceId have schema '
         '${decoded.schemaVersion} > '
@@ -311,7 +313,8 @@ class OfficialAnkiAdaptationStore {
       );
     return _writeManifest(
       sourceId,
-      AdaptationManifest(schemaVersion: manifest.schemaVersion, entries: entries),
+      AdaptationManifest(
+          schemaVersion: manifest.schemaVersion, entries: entries),
     );
   }
 
@@ -327,7 +330,8 @@ class OfficialAnkiAdaptationStore {
       ..remove(scopeKey);
     return _writeManifest(
       sourceId,
-      AdaptationManifest(schemaVersion: manifest.schemaVersion, entries: entries),
+      AdaptationManifest(
+          schemaVersion: manifest.schemaVersion, entries: entries),
     );
   }
 
@@ -449,14 +453,16 @@ class OfficialAnkiAdaptationStore {
   Future<bool> replaceManifest(
     String sourceId,
     AdaptationManifest manifest,
-  ) => _writeManifest(sourceId, manifest);
+  ) =>
+      _writeManifest(sourceId, manifest);
 
   /// Replace the whole card-override table (used by promotion, which copies
   /// the user's per-card decisions to the live collection).
   Future<bool> replaceCardOverrides(
     String sourceId,
     AdaptationCardOverrideTable table,
-  ) => _writeTable(
+  ) =>
+      _writeTable(
         sourceId,
         table.overrides,
         table.schemaVersion,
@@ -500,7 +506,8 @@ class OfficialAnkiAdaptationStore {
       keys.add(key);
       await _engine.setConfig(
         OfficialAnkiAdaptationConfigKeys.index(sourceId),
-        AdaptationPlanIndex(keys: keys, schemaVersion: index?.schemaVersion ?? 1)
+        AdaptationPlanIndex(
+                keys: keys, schemaVersion: index?.schemaVersion ?? 1)
             .toJson(),
       );
     } catch (error) {

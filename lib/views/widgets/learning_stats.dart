@@ -194,10 +194,8 @@ class _StudyStatsSectionState extends _StudyFuturesState<StudyStatsSection> {
                   return _StatsErrorBanner(onRetry: _retryFutures);
                 }
                 final data = overallSnapshot.data ?? const <String, dynamic>{};
-                final ankiLessons =
-                    (data['ankiLessons'] as num?)?.toInt() ?? 0;
-                final ankiReviews =
-                    (data['ankiReviews'] as num?)?.toInt() ?? 0;
+                final ankiLessons = (data['ankiLessons'] as num?)?.toInt() ?? 0;
+                final ankiReviews = (data['ankiReviews'] as num?)?.toInt() ?? 0;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

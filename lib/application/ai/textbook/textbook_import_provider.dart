@@ -580,5 +580,4 @@ class TextbookImportProvider extends AiRequestSessionBase {
       notifySessionListeners();
     }
   }
-
 }

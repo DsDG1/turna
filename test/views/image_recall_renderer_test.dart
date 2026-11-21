@@ -23,8 +23,7 @@ void main() {
               answerText: 'kedi',
             ),
             const InteractionState(),
-            (correct, {userAnswerText, reviewQuality}) =>
-                results.add(correct),
+            (correct, {userAnswerText, reviewQuality}) => results.add(correct),
           ),
         ),
       ),
@@ -95,6 +94,7 @@ void main() {
   });
 
   test('AnkiReviewRating is still the shared binary vocabulary', () {
-    expect(AnkiReviewRating.again.quality, lessThan(AnkiReviewRating.good.quality));
+    expect(AnkiReviewRating.again.quality,
+        lessThan(AnkiReviewRating.good.quality));
   });
 }

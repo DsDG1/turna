@@ -107,9 +107,8 @@ class MistakeDetailPage extends StatelessWidget {
                 runSpacing: AppSpacing.xs,
                 children: [
                   TextButton.icon(
-                    onPressed: () => context
-                        .read<MistakeProvider>()
-                        .recordRewrite(entry.id),
+                    onPressed: () =>
+                        context.read<MistakeProvider>().recordRewrite(entry.id),
                     icon: const Icon(Icons.check_circle_outline_rounded,
                         size: 18),
                     label: Text(AppStrings.reviewGotItNow),
@@ -179,9 +178,9 @@ class _CompareSection extends StatelessWidget {
           Text(
             value,
             style: AppTextStyles.bodyText(context).copyWith(
-                  color: valueColor,
-                  fontWeight: valueColor != null ? FontWeight.w600 : null,
-                ),
+              color: valueColor,
+              fontWeight: valueColor != null ? FontWeight.w600 : null,
+            ),
           ),
         ],
       ),

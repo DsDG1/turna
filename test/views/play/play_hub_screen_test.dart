@@ -31,7 +31,8 @@ import '../../helpers/in_memory_course_db.dart';
 /// 练习台按当前课程 scope 裁剪队列（ADR 0037 / 0067）：语言课程显示语言
 /// 三队列，记忆卡课程显示记忆卡复习行。
 class _ScopeStubCourseProvider extends CourseProvider {
-  _ScopeStubCourseProvider({CourseScope initialScope = const BuiltinCourseScope('turkish')})
+  _ScopeStubCourseProvider(
+      {CourseScope initialScope = const BuiltinCourseScope('turkish')})
       : _scope = initialScope;
 
   CourseScope _scope;
@@ -127,9 +128,11 @@ void main() {
     expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
     expect(find.text(AppStrings.playTodayStartReview), findsOneWidget);
     expect(
-      tester.widget<Text>(
-        find.byKey(const Key('play-today-hero-number')),
-      ).data,
+      tester
+          .widget<Text>(
+            find.byKey(const Key('play-today-hero-number')),
+          )
+          .data,
       '0',
     );
 
@@ -200,8 +203,8 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final courseProvider = _ScopeStubCourseProvider();
-    await tester.pumpWidget(
-        MaterialApp(home: hubTree(courseProvider: courseProvider)));
+    await tester
+        .pumpWidget(MaterialApp(home: hubTree(courseProvider: courseProvider)));
     await tester.pumpAndSettle();
     expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('记忆卡复习'), findsNothing);
@@ -210,8 +213,7 @@ void main() {
     courseProvider.scope = _ankiScope;
     await tester.pumpAndSettle();
     expect(find.text('记忆卡复习'), findsOneWidget);
-    expect(find.text('错题复习'), findsNothing,
-        reason: '记忆卡课程激活时语言队列必须让位');
+    expect(find.text('错题复习'), findsNothing, reason: '记忆卡课程激活时语言队列必须让位');
 
     // 记忆卡 → 语言（切回语言课程）：记忆卡行消失，语言队列回来。
     courseProvider.scope = const BuiltinCourseScope('turkish');
@@ -220,7 +222,8 @@ void main() {
     expect(find.text('错题复习'), findsOneWidget);
   });
 
-  testWidgets('memory card row opens the formal review session', (tester) async {
+  testWidgets('memory card row opens the formal review session',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     OfficialAnkiHomeDueSync.debugRefreshOverride = () async {};
@@ -297,8 +300,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider:
-                _ScopeStubCourseProvider(initialScope: _ankiScope),
+            courseProvider: _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
@@ -333,8 +335,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider:
-                _ScopeStubCourseProvider(initialScope: _ankiScope),
+            courseProvider: _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
@@ -401,8 +402,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider:
-                _ScopeStubCourseProvider(initialScope: _ankiScope),
+            courseProvider: _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );
@@ -459,8 +459,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: hubTree(
-            courseProvider:
-                _ScopeStubCourseProvider(initialScope: _ankiScope),
+            courseProvider: _ScopeStubCourseProvider(initialScope: _ankiScope),
           ),
         ),
       );

@@ -359,9 +359,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                 Text(
                   AppStrings.aiConfigOpenAiCompatHint,
                   style: AppTextStyles.captionSm(context).copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                        height: 1.35,
-                      ),
+                    color: TurnaTheme.textHintColor(context),
+                    height: 1.35,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
@@ -445,9 +445,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                         ? AppStrings.aiConfigReasoningSupportedHint
                         : AppStrings.aiConfigReasoningUnsupportedHint,
                     style: AppTextStyles.captionSm(context).copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                          height: 1.4,
-                        ),
+                      color: TurnaTheme.textHintColor(context),
+                      height: 1.4,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),

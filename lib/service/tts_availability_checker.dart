@@ -228,9 +228,7 @@ class TtsAvailabilityChecker {
   Future<String?> _resolveLanguageCode(String languageCode, int gen) async {
     final result = await _resolveLanguageCodeResult(languageCode);
     final locale = result.locale;
-    if (locale != null &&
-        result.shouldCache &&
-        gen == _diagnosticsGeneration) {
+    if (locale != null && result.shouldCache && gen == _diagnosticsGeneration) {
       final key = languageCode.trim().replaceAll('_', '-').toLowerCase();
       _resolvedLanguageCache[key] = locale;
     }

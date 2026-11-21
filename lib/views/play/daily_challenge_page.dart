@@ -240,8 +240,9 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
     super.didUpdateWidget(old);
     // 换题信号：题目标识变了，或刚提交完又被复位。上一题的「能否提交」
     // 不能渗到下一题（与 PracticeSessionBody 相同的复位规则）。
-    final newItem = old.vm.currentInteractionId != widget.vm.currentInteractionId ||
-        (_wasSubmitted && !widget.vm.hasSubmitted);
+    final newItem =
+        old.vm.currentInteractionId != widget.vm.currentInteractionId ||
+            (_wasSubmitted && !widget.vm.hasSubmitted);
     _wasSubmitted = widget.vm.hasSubmitted;
     if (newItem) {
       _draft.detach(_onDraftChanged);
@@ -324,9 +325,8 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
     return SessionActionBand(
       child: SessionPrimaryAction(
         label: submitted ? widget.continueLabel : AppStrings.lessonCheck,
-        onPressed: enabled
-            ? (submitted ? widget.onAdvance : _draft.submit)
-            : null,
+        onPressed:
+            enabled ? (submitted ? widget.onAdvance : _draft.submit) : null,
       ),
     );
   }

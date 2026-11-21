@@ -1022,18 +1022,17 @@ class _AnkiStudySessionView extends StatelessWidget {
           IconButton(
             tooltip: AppStrings.commonUndoLastCard,
             icon: const Icon(Icons.undo_rounded),
-            onPressed:
-                (controller.lastReceipt != null && !controller.isLocked)
-                    ? () async {
-                        final ok = await controller.undoLast();
-                        if (!ok || !context.mounted) return;
-                        TurnaSnackBar.show(
-                          context,
-                          AppStrings.reviewUndoRatingDone,
-                          duration: const Duration(seconds: 2),
-                        );
-                      }
-                    : null,
+            onPressed: (controller.lastReceipt != null && !controller.isLocked)
+                ? () async {
+                    final ok = await controller.undoLast();
+                    if (!ok || !context.mounted) return;
+                    TurnaSnackBar.show(
+                      context,
+                      AppStrings.reviewUndoRatingDone,
+                      duration: const Duration(seconds: 2),
+                    );
+                  }
+                : null,
           ),
         ],
       ),
@@ -1184,7 +1183,8 @@ class _AnkiStudySessionView extends StatelessWidget {
                             await controller.submitRecall(
                               RecallOutcome.forgotten,
                             );
-                            if (controller.phase == StudyCardPhase.readyForNext) {
+                            if (controller.phase ==
+                                StudyCardPhase.readyForNext) {
                               await advanceFromScheduler(
                                 controller: controller,
                                 officialSession: officialSession,
@@ -1200,7 +1200,8 @@ class _AnkiStudySessionView extends StatelessWidget {
                             await controller.submitRecall(
                               RecallOutcome.remembered,
                             );
-                            if (controller.phase == StudyCardPhase.readyForNext) {
+                            if (controller.phase ==
+                                StudyCardPhase.readyForNext) {
                               await advanceFromScheduler(
                                 controller: controller,
                                 officialSession: officialSession,

@@ -202,8 +202,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(TurnaTheme.radiusMedium),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               // Decode cap (same formula as CachedAssetImage): deck media is
               // routinely multi-megapixel; without it a 160-logical-px
               // thumbnail decodes at full resolution into memory.

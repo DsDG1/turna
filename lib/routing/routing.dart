@@ -46,7 +46,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AiPracticeRunRoute.page, guards: [_courseReadyGuard]),
         // Detail is pushed from the practice library and the hub preview
         // card menus; it must stay registered or those entries dead-end.
-        AutoRoute(page: AiPracticeDetailRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(
+            page: AiPracticeDetailRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AiFeatureGuideRoute.page),
         AutoRoute(page: DailyChallengeRoute.page),
         AutoRoute(page: SrsReviewRoute.page),

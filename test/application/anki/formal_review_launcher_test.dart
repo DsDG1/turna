@@ -166,8 +166,7 @@ void main() {
             reason: path);
         expect(text.contains('OfficialAnkiReviewPage'), isFalse, reason: path);
         expect(
-          text.contains('AnkiReviewRoute()') &&
-              path.contains('play_hub_page'),
+          text.contains('AnkiReviewRoute()') && path.contains('play_hub_page'),
           isFalse,
           reason: 'Play Hub must not stay on the deck-list route',
         );

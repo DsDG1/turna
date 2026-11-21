@@ -131,8 +131,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       failureMessage,
                     ),
                   ),
-                  if (_buildActionBand(context, controller, effective,
-                          failureMessage) case final band?)
+                  if (_buildActionBand(
+                          context, controller, effective, failureMessage)
+                      case final band?)
                     band,
                 ],
               ),
@@ -539,8 +540,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               SessionPrimaryAction(
                 label: AppStrings.ankiAlreadyImportedOpen,
                 trailingIcon: Icons.play_arrow_rounded,
-                onPressed: () =>
-                    unawaited(controller.openExistingCourse()),
+                onPressed: () => unawaited(controller.openExistingCourse()),
               ),
               const SizedBox(height: AppSpacing.sm),
               SizedBox(

@@ -91,7 +91,8 @@ JourneyNode? courseTreeNextUpNode(ProgressProvider? progress, Unit unit) {
   for (final lesson in unit.lessons) {
     final subs = courseTreeSubLessonNodes(lesson);
     if (subs == null) {
-      if (progress == null || !courseTreeNodeCompleted(progress, lesson.id, null)) {
+      if (progress == null ||
+          !courseTreeNodeCompleted(progress, lesson.id, null)) {
         return (lessonId: lesson.id, subLessonId: null);
       }
       continue;
@@ -108,7 +109,8 @@ JourneyNode? courseTreeNextUpNode(ProgressProvider? progress, Unit unit) {
 
 /// 整个章节的第一个未完成节点（继续条的目标）。无 progress 时返回
 /// 首单元首节点。
-({Unit unit, Lesson lesson, SubLessonSummary? sub})? courseTreeSectionNextUpNode(
+({Unit unit, Lesson lesson, SubLessonSummary? sub})?
+    courseTreeSectionNextUpNode(
   ProgressProvider? progress,
   Section section,
 ) {

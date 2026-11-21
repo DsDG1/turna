@@ -236,8 +236,9 @@ class _OfficialAnkiRepairCenterPageState
         _jobs.isEmpty &&
         _failedJobs.isEmpty &&
         orphans.isEmpty;
-    final canRepairAll =
-        orphans.isNotEmpty || _failedJobs.isNotEmpty || pendingCleanup.isNotEmpty;
+    final canRepairAll = orphans.isNotEmpty ||
+        _failedJobs.isNotEmpty ||
+        pendingCleanup.isNotEmpty;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
