@@ -45,7 +45,8 @@ class SoundsDirTest(unittest.TestCase):
         settings = Settings(assets_repo_root=str(tmp / "repo"))
         sounds = generate_audio_client.sounds_dir_for(course_dir, settings)
         self.assertEqual(
-            sounds, Path(tmp) / "repo" / "assets" / "sounds" / "sw"
+            sounds.resolve(),
+            (Path(tmp) / "repo" / "assets" / "sounds" / "sw").resolve(),
         )
 
     def test_generation_and_preview_share_the_same_audio_file(self) -> None:

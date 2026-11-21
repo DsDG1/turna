@@ -48,7 +48,24 @@ class _FakeWorker(QObject):
 
 class AiFixDialogGuardTest(unittest.TestCase):
     def setUp(self) -> None:
-        qt_app()
+        self._app = qt_app()
+        self._dialogs: list = []
+        # Keep AiRequestWorker patched for the whole test: dlg._run() is
+        # invoked both during __init__ and again inside each test method, so
+        # exiting the patch early would spawn a real QThread that crashes Qt
+        # on Windows teardown ("QThread: Destroyed while thread is still running").
+        patcher = unittest.mock.patch(
+            "src.dialogs.ai_fix_dialog.AiRequestWorker", _FakeWorker
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self) -> None:
+        for dlg in self._dialogs:
+            dlg.close()
+            dlg.deleteLater()
+        self._dialogs.clear()
+        self._app.processEvents()
 
     def _make_dialog(self):
         from src.dialogs.ai_fix_dialog import AiFixDialog
@@ -58,11 +75,8 @@ class AiFixDialogGuardTest(unittest.TestCase):
         course_context = {"node_kind": "section"}
         config = MagicMock()
         config.is_complete = True
-        # Patch AiRequestWorker BEFORE construction so __init__'s _run uses it.
-        with unittest.mock.patch(
-            "src.dialogs.ai_fix_dialog.AiRequestWorker", _FakeWorker
-        ):
-            dlg = AiFixDialog(problems, node_json, course_context, config)
+        dlg = AiFixDialog(problems, node_json, course_context, config)
+        self._dialogs.append(dlg)
         return dlg
 
     def test_stale_worker_result_is_ignored(self):

@@ -78,6 +78,13 @@ jobs:
           python tool/gui/tool/gen_module_tree.py --check
           python tool/gui/tool/check_docs_index.py --quiet
 
+      - name: Configure git identity for GUI library tests
+        # Runner images ship no global git identity; test_git_library's
+        # commit/push roundtrip needs one.
+        run: |
+          git config --global user.name "turna-ci"
+          git config --global user.email "ci@turna.invalid"
+
       # Full tier (not `ci`): the exe this workflow ships is the artifact
       # users actually download, so it must clear the same suite as a PR —
       # not a weaker one. Matches `make test-gui`.
