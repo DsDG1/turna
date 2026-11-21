@@ -171,6 +171,14 @@ jobs:
           python3 -m pip install pyyaml
           python3 -m unittest discover -s test -p "*_test.py"
 
+      - name: Set up JDK 17
+        # Match firebase_app_distribution.yml: ubuntu-latest defaults to JDK 25
+        # (class file major version 69), which Gradle 8.14 rejects.
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Build release smoke test
         # Web is skipped because CI does not need the web artifact; content
         # validation is skipped here because course_validation.yml already
