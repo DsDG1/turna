@@ -146,8 +146,7 @@ void main() {
     // 记忆卡牌组与内置课程并列（ADR 0067：记忆卡回归课程域）。
     expect(find.text('记忆卡牌组 A'), findsOneWidget);
     // 内置语言卡副题是「内置课程」；卡数文案只在非内置（导入包）卡上出现。
-    expect(
-        find.text(AppStrings.courseManagementBuiltinSubtitle),
+    expect(find.text(AppStrings.courseManagementBuiltinSubtitle),
         findsNWidgets(2));
     expect(find.text(AppStrings.courseManagementMyCourses), findsOneWidget);
     expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
@@ -224,8 +223,7 @@ void main() {
     await tester.tap(find.text(AppStrings.courseManagementRemoveCourse));
     await tester.pumpAndSettle();
 
-    expect(
-        find.text(AppStrings.courseUninstallConfirmTitle), findsOneWidget);
+    expect(find.text(AppStrings.courseUninstallConfirmTitle), findsOneWidget);
     expect(find.textContaining('Builtin Japanese'), findsOneWidget);
 
     await tester.tap(find.text(AppStrings.commonCancel));

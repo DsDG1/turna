@@ -123,10 +123,8 @@ class RepairHealthOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasError = doctorError != null || orphansError != null;
-    final isHealthy = report != null &&
-        report!.isAllHealthy &&
-        !hasError &&
-        orphans.isEmpty;
+    final isHealthy =
+        report != null && report!.isAllHealthy && !hasError && orphans.isEmpty;
     final color = isHealthy
         ? TurnaTheme.achievementEmerald
         : (doctorError != null ? TurnaTheme.error : TurnaTheme.warning);
@@ -458,8 +456,7 @@ class RepairOrphansSection extends StatelessWidget {
           RepairActionTile(
             key: Key('repair-orphan-${orphan.ownerId}'),
             title: orphan.label,
-            subtitle:
-                '${repairCategoryName(orphan.category)} · '
+            subtitle: '${repairCategoryName(orphan.category)} · '
                 '${formatRepairBytes(orphan.physicalBytes)}',
             actions: [
               TextButton(

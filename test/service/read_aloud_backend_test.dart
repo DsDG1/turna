@@ -454,7 +454,8 @@ void main() {
       expect(await backend.ensureReady(), isFalse);
     });
 
-    test('start fails loudly — pretending to listen is the one bug worse '
+    test(
+        'start fails loudly — pretending to listen is the one bug worse '
         'than being absent', () async {
       expect(
         () => backend.start(

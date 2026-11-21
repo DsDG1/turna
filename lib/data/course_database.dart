@@ -706,7 +706,8 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 35) {
             // v35: retire the legacy `anki_imports` table and drop the dead
             // `presentation_kind` hint column from `anki_course_tree_view`.
-            await m.database.customStatement('DROP TABLE IF EXISTS anki_imports');
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS anki_imports');
             await m.database
                 .customStatement('DROP TABLE IF EXISTS anki_course_tree_view');
             await _ensureV2CourseTreeView(m.database);

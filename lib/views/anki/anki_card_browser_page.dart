@@ -339,9 +339,8 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              AppStrings.ankiBrowserLoadFailed(_loadError!),
-                              textAlign: TextAlign.center),
+                            Text(AppStrings.ankiBrowserLoadFailed(_loadError!),
+                                textAlign: TextAlign.center),
                             const SizedBox(height: 12),
                             FilledButton(
                               onPressed: _load,
@@ -381,12 +380,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   /// 阅读目录行：正面摘要（懒加载）+ 卡片元信息，发丝线分隔。
   Widget _buildEntryRow(BuildContext context, SourceAwareBrowserCard row) {
     final lazy = _loadedPreviews[row.cardId];
-    final front = row.frontPreview.isNotEmpty
-        ? row.frontPreview
-        : lazy?.$1 ?? '';
-    final back = row.backPreview.isNotEmpty
-        ? row.backPreview
-        : lazy?.$2 ?? '';
+    final front =
+        row.frontPreview.isNotEmpty ? row.frontPreview : lazy?.$1 ?? '';
+    final back = row.backPreview.isNotEmpty ? row.backPreview : lazy?.$2 ?? '';
     if (front.isEmpty && _browser != null) {
       // 空 preview → 一次 renderCard FFI（Doc 38 P4-A），取回后行升级。
       unawaited(_ensurePreview(row));

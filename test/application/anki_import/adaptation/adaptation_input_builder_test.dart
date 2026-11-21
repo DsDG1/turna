@@ -96,7 +96,8 @@ void main() {
     );
 
     final payload = jsonDecode(userContent(input)) as Map<String, Object?>;
-    final media = (payload['mediaByField'] as List).cast<Map<String, Object?>>();
+    final media =
+        (payload['mediaByField'] as List).cast<Map<String, Object?>>();
     expect(media, hasLength(2));
     expect(media[0]['fieldIndex'], 2);
     expect(media[0]['audio'], 3, reason: '两段样本共三段音频');
@@ -167,7 +168,8 @@ void main() {
 
       expect(compactInput.sampleCount, 3);
       expect(compactRows.any((f) => f[2].contains('[sound:a1.mp3]')), isTrue);
-      expect(compactRows.any((f) => f[3].contains('<img src="p1.png">')), isTrue);
+      expect(
+          compactRows.any((f) => f[3].contains('<img src="p1.png">')), isTrue);
       expect(compactRows.any((f) => f[0].contains('{{c1::cloze}}')), isTrue);
 
       // Larger budget (sampleLimit: 6): also covers medium and long buckets >30.
@@ -188,7 +190,8 @@ void main() {
 
       expect(diverseInput.sampleCount, 6);
       expect(diverseRows.any((f) => f[2].contains('[sound:a1.mp3]')), isTrue);
-      expect(diverseRows.any((f) => f[3].contains('<img src="p1.png">')), isTrue);
+      expect(
+          diverseRows.any((f) => f[3].contains('<img src="p1.png">')), isTrue);
       expect(diverseRows.any((f) => f[0].contains('{{c1::cloze}}')), isTrue);
       expect(diverseRows.any((f) => f[0].startsWith('medium ')), isTrue);
       expect(diverseRows.any((f) => f[0].startsWith('long ')), isTrue);

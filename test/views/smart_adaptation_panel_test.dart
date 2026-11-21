@@ -75,7 +75,8 @@ void main() {
     await pump(
       tester,
       aiConfigured: false,
-      onGenerate: (_) async => const CardAdaptationUnavailable('ai_unavailable'),
+      onGenerate: (_) async =>
+          const CardAdaptationUnavailable('ai_unavailable'),
     );
 
     expect(find.text(AppStrings.ankiAdaptationNotConfigured), findsOneWidget);
@@ -85,7 +86,8 @@ void main() {
     expect(button.onPressed, isNull, reason: '未配置时不能点');
   });
 
-  testWidgets('an accepted plan shows its revision and applies', (tester) async {
+  testWidgets('an accepted plan shows its revision and applies',
+      (tester) async {
     CardAdaptationPlan? applied;
     await pump(
       tester,
@@ -111,7 +113,8 @@ void main() {
     expect(applied?.planId, 'plan-1');
   });
 
-  testWidgets('an unavailable model says so and offers no apply', (tester) async {
+  testWidgets('an unavailable model says so and offers no apply',
+      (tester) async {
     await pump(
       tester,
       aiConfigured: true,
@@ -181,7 +184,8 @@ void main() {
       tester,
       aiConfigured: true,
       staged: true,
-      onGenerate: (_) async => const CardAdaptationUnavailable('ai_unavailable'),
+      onGenerate: (_) async =>
+          const CardAdaptationUnavailable('ai_unavailable'),
       onRestore: (_) => restored++,
     );
 
@@ -192,5 +196,3 @@ void main() {
     expect(restored, 1);
   });
 }
-
-

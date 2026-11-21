@@ -134,7 +134,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     final confirmed = await showTurnaConfirmDialog(
       context: context,
       title: AppStrings.storageDiagClearCacheTitle,
-      message: AppStrings.storageDiagClearCacheBody(_formatBytes(reclaimableBytes)),
+      message:
+          AppStrings.storageDiagClearCacheBody(_formatBytes(reclaimableBytes)),
       confirmLabel: AppStrings.ankiRepairCleanAction,
     );
     if (confirmed != true || !mounted) return;

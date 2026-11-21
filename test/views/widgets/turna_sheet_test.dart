@@ -66,8 +66,7 @@ void main() {
                         TurnaSheetAction(
                           label: '删除',
                           primary: true,
-                          onPressed: () =>
-                              Navigator.of(context).pop('deleted'),
+                          onPressed: () => Navigator.of(context).pop('deleted'),
                         ),
                       ],
                     ));

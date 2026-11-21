@@ -85,16 +85,16 @@ class DirectoryLessonRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyText(context).copyWith(
-                        fontSize: 15,
-                        fontWeight: status == DirectoryNodeStatus.current
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: dimmed
-                            ? TurnaTheme.textHintColor(context)
-                            : status == DirectoryNodeStatus.done
-                                ? TurnaTheme.textSecondaryColor(context)
-                                : TurnaTheme.textPrimaryColor(context),
-                      ),
+                    fontSize: 15,
+                    fontWeight: status == DirectoryNodeStatus.current
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                    color: dimmed
+                        ? TurnaTheme.textHintColor(context)
+                        : status == DirectoryNodeStatus.done
+                            ? TurnaTheme.textSecondaryColor(context)
+                            : TurnaTheme.textPrimaryColor(context),
+                  ),
                 ),
               ),
               if (meta != null && meta!.isNotEmpty) ...[
@@ -102,14 +102,14 @@ class DirectoryLessonRow extends StatelessWidget {
                 Text(
                   meta!,
                   style: AppTextStyles.captionSm(context).copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: metaEmphasized
-                            ? TurnaTheme.brandTeal
-                            : dimmed
-                                ? TurnaTheme.textHintColor(context)
-                                : TurnaTheme.textSecondaryColor(context),
-                      ),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: metaEmphasized
+                        ? TurnaTheme.brandTeal
+                        : dimmed
+                            ? TurnaTheme.textHintColor(context)
+                            : TurnaTheme.textSecondaryColor(context),
+                  ),
                 ),
               ],
             ],
@@ -243,14 +243,14 @@ class DirectorySubLessonRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.captionSm(context).copyWith(
-                        fontSize: 14,
-                        color: dimmed
-                            ? TurnaTheme.textHintColor(context)
-                            : isCurrent
-                                ? TurnaTheme.textPrimaryColor(context)
-                                : TurnaTheme.textSecondaryColor(context),
-                        fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
-                      ),
+                    fontSize: 14,
+                    color: dimmed
+                        ? TurnaTheme.textHintColor(context)
+                        : isCurrent
+                            ? TurnaTheme.textPrimaryColor(context)
+                            : TurnaTheme.textSecondaryColor(context),
+                    fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
+                  ),
                 ),
               ),
               if (meta != null && meta!.isNotEmpty) ...[
@@ -324,9 +324,9 @@ class DirectoryGroupHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyText(context).copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               if (meta != null && meta!.isNotEmpty) ...[
@@ -421,10 +421,9 @@ class DirectoryTaskRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyText(context).copyWith(
-                        fontSize: 15,
-                        fontWeight:
-                            emphasized ? FontWeight.w600 : FontWeight.w500,
-                      ),
+                    fontSize: 15,
+                    fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ),
               if (countLabel != null && countLabel!.isNotEmpty) ...[
@@ -432,11 +431,11 @@ class DirectoryTaskRow extends StatelessWidget {
                 Text(
                   countLabel!,
                   style: AppTextStyles.bodyText(context).copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.brandTealDark,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: TurnaTheme.brandTealDark,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ],
               const SizedBox(width: AppSpacing.xs + 2),
@@ -663,10 +662,10 @@ class DirectoryValueRow extends StatelessWidget {
                   Text(
                     value!,
                     style: AppTextStyles.bodyText(context).copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: TurnaTheme.brandTeal,
-                        ),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: TurnaTheme.brandTeal,
+                    ),
                   ),
                 ],
                 if (interactive) ...[
@@ -727,7 +726,8 @@ class _DirectoryRowsPreview extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const DirectoryGroupHeader(indexLabel: '5', title: '咖啡与茶', meta: '0 / 4'),
+            const DirectoryGroupHeader(
+                indexLabel: '5', title: '咖啡与茶', meta: '0 / 4'),
             const DirectoryLessonRow(
               status: DirectoryNodeStatus.done,
               title: 'Merhaba!',

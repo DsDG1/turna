@@ -134,9 +134,8 @@ class _LessonCompletionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final style =
         lessonCelebrationStyles[random.nextInt(lessonCelebrationStyles.length)];
-    final accuracyPercent = totalCount == 0
-        ? 0
-        : ((correctCount / totalCount) * 100).round();
+    final accuracyPercent =
+        totalCount == 0 ? 0 : ((correctCount / totalCount) * 100).round();
     final title = switch (style.styleIndex) {
       0 => AppStrings.lessonCompleteTitle1,
       1 => AppStrings.lessonCompleteTitle2,

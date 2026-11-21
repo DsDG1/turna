@@ -7,6 +7,7 @@ word-order tokens directly in the desktop editor.
 """
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 from PySide6.QtWidgets import (
@@ -80,7 +81,7 @@ class _GuideClassificationPreview(QFrame):
                 btn = QPushButton(str(card.get("text") or cid))
                 btn.setCheckable(True)
                 btn.setChecked(cid == self._selected_card_id)
-                btn.clicked.connect(lambda _c=False, c_id=cid: self._select_card(c_id))
+                btn.clicked.connect(functools.partial(self._select_card, cid))
                 cards_row.addWidget(btn)
             cards_row.addStretch()
             wrap = QWidget()
@@ -100,7 +101,7 @@ class _GuideClassificationPreview(QFrame):
             if placed_here:
                 label += f"（{', '.join(placed_here)}）"
             btn = QPushButton(label)
-            btn.clicked.connect(lambda _c=False, cid=cat_id: self._place_into(cid))
+            btn.clicked.connect(functools.partial(self._place_into, cat_id))
             cat_row.addWidget(btn)
         cat_wrap = QWidget()
         cat_wrap.setLayout(cat_row)
@@ -122,11 +123,11 @@ class _GuideClassificationPreview(QFrame):
         reset_btn.clicked.connect(self._reset)
         self._layout.addWidget(reset_btn)
 
-    def _select_card(self, card_id: str) -> None:
+    def _select_card(self, card_id: str, _checked: bool = False) -> None:
         self._selected_card_id = card_id
         self._rebuild()
 
-    def _place_into(self, category_id: str) -> None:
+    def _place_into(self, category_id: str, _checked: bool = False) -> None:
         if not self._selected_card_id:
             return
         card = next(
@@ -208,21 +209,21 @@ class _GuideSuffixPreview(QFrame):
             row.addWidget(lbl, 1)
             next_btn = QPushButton("+ 下一词缀")
             next_btn.setEnabled(cur < len(steps))
-            next_btn.clicked.connect(lambda _c=False, i=idx: self._advance(i))
+            next_btn.clicked.connect(functools.partial(self._advance, idx))
             reset_btn = QPushButton("重置")
             reset_btn.setEnabled(cur > 0)
-            reset_btn.clicked.connect(lambda _c=False, i=idx: self._reset(i))
+            reset_btn.clicked.connect(functools.partial(self._reset, idx))
             row.addWidget(next_btn)
             row.addWidget(reset_btn)
             wrap = QWidget()
             wrap.setLayout(row)
             self._layout.addWidget(wrap)
 
-    def _advance(self, idx: int) -> None:
+    def _advance(self, idx: int, _checked: bool = False) -> None:
         self._step_by_example[idx] = self._step_by_example.get(idx, 0) + 1
         self._rebuild()
 
-    def _reset(self, idx: int) -> None:
+    def _reset(self, idx: int, _checked: bool = False) -> None:
         self._step_by_example[idx] = 0
         self._rebuild()
 

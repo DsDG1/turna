@@ -303,8 +303,7 @@ class _WeeklyChartSection extends StatelessWidget {
   }
 
   String _summaryText() {
-    final active =
-        snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
+    final active = snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
     final total =
         snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
     return AppStrings.reviewSevenDaySummary(active, total);

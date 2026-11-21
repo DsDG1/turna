@@ -109,7 +109,6 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
   );
 }
 
-
 Future<OfficialFirstCommitResult> _commitOfficialV2(
   OfficialAnkiImportPreviewModel preview,
   OfficialAnkiDatabase catalog,
@@ -276,4 +275,3 @@ Future<void> cancelActiveOfficialStaging() async {
     paths: paths,
   ).cancelActive();
 }
-

@@ -124,7 +124,8 @@ bool _isWordRune(int rune) =>
 /// (`bu`, `ev`) never fuzzy-match their neighbors.
 bool matchesWord(String reference, String heard) {
   if (reference == heard) return true;
-  if (_kNumberToWord[reference] == heard || _kNumberToWord[heard] == reference) {
+  if (_kNumberToWord[reference] == heard ||
+      _kNumberToWord[heard] == reference) {
     return true;
   }
   if (reference.length < 4 || heard.length < 4) return false;

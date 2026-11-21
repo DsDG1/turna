@@ -84,7 +84,9 @@ class OfficialAnkiPresentationPolicy {
     if (values.truncatedRequired) {
       return (
         kind: OfficialAnkiProjectionKind.canonicalLink,
-        reasons: const <PresentationReason>[PresentationReason.truncatedRequired],
+        reasons: const <PresentationReason>[
+          PresentationReason.truncatedRequired
+        ],
       );
     }
     // Iron-law downgrade (§3.7): this card violated its notetype's
@@ -200,7 +202,9 @@ class OfficialAnkiPresentationPolicy {
         }
         return (
           kind: _pairFallback(enabled, values),
-          reasons: const <PresentationReason>[PresentationReason.missingOptions],
+          reasons: const <PresentationReason>[
+            PresentationReason.missingOptions
+          ],
         );
       case CardArchetype.audioFirst:
         if (enabled.contains('listenPick') && hasAudio) {

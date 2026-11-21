@@ -123,7 +123,8 @@ class AnkiDeckManager {
           );
         }
       } catch (error) {
-        logger.w('[AnkiDeckManager] adaptation namespace cleanup failed: $error');
+        logger
+            .w('[AnkiDeckManager] adaptation namespace cleanup failed: $error');
       }
     } else {
       logger.w(

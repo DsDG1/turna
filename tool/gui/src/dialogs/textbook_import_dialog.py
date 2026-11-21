@@ -226,9 +226,8 @@ class TextbookImportDialog(QDialog):
             self._set_busy(True, "提取中…")
         elif step == STEP_REVIEW:
             self._populate_review()
-        elif step == STEP_IMPORT and result.outcome == "success":
-            if not self._embedded:
-                self.close()
+        elif step == STEP_IMPORT and result.outcome == "success" and not self._embedded:
+            self.close()
 
     def _show_parse_preview(self) -> None:
         has_text = bool(self._controller.markdown)

@@ -100,8 +100,9 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
   Future<void> _refreshDiagnostics() async {
     if (!getIt.isRegistered<TtsAvailabilityChecker>()) return;
     final checker = getIt<TtsAvailabilityChecker>();
-    final lang = readOptionalProvider<LanguageProvider>(context)?.ttsLanguageCode ??
-        LanguageCodes.turkish;
+    final lang =
+        readOptionalProvider<LanguageProvider>(context)?.ttsLanguageCode ??
+            LanguageCodes.turkish;
     final diag = await checker.diagnose(lang);
     // Fetched after `diagnose` so the voice list can never delay the
     // diagnostics themselves, and fetched even when `diag` threw nothing —

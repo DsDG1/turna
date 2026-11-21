@@ -21,8 +21,7 @@ class CourseTtsSettingsSheet extends StatefulWidget {
   });
 
   @override
-  State<CourseTtsSettingsSheet> createState() =>
-      _CourseTtsSettingsSheetState();
+  State<CourseTtsSettingsSheet> createState() => _CourseTtsSettingsSheetState();
 }
 
 class _CourseTtsSettingsSheetState extends State<CourseTtsSettingsSheet> {

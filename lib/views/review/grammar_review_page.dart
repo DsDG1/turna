@@ -347,22 +347,23 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
             AppSpacing.pageMargin,
             AppSpacing.lg,
           ),
-          child: _phase == _GrammarCardPhase.practice && practiceItems.isNotEmpty
-              ? _PracticePanel(
-                  interaction: practiceItems[_practiceIndex],
-                  renderers: _renderers,
-                  submitted: _practiceSubmitted,
-                  correct: _practiceCorrect,
-                  onSubmit: _onPracticeSubmit,
-                  progressLabel: AppStrings.reviewGrammarPracticeLabel(
-                      _practiceIndex + 1, practiceItems.length),
-                )
-              : _GrammarCard(
-                  word: item,
-                  point: point,
-                  showExplanation: _showExplanation,
-                  onFlip: _onRevealExplanation,
-                ),
+          child:
+              _phase == _GrammarCardPhase.practice && practiceItems.isNotEmpty
+                  ? _PracticePanel(
+                      interaction: practiceItems[_practiceIndex],
+                      renderers: _renderers,
+                      submitted: _practiceSubmitted,
+                      correct: _practiceCorrect,
+                      onSubmit: _onPracticeSubmit,
+                      progressLabel: AppStrings.reviewGrammarPracticeLabel(
+                          _practiceIndex + 1, practiceItems.length),
+                    )
+                  : _GrammarCard(
+                      word: item,
+                      point: point,
+                      showExplanation: _showExplanation,
+                      onFlip: _onRevealExplanation,
+                    ),
         ),
       ),
       bottomNavigationBar: SessionActionBand(

@@ -125,8 +125,7 @@ class _HeroCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs + 2),
               Text(
                 AppStrings.aiGuideHeroSubtitle,
-                style: AppTextStyles.captionSm(context)
-                    .copyWith(height: 1.5),
+                style: AppTextStyles.captionSm(context).copyWith(height: 1.5),
               ),
               const SizedBox(height: AppSpacing.md),
               Row(
@@ -462,7 +461,8 @@ class _FeatureCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: TurnaTheme.softTint(context, spec.accent,
                           alpha: 0.08),
-                      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.cardRadius),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,

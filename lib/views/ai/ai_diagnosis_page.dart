@@ -228,8 +228,7 @@ class _ReportBody extends StatelessWidget {
 
         // ── 依据：薄弱点行（标题 + 程度 + 证据）──
         if (report.weakAreas.isNotEmpty) ...[
-          ReportSectionHeading(
-              title: AppStrings.aiDiagnosisSectionEvidence),
+          ReportSectionHeading(title: AppStrings.aiDiagnosisSectionEvidence),
           ReportDefinitionList(
             rows: [
               for (final a in report.weakAreas)

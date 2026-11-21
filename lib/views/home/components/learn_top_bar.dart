@@ -31,8 +31,8 @@ class LearnTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sectionName = context
-        .select((CourseProvider p) => p.currentSection?.name);
+    final sectionName =
+        context.select((CourseProvider p) => p.currentSection?.name);
     final courseLabel = (sectionName != null && sectionName.isNotEmpty)
         ? sectionName
         // 未装载或空目录时回落到语言显示名，避免顶栏闪空串。
@@ -46,7 +46,8 @@ class LearnTopBar extends StatelessWidget implements PreferredSizeWidget {
           courseName: courseLabel,
           onSwitchCourse: () => context.router.push(CourseManagementRoute()),
           switchTooltip: AppStrings.courseManagementTitle,
-          streakLabel: streak > 0 ? AppStrings.accountStreakValue(streak) : null,
+          streakLabel:
+              streak > 0 ? AppStrings.accountStreakValue(streak) : null,
         );
       },
     );

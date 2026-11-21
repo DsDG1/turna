@@ -45,8 +45,10 @@ enum OfficialAnkiV2LessonDeriveFailure {
 
 /// v2 课时派生结果：`lesson == null && failure == null` 是正常 miss（非 v2
 /// 课时 / 引擎缺席）；`failure != null` 说明这确实是 v2 课时但派生失败。
-typedef OfficialAnkiV2LessonOutcome =
-    ({Lesson? lesson, OfficialAnkiV2LessonDeriveFailure? failure});
+typedef OfficialAnkiV2LessonOutcome = ({
+  Lesson? lesson,
+  OfficialAnkiV2LessonDeriveFailure? failure
+});
 
 /// B6 第 5 读挂点（真机首夜 F6，ADR 0043）：v2 课时正文派生自卡（D3）。
 ///
@@ -117,7 +119,8 @@ class OfficialAnkiV2LessonContent {
     final decoded = _decodeSuggestions(decision?.suggestionsJson);
     final suggestions = decoded.suggestions;
     // 适配方案读一次（manifest + 单卡覆盖），逐卡只按需读修订体（ADR 0057 §6）。
-    final adaptation = await OfficialAnkiAdaptationStore(engine).snapshot(sourceId);
+    final adaptation =
+        await OfficialAnkiAdaptationStore(engine).snapshot(sourceId);
 
     final cardIds = [for (final row in rows) row.cardId];
     final snapshot = await engine.beginProjectionRead(
@@ -177,7 +180,8 @@ class OfficialAnkiV2LessonContent {
       final values = resolved.values;
       var kind = resolved.kind;
       if (values.variant != CardContentVariant.none) {
-        variantCounts[values.variant] = (variantCounts[values.variant] ?? 0) + 1;
+        variantCounts[values.variant] =
+            (variantCounts[values.variant] ?? 0) + 1;
       }
       if (applied is! AdaptationNoPlan && resolved.decision.isOriginalCard) {
         planFallbacks++;

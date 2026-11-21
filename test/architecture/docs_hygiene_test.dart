@@ -61,7 +61,9 @@ String? _resolveTarget(String containingFile, String target) {
   if (clean.isEmpty) return null;
   if (clean.startsWith('/')) return clean;
   final base = _posix(File(containingFile).parent.path);
-  final segments = <String>[if (base != '.' && base.isNotEmpty) ...base.split('/')];
+  final segments = <String>[
+    if (base != '.' && base.isNotEmpty) ...base.split('/')
+  ];
   for (final segment in clean.split('/')) {
     if (segment == '.') continue;
     if (segment == '..') {
@@ -368,6 +370,13 @@ void main() {
         '已随文档精简删除',
       ];
 
+      // Deliberately gitignored local-only files that may exist on developer
+      // machines but are absent in clean checkouts (such as CI runners).
+      const gitignoredPaths = <String>{
+        'ohos/SIGNING.local.md',
+        'dist/design-refresh/coverage.md',
+      };
+
       final dangling = <String>[];
       final sources = <File>[
         File(_agentsFile),
@@ -389,6 +398,7 @@ void main() {
           final prose = line.replaceAll(linkSyntax, '');
           for (final match in namePattern.allMatches(prose)) {
             final name = match.group(1)!;
+            if (gitignoredPaths.contains(name)) continue;
             final relative = _resolveTarget(_posix(source.path), name);
             if (relative != null && File(relative).existsSync()) continue;
             if (File(name).existsSync()) continue;

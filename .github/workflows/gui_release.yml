@@ -69,16 +69,12 @@ jobs:
         # `make guard-gui` — a split baseline would let one gate go green
         # while another goes red. Rationale per metric:
         # tool/gui/docs/ai_refactor_contract.md
+        # ratchet baselines: tool/gui/tool/guard_limits.json (single source)
+        # --fail-app-dialogs is intentionally not enabled: the contract
+        # treats application -> dialogs as known debt (13 edges,
+        # composition-root only). Its ceiling is max_app_dialogs_imports.
         run: |
-          python tool/gui/tool/check_ai_boundaries.py \
-            --fail-private --fail-dialogs-app --fail-backend-app \
-            --fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline \
-            --fail-undeclared-host-access \
-            --fail-course-cli-binding
-            # ratchet baselines: tool/gui/tool/guard_limits.json (single source)
-            # --fail-app-dialogs is intentionally not enabled: the contract
-            # treats application -> dialogs as known debt (13 edges,
-            # composition-root only). Its ceiling is max_app_dialogs_imports.
+          python tool/gui/tool/check_ai_boundaries.py --fail-private --fail-dialogs-app --fail-backend-app --fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline --fail-undeclared-host-access --fail-course-cli-binding
           python tool/gui/tool/gen_module_tree.py --check
           python tool/gui/tool/check_docs_index.py --quiet
 

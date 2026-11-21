@@ -428,8 +428,8 @@ class OfficialAnkiMaintenanceRunner {
       case OfficialAnkiMaintenanceKind.v2ViewRebuild:
         // ADR 0043/K3：无状态视图整建，重启即重跑（幂等）。
         final engine = await _requireOpenEngine('v2_view_rebuild');
-        final db = course ??
-            (throw StateError('v2_view_rebuild requires course'));
+        final db =
+            course ?? (throw StateError('v2_view_rebuild requires course'));
         final result = await OfficialAnkiV2ViewRebuilder(
           engine: engine,
           catalog: catalog,

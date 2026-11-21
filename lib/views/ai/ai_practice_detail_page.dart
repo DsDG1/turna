@@ -111,13 +111,13 @@ class AiPracticeDetailPage extends StatelessWidget {
                               TextButton(
                                 onPressed: () =>
                                     retryAiPractice(context, course),
-                                child:
-                                    Text(AppStrings.aiPracticeRegenerate),
+                                child: Text(AppStrings.aiPracticeRegenerate),
                               ),
                               const SizedBox(height: AppSpacing.xs),
                               SessionPrimaryAction(
                                 label: AppStrings.aiPracticeStart,
-                                onPressed: () => openAiPractice(context, course),
+                                onPressed: () =>
+                                    openAiPractice(context, course),
                                 trailingIcon: Icons.play_arrow_rounded,
                               ),
                             ],

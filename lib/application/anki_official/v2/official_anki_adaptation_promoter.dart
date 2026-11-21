@@ -135,7 +135,8 @@ class OfficialAnkiAdaptationPromoter {
         continue;
       }
       final liveOrdinals = liveTemplateOrdinals[scope.notetypeId];
-      if (liveOrdinals == null || !liveOrdinals.contains(scope.templateOrdinal)) {
+      if (liveOrdinals == null ||
+          !liveOrdinals.contains(scope.templateOrdinal)) {
         skipped[scopeKey] = AdaptationSkipReason.missingTemplate;
         continue;
       }

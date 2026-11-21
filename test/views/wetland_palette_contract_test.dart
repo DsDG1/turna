@@ -284,8 +284,8 @@ void main() {
       expect(playHubSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(playHubSrc.contains('DirectoryTaskRow'), isTrue);
 
-      final statsSrc = File('lib/views/widgets/learning_stats.dart')
-          .readAsStringSync();
+      final statsSrc =
+          File('lib/views/widgets/learning_stats.dart').readAsStringSync();
       expect(statsSrc.contains('TurnaTheme.anatolianClay'), isTrue);
     });
 
@@ -300,8 +300,7 @@ void main() {
     });
 
     test('play hub weak-words tile uses clay secondary accent', () {
-      final src =
-          File('lib/views/play/play_hub_page.dart').readAsStringSync();
+      final src = File('lib/views/play/play_hub_page.dart').readAsStringSync();
       expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(src.contains('playWeakWordsTitle'), isTrue);
     });

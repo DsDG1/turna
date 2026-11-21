@@ -284,7 +284,6 @@ class AiErrorMapper {
       lower.contains('length limit') ||
       lower.contains('截断');
 
-
   static bool _looksIncomplete(String lower) =>
       lower.contains('config incomplete') ||
       lower.contains('api key') && lower.contains('incomplete') ||

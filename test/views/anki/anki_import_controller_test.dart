@@ -648,9 +648,8 @@ void main() {
 
     final manager = AnkiDeckManager(repo: getIt<ICourseRepository>());
     var finished = false;
-    final uninstallFuture = manager
-        .uninstall('src-large', awaitEnginePass: true)
-        .then((ok) {
+    final uninstallFuture =
+        manager.uninstall('src-large', awaitEnginePass: true).then((ok) {
       finished = true;
       return ok;
     });

@@ -244,7 +244,6 @@ class OfficialAnkiRoleValues {
           if (occurrence.side == side && occurrence.kind == kind)
             occurrence.filename,
       ];
-
 }
 
 class OfficialAnkiProjectionPayloads {
@@ -455,8 +454,7 @@ class OfficialAnkiProjectionPayloads {
               CardArchetype.audioFirst => CardContentVariant.audioFirst,
               _ => CardContentVariant.none,
             },
-      document:
-          plan == null ? null : buildCardDocument(plan: plan, row: row),
+      document: plan == null ? null : buildCardDocument(plan: plan, row: row),
     );
   }
 
@@ -823,6 +821,3 @@ class OfficialAnkiProjectionPayloads {
     );
   }
 }
-
-
-

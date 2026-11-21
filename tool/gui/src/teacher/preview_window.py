@@ -11,6 +11,7 @@ A high-fidelity desktop renderer that mirrors the Flutter app's lesson flow:
 """
 from __future__ import annotations
 
+import functools
 import html
 import logging
 import re
@@ -364,13 +365,14 @@ class _PreviewCard(QFrame):
         edit.setPlaceholderText("输入答案…")
         if hints:
             hint_row = QHBoxLayout()
+
+            def _append_hint(text: str, _checked: bool = False) -> None:
+                sep = " " if edit.text() and not edit.text().endswith(" ") else ""
+                edit.setText(edit.text() + sep + text)
+
             for h in hints:
                 chip = QPushButton(h)
-                chip.clicked.connect(
-                    lambda _c=False, text=h: edit.setText(
-                        (edit.text() + (" " if edit.text() and not edit.text().endswith(" ") else "") + text)
-                    )
-                )
+                chip.clicked.connect(functools.partial(_append_hint, h))
                 hint_row.addWidget(chip)
             hint_row.addStretch()
             wrap = QWidget()
@@ -434,14 +436,14 @@ class _PreviewCard(QFrame):
             for idx, btn in enumerate(bank_buttons):
                 btn.setEnabled(idx not in selected_indices)
 
-        def _pick(idx: int) -> None:
+        def _pick(idx: int, _checked: bool = False) -> None:
             if idx not in selected_indices:
                 selected_indices.append(idx)
                 _sync()
 
         for i, token in enumerate(scrambled):
             btn = QPushButton(token)
-            btn.clicked.connect(lambda _c=False, idx=i: _pick(idx))
+            btn.clicked.connect(functools.partial(_pick, i))
             bank_buttons.append(btn)
             bank_row.addWidget(btn)
         bank_row.addStretch()
@@ -531,15 +533,15 @@ class _PreviewCard(QFrame):
             word_summary = "  ".join(
                 f"{'✓' if w.matched else '✗'}{w.word}" for w in result.words
             )
-            status.setText(f"匹配率：{int(round(result.ratio * 100))}% — {word_summary}")
+            status.setText(f"匹配率：{round(result.ratio * 100)}% — {word_summary}")
             if not result.passed:
                 self._emit_wrong()
             QMessageBox.information(
                 self,
                 "结果",
-                f"✅ 跟读匹配通过（{int(round(result.ratio * 100))}%）！\n{word_summary}"
+                f"✅ 跟读匹配通过（{round(result.ratio * 100)}%）！\n{word_summary}"
                 if result.passed
-                else f"❌ 匹配未达标（{int(round(result.ratio * 100))}% < 60%）\n{word_summary}",
+                else f"❌ 匹配未达标（{round(result.ratio * 100)}% < 60%）\n{word_summary}",
             )
 
         btn_row = QHBoxLayout()
@@ -548,7 +550,11 @@ class _PreviewCard(QFrame):
         btn_row.addWidget(check_btn)
 
         quick_btn = QPushButton("填入目标句")
-        quick_btn.clicked.connect(lambda: edit.setText(target_text))
+
+        def _fill_target(_checked: bool = False) -> None:
+            edit.setText(target_text)
+
+        quick_btn.clicked.connect(_fill_target)
         btn_row.addWidget(quick_btn)
 
         layout.addLayout(btn_row)

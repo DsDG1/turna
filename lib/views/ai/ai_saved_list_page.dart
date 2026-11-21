@@ -106,8 +106,7 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                         trailing: IconButton(
                           tooltip: AppStrings.aiSavedDelete,
                           icon: const Icon(Icons.delete_outline, size: 20),
-                          onPressed: () =>
-                              _deleteWithUndo(context, store, e),
+                          onPressed: () => _deleteWithUndo(context, store, e),
                         ),
                       );
                     },

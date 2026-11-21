@@ -327,8 +327,7 @@ class _KpiCard extends StatelessWidget {
         ReportMetricHeader(
           label: AppStrings.reviewProgressKpiRetention,
           value: ret,
-          caption:
-              '${AppStrings.reviewProgressKpiCards} ${a.totalCards} · '
+          caption: '${AppStrings.reviewProgressKpiCards} ${a.totalCards} · '
               '${AppStrings.reviewProgressKpiReviews} ${a.totalReviews}',
         ),
         if (hasTracked) ...[
@@ -342,9 +341,7 @@ class _KpiCard extends StatelessWidget {
               ReportDefinitionRow(
                 label: AppStrings.profileDueToday,
                 value: '${a.forecast.dueToday}',
-                valueColor: a.forecast.dueToday > 0
-                    ? TurnaTheme.error
-                    : null,
+                valueColor: a.forecast.dueToday > 0 ? TurnaTheme.error : null,
               ),
               ReportDefinitionRow(
                 label: AppStrings.profileDue7Days,
@@ -430,7 +427,8 @@ class _CurveCard extends StatelessWidget {
             points: [
               for (final point in curve)
                 ReportPoint(
-                  label: AppStrings.reviewIntervalDays(point.intervalBucketDays),
+                  label:
+                      AppStrings.reviewIntervalDays(point.intervalBucketDays),
                   value: point.retention,
                 ),
             ],
@@ -673,7 +671,8 @@ class _InlineInsightsErrorBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 16, color: TurnaTheme.error),
+            const Icon(Icons.cloud_off_rounded,
+                size: 16, color: TurnaTheme.error),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

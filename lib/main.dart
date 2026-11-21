@@ -88,7 +88,8 @@ Future<void> main() async {
     // moves `PackageInfo.fromPlatform()` (a platform channel round-trip) and a
     // prefs read off the startup critical path. It replays the whole log buffer
     // on install, so entries written during the gap are still processed.
-    unawaited(getIt<SystemHealthMonitor>().install(LogCapture.instance.entries));
+    unawaited(
+        getIt<SystemHealthMonitor>().install(LogCapture.instance.entries));
     unawaited(continueTurnaStartup());
   });
 }

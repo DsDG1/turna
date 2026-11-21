@@ -259,8 +259,10 @@ class CardAdaptationPlan {
       optionalExercises: exercises is List
           ? [for (final item in exercises) '$item']
           : const <String>[],
-      fallback: json['fallback'] is String ? json['fallback'] as String : 'original',
-      origin: json['origin'] is String ? json['origin'] as String : 'aiCandidate',
+      fallback:
+          json['fallback'] is String ? json['fallback'] as String : 'original',
+      origin:
+          json['origin'] is String ? json['origin'] as String : 'aiCandidate',
       fingerprints: json['fingerprints'] is Map
           ? Map<String, Object?>.from(json['fingerprints'] as Map)
           : const <String, Object?>{},

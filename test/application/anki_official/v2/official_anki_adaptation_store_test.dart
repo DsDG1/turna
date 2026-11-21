@@ -135,8 +135,7 @@ void main() {
     expect(await store.readRevision('plan-1', 1), isNull);
   });
 
-  test('a card override beats the template plan in both directions',
-      () async {
+  test('a card override beats the template plan in both directions', () async {
     await store.activate(
       sourceId: sourceId,
       scopeKey: adaptationScopeKey(7, 0),
@@ -161,7 +160,8 @@ void main() {
     await store.writeCardOverride(
       sourceId: sourceId,
       cardId: 200,
-      override: const AdaptationCardOverride.plan(planId: 'plan-1', revision: 1),
+      override:
+          const AdaptationCardOverride.plan(planId: 'plan-1', revision: 1),
     );
     final pinned = await store.lookup(
       sourceId: sourceId,
@@ -223,7 +223,8 @@ void main() {
       plan: plan(),
     );
     expect(
-      await store.deactivate(sourceId: sourceId, scopeKey: adaptationScopeKey(7, 0)),
+      await store.deactivate(
+          sourceId: sourceId, scopeKey: adaptationScopeKey(7, 0)),
       isTrue,
     );
 

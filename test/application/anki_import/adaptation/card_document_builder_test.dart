@@ -110,8 +110,7 @@ void main() {
     );
   });
 
-  test('a plan without blocks produces no document (role extraction wins)',
-      () {
+  test('a plan without blocks produces no document (role extraction wins)', () {
     final document = buildCardDocument(
       plan: plan(),
       row: row(['a', 'b']),

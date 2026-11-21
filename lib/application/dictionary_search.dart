@@ -138,8 +138,7 @@ DictionaryHit _grammarHit(GrammarPoint gp) {
     speakText: gp.title,
     examples: [
       for (final id in gp.exampleExpressionIds)
-        if (expressionsById[id] case final exp?)
-          (exp.term, exp.translation),
+        if (expressionsById[id] case final exp?) (exp.term, exp.translation),
     ],
   );
 }

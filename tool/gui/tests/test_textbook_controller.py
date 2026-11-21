@@ -830,7 +830,7 @@ class PresetAutoDetectTest(unittest.TestCase):
 
     def test_detection_callback_reports_profile(self) -> None:
         captured: list[dict[str, Any]] = []
-        ctrl, _result = self._load(
+        _ctrl, _result = self._load(
             _syllabus_md(), on_preset_detected=captured.append
         )
         self.assertEqual(len(captured), 1)

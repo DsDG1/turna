@@ -133,7 +133,8 @@ class TurnaSheetPanel extends StatelessWidget {
                         Text(title, style: AppTextStyles.sectionTitle(context)),
                         if (subtitle != null && subtitle!.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.xs),
-                          Text(subtitle!, style: AppTextStyles.captionSm(context)),
+                          Text(subtitle!,
+                              style: AppTextStyles.captionSm(context)),
                         ],
                       ],
                     ),
@@ -189,8 +190,7 @@ class _SheetActionFooter extends StatelessWidget {
       (a) => a.primary,
       orElse: () => actions.first,
     );
-    final secondary =
-        actions.where((a) => !a.primary).toList(growable: false);
+    final secondary = actions.where((a) => !a.primary).toList(growable: false);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -257,10 +257,10 @@ Future<bool?> showTurnaConfirmDialog({
       content: Text(
         message,
         style: AppTextStyles.bodyText(dialogContext).copyWith(
-              fontSize: 14,
-              height: 1.5,
-              color: TurnaTheme.textSecondaryColor(dialogContext),
-            ),
+          fontSize: 14,
+          height: 1.5,
+          color: TurnaTheme.textSecondaryColor(dialogContext),
+        ),
       ),
       actions: [
         TextButton(

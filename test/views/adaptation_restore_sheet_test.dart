@@ -9,8 +9,7 @@ import 'package:turna/views/anki_official/components/adaptation_restore_sheet.da
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  AdaptationManifest manifest(Map<String, int> scopes) =>
-      AdaptationManifest(
+  AdaptationManifest manifest(Map<String, int> scopes) => AdaptationManifest(
         entries: {
           for (final entry in scopes.entries)
             entry.key: AdaptationManifestEntry(
@@ -119,7 +118,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(allCalls, 1);
-    expect(find.byKey(const ValueKey('adaptation-restore-empty')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('adaptation-restore-empty')), findsOneWidget);
   });
 
   testWidgets('no active plan shows the empty state', (tester) async {

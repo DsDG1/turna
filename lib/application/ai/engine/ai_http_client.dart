@@ -521,8 +521,9 @@ class AiHttpClient {
         // Non-SSE fallback: parse the buffered body as a normal completion.
         final buffered = _tryParseJson(rawBuf.toString());
         final content = _extractBufferedContent(rawBuf.toString());
-        final bufferedReason =
-            buffered == null ? null : _firstChoiceField(buffered, 'finish_reason');
+        final bufferedReason = buffered == null
+            ? null
+            : _firstChoiceField(buffered, 'finish_reason');
         out.add(AiStreamChunk(
           delta: content,
           finishReason: bufferedReason is String ? bufferedReason : 'stop',

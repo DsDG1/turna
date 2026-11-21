@@ -109,7 +109,8 @@ class _DashboardLoadErrorBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 16, color: TurnaTheme.error),
+            const Icon(Icons.cloud_off_rounded,
+                size: 16, color: TurnaTheme.error),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -148,8 +149,7 @@ class _MetricOpening extends StatelessWidget {
     return ReportMetricHeader(
       label: AppStrings.mistakeDashboardActiveLabel,
       value: '${entries.length}',
-      caption:
-          '${AppStrings.mistakeDashboardMasteredLabel} $masteredTotal · '
+      caption: '${AppStrings.mistakeDashboardMasteredLabel} $masteredTotal · '
           '${AppStrings.mistakeDashboardConsolidateLabel} $toConsolidate',
     );
   }
@@ -250,7 +250,8 @@ class _DistributionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ReportSectionHeading(title: AppStrings.mistakeDashboardDistributionTitle),
+        ReportSectionHeading(
+            title: AppStrings.mistakeDashboardDistributionTitle),
         if (total == 0)
           Text(
             AppStrings.mistakeDashboardTrendEmpty,

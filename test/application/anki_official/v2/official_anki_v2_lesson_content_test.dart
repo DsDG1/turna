@@ -177,7 +177,8 @@ void main() {
       () async {
     catalogWrites.clear();
     courseWrites.clear();
-    final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+    final lesson =
+        (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
     expect(lesson, isNotNull, reason: 'v2 课时必须派生出正文（F6）');
     expect(lesson!.id, lessonId);
@@ -199,7 +200,8 @@ void main() {
   });
 
   test('answer-linkage: derived ids resolve back to the view cards', () async {
-    final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+    final lesson =
+        (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
     expect(lesson, isNotNull);
 
     // 复习链 P0 解析面（复习页/练习中心共用的 lesson card index）。
@@ -225,7 +227,8 @@ void main() {
     addTearDown(CourseLoader.clearDatabaseOverride);
     expect(engine.openProfileId, isNull);
 
-    final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+    final lesson =
+        (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
     expect(lesson, isNotNull);
     expect(engine.openProfileId, 'profile-v2-content');
     expect(engine.openCount, 1);
@@ -272,7 +275,8 @@ void main() {
         override: const AdaptationCardOverride.original(),
       );
 
-      final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+      final lesson =
+          (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
       expect(lesson, isNotNull);
       final ids = [
@@ -305,7 +309,8 @@ void main() {
         null,
       );
 
-      final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+      final lesson =
+          (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
       expect(lesson, isNotNull);
       final ids = [
@@ -328,7 +333,8 @@ void main() {
         ),
       );
 
-      final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+      final lesson =
+          (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
       expect(lesson, isNotNull);
       final ids = [
@@ -413,7 +419,8 @@ void main() {
         ),
       );
 
-      final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+      final lesson =
+          (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
       expect(lesson, isNotNull);
       final items = lesson!.content.stages.single.items;
@@ -452,7 +459,8 @@ void main() {
         ),
       );
 
-      final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+      final lesson =
+          (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
       expect(lesson, isNotNull);
       final flip = lesson!.content.stages.single.items
@@ -496,7 +504,8 @@ void main() {
         ),
       );
 
-      final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+      final lesson =
+          (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
 
       expect(lesson, isNotNull);
       final item = lesson!.content.stages.single.items
@@ -512,8 +521,8 @@ void main() {
   test('missing or corrupt mapping decision is fail-closed', () async {
     // 决策键整个缺失（K10 损坏按 missing 语义）。
     engine.configStore.clear();
-    expect((await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson,
-        isNull);
+    expect(
+        (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson, isNull);
 
     // suggestionsJson 损坏：解码按空处理 → 全部卡无映射 → null，不抛，
     // 且 failure 说明是决策损坏（B1：可区分于普通 miss）。
@@ -529,12 +538,14 @@ void main() {
 
   test('engine absent: null, not a throw', () async {
     OfficialAnkiCompositionRoot.debugEngineOverride = null;
-    final lesson = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+    final lesson =
+        (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
     expect(lesson, isNull);
   });
 
   test('deterministic: deriving twice yields identical content', () async {
-    final first = (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
+    final first =
+        (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
     final second =
         (await OfficialAnkiV2LessonContent.lessonFor(lessonId)).lesson;
     expect(

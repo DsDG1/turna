@@ -69,8 +69,8 @@ class AnkiImportDependencies {
         return result.files.first.path;
       }),
       officialFirst: const OfficialAnkiOfficialFirstService(),
-      v2ViewStore: CourseLoader.v2ViewStoreOrNull() ??
-          getIt<IOfficialAnkiV2ViewStore>(),
+      v2ViewStore:
+          CourseLoader.v2ViewStoreOrNull() ?? getIt<IOfficialAnkiV2ViewStore>(),
       unificationStore: CourseLoader.unificationStoreOrNull(),
       courseProvider: courseProvider,
     );

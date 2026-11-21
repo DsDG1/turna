@@ -420,7 +420,8 @@ class DictionaryEntryDetail extends StatelessWidget {
                 onPressed: onSpeak,
                 style: IconButton.styleFrom(
                   fixedSize: const Size(44, 44),
-                  side: const BorderSide(color: TurnaTheme.brandTeal, width: 1.5),
+                  side:
+                      const BorderSide(color: TurnaTheme.brandTeal, width: 1.5),
                   shape: const CircleBorder(),
                 ),
                 icon: const Icon(

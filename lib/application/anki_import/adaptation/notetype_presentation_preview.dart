@@ -29,9 +29,8 @@ class NotetypePresentationPreview {
   /// Every structured outcome is a flip-family face, so the group reads as a
   /// classic flip group. True for an empty group only via [hasSamples]
   /// callers' own fallback.
-  bool get flipOnly => structuredKinds.isEmpty
-      ? true
-      : structuredKinds.every(_isFlipFamily);
+  bool get flipOnly =>
+      structuredKinds.isEmpty ? true : structuredKinds.every(_isFlipFamily);
 
   bool get hasSamples => summary.total > 0;
 
@@ -85,8 +84,8 @@ NotetypePresentationPreview _resolve({
   const resolver = OfficialCardPresentationResolver();
   const payloads = OfficialAnkiProjectionPayloads();
   final ordinals = <int>{
-    for (final template
-        in schema.templateFacts?.templates ?? const <OfficialAnkiTemplateFact>[])
+    for (final template in schema.templateFacts?.templates ??
+        const <OfficialAnkiTemplateFact>[])
       template.ord,
   };
   if (ordinals.isEmpty) ordinals.add(0);

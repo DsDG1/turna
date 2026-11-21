@@ -235,10 +235,10 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
                           child: Text(
                             AppStrings.aiDisclaimer,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                              color: TurnaTheme.textHintColor(context),
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: TurnaTheme.textHintColor(context),
+                                    ),
                           ),
                         ),
                       ],

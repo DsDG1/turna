@@ -92,10 +92,12 @@ void main() {
     );
   });
 
-  test('the in-app reviewer pages do not say Anki outside the local origin', () {
+  test('the in-app reviewer pages do not say Anki outside the local origin',
+      () {
     final offenders = <String>[];
-    for (final file
-        in Directory('assets/anki_reviewer').listSync(recursive: true).whereType<File>()) {
+    for (final file in Directory('assets/anki_reviewer')
+        .listSync(recursive: true)
+        .whereType<File>()) {
       // The local reviewer origin is a contract with the native side, not copy.
       final stripped = file.readAsStringSync().replaceAll(
             RegExp('anki\\.local', caseSensitive: false),
@@ -112,7 +114,8 @@ void main() {
   });
 
   test('the Anki AGPL notice keeps the third-party name', () {
-    const path = 'lib/application/anki_official/official_anki_license_notices.dart';
+    const path =
+        'lib/application/anki_official/official_anki_license_notices.dart';
     final source = File(path).readAsStringSync();
     expect(
       source,
