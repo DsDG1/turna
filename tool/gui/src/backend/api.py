@@ -329,5 +329,17 @@ def write_csv_file(path: Path, headers: list[str], rows: list[dict[str, str]]) -
     course_cli._write_csv(path, headers, rows)
 
 
+def sounds_dir_for_course(
+    course_dir: Path, repo_root: Path | None = None
+) -> Path:
+    return course_cli.sounds_dir_for_course(course_dir, repo_root)
+
+
+def audio_asset_path(
+    asset: str, course_dir: Path | None, repo_root: Path | None = None
+) -> Path:
+    return course_cli._audio_asset_path(asset, "listening", course_dir, repo_root)
+
+
 def build_audio_manifest_rows(course_dir: Path) -> list[dict[str, str]]:
     return course_cli.build_audio_manifest(course_dir)

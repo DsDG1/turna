@@ -32,8 +32,13 @@ class CourseBundleTest(unittest.TestCase):
             [f"nt-s{number}" for number in range(2, 9)],
         )
         document = build_document(bundle["entries"][0]["section"])
-        self.assertEqual(document.lessons[0].items[0].prompt, "Türkçe — 土耳其语")
-        self.assertEqual(document.item_count, 257)
+        # Lesson 0 is the ADR 0074 ungraded guide lesson; lesson 1 starts with showWord.
+        self.assertEqual(document.lessons[0].template, "guide")
+        self.assertGreater(len(document.lessons[0].items), 0)
+        self.assertTrue(document.lessons[0].items[0].runtime_type.startswith("guide:"))
+        intro_lesson = next(lesson for lesson in document.lessons if lesson.template == "intro")
+        self.assertEqual(intro_lesson.items[0].prompt, "merhaba — 你好")
+        self.assertGreater(document.item_count, 257)
 
     def test_section_path_cannot_escape_course_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

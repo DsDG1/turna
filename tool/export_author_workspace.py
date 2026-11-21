@@ -8,7 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from course_cli import _validate_course
+from course_cli import _audio_asset_path, _validate_course
 from course_quality_report import build_quality_report
 
 REPO = Path(__file__).resolve().parent.parent
@@ -23,7 +23,7 @@ def _source_for_media(course_dir: Path, asset: str, kind: str) -> Path | None:
     if normalized.startswith("assets/"):
         return REPO / normalized
     if kind == "audio":
-        return REPO / "assets" / "sounds" / "listening" / f"{normalized}.mp3"
+        return _audio_asset_path(normalized, kind, course_dir)
     return REPO / normalized
 
 

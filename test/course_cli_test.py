@@ -9,17 +9,18 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-
-import sys
 
 # Add project root to path so we can import the CLI module.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tool"))
 
 from course_cli import (  # type: ignore
+    _audio_asset_path,
+    build_audio_manifest,
     cmd_audio_manifest,
     cmd_export_csv,
     cmd_import_csv,
@@ -27,6 +28,8 @@ from course_cli import (  # type: ignore
     cmd_validate,
     load_json,
     load_vocab,
+    sound_directory_for_language,
+    sounds_dir_for_course,
 )
 
 
@@ -179,6 +182,92 @@ class TestCourseCli(unittest.TestCase):
         # Lint should succeed (warnings only) because every vocab entry lacks
         # an audioAsset, but no structural errors exist.
         self.assertEqual(cmd_lint(args), 0)
+
+    def test_bare_listening_audio_uses_canonical_language_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            course = repo / "assets" / "courses" / "nouveau-turkish"
+            (course / "sections").mkdir(parents=True)
+            (course / "index.json").write_text(
+                json.dumps(
+                    {
+                        "language": "tr",
+                        "sections": [
+                            {"id": "s1", "file": "sections/s1.json"}
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (course / "vocab.json").write_text('{"words": []}', encoding="utf-8")
+            (course / "expressions.json").write_text(
+                '{"expressions": []}', encoding="utf-8"
+            )
+            (course / "sections" / "s1.json").write_text(
+                json.dumps(
+                    {
+                        "id": "s1",
+                        "units": [
+                            {
+                                "id": "u1",
+                                "lessons": [
+                                    {
+                                        "id": "l1",
+                                        "template": "listening",
+                                        "content": {
+                                            "listeningPhases": [
+                                                {
+                                                    "id": "p1",
+                                                    "name": "Listen",
+                                                    "type": "summary",
+                                                    "audioAsset": "l-pilot",
+                                                    "transcript": "Merhaba",
+                                                }
+                                            ]
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            target = (
+                repo
+                / "assets"
+                / "sounds"
+                / "turkish"
+                / "listening"
+                / "l-pilot.mp3"
+            )
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"mp3")
+
+            self.assertEqual(sound_directory_for_language("tr"), "turkish")
+            self.assertEqual(sound_directory_for_language("es"), "es")
+            self.assertEqual(sounds_dir_for_course(course), target.parent.parent)
+            self.assertEqual(_audio_asset_path("l-pilot", "listening", course), target)
+            rows = build_audio_manifest(course)
+            self.assertEqual(rows[0]["asset_id"], "l-pilot")
+            self.assertEqual(rows[0]["status"], "present")
+
+    def test_legacy_bare_audio_directory_remains_a_read_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            course = repo / "assets" / "courses" / "nouveau-turkish"
+            course.mkdir(parents=True)
+            (course / "index.json").write_text(
+                json.dumps({"language": "tr", "sections": []}), encoding="utf-8"
+            )
+            legacy = (
+                repo / "assets" / "sounds" / "listening" / "legacy.mp3"
+            )
+            legacy.parent.mkdir(parents=True)
+            legacy.write_bytes(b"mp3")
+            self.assertEqual(
+                _audio_asset_path("legacy", "listening", course), legacy
+            )
 
     def test_audio_manifest_lists_referenced_assets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

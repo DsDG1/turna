@@ -210,6 +210,8 @@ class SubLessonFlowWidget(LinearFlowWidget):
         for sub in content.get("subLessons", []) or []:
             for stage in sub.get("stages", []) or []:
                 items.extend(stage.get("items", []) or [])
+        for stage in content.get("stages", []) or []:
+            items.extend(stage.get("items", []) or [])
         return items
 
     def _build_ui(self) -> None:
@@ -297,6 +299,25 @@ class SubLessonFlowWidget(LinearFlowWidget):
         self._preview_container.setVisible(self._preview_visible)
         self._content_layout.addWidget(self._preview_container)
         self._refresh_preview()
+
+        content = self.lesson.setdefault("content", {})
+        flat_stages = content.get("stages") or []
+        is_flat_review = self.template == "review" and (
+            content.get("reviewPolicy") is not None
+            or (bool(flat_stages) and not self._sub_lessons())
+        )
+        if is_flat_review:
+            from src.widgets.lesson_editor import ReviewPolicyEditor
+
+            self._content_layout.addWidget(ReviewPolicyEditor(self.lesson))
+            synthetic_parent = {"stages": flat_stages}
+            for stage in flat_stages:
+                self._content_layout.addWidget(self._build_stage(stage, synthetic_parent))
+            add_stage_btn = QPushButton("+ 添加题池步骤")
+            add_stage_btn.clicked.connect(lambda: self._on_add_stage(content))
+            self._content_layout.addWidget(add_stage_btn)
+            self._content_layout.addStretch()
+            return
 
         for sl in self._sub_lessons():
             frame = self._build_sub_lesson(sl)

@@ -130,6 +130,36 @@ class TestCourseReleaseService(unittest.TestCase):
         self.assertEqual(report["version_bump"], {})
         self.assertIn("diff", report)
         self.assertIn("validation", report)
+        self.assertTrue(report["media_gate"]["ok"])
+
+    def test_release_report_audits_unsaved_audio_references(self):
+        adapter = DummyAdapter()
+        adapter.sections = [
+            {
+                "id": "s1",
+                "units": [
+                    {
+                        "id": "u1",
+                        "lessons": [
+                            {
+                                "id": "l1",
+                                "content": {
+                                    "listeningPhases": [
+                                        {"audioAsset": "l-new-unsaved"}
+                                    ]
+                                },
+                            }
+                        ],
+                    }
+                ],
+            }
+        ]
+        report = CourseReleaseService.release_report(adapter)
+        codes = {
+            item["code"] for item in report["media_gate"]["blockers"]
+        }
+        self.assertIn("audio_missing", codes)
+        self.assertIn("audio_unregistered", codes)
 
 
 if __name__ == "__main__":

@@ -37,11 +37,11 @@ class AnkiSchemaShapeTest(unittest.TestCase):
     def test_anki_types_registered(self) -> None:
         self.assertIn("ankiCard", ALLOWED_RUNTIME_TYPES)
         self.assertIn("ankiHtmlCard", ALLOWED_RUNTIME_TYPES)
-        # Anki types appended before readAloud — existing order untouched,
-        # readAloud (ADR 0061) is the latest tail entry.
+        self.assertIn("imageRecall", ALLOWED_RUNTIME_TYPES)
+        self.assertIn("dictation", ALLOWED_RUNTIME_TYPES)
         self.assertEqual(
-            ALLOWED_RUNTIME_TYPES[-3:],
-            ("ankiCard", "ankiHtmlCard", "readAloud"),
+            ALLOWED_RUNTIME_TYPES[-5:],
+            ("ankiCard", "ankiHtmlCard", "readAloud", "imageRecall", "dictation"),
         )
 
     def test_anki_card_field_set(self) -> None:
@@ -49,6 +49,8 @@ class AnkiSchemaShapeTest(unittest.TestCase):
             _field_names("ankiCard"),
             {
                 "id", "front", "back", "audioAssets", "imageAssets",
+                "frontAudioAssets", "frontImageAssets",
+                "backAudioAssets", "backImageAssets",
                 "hint", "sourceNoteId",
             },
         )
@@ -88,6 +90,10 @@ class AnkiRoundTripTest(unittest.TestCase):
             "back": "你好",
             "audioAssets": ["anki://imp1/a.mp3"],
             "imageAssets": ["anki://imp1/i.png"],
+            "frontAudioAssets": ["anki://imp1/fa.mp3"],
+            "frontImageAssets": ["anki://imp1/fi.png"],
+            "backAudioAssets": ["anki://imp1/ba.mp3"],
+            "backImageAssets": ["anki://imp1/bi.png"],
             "hint": "greeting",
             "sourceNoteId": "42",
         }

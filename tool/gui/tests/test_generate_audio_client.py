@@ -14,6 +14,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
+from src.application.media_service import resolve_audio_asset
 from src.application.settings import Settings
 from src.backend import generate_audio_client
 from src.backend.generate_audio_client import TtsOptions
@@ -29,7 +30,9 @@ class SoundsDirTest(unittest.TestCase):
         # Turkish course index.language == "tr".
         settings = Settings(assets_repo_root="")
         sounds = generate_audio_client.sounds_dir_for(course_dir, settings)
-        self.assertTrue(sounds.name == "tr" and sounds.parts[-3:] == ("assets", "sounds", "tr"), str(sounds))
+        self.assertEqual(
+            sounds.parts[-3:], ("assets", "sounds", "turkish"), str(sounds)
+        )
 
     def test_honors_assets_repo_root(self) -> None:
         tmp = Path(tempfile.mkdtemp(prefix="sounds_root_"))
@@ -44,6 +47,24 @@ class SoundsDirTest(unittest.TestCase):
         self.assertEqual(
             sounds, Path(tmp) / "repo" / "assets" / "sounds" / "sw"
         )
+
+    def test_generation_and_preview_share_the_same_audio_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            course = repo / "assets" / "courses" / "nouveau-turkish"
+            course.mkdir(parents=True)
+            (course / "index.json").write_text(
+                json.dumps({"language": "tr", "sections": []}), encoding="utf-8"
+            )
+            sounds = generate_audio_client.sounds_dir_for(
+                course, Settings(assets_repo_root=str(repo))
+            )
+            target = sounds / "listening" / "l-pilot.mp3"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"mp3")
+            self.assertEqual(
+                resolve_audio_asset(course, "l-pilot", repo_root=repo), target
+            )
 
 
 class BuildCommandTest(unittest.TestCase):

@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tool"))
 
-from course_quality_report import build_quality_report, render_quality_markdown  # type: ignore
+from course_quality_report import (  # type: ignore
+    build_quality_report,
+    render_quality_markdown,
+)
 
 
 class CourseQualityReportTest(unittest.TestCase):
@@ -30,6 +35,67 @@ class CourseQualityReportTest(unittest.TestCase):
         )
         self.assertEqual(ayse["kind"], "image")
         self.assertTrue(ayse["exists"])
+
+    def test_bare_audio_uses_the_canonical_language_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            course = repo / "assets" / "courses" / "nouveau-turkish"
+            (course / "sections").mkdir(parents=True)
+            (course / "index.json").write_text(
+                json.dumps(
+                    {
+                        "language": "tr",
+                        "sections": [{"id": "s1", "file": "sections/s1.json"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (course / "vocab.json").write_text('{"words": []}', encoding="utf-8")
+            (course / "sections" / "s1.json").write_text(
+                json.dumps(
+                    {
+                        "id": "s1",
+                        "units": [
+                            {
+                                "id": "u1",
+                                "lessons": [
+                                    {
+                                        "id": "l1",
+                                        "name": "Listen",
+                                        "template": "listening",
+                                        "content": {
+                                            "listeningPhases": [
+                                                {
+                                                    "id": "p1",
+                                                    "name": "Summary",
+                                                    "type": "summary",
+                                                    "audioAsset": "l-pilot",
+                                                    "transcript": "Merhaba",
+                                                }
+                                            ]
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            target = (
+                repo
+                / "assets"
+                / "sounds"
+                / "turkish"
+                / "listening"
+                / "l-pilot.mp3"
+            )
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"mp3")
+
+            report = build_quality_report(course)
+            row = next(row for row in report["media"] if row["asset"] == "l-pilot")
+            self.assertTrue(row["exists"])
 
     def test_vocabulary_production_and_later_recurrence_are_reported(self) -> None:
         merhaba = self.report["words"]["nt-w-merhaba"]

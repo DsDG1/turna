@@ -27,10 +27,27 @@ class _FakeFlutterTts implements FlutterTts {
 
 class _FakeLanguageProvider implements LanguageProvider {
   @override
+  String selectedLanguageCode = 'tr';
+
+  @override
   String get ttsLanguageCode => 'tr';
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _AttemptRecordingAudioBackend extends FakeAudioBackend {
+  @override
+  Future<void> playAsset(String assetPath) async {
+    playedAssets.add(assetPath);
+    final error = failure;
+    if (error != null) throw error;
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCount++;
+  }
 }
 
 /// In-memory [VocabAudioResolver] for speakWord routing tests.
@@ -49,8 +66,16 @@ class _TestAudioController extends AudioController {
   final List<String> ttsCalls = [];
   final List<String> assetCalls = [];
   final List<String> packCalls = [];
+  final List<String> officialCalls = [];
+  final FakeAudioBackend speechBackend;
+  bool officialMediaAvailable = false;
 
-  _TestAudioController(VocabAudioResolver resolver)
+  factory _TestAudioController(VocabAudioResolver resolver) {
+    final speechBackend = _AttemptRecordingAudioBackend();
+    return _TestAudioController._(resolver, speechBackend);
+  }
+
+  _TestAudioController._(VocabAudioResolver resolver, this.speechBackend)
       : super(
           FlutterTtsSpeechBackend(_FakeFlutterTts()),
           _FakeLanguageProvider(),
@@ -58,7 +83,7 @@ class _TestAudioController extends AudioController {
           getIt<AccessibilityProvider>(),
           resolver,
           effects: FakeAudioBackend(name: 'effects'),
-          speech: FakeAudioBackend(name: 'speech'),
+          speech: speechBackend,
         );
 
   @override
@@ -85,6 +110,12 @@ class _TestAudioController extends AudioController {
   Future<bool> playCoursePackMedia(String ref) async {
     packCalls.add(ref);
     return true;
+  }
+
+  @override
+  Future<bool> playOfficialMediaFile(String rawName) async {
+    officialCalls.add(rawName);
+    return officialMediaAvailable;
   }
 }
 
@@ -181,6 +212,17 @@ void main() {
       expect(AudioController.isAssetPath('habari'), isFalse);
     });
 
+    test('bundledListeningAssetPath maps Turkish ids to packed audio', () {
+      expect(
+        AudioController.bundledListeningAssetPath('l-pilot', 'tr'),
+        'assets/sounds/turkish/listening/l-pilot.mp3',
+      );
+      expect(
+        AudioController.bundledListeningAssetPath('l-pilot', 'es'),
+        'assets/sounds/es/listening/l-pilot.mp3',
+      );
+    });
+
     test('normalizeAssetPath strips assets/ and leading slash', () {
       expect(
         AudioController.normalizeAssetPath('assets/audio/x.mp3'),
@@ -215,6 +257,7 @@ void main() {
       controller = _TestAudioController(_MapVocabAudioResolver({
         'w-habari': const ResolvedVocabAudio(speakText: 'Habari'),
       }));
+      controller.speechBackend.failure = StateError('missing bundled audio');
     });
 
     tearDown(() async {
@@ -237,6 +280,40 @@ void main() {
       expect(controller.packCalls, ['turnapack://es/hola.mp3']);
       expect(controller.assetCalls, isEmpty);
       expect(controller.ttsCalls, isEmpty);
+    });
+
+    test('bare listening id → canonical bundled MP3 before TTS', () async {
+      controller.speechBackend.failure = null;
+      await controller.speakListenContent(
+        audioAsset: 'l-pilot',
+        transcript: 'Merhaba',
+      );
+      expect(
+        controller.speechBackend.playedAssets,
+        ['sounds/turkish/listening/l-pilot.mp3'],
+      );
+      expect(controller.officialCalls, ['l-pilot']);
+      expect(controller.ttsCalls, isEmpty);
+    });
+
+    test('official media wins over bundled listening audio', () async {
+      controller.officialMediaAvailable = true;
+      await controller.speakListenContent(audioAsset: 'l-official');
+      expect(controller.officialCalls, ['l-official']);
+      expect(controller.speechBackend.playedAssets, isEmpty);
+      expect(controller.ttsCalls, isEmpty);
+    });
+
+    test('missing bundled audio falls back to transcript TTS', () async {
+      await controller.speakListenContent(
+        audioAsset: 'l-pilot',
+        transcript: 'Merhaba',
+      );
+      expect(
+        controller.speechBackend.playedAssets,
+        ['sounds/turkish/listening/l-pilot.mp3'],
+      );
+      expect(controller.ttsCalls, ['Merhaba']);
     });
 
     test('word id with transcript → prefer transcript TTS', () async {

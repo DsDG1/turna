@@ -85,6 +85,8 @@ INTERACTION_LABELS: dict[str, str] = {
     InteractionType.ANKI_CARD: "记忆卡片",
     InteractionType.ANKI_HTML_CARD: "记忆卡片 (HTML)",
     InteractionType.READ_ALOUD: "跟读",
+    InteractionType.IMAGE_RECALL: "看图回忆",
+    InteractionType.DICTATION: "纯音听写",
 }
 
 TEMPLATE_LABELS: dict[str, str] = {
@@ -238,6 +240,10 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("back", True, "string", ""),
         FieldSpec("audioAssets", False, "string_list", []),
         FieldSpec("imageAssets", False, "string_list", []),
+        FieldSpec("frontAudioAssets", False, "string_list", []),
+        FieldSpec("frontImageAssets", False, "string_list", []),
+        FieldSpec("backAudioAssets", False, "string_list", []),
+        FieldSpec("backImageAssets", False, "string_list", []),
         FieldSpec("hint", False, "string", ""),
         FieldSpec("sourceNoteId", False, "string", ""),
     ],
@@ -263,6 +269,22 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("targetText", True, "string", ""),
         FieldSpec("prompt", False, "string", "Read the sentence aloud"),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
+    ],
+    # 看图回忆 (ADR 0057 §4): prompt is image-only; learner reveals answerText.
+    InteractionType.IMAGE_RECALL: [
+        FieldSpec("id", False, "string", ""),
+        FieldSpec("imageAssets", True, "string_list", []),
+        FieldSpec("answerText", True, "string", ""),
+        FieldSpec("hint", False, "string", ""),
+        FieldSpec("sourceNoteId", False, "string", ""),
+    ],
+    # 纯音听写 (ADR 0057): prompt is audio-only; learner types expected.
+    InteractionType.DICTATION: [
+        FieldSpec("id", False, "string", ""),
+        FieldSpec("audioAssets", True, "string_list", []),
+        FieldSpec("expected", True, "string", ""),
+        FieldSpec("hint", False, "string", ""),
+        FieldSpec("sourceNoteId", False, "string", ""),
     ],
 }
 
@@ -787,6 +809,37 @@ def clone_lesson_with_fresh_ids(
             old_interaction = turn.get("interactionId")
             if old_interaction in interaction_ids:
                 turn["interactionId"] = interaction_ids[old_interaction]
+    for page in content.get(ContentKey.PAGES, []):
+        if not isinstance(page, dict):
+            continue
+        page["id"] = short_id("gp")
+        for block in page.get("blocks", []):
+            if not isinstance(block, dict):
+                continue
+            block["id"] = short_id("gb")
+            if block.get("runtimeType") == "classification":
+                cat_map: dict[str, str] = {}
+                for category in block.get("categories", []):
+                    if isinstance(category, dict):
+                        old_cat = str(category.get("id") or "")
+                        new_cat = short_id("gc")
+                        category["id"] = new_cat
+                        if old_cat:
+                            cat_map[old_cat] = new_cat
+                for card in block.get("cards", []):
+                    if isinstance(card, dict):
+                        card["id"] = short_id("gcard")
+                        old_ref = str(card.get("categoryId") or "")
+                        if old_ref in cat_map:
+                            card["categoryId"] = cat_map[old_ref]
+            elif block.get("runtimeType") == "suffixBuilder":
+                for example in block.get("examples", []):
+                    if isinstance(example, dict):
+                        example["id"] = short_id("gex")
+            elif block.get("runtimeType") == "wordOrder":
+                for token in block.get("tokens", []):
+                    if isinstance(token, dict):
+                        token["id"] = short_id("gtok")
     return clone
 
 
@@ -936,16 +989,20 @@ def delete_sub_lesson(content: dict[str, Any], sub_lesson_id: str) -> bool:
 # kind-coercion branch).
 _SEMANTIC_FIELD_GROUPS: tuple[tuple[str, ...], ...] = (
     ("prompt", "sentence", "source", "statement", "front", "frontHtml"),
-    ("expected", "answer", "expectedAnswer", "back", "backHtml"),
+    ("expected", "answer", "expectedAnswer", "answerText", "targetText", "back", "backHtml"),
     ("correctIndex", "correctIndices"),
     ("options",),
+    ("choices",),
+    ("acceptedAnswers",),
     ("wordId",),
     ("audioAsset",),
+    ("audioAssets",),
+    ("imageAsset",),
+    ("imageAssets",),
     ("context",),
     ("transcript",),
     ("hints",),
     ("hint",),
-    ("imageAsset",),
     ("grammarPointId",),
     ("id",),
 )
@@ -1074,6 +1131,141 @@ def rename_listening_phase(phase: dict[str, Any], name: str) -> None:
 def listening_phase_has_items(phase_type: str) -> bool:
     """Return True if the listening phase type supports items."""
     return phase_type in (ListeningPhaseType.WORD_PAIRING, ListeningPhaseType.DIALOGUE)
+
+
+GUIDE_BLOCK_TYPES: tuple[str, ...] = (
+    "text",
+    "terms",
+    "classification",
+    "suffixBuilder",
+    "wordOrder",
+)
+
+GUIDE_BLOCK_LABELS: dict[str, str] = {
+    "text": "说明文本",
+    "terms": "点读词卡",
+    "classification": "互动分类",
+    "suffixBuilder": "词缀拼接",
+    "wordOrder": "语序探索",
+}
+
+
+def default_guide_block(block_type: str) -> dict[str, Any]:
+    """Return a minimal valid GuideBlock dict matching ``lib/domain/course/guide_page.dart``."""
+    bid = short_id("gb")
+    if block_type == "text":
+        return {"runtimeType": "text", "id": bid, "title": "", "body": "请输入说明内容。"}
+    if block_type == "terms":
+        return {
+            "runtimeType": "terms",
+            "id": bid,
+            "title": "词汇与例词",
+            "compact": False,
+            "items": [
+                {"text": "Merhaba", "translation": "你好", "note": "", "speechText": None, "wordId": None}
+            ],
+        }
+    if block_type == "classification":
+        c1, c2 = short_id("gc"), short_id("gc")
+        return {
+            "runtimeType": "classification",
+            "id": bid,
+            "title": "分类体验",
+            "instruction": "把下面的卡片分到对应类别。",
+            "categories": [
+                {"id": c1, "label": "类别 A", "description": ""},
+                {"id": c2, "label": "类别 B", "description": ""},
+            ],
+            "cards": [
+                {"id": short_id("gcard"), "text": "示例词", "categoryId": c1, "hint": "", "highlight": ""}
+            ],
+            "completionNote": "",
+        }
+    if block_type == "suffixBuilder":
+        return {
+            "runtimeType": "suffixBuilder",
+            "id": bid,
+            "title": "词缀拼接",
+            "instruction": "点击逐步加上词尾，观察含义变化。",
+            "examples": [
+                {
+                    "id": short_id("gex"),
+                    "root": "ev",
+                    "rootMeaning": "家",
+                    "label": "",
+                    "steps": [
+                        {"suffix": "-ler", "result": "evler", "meaning": "房子们"}
+                    ],
+                }
+            ],
+        }
+    if block_type == "wordOrder":
+        return {
+            "runtimeType": "wordOrder",
+            "id": bid,
+            "title": "语序结构",
+            "translation": "我喝茶。",
+            "tokens": [
+                {"id": short_id("gtok"), "text": "Ben", "role": "主语", "meaning": "我", "optional": True},
+                {"id": short_id("gtok"), "text": "çay", "role": "宾语", "meaning": "茶", "optional": False},
+                {"id": short_id("gtok"), "text": "içiyorum", "role": "动词", "meaning": "喝", "optional": False},
+            ],
+            "optionalToggleLabel": "省略主语代词",
+            "note": "",
+        }
+    raise ValueError(f"unknown guide block runtimeType: {block_type}")
+
+
+def add_guide_page(content: dict[str, Any], title: str = "新导览页") -> dict[str, Any]:
+    page: dict[str, Any] = {
+        "id": short_id("gp"),
+        "title": title,
+        "kicker": "",
+        "intro": "",
+        "blocks": [default_guide_block("text")],
+    }
+    content.setdefault(ContentKey.PAGES, []).append(page)
+    return page
+
+
+def delete_guide_page(content: dict[str, Any], page_id: str) -> bool:
+    pages = content.get(ContentKey.PAGES, [])
+    for idx, page in enumerate(pages):
+        if page.get("id") == page_id:
+            del pages[idx]
+            return True
+    return False
+
+
+def move_guide_page(content: dict[str, Any], from_idx: int, to_idx: int) -> None:
+    pages = content.get(ContentKey.PAGES, [])
+    if not (0 <= from_idx < len(pages) and 0 <= to_idx < len(pages)):
+        return
+    page = pages.pop(from_idx)
+    pages.insert(to_idx, page)
+
+
+def add_guide_block(page: dict[str, Any], block_type: str = "text") -> dict[str, Any]:
+    block = default_guide_block(block_type)
+    page.setdefault("blocks", []).append(block)
+    return block
+
+
+def delete_guide_block(page: dict[str, Any], block_id: str) -> bool:
+    blocks = page.get("blocks", [])
+    for idx, block in enumerate(blocks):
+        if block.get("id") == block_id:
+            del blocks[idx]
+            return True
+    return False
+
+
+def move_guide_block(page: dict[str, Any], from_idx: int, to_idx: int) -> None:
+    blocks = page.get("blocks", [])
+    if not (0 <= from_idx < len(blocks) and 0 <= to_idx < len(blocks)):
+        return
+    block = blocks.pop(from_idx)
+    blocks.insert(to_idx, block)
 
 
 SLUG_RE = re.compile(r"[^a-z0-9]+")

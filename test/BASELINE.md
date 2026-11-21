@@ -7,6 +7,15 @@
 
 ---
 
+### 2026-11-21 P0：统一听力音频链路并落地定稿媒体门禁
+
+- **性质**：工具链与音频运行时修复；Dart 非 golden 用例净 +4，Python 工具用例净 +3，GUI 用例净 +5。统一裸听力 ID 的生成、CLI 检查、内容清单、作者工作区、GUI 试听与 App 播放路径；土耳其语 `tr` 沿用 `assets/sounds/turkish/listening/`，保留显式路径、课程包、官方媒体与 TTS 回退。定稿/交给 App 新增当前引用媒体的存在、登记与人工审校硬门，普通保存仍可保留候选稿；未修改实际课程内容或生成真实音频。
+- **验证**：`flutter analyze` **No issues found**；`flutter test --exclude-tags golden` **2632 passed / 0 failed**；音频定向 **17 passed**；GUI 定向 **34 passed**、CI **61/61 模块通过**；Python 定向 **20 passed**；GUI 分层、模块树、文档索引门禁通过；本轮触及的 GUI/Python 文件 Ruff 与 Dart 格式检查通过。
+- **既有余项**：Python 全量 **146 ran / 1 failed / 2 errors / 2 skipped**，失败指向既有对话 ID、旧课程 `subLessons` 结构与导览块文档扫描，不涉及本轮音频改动；全量 Ruff 另有 7 项现存问题。环境无 `make`，门禁按 Makefile 展开的等价 Python 命令执行。
+- **未验**：MiniMax 真实生成、真实音频人工试听、移动真机播放；未跑 golden 与 GUI full 档。
+
+---
+
 ### 2026-11-20 历史尾巴收口：补齐 course_loader_test 表达校验与旧卡指引文案
 
 - **性质**：历史尾巴清理批次（测试数不变）。修复 `course_loader_test` 对当前内置课程的两项校验失败（补传 `expressions.json` / `expressionIds` 到 `validateCourse` 与 `validateSection`），同步 [docs/status.md](../docs/status.md) §7 第 0 单元 `guide` 课口径，并将 `AppStrings.ankiRetiredCardBody` 过时的「设置 → 旧版与兼容性迁移」指引改为「课程管理重新导入」。

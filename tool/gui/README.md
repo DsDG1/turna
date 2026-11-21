@@ -16,7 +16,7 @@
 - 🛡️ **单一校验源与保存回滚**：不另定义校验规则，完全对接 `course_cli validate & lint`；保存校验失败自动恢复内存与磁盘文件。
 - 🎓 **教师预览与试做模式**：教师视图审查结构，对课时实时交互测试。
 - 🌐 **网页粗预览与反馈修订**：草稿经 SSH 发布私密题目链接，逐题留言后本地 AI + diff 修订，不自动导入课程。
-- 🚀 **定稿工作流**：保存校验、媒体检查、同 ID 内容 Diff 与报告导出；对外版本由应用更新包工具分配。
+- 🚀 **定稿工作流**：保存校验、媒体检查、同 ID 内容 Diff 与报告导出；定稿/交给 App 要求当前引用媒体存在、登记且完成人工审校，普通保存仍可保留候选稿；对外版本由应用更新包工具分配。
 
 ---
 
@@ -59,7 +59,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 | **命令面板** | ⌘K 式派发：转到视图 / 执行动作 / 定位课程节点 | `Ctrl+K` |
 | **侧栏开关** | 编辑视图侧栏（搜索 + 课程树）显隐 | `Ctrl+B` |
 | **保存** | 写盘并触发 `course_cli validate` / `lint`，失败自动回滚；Ctrl+S / 菜单 / 命令面板 / 关闭四入口共用同一保存管线（含 Soft Autopilot 规则规范化与保存后黄标提示），大课程保存期间窗口可拖动 | `Ctrl+S` |
-| **定稿** | 保存校验、媒体检查、同 ID 内容 Diff 与报告导出；不分配 OTA 版本 | 应用菜单内 |
+| **定稿** | 保存校验、媒体检查、同 ID 内容 Diff 与报告导出；缺文件、未登记或待人工审校的当前引用媒体会阻断定稿/交给 App；不分配 OTA 版本 | 应用菜单内 |
 
 布局持久化：上次视图、窗口状态、侧栏/Copilot 显隐经 QSettings 重启还原。
 
@@ -269,10 +269,10 @@ tool/gui/
 │   ├── main.py                 # 程序主入口（--gallery 打开组件画廊）
 │   ├── theme.py                # 主题应用（调色板 + 密度 + UI 缩放）
 │   ├── theme_tokens.py         # 设计 token 单一真源（色/间距/圆角/字阶/层级/密度，Qt-free）
-│   ├── application/            # 64 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
+│   ├── application/            # 65 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
 │   │   ├── commands/               # 6 个 .py — Undoable edit commands for the course editor (B2).
 │   │   └── experience_handlers/    # 12 个 .py — Experience skill handlers (M7).
-│   ├── backend/                # 128 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
+│   ├── backend/                # 130 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
 │   │   ├── ai/                     # 11 个 .py — AI backend package (OpenAI-compatible course generation).
 │   │   ├── course_preview/         # 8 个 .py — Course catalogs and private-link drafts with revisioned reviewer ...
 │   │   └── experience/             # 54 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
@@ -285,9 +285,9 @@ tool/gui/
 │   ├── icons/                  # 1 个 .py — vendored Lucide SVG + DPR 渲染/着色/缓存
 │   │   └── svg/                    # 0 个 .py
 │   ├── infrastructure/         # 7 个 .py — 横切设施：操作日志 / 遥测 / 滚轮防误触 / 屏幕适配
-│   ├── teacher/                # 11 个 .py — 教师模式：线性流程 / 题目卡 / 词表 / 模板编辑
+│   ├── teacher/                # 13 个 .py — 教师模式：线性流程 / 题目卡 / 词表 / 模板编辑
 │   ├── theme_styles/           # 8 个 .py — 模块化 QSS（builder 组装）
-│   ├── widgets/                # 43 个 .py — 可复用 UI 组件
+│   ├── widgets/                # 46 个 .py — 可复用 UI 组件
 │   │   └── ui/                     # 10 个 .py — Turna UI kit (GUI 焕新 W1).
 ├── tests/                  # unittest 自动化测试套件（分档见 run_gui_tests.py）
 ├── docs/                   # 契约与设计文档（ai_refactor_contract.md 为门禁契约）
@@ -311,12 +311,16 @@ tool/gui/
 
 内容编辑完成后用 **「定稿」**：保存并校验全体 JSON，检查同 ID 内容 Diff 与媒体清单，导出检查报告；不分配对外 OTA 版本。生成应用更新包和远端上线走独立发布工具。
 
+定稿与「交给 App」共用媒体硬门：当前引用的文件必须存在并登记到对应清单；图片须为 `approved` / `existing-asset`，音频须为 `approved`。`pending`、`generated`、`rendered-locally`、`needs-revision` 和未知状态都不能定稿。未使用的旧清单条目只作提醒；普通 Ctrl+S 不受此门禁影响，仍可保存候选稿。
+
 1. **内容 Diff**：新增、删除、同 ID 正文变化和真正未变化的条目分别列出。
 2. **媒体清单检测**：从仓库或作者工作区解析引用，缺失的真实音频/图片必须补齐。
 
 ### 听力音频生成（MiniMax TTS）
 
 「应用菜单 → 生成听力音频」调用 `tool/generate_audio.py`（`t2a_v2`）。对话框暴露官方参数：模型（`speech-2.8-hd` 默认，另有 `2.8-turbo` / `2.6` / `02` / `01` 系列）、音色、**发音语言 Boost**（留空按课程 `index.json` 语言推导，`tr → Turkish`，未知语言用 `auto`）、**文本规范化**（默认 `quality`，LLM 辅助处理数字/日期/缩写；仅 2.8/2.6 非流式生效）、情绪、语速。土耳其语的 ı/ş/ğ/ü 依赖 `language_boost` 正确音素化；多语音色（如 `English_Graceful_Lady`）比中文音色读土耳其语更少母语口音。API Key 只经环境变量传给子进程，不落盘、不上命令行。
+裸 `audioAsset` ID 统一解析为 `assets/sounds/<语言目录>/listening/<id>.mp3`；土耳其语语言码 `tr` 对应既有的 `turkish` 目录。GUI 生成、教师试听、CLI 文件检查和 App 播放遵循同一位置；显式路径与课程包 URI 不改写。内置音频播放失败时，App 仍按既有 transcript / 词条规则回退系统 TTS。
+
 3. **差异与报告导出**：生成详细 Markdown 版本发布报告。
 
 ---

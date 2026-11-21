@@ -25,6 +25,11 @@ class ContentKey(StrEnum):
     PHASE_TYPE = "phaseType"
     TARGET_EXPRESSION_IDS = "targetExpressionIds"
     TARGET_GRAMMAR_POINT_IDS = "targetGrammarPointIds"
+    WORD_FORM_MAP = "wordFormMap"
+    IMAGE_ALT = "imageAlt"
+    LINKED_WORD_IDS = "linkedWordIds"
+    LINKED_EXPRESSION_IDS = "linkedExpressionIds"
+    LINKED_GRAMMAR_POINT_IDS = "linkedGrammarPointIds"
     TITLE = "title"
     ID = "id"
 
@@ -52,6 +57,9 @@ class ItemKey(StrEnum):
     MAX_SELECTIONS = "maxSelections"
     SENTENCE = "sentence"
     ANSWER = "answer"
+    ANSWER_TEXT = "answerText"
+    TARGET_TEXT = "targetText"
+    CHOICES = "choices"
     HINT = "hint"
     HINTS = "hints"
     SOURCE = "source"
@@ -78,6 +86,10 @@ class ItemKey(StrEnum):
     AUDIO_ASSETS = "audioAssets"
     IMAGE_ASSET = "imageAsset"
     IMAGE_ASSETS = "imageAssets"
+    FRONT_AUDIO_ASSETS = "frontAudioAssets"
+    FRONT_IMAGE_ASSETS = "frontImageAssets"
+    BACK_AUDIO_ASSETS = "backAudioAssets"
+    BACK_IMAGE_ASSETS = "backImageAssets"
     CONTEXT = "context"
     TERM = "term"
     TRANSLATION = "translation"
@@ -118,7 +130,7 @@ class TemplateType(StrEnum):
 
 
 class InteractionType(StrEnum):
-    """The 15 interaction item runtimeType identifiers."""
+    """The 17 interaction item runtimeType identifiers (mirrors lib/domain/course/interaction.dart)."""
 
     SHOW_WORD = "showWord"
     MULTIPLE_CHOICE = "multipleChoice"
@@ -136,6 +148,9 @@ class InteractionType(StrEnum):
     ANKI_HTML_CARD = "ankiHtmlCard"
     # 跟读 (ADR 0061): learner reads targetText aloud, app matches word-level.
     READ_ALOUD = "readAloud"
+    # 看图回忆 / 纯音听写 (ADR 0057): image-only / audio-only recall prompts.
+    IMAGE_RECALL = "imageRecall"
+    DICTATION = "dictation"
 
 
 class ListeningPhaseType(StrEnum):

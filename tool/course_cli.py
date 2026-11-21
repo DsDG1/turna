@@ -2102,13 +2102,62 @@ def cmd_lint(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 
 
-def _audio_asset_path(asset: str, kind: str, course_dir: Path | None = None) -> Path:
-    """Return the filesystem path for an authored audio ref.
+def _audio_language_code(language: str) -> str:
+    normalized = str(language or "").strip().replace("_", "-").lower()
+    if normalized in {"tr", "tr-tr", "turkish"}:
+        return "tr"
+    return normalized.split("-", 1)[0]
 
-    ``media/…`` is resolved under ``course_dir``. ``assets/…`` works from
-    either a repository checkout or an exported author workspace, independent
-    of the process working directory. Bare listening ids stay bundled sounds.
-    """
+
+def sound_directory_for_language(language: str) -> str:
+    """Return the bundled-sound directory for a canonical language code."""
+    code = _audio_language_code(language)
+    if code == "tr":
+        return "turkish"
+    return code or "en"
+
+
+def _course_storage_root(
+    course_dir: Path | None = None, repo_root: Path | None = None
+) -> Path:
+    if course_dir is not None:
+        base = Path(course_dir).resolve()
+        workspace = base.parent
+        if (workspace / "workspace.json").is_file():
+            return workspace
+        if repo_root is not None:
+            return Path(repo_root).resolve()
+        for parent in (base, *base.parents):
+            if (parent / "pubspec.yaml").is_file() or (
+                parent / "assets" / "courses"
+            ).is_dir():
+                return parent
+    elif repo_root is not None:
+        return Path(repo_root).resolve()
+    return REPO_ROOT
+
+
+def sounds_dir_for_course(
+    course_dir: Path | None = None, repo_root: Path | None = None
+) -> Path:
+    language = ""
+    if course_dir is not None:
+        try:
+            index = load_json(Path(course_dir) / "index.json")
+            language = str(index.get("language") or index.get("lang") or "")
+        except (OSError, ValueError, TypeError, AttributeError):
+            language = ""
+    root = _course_storage_root(course_dir, repo_root)
+    return root / "assets" / "sounds" / sound_directory_for_language(language)
+
+
+def _audio_asset_path(
+    asset: str,
+    kind: str,
+    course_dir: Path | None = None,
+    repo_root: Path | None = None,
+) -> Path:
+    """Resolve an authored audio ref without depending on the process cwd."""
     del kind
     normalized = asset.replace("\\", "/").strip()
     if normalized.startswith("media/"):
@@ -2118,16 +2167,37 @@ def _audio_asset_path(asset: str, kind: str, course_dir: Path | None = None) -> 
             return base / "__unsafe_media_ref__"
         return base / "media" / relative
     if normalized.startswith("assets/"):
+        root = _course_storage_root(course_dir, repo_root)
+        candidates = [root / normalized]
         if course_dir is not None:
-            workspace = course_dir.parent
-            if (workspace / "workspace.json").is_file():
-                return workspace / normalized
-            for parent in (course_dir, *course_dir.parents):
-                candidate = parent / normalized
-                if candidate.is_file():
-                    return candidate
-        return Path(normalized)
-    return (SOUNDS_DIR / "listening" / f"{asset}.mp3").resolve()
+            base = Path(course_dir).resolve()
+            candidates.extend(parent / normalized for parent in (base, *base.parents))
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return candidates[0]
+
+    canonical = sounds_dir_for_course(course_dir, repo_root) / "listening" / f"{asset}.mp3"
+    if canonical.is_file():
+        return canonical
+    root = _course_storage_root(course_dir, repo_root)
+    language = ""
+    if course_dir is not None:
+        try:
+            index = load_json(Path(course_dir) / "index.json")
+            language = str(index.get("language") or index.get("lang") or "")
+        except (OSError, ValueError, TypeError, AttributeError):
+            language = ""
+    code = _audio_language_code(language)
+    legacy = [
+        root / "assets" / "sounds" / "listening" / f"{asset}.mp3",
+    ]
+    if code and code != sound_directory_for_language(language):
+        legacy.append(root / "assets" / "sounds" / code / "listening" / f"{asset}.mp3")
+    for candidate in legacy:
+        if candidate.is_file():
+            return candidate
+    return canonical
 
 
 def build_audio_manifest(course_dir: Path) -> list[dict[str, str]]:

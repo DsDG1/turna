@@ -24,7 +24,13 @@ _TYPE_LABELS = {
     "ankiCard": "记忆卡片",
     "ankiHtmlCard": "原卡文本",
     "readAloud": "跟读",
+    "imageRecall": "看图回忆",
     "dictation": "听写",
+    "guide:text": "导览说明",
+    "guide:terms": "导览词卡",
+    "guide:classification": "导览分类",
+    "guide:suffixBuilder": "导览词缀拼接",
+    "guide:wordOrder": "导览语序探索",
 }
 
 
@@ -84,6 +90,7 @@ def _answer(item: dict[str, Any], runtime_type: str) -> str:
         item,
         "expectedAnswer",
         "expected",
+        "answerText",
         "answer",
         "back",
         "backHtml",
@@ -122,6 +129,8 @@ def _prompt(item: dict[str, Any], runtime_type: str, words: dict[str, dict[str, 
 def _options(item: dict[str, Any], runtime_type: str) -> tuple[str, ...]:
     if runtime_type == "reorderSentence":
         values = item.get("scrambled")
+    elif runtime_type == "fillBlank" and isinstance(item.get("choices"), list) and item["choices"]:
+        values = item.get("choices")
     else:
         values = item.get("options")
     if not isinstance(values, list):
@@ -152,6 +161,11 @@ def _context(item: dict[str, Any]) -> tuple[str, ...]:
         value = _text(item.get(key))
         if value and value != _first(item, "prompt", "sentence", "source", "statement"):
             values.append(value)
+    accepted = item.get("acceptedAnswers")
+    if isinstance(accepted, list) and accepted:
+        joined = " / ".join(_text(a) for a in accepted if _text(a))
+        if joined:
+            values.append(f"可接受替代答案：{joined}")
     return tuple(values)
 
 
@@ -187,6 +201,11 @@ def _reading_context(content: dict[str, Any]) -> tuple[str, ...]:
     title = _text(passage.get("title"))
     if title:
         result.append(title)
+    image_asset = _text(passage.get("imageAsset"))
+    image_alt = _text(passage.get("imageAlt"))
+    if image_asset or image_alt:
+        desc = f"{image_asset}（{image_alt}）" if image_asset and image_alt else (image_asset or image_alt)
+        result.append(f"插图：{desc}")
     for key in ("text", "paragraphs", "passage", "content"):
         value = passage.get(key)
         if isinstance(value, list):
@@ -195,7 +214,106 @@ def _reading_context(content: dict[str, Any]) -> tuple[str, ...]:
             text = _text(value)
             if text:
                 result.append(text)
+    form_map = passage.get("wordFormMap")
+    if isinstance(form_map, dict) and form_map:
+        pairs = "，".join(f"{k}→{v}" for k, v in form_map.items())
+        result.append(f"词形映射：{pairs}")
     return tuple(result)
+
+
+def _guide_block_preview(
+    *,
+    section_id: str,
+    unit_id: str,
+    unit_name: str,
+    lesson_id: str,
+    lesson_name: str,
+    page: dict[str, Any],
+    block: dict[str, Any],
+    block_index: int,
+    used_item_keys: set[str],
+) -> PreviewItem:
+    page_id = _text(page.get("id")) or "page"
+    page_title = _text(page.get("title")) or page_id
+    rt = _text(block.get("runtimeType")) or "text"
+    full_rt = f"guide:{rt}"
+    block_token = _text(block.get("id")) or f"hash-{_hash(block)}"
+    base_key = f"section:{section_id}/unit:{unit_id}/lesson:{lesson_id}/pages:{page_id}/block:{block_token}"
+    key = base_key
+    duplicate = 2
+    while key in used_item_keys:
+        key = f"{base_key}~{duplicate}"
+        duplicate += 1
+    used_item_keys.add(key)
+
+    prompt = _text(block.get("title")) or page_title
+    details: list[str] = []
+    options: list[str] = []
+    answer = ""
+    if rt == "text":
+        body = _text(block.get("body"))
+        if body:
+            details.append(body)
+    elif rt == "terms":
+        for term in block.get("items") or []:
+            if isinstance(term, dict):
+                line = " — ".join(p for p in (_text(term.get("text")), _text(term.get("translation"))) if p)
+                if _text(term.get("note")):
+                    line += f"（{_text(term.get('note'))}）"
+                if line:
+                    options.append(line)
+    elif rt == "classification":
+        if _text(block.get("instruction")):
+            details.append(_text(block.get("instruction")))
+        cats = {
+            _text(c.get("id")): _text(c.get("label"))
+            for c in (block.get("categories") or [])
+            if isinstance(c, dict)
+        }
+        for card in block.get("cards") or []:
+            if isinstance(card, dict):
+                cat_label = cats.get(_text(card.get("categoryId")), _text(card.get("categoryId")))
+                options.append(f"{_text(card.get('text'))} → {cat_label}")
+        answer = _text(block.get("completionNote"))
+    elif rt == "suffixBuilder":
+        if _text(block.get("instruction")):
+            details.append(_text(block.get("instruction")))
+        for ex in block.get("examples") or []:
+            if isinstance(ex, dict):
+                steps = " → ".join(
+                    f"{_text(s.get('result'))}（{_text(s.get('meaning'))}）"
+                    for s in (ex.get("steps") or [])
+                    if isinstance(s, dict)
+                )
+                options.append(f"{_text(ex.get('root'))}（{_text(ex.get('rootMeaning'))}）→ {steps}")
+    elif rt == "wordOrder":
+        toks = [
+            f"{_text(t.get('text'))}[{_text(t.get('role'))}{'*' if t.get('optional') else ''}]"
+            for t in (block.get("tokens") or [])
+            if isinstance(t, dict)
+        ]
+        if toks:
+            options.extend(toks)
+        if _text(block.get("translation")):
+            details.append(f"译文：{_text(block.get('translation'))}")
+        if _text(block.get("note")):
+            details.append(_text(block.get("note")))
+
+    location = " › ".join(
+        part for part in (unit_name, lesson_name, page_title, f"第 {block_index + 1} 块") if part
+    )
+    return PreviewItem(
+        key=key,
+        location=location,
+        runtime_type=full_rt,
+        type_label=_TYPE_LABELS.get(full_rt, f"导览块（{rt}）"),
+        prompt=prompt,
+        options=tuple(options),
+        answer=answer,
+        context=tuple(details),
+        notes=(),
+        raw=copy.deepcopy(block),
+    )
 
 
 def _dialogue_context(content: dict[str, Any]) -> tuple[str, ...]:
@@ -330,6 +448,29 @@ def build_document(section: dict[str, Any]) -> PreviewDocument:
                 warnings.append(f"课时 {lesson_name} 缺少 content 对象，已跳过。")
                 continue
             items: list[PreviewItem] = []
+            guide_context: list[str] = []
+            for page in content.get("pages") or []:
+                if not isinstance(page, dict):
+                    continue
+                intro = _text(page.get("intro"))
+                if intro:
+                    guide_context.append(f"{_text(page.get('title'))}：{intro}")
+                for block_index, raw_block in enumerate(page.get("blocks") or []):
+                    if not isinstance(raw_block, dict):
+                        continue
+                    items.append(
+                        _guide_block_preview(
+                            section_id=section_id,
+                            unit_id=unit_id,
+                            unit_name=unit_name,
+                            lesson_id=lesson_id,
+                            lesson_name=lesson_name,
+                            page=page,
+                            block=raw_block,
+                            block_index=block_index,
+                            used_item_keys=used_item_keys,
+                        )
+                    )
             for container_kind, container, raw_items in _containers(content):
                 container_id = _text(container.get("id")) or f"{container_kind}-{_hash({k: v for k, v in container.items() if k != 'items'}, 10)}"
                 container_name = _text(container.get("name") or container.get("subLessonName"))
@@ -379,7 +520,7 @@ def build_document(section: dict[str, Any]) -> PreviewDocument:
                     lesson_id=lesson_id,
                     name=lesson_name,
                     template=_text(raw_lesson.get("template") or raw_lesson.get("type")),
-                    context=(*_reading_context(content), *_dialogue_context(content)),
+                    context=(*_reading_context(content), *_dialogue_context(content), *guide_context),
                     items=tuple(items),
                 )
             )

@@ -99,7 +99,7 @@ Also: `flutter test` runs Dart validators so Python/Dart rules stay aligned.
 1. 修改相关课程 JSON 与资源元数据，不改已发布 ID。
 2. 运行 `validate` 与 `lint --strict`；待生成媒体必须先真实交付，不能用占位文件消除警告。
 3. 用 `python tool/export_content_inventory.py` 更新内容与质量清单。
-4. GUI 执行「定稿」：保存、校验、导出报告，不推进对外版本。
+4. GUI 执行「定稿」：保存、校验、导出报告，不推进对外版本。当前引用媒体必须存在、登记且完成人工审校；图片接受 `approved` / `existing-asset`，音频接受 `approved`。缺文件、未登记或待审校会阻断定稿与「交给 App」，普通保存仍用于候选稿。
 5. 需要交付作者时，用 `python tool/export_author_workspace.py --course-dir <course> --output <workspace>` 导出课程及引用媒体。
 6. 生成应用更新包时，由 `python tool/publish_course.py --previous-feed <deployed-feed> --bump --strict` 分配下一 index 版本。媒体随 app 发布，ZIP 仍只含 JSON。
 7. 上线时先上传 ZIP，最后更新远端稳定 feed；本地产物不等于远端已发布。

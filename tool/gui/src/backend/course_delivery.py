@@ -33,6 +33,12 @@ REFERENCE_STRING_KEYS = frozenset({
     "wordId",
     "expressionId",
     "grammarPointId",
+    "introducedInLessonId",
+    "nextLessonId",
+    "nextSubLessonId",
+    "interactionId",
+    "speakerId",
+    "categoryId",
 })
 REFERENCE_LIST_KEYS = frozenset({
     "prerequisiteSectionIds",
@@ -47,7 +53,14 @@ REFERENCE_LIST_KEYS = frozenset({
     "targetGrammarPointIds",
 })
 MEDIA_STRING_KEYS = frozenset({"audioAsset", "imageAsset"})
-MEDIA_LIST_KEYS = frozenset({"audioAssets", "imageAssets"})
+MEDIA_LIST_KEYS = frozenset({
+    "audioAssets",
+    "imageAssets",
+    "frontAudioAssets",
+    "frontImageAssets",
+    "backAudioAssets",
+    "backImageAssets",
+})
 
 _REQUIRED_COURSE_FILES = ("index.json", "vocab.json")
 
@@ -210,6 +223,10 @@ def _collect_ids(node: Any, rewriter: _IdRewriter) -> None:
                 for item in value:
                     if isinstance(item, str) and item:
                         rewriter.assign(item)
+            elif key == "wordFormMap" and isinstance(value, dict):
+                for target_id in value.values():
+                    if isinstance(target_id, str) and target_id:
+                        rewriter.assign(target_id)
             else:
                 _collect_ids(value, rewriter)
     elif isinstance(node, list):
@@ -231,6 +248,15 @@ def _apply_ids(node: Any, forward: dict[str, str]) -> None:
                     forward[item] if isinstance(item, str) and item in forward else item
                     for item in value
                 ]
+            elif key == "wordFormMap" and isinstance(value, dict):
+                node[key] = {
+                    surface: (
+                        forward[target_id]
+                        if isinstance(target_id, str) and target_id in forward
+                        else target_id
+                    )
+                    for surface, target_id in value.items()
+                }
             elif key in MEDIA_STRING_KEYS and isinstance(value, str) and value in forward:
                 # Bare word ids used as TTS audio follow the prefixed word.
                 # ``media/…`` paths are not ids, so they stay put.

@@ -159,15 +159,28 @@ class CourseReleaseService:
     @classmethod
     def release_report(cls, adapter: Any) -> dict[str, Any]:
         """Aggregate release checklist data for the publish dialog."""
+        from src.backend.manifest_service import (
+            audit_audio_manifest,
+            audit_media_manifest,
+            build_media_gate,
+        )
+
         changes = cls.detect_changes(adapter)
         version_bump: dict[str, tuple[int, int]] = {}
         audio_manifest = cls.audio_manifest_rows(adapter)
         diff = cls.release_diff(adapter)
         validate, lint = cls._validate_and_lint(adapter)
+        media_audit = audit_media_manifest(adapter)
+        audio_audit = audit_audio_manifest(adapter)
+        media_summary = media_audit.to_dict()
+        audio_doc_summary = audio_audit.to_dict()
         return {
             "changes": changes,
             "version_bump": version_bump,
             "audio_manifest": audio_manifest,
+            "media_manifest_summary": media_summary,
+            "audio_manifest_review_summary": audio_doc_summary,
+            "media_gate": build_media_gate(media_audit, audio_audit),
             "diff": diff,
             "validation": {
                 "ok": validate.ok,

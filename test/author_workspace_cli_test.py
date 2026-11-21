@@ -46,6 +46,13 @@ class AuthorWorkspaceTest(unittest.TestCase):
             )
             self.assertEqual(path, output / "assets" / "sounds" / "listening" / "example.mp3")
 
+            bare = output / "assets" / "sounds" / "turkish" / "listening" / "bare.mp3"
+            bare.parent.mkdir(parents=True)
+            bare.write_bytes(b"mp3")
+            self.assertEqual(
+                _audio_asset_path("bare", "listening", output / "course"), bare
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,27 +30,30 @@ def _template_schema_block() -> str:
     return """课程结构层级：section → units → lessons → content。
 
 可用课模板（template）及对应的 content 主键：
+- guide: 分页导览（无判分）。content 主键为 pages（每页含 id/title/kicker?/intro?/blocks[]）；支持 text / terms / classification / suffixBuilder / wordOrder 五种块，不得混入题目或 stages。
 - intro: 认识新词。content 主键为 subLessons。每个 subLesson 含 stages，每个 stage 含 items。
 - practice: 巩固练习。content 主键为 subLessons。
-- review: 复习。使用平铺 stages + reviewPolicy；不要与子课混用。
+- review: 复习。使用平铺 stages + reviewPolicy（minItems/maxItems/typeWeights）；不要与子课混用。
 - listening: 听力训练。content 主键为 listeningPhases。每个 phase 可含 items（wordPairing/dialogue）或只听不答（summary）。
-- reading: 阅读理解。content 包含 readingPassage（title + paragraphs）和 stages（理解题）。
+- dialogue: 情景对话。content 包含 dialogueScene（id/title/characters[]/turns[]）和 stages（学习者回应题）；每个学习者 turn 用 interactionId 按顺序指向 stages 中的题目。
+- reading: 阅读理解。content 包含 readingPassage（title + paragraphs + difficulty + linkedWordIds? + linkedExpressionIds? + wordFormMap? + imageAsset? + imageAlt?）和 stages（理解题）。
 - mastery: 综合测验。content 主键为 stages，一个 stage 即可。
 - mixed: 混合。可在不同单元/课时中使用不同模板。
 
 常用题型（runtimeType）说明：
 - showWord: { wordId, context?, term?, translation?, pronunciation?, audioAsset?, imageAsset?, example? } — 展示生词。wordId 必须在顶层 words 数组中定义。内联字段（term/translation 等）仅在该卡需要覆盖词表默认显示时填写，通常留空。
-- multipleChoice: { prompt, options(4), correctIndex, audioAssets? } — 单选题。
-- multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections? } — 多选题。
-- fillBlank: { sentence（含 ____ 空白）, answer, hint?, audioAssets?, imageAssets? } — 填空。
+- multipleChoice: { prompt, options(4), correctIndex, imageAsset?, audioAssets? } — 单选题。
+- multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections?, imageAsset? } — 多选题。
+- fillBlank: { sentence（含 ____ 空白）, answer, hint?, choices?（非空时为选择填空词块数组）, audioAssets?, imageAssets? } — 填空。
 - translateSentence: { source（源语言句子）, expected（目标语言翻译）, acceptedAnswers?, hints? } — 翻译。
 - listenAndPick: { audioAsset, prompt, options(4), correctIndex } — 听音选择。
 - typeTheWord: { audioAsset, prompt, expected } — 听写。
 - listenOnly: { audioAsset?, transcript?, prompt? } — 只听不答。
-- reorderSentence: { scrambled（打乱词数组）, correct（正确词数组）, acceptedAnswers? } — 排序；替代答案写完整句子字符串。
+- reorderSentence: { scrambled（打乱词数组）, correct（正确词数组）, prompt?（翻译拼句的源句）, acceptedAnswers? } — 排序；替代答案写完整句子字符串。
 - readingMcq: { prompt, options(4), correctIndex } — 阅读选择。
 - readingTrueFalse: { statement, answer(true/false) } — 阅读判断。
 - readingShortAnswer: { prompt, expectedAnswer, acceptedAnswers? } — 阅读简答。
+- readAloud: { targetText（目标语言朗读句）, prompt? } — 跟读（App 端用 TTS 示范 + 词面匹配）。
 - ankiCard: { front, back, audioAssets?, imageAssets?, hint?, sourceNoteId? } — Anki 翻卡（仅限导入内容再编排，AI 不主动生成）。
 - ankiHtmlCard: { frontHtml, backHtml, css?, mediaBasePath?, allowJs?, audioAssets? } — Anki HTML 卡（同上，AI 不主动生成）。
 
@@ -87,7 +90,10 @@ words: 本课程用到的所有生词。每个条目结构：
   "translation": "你好",         // 源语言译文（如中文）；禁止空字符串或占位符
   "pronunciation": null,        // 可选，音标或拉丁转写；没有就填 null
   "audioAsset": null,           // 可选，音频资源路径；没有就填 null
-  "tags": ["greeting"]          // 可选标签数组
+  "tags": ["greeting"],         // 可选标签数组
+  "level": "A1",                // 可选 CEFR 等级
+  "introducedInLessonId": null, // 可选，首次教学课时 ID
+  "learningGoal": "production"  // 可选：recognition | production
 }
 
 expressions: 本课程用到的所有惯用表达。每个条目结构：
@@ -159,6 +165,61 @@ def _build_json_schema_example(spec: AiCourseSpec) -> str:
       "name": "Reading check",
       "items": [
         { "runtimeType": "readingMcq", "id": "...", "prompt": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0 }
+      ]
+    }
+  ]
+}'''
+    elif template == "dialogue":
+        content_example = '''"content": {
+  "dialogueScene": {
+    "id": "ai-topic-u1-l1-scene",
+    "title": "...",
+    "characters": [
+      { "id": "host", "name": "Ayşe", "imageAsset": "" },
+      { "id": "learner", "name": "你" }
+    ],
+    "turns": [
+      { "id": "t-1", "speakerId": "host", "text": "Merhaba!" },
+      { "id": "t-2", "speakerId": "learner", "interactionId": "ai-topic-u1-l1-i1" }
+    ]
+  },
+  "stages": [
+    {
+      "id": "ai-topic-u1-l1-st1",
+      "name": "Dialogue responses",
+      "items": [
+        { "runtimeType": "multipleChoice", "id": "ai-topic-u1-l1-i1", "prompt": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0 }
+      ]
+    }
+  ]
+}'''
+    elif template == "guide":
+        content_example = '''"content": {
+  "pages": [
+    {
+      "id": "ai-topic-u1-l1-p1",
+      "title": "...",
+      "kicker": "",
+      "intro": "...",
+      "blocks": [
+        { "runtimeType": "text", "id": "ai-topic-u1-l1-b1", "title": "...", "body": "..." }
+      ]
+    }
+  ]
+}'''
+    elif template == "review":
+        content_example = '''"content": {
+  "reviewPolicy": {
+    "minItems": 12,
+    "maxItems": 16,
+    "typeWeights": { "fillBlank": 1.0, "translateSentence": 1.0, "reorderSentence": 1.0 }
+  },
+  "stages": [
+    {
+      "id": "ai-topic-u1-l1-st1",
+      "name": "Review pool",
+      "items": [
+        { "runtimeType": "fillBlank", "id": "...", "sentence": "_____, ...", "answer": "...", "choices": ["...", "..."], "hint": "..." }
       ]
     }
   ]

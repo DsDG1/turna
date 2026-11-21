@@ -369,6 +369,19 @@ class TeacherTemplateWidget(QWidget):
         self.changed.emit()
 
 
+class GuideTeacherWidget(TeacherTemplateWidget):
+    """Teacher view for ungraded page-based ``guide`` lessons (ADR 0074)."""
+
+    def _build_teacher_view(self) -> None:
+        if self._content_layout is None:
+            return
+        from src.widgets.guide_editor import GuideEditor
+
+        editor = GuideEditor(self.adapter, self.lesson, read_only=False)
+        editor.changed.connect(self.changed.emit)
+        self._content_layout.addWidget(editor)
+
+
 class DialogueTeacherWidget(TeacherTemplateWidget):
     """Teacher view for a scene and its existing response interactions."""
 
@@ -622,100 +635,31 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
 
 
 class ReadingTeacherWidget(TeacherTemplateWidget):
-    """Teacher view for reading lessons: passage + comprehension items."""
+    """Teacher view for reading lessons: unified passage panel + comprehension items."""
 
     def _build_teacher_view(self) -> None:
         layout = self._content_layout
         if layout is None:
             return
+        from src.widgets.reading_passage_panel import ReadingPassagePanel
 
-        title = QLabel(self.lesson.get('name', ''))
+        title = QLabel(self.lesson.get("name", ""))
         title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {current_palette()['text']};")
         layout.addWidget(title)
 
         passage = self.lesson.setdefault("content", {}).setdefault("readingPassage", {})
-        layout.addWidget(QLabel("标题："))
-        title_edit = QLineEdit(passage.get("title", ""))
-        title_edit._passage_ref = passage
-        title_edit.textChanged.connect(self._on_passage_title_changed)
-        layout.addWidget(title_edit)
-
-        layout.addWidget(QLabel("正文段落（每段一行）："))
-        paragraphs_edit = QTextEdit()
-        paragraphs = passage.get("paragraphs", []) or []
-        paragraphs_edit.setPlainText("\n\n".join(paragraphs))
-        paragraphs_edit.setMaximumHeight(160)
-        paragraphs_edit._passage_ref = passage
-        paragraphs_edit.textChanged.connect(self._on_passage_paragraphs_changed)
-        layout.addWidget(paragraphs_edit)
-
-        for label, field in (("插图资源：", "imageAsset"), ("插图替代文本：", "imageAlt")):
-            layout.addWidget(QLabel(label))
-            edit = QLineEdit(str(passage.get(field) or ""))
-            edit._passage_ref = passage
-            edit._passage_field = field
-            edit.textChanged.connect(self._on_passage_field_changed)
-            layout.addWidget(edit)
-
-        layout.addWidget(QLabel("词形映射（每行：文中词形=词库编号）："))
-        forms_edit = QTextEdit()
-        forms_edit.setPlainText(
-            "\n".join(
-                f"{surface}={word_id}"
-                for surface, word_id in (passage.get("wordFormMap") or {}).items()
-            )
-        )
-        forms_edit.setMaximumHeight(100)
-        forms_edit._passage_ref = passage
-        forms_edit.textChanged.connect(self._on_passage_forms_changed)
-        layout.addWidget(forms_edit)
+        panel = ReadingPassagePanel(self.adapter, passage, read_only=False)
+        panel.changed.connect(self.changed.emit)
+        layout.addWidget(panel)
 
         stage = self._stage()
         if stage is not None:
-            layout.addWidget(QLabel(stage.get('name', ' comprehension')))
+            layout.addWidget(QLabel(stage.get("name", " comprehension")))
             for item in stage.get("items", []) or []:
                 layout.addWidget(self._build_card(stage, item))
             layout.addWidget(self._add_item_row(stage))
 
         layout.addStretch()
-
-    def _on_passage_title_changed(self, text: str) -> None:
-        edit = self.sender()
-        if isinstance(edit, QLineEdit):
-            passage = getattr(edit, "_passage_ref", None)
-            if isinstance(passage, dict):
-                passage["title"] = text
-
-    def _on_passage_paragraphs_changed(self) -> None:
-        edit = self.sender()
-        if isinstance(edit, QTextEdit):
-            passage = getattr(edit, "_passage_ref", None)
-            if isinstance(passage, dict):
-                passage["paragraphs"] = [
-                    para.strip() for para in edit.toPlainText().split("\n\n") if para.strip()
-                ]
-
-    def _on_passage_field_changed(self, text: str) -> None:
-        edit = self.sender()
-        if isinstance(edit, QLineEdit):
-            passage = getattr(edit, "_passage_ref", None)
-            field = getattr(edit, "_passage_field", "")
-            if isinstance(passage, dict) and field:
-                passage[field] = text
-
-    def _on_passage_forms_changed(self) -> None:
-        edit = self.sender()
-        if not isinstance(edit, QTextEdit):
-            return
-        passage = getattr(edit, "_passage_ref", None)
-        if not isinstance(passage, dict):
-            return
-        forms: dict[str, str] = {}
-        for line in edit.toPlainText().splitlines():
-            surface, separator, word_id = line.partition("=")
-            if separator and surface.strip() and word_id.strip():
-                forms[surface.strip()] = word_id.strip()
-        passage["wordFormMap"] = forms
 
     def _stage(self) -> dict[str, Any] | None:
         stages = self.lesson.get("content", {}).get("stages", []) or []

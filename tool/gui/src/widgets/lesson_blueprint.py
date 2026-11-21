@@ -46,6 +46,7 @@ from src.backend.lesson_content import (
     INTERACTION_LABELS,
     add_item,
     add_listening_phase,
+    add_stage,
     add_sub_lesson,
     delete_item,
     delete_listening_phase,
@@ -373,8 +374,12 @@ class LessonBlueprint(QWidget):
             self._build_listening()
         elif template == "reading":
             self._build_reading()
-        elif template in ("dialogue", "mastery"):
+        elif template == "dialogue":
+            self._build_dialogue()
+        elif template == "mastery":
             self._build_mastery()
+        elif template == "review":
+            self._build_review()
         else:
             self._build_sublessons()
 
@@ -386,31 +391,11 @@ class LessonBlueprint(QWidget):
     # --- guide ----------------------------------------------------------
 
     def _build_guide(self) -> None:
-        content = self.lesson.get("content", {})
-        pages = content.get(ContentKey.PAGES, [])
-        for index, page in enumerate(pages):
-            blocks = page.get("blocks", [])
-            card = _Card(
-                f"第 {index + 1} 页 · {page.get('title', page.get('id', ''))}",
-                f"{len(blocks)} 个内容块",
-            )
-            if page.get("intro"):
-                intro = QLabel(page["intro"])
-                intro.setWordWrap(True)
-                intro.setStyleSheet(f"color: {_pal('text_secondary')};")
-                card.add_body(intro)
-            for block in blocks:
-                runtime_type = block.get("runtimeType", "?")
-                title = block.get("title") or block.get("id") or runtime_type
-                summary = QLabel(f"[{runtime_type}] {title}")
-                summary.setWordWrap(True)
-                summary.setStyleSheet(f"color: {_pal('text')};")
-                card.add_body(summary)
-            self._host_layout.insertWidget(index, card)
-        if not pages:
-            hint = QLabel("（暂无导览页面）")
-            hint.setStyleSheet(f"color: {_pal('text_secondary')};")
-            self._host_layout.insertWidget(0, hint)
+        from src.widgets.guide_editor import GuideEditor
+
+        editor = GuideEditor(self.adapter, self.lesson, read_only=self.read_only)
+        editor.changed.connect(self.changed.emit)
+        self._host_layout.insertWidget(0, editor)
 
     # --- listening ------------------------------------------------------
 
@@ -489,6 +474,8 @@ class LessonBlueprint(QWidget):
     # --- reading --------------------------------------------------------
 
     def _build_reading(self) -> None:
+        from src.widgets.reading_passage_panel import ReadingPassagePanel
+
         content = self.lesson.setdefault("content", {})
         passage = content.setdefault(
             ContentKey.READING_PASSAGE,
@@ -498,52 +485,109 @@ class LessonBlueprint(QWidget):
                 "difficulty": 1,
                 "linkedWordIds": [],
                 "linkedExpressionIds": [],
+                "wordFormMap": {},
+                "imageAsset": "",
+                "imageAlt": "",
             },
         )
         stages = content.setdefault(ContentKey.STAGES, [])
         if not stages:
-            from src.backend.lesson_content import add_stage
-
             add_stage(content, "Comprehension")
         stage = stages[0]
 
         passage_card = _Card("阅读篇章", f"难度 {passage.get('difficulty', 1)}")
-        if self.read_only:
-            title_lbl = QLabel(passage.get("title", "（无标题）"))
-            title_lbl.setStyleSheet(f"font-weight: 600; color: {_pal('text')};")
-            passage_card.add_body(title_lbl)
-            for p in passage.get("paragraphs", []):
-                para = QLabel(p)
-                para.setWordWrap(True)
-                para.setStyleSheet(f"color: {_pal('text_secondary')};")
-                passage_card.add_body(para)
-        else:
-            form = QVBoxLayout()
-            form.setSpacing(6)
-            title_edit = QLineEdit(passage.get("title", ""))
-            title_edit.setPlaceholderText("篇章标题")
-            title_edit.textChanged.connect(self._on_passage_title_changed)
-            form.addWidget(QLabel("标题"))
-            form.addWidget(title_edit)
-            diff = QSpinBox()
-            diff.setRange(1, 5)
-            diff.setValue(int(passage.get("difficulty", 1)))
-            diff.valueChanged.connect(self._on_passage_difficulty_changed)
-            form.addWidget(QLabel("难度 (1-5)"))
-            form.addWidget(diff)
-
-            paras = QTextEdit("\n\n".join(passage.get("paragraphs", [])))
-            paras.setMaximumHeight(140)
-            paras.setPlaceholderText("段落之间用空行分隔")
-            paras.textChanged.connect(self._on_passage_paragraphs_changed)
-            form.addWidget(QLabel("正文段落（空行分隔）"))
-            form.addWidget(paras)
-            passage_card.add_body(_wrap(form))
+        panel = ReadingPassagePanel(self.adapter, passage, read_only=self.read_only)
+        panel.changed.connect(self.changed.emit)
+        passage_card.add_body(panel)
         self._host_layout.insertWidget(0, passage_card)
 
         qcard = _Card("理解题", f"{len(stage.get(ContentKey.ITEMS, []))} 道题")
         qcard.add_body(self._build_items_block(stage))
         self._host_layout.insertWidget(1, qcard)
+
+    # --- dialogue -------------------------------------------------------
+
+    def _build_dialogue(self) -> None:
+        from src.widgets.lesson_editor import DialogueEditor
+
+        content = self.lesson.setdefault("content", {})
+        scene = content.setdefault(
+            ContentKey.DIALOGUE_SCENE,
+            {"id": "scene-dialogue", "title": "", "characters": [], "turns": []},
+        )
+        stages = content.setdefault(ContentKey.STAGES, [])
+        if not stages:
+            add_stage(content, "Responses")
+        stage = stages[0]
+
+        if self.read_only:
+            turns = scene.get("turns") or []
+            scene_card = _Card(
+                f"情景对话 · {scene.get('title') or scene.get('id', '')}",
+                f"{len(scene.get('characters') or [])} 位角色 · {len(turns)} 轮",
+            )
+            speakers = {
+                c.get("id", ""): c.get("name", c.get("id", ""))
+                for c in (scene.get("characters") or [])
+                if isinstance(c, dict)
+            }
+            for turn in turns:
+                spk = speakers.get(turn.get("speakerId", ""), turn.get("speakerId", ""))
+                line = turn.get("text") or f"（学习者回应：{turn.get('interactionId', '')}）"
+                lbl = QLabel(f"{spk}：{line}")
+                lbl.setWordWrap(True)
+                lbl.setStyleSheet(f"color: {_pal('text_secondary')};")
+                scene_card.add_body(lbl)
+            self._host_layout.insertWidget(0, scene_card)
+            rcard = _Card("学习者回应题", f"{len(stage.get(ContentKey.ITEMS, []))} 道题")
+            rcard.add_body(self._build_items_block(stage))
+            self._host_layout.insertWidget(1, rcard)
+            return
+
+        editor = DialogueEditor(self.adapter, self.lesson)
+        editor.changed.connect(self.changed.emit)
+        self._host_layout.insertWidget(0, editor)
+
+    # --- review ---------------------------------------------------------
+
+    def _build_review(self) -> None:
+        content = self.lesson.setdefault("content", {})
+        subs = content.get(ContentKey.SUB_LESSONS, [])
+        stages = content.get(ContentKey.STAGES, [])
+        if subs and not content.get(ContentKey.REVIEW_POLICY):
+            self._build_sublessons()
+            return
+        idx = 0
+        if not self.read_only:
+            from src.widgets.lesson_editor import ReviewPolicyEditor
+
+            policy_box = ReviewPolicyEditor(self.lesson)
+            self._host_layout.insertWidget(idx, policy_box)
+            idx += 1
+        elif content.get(ContentKey.REVIEW_POLICY):
+            pol = content[ContentKey.REVIEW_POLICY]
+            pol_card = _Card(
+                "复习题池策略",
+                f"每次随机抽取 {pol.get('minItems', 1)}–{pol.get('maxItems', 1)} 题",
+            )
+            self._host_layout.insertWidget(idx, pol_card)
+            idx += 1
+        if not stages:
+            if self.read_only:
+                hint = QLabel("（暂无复习题池）")
+                hint.setStyleSheet(f"color: {_pal('text_secondary')};")
+                self._host_layout.insertWidget(idx, hint)
+                return
+            add_stage(content, "混合复习题池")
+            stages = content[ContentKey.STAGES]
+        for st in stages:
+            card = _Card(
+                f"复习题池 · {st.get('name', st.get('id', ''))}",
+                f"{len(st.get(ContentKey.ITEMS, []))} 道题",
+            )
+            card.add_body(self._build_items_block(st))
+            self._host_layout.insertWidget(idx, card)
+            idx += 1
 
     # --- mastery --------------------------------------------------------
 

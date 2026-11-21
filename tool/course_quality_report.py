@@ -6,6 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from course_cli import _audio_asset_path
 from course_pedagogy import (
     CHOICE_TYPES,
     PRODUCTION_TYPES,
@@ -50,7 +51,7 @@ def _media_exists(course_dir: Path, asset: str, kind: str) -> bool | None:
     elif normalized.startswith("media/"):
         path = course_dir / normalized
     elif kind == "audio":
-        path = REPO / "assets" / "sounds" / "listening" / f"{normalized}.mp3"
+        path = _audio_asset_path(normalized, kind, course_dir)
     else:
         path = REPO / normalized
     return path.is_file()

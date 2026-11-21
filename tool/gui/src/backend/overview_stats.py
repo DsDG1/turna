@@ -80,6 +80,11 @@ def iter_lesson_refs(lesson: dict[str, Any]) -> Iterator[tuple[str, str]]:
     for eid in passage.get("linkedExpressionIds", []) or []:
         if eid:
             yield "expression", str(eid)
+    form_map = passage.get("wordFormMap")
+    if isinstance(form_map, dict):
+        for wid in form_map.values():
+            if wid:
+                yield "word", str(wid)
 
 
 def lesson_is_empty(lesson: dict[str, Any]) -> bool:

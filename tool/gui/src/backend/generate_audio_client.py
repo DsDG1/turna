@@ -5,8 +5,9 @@ GUI shells out to ``tool/generate_audio.py``. Pure stdlib, no PySide6, so it is
 unit-testable without a display.
 
 The script is language-agnostic: the GUI passes both ``--course-dir`` and
-``--sounds-dir`` (derived from the loaded course's ``index.language``), so any
-language course can be synthesized into ``assets/sounds/<lang>/listening/``.
+``--sounds-dir`` (derived from the loaded course's ``index.language`` and the
+shared sound-directory mapping), so courses synthesize into their canonical
+``assets/sounds/<sound-directory>/listening/`` directory.
 The MiniMax API key travels to the subprocess via the environment (never argv,
 never persisted).
 """
@@ -24,6 +25,7 @@ _TOOL_DIR = Path(__file__).resolve().parents[3]
 if str(_TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(_TOOL_DIR))
 
+from src.backend import api
 from src.backend.course_adapter import _REPO_ROOT
 import logging
 logger = logging.getLogger(__name__)
@@ -68,20 +70,9 @@ def repo_root_for(settings) -> Path:
     return _REPO_ROOT
 
 
-def _course_language(course_dir: Path) -> str:
-    """Read ``index.language`` from a course dir; '' if unreadable."""
-    try:
-        with (course_dir / "index.json").open("r", encoding="utf-8") as f:
-            index = json.load(f)
-        return str(index.get("language") or index.get("lang") or "")
-    except Exception:
-        return ""
-
-
 def sounds_dir_for(course_dir: Path, settings) -> Path:
-    """Return ``<repo>/assets/sounds/<language>`` for the course."""
-    lang = _course_language(course_dir) or "en"
-    return repo_root_for(settings) / "assets" / "sounds" / lang
+    """Return the canonical bundled-sound root for the course."""
+    return api.sounds_dir_for_course(course_dir, repo_root_for(settings))
 
 
 def _preview_via_subprocess(course_dir: Path, sounds_dir: Path) -> dict[str, int]:

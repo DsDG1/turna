@@ -17,6 +17,7 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/html_stripper.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/service/audio_backend.dart';
 import 'package:turna/service/speech_backend.dart';
@@ -438,6 +439,12 @@ class AudioController {
     return t.contains('/') || t.startsWith('assets');
   }
 
+  @visibleForTesting
+  static String bundledListeningAssetPath(String assetId, String languageCode) {
+    final directory = LanguageCodes.soundDirectoryFor(languageCode);
+    return 'assets/sounds/$directory/listening/${assetId.trim()}.mp3';
+  }
+
   /// Strip leading `/` and optional `assets/` so [AudioBackend.playAsset] gets a relative
   /// path (e.g. `audio/turkish/test.mp3`).
   @visibleForTesting
@@ -452,18 +459,22 @@ class AudioController {
     return path;
   }
 
+  Future<bool> _playSpeechAsset(String assetPath) async {
+    try {
+      await _speech.stop();
+      await _speech.playAsset(normalizeAssetPath(assetPath));
+      return true;
+    } catch (e) {
+      logger.w('Error playing asset audio: $e');
+      return false;
+    }
+  }
+
   /// Play a pre-recorded audio asset. Accepts paths with or without an
   /// `assets/` prefix (and optional leading `/`); normalization is applied
   /// before passing to [AudioBackend].
   Future<void> speakFromAsset(String assetPath) async {
-    await _trackSpeaking(() async {
-      try {
-        await _speech.stop();
-        await _speech.playAsset(normalizeAssetPath(assetPath));
-      } catch (e) {
-        logger.w('Error playing asset audio: $e');
-      }
-    });
+    await _trackSpeaking(() => _playSpeechAsset(assetPath));
   }
 
   /// Speak a vocabulary word. Prefers the offline [audioAsset] if present,
@@ -563,9 +574,10 @@ class AudioController {
     }
   }
 
-  /// Listen-only / mixed content helper: [audioAsset] may be an asset path or
-  /// a logical word id. Path detection lives here so renderers only call this
-  /// (or plain [speak] / [speakFromAsset] / [speakWord]).
+  /// Listen-only / mixed content helper: [audioAsset] may be an asset path,
+  /// a bundled listening id, or a logical word id. Path detection lives here
+  /// so renderers only call this (or plain [speak] / [speakFromAsset] /
+  /// [speakWord]).
   Future<void> speakListenContent({
     String? audioAsset,
     String transcript = '',
@@ -606,6 +618,11 @@ class AudioController {
         await speakFromAsset(asset);
         return const TtsSpeakResult(source: TtsSpeakSource.system);
       } else if (await playOfficialMediaFile(asset)) {
+        return const TtsSpeakResult(source: TtsSpeakSource.system);
+      } else if (await _playSpeechAsset(
+        bundledListeningAssetPath(
+            asset, _languageProvider.selectedLanguageCode),
+      )) {
         return const TtsSpeakResult(source: TtsSpeakSource.system);
       } else if (text.isNotEmpty) {
         return speakWithResult(text);

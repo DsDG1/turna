@@ -25,7 +25,9 @@ from src.widgets.publish_dialog import PublishDialog
 from tests._qtapp import _App
 
 
-def _adapter_with_report(*, ok: bool = True, errors=None):
+def _adapter_with_report(
+    *, ok: bool = True, errors=None, media_ok: bool = True, blockers=None
+):
     adapter = MagicMock()
     adapter.release_report.return_value = {
         "changes": {
@@ -47,6 +49,12 @@ def _adapter_with_report(*, ok: bool = True, errors=None):
             "sections": {"added": [], "removed": [], "unchanged_count": 1},
         },
         "validation": {"ok": ok, "errors": errors or [], "warnings": []},
+        "media_gate": {
+            "ok": media_ok,
+            "blockers": blockers
+            if blockers is not None
+            else ([] if media_ok else [{"code": "audio_missing", "message": "音频文件缺失：l-pilot"}]),
+        },
     }
     adapter.save.return_value = MagicMock(ok=True, message="saved")
     return adapter
@@ -118,6 +126,22 @@ class PublishDialogModeTest(unittest.TestCase):
         self.assertFalse(self._ok_enabled(dlg))
         self.assertIn("raw error string", dlg.validation_label.toolTip())
 
+    def test_media_gate_blocks_finalize_and_handoff(self) -> None:
+        for teacher_friendly in (False, True):
+            with self.subTest(teacher_friendly=teacher_friendly):
+                adapter = _adapter_with_report(media_ok=False)
+                dlg = self._make_dlg(
+                    adapter, teacher_friendly=teacher_friendly
+                )
+                self.assertFalse(dlg.ok_btn.isEnabled())
+                self.assertFalse(dlg.handoff_btn.isEnabled())
+                self.assertIn("音频文件缺失", dlg.validation_label.text())
+                self.assertIn("音频文件缺失", dlg._report_text())
+                with patch("src.widgets.publish_dialog.QMessageBox"):
+                    dlg._on_publish()
+                    dlg._on_handoff()
+                adapter.save.assert_not_called()
+
 
 class PublishDialogAsyncTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -135,6 +159,7 @@ class PublishDialogAsyncTest(unittest.TestCase):
         # Report rendered; buttons reflect the (passing) validation.
         self.assertTrue(dlg.ok_btn.isEnabled())
         self.assertTrue(dlg.export_btn.isEnabled())
+        self.assertTrue(dlg.handoff_btn.isEnabled())
         self.assertIn("结构", dlg.changes_label.text())
 
     def test_async_publish_runs_on_worker_and_accepts(self) -> None:

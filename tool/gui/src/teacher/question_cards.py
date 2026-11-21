@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QRadioButton,
+    QSpinBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -94,6 +95,8 @@ class QuestionCard(QFrame):
         InteractionType.ANKI_CARD: "_build_anki_card",
         InteractionType.ANKI_HTML_CARD: "_build_anki_html_card",
         InteractionType.READ_ALOUD: "_build_read_aloud",
+        InteractionType.IMAGE_RECALL: "_build_image_recall",
+        InteractionType.DICTATION: "_build_dictation",
     }
 
     def __init__(
@@ -300,18 +303,59 @@ class QuestionCard(QFrame):
         layout.addWidget(QLabel(field_label(ItemKey.GRAMMAR_POINT_ID)))
         layout.addWidget(combo)
 
+    def _expression_combo(self, current_id: str) -> QComboBox:
+        combo = QComboBox()
+        model = self._expression_model
+        if model is None:
+            model = build_options_model(self.adapter.expression_options(), placeholder="(无)")
+        combo.setModel(model)
+        select_by_id(combo, model, current_id)
+        return combo
+
+    def _add_string_list(self, layout: QVBoxLayout, field: str, hint: str = "") -> None:
+        from src.widgets.interaction_forms import StringListEditor
+
+        layout.addWidget(QLabel(field_label(field)))
+        if hint:
+            hint_lbl = QLabel(hint)
+            hint_lbl.setStyleSheet(
+                f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+            )
+            hint_lbl.setWordWrap(True)
+            layout.addWidget(hint_lbl)
+        values = self.item.get(field) or []
+        layout.addWidget(
+            StringListEditor(
+                list(values), lambda vals, f=field: self._set_field(f, vals)
+            )
+        )
+
+    def _on_spin_field_changed(self, value: int) -> None:
+        sender = self.sender()
+        if isinstance(sender, QSpinBox):
+            field = sender.property("bound_field")
+            if field:
+                self._set_field(str(field), value)
+
     def _build_show_word(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel(field_label(ItemKey.WORD_ID)))
         combo = self._word_combo(self.item.get(ItemKey.WORD_ID, ""))
         combo.setProperty("bound_field", ItemKey.WORD_ID)
         combo.currentIndexChanged.connect(self._on_combo_field_changed)
         layout.addWidget(combo)
+
+        layout.addWidget(QLabel(field_label(ItemKey.EXPRESSION_ID)))
+        expr_combo = self._expression_combo(self.item.get(ItemKey.EXPRESSION_ID) or "")
+        expr_combo.setProperty("bound_field", ItemKey.EXPRESSION_ID)
+        expr_combo.currentIndexChanged.connect(self._on_combo_field_changed)
+        layout.addWidget(expr_combo)
+
         self._add_labeled_edit(layout, "context")
         # Inline overrides: when non-empty the app prefers them over the vocab
         # entry (interaction.dart ShowWord). Show the effective value in the
         # editors so what the teacher sees matches what the learner gets.
         hint = QLabel("以下内联字段非空时覆盖词表默认显示（通常留空）")
-        hint.setStyleSheet("color: gray;")
+        hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
         layout.addWidget(hint)
         for field in ("term", "translation", "pronunciation", "audioAsset", "imageAsset", "example"):
             self._add_labeled_edit(layout, field)
@@ -327,24 +371,13 @@ class QuestionCard(QFrame):
         self._add_labeled_edit(layout, "prompt")
 
     def _build_reorder_sentence(self, layout: QVBoxLayout) -> None:
-        from src.widgets.interaction_forms import StringListEditor
-
-        # T22: these two were inline literals while every sibling field goes
-        # through field_label(), so the same concept read "打乱顺序的词" here
-        # and 「打乱词序」 elsewhere. One source for the wording.
-        layout.addWidget(QLabel(field_label("scrambled")))
-        scrambled = self.item.get("scrambled", []) or []
-        layout.addWidget(
-            StringListEditor(
-                list(scrambled), lambda v: self._set_field("scrambled", v)
-            )
-        )
-        layout.addWidget(QLabel(field_label("correct")))
-        correct = self.item.get("correct", []) or []
-        layout.addWidget(
-            StringListEditor(
-                list(correct), lambda v: self._set_field("correct", v)
-            )
+        self._add_labeled_edit(layout, "prompt")
+        self._add_string_list(layout, "scrambled")
+        self._add_string_list(layout, "correct")
+        self._add_string_list(
+            layout,
+            "acceptedAnswers",
+            hint="可接受的其他语序（完整句子，需使用同一组词块）",
         )
 
     def _build_options_editor(self, layout: QVBoxLayout, exclusive: bool) -> None:
@@ -453,28 +486,48 @@ class QuestionCard(QFrame):
         self.changed.emit()
 
     def _build_single_choice(self, layout: QVBoxLayout) -> None:
+        rt = self.item.get(ItemKey.RUNTIME_TYPE)
+        if rt == InteractionType.LISTEN_AND_PICK:
+            self._add_labeled_edit(layout, ItemKey.AUDIO_ASSET)
         self._add_labeled_edit(layout, ItemKey.PROMPT)
-        if self.item.get(ItemKey.RUNTIME_TYPE) == InteractionType.MULTIPLE_CHOICE:
+        if rt == InteractionType.MULTIPLE_CHOICE:
+            self._add_labeled_edit(layout, ItemKey.IMAGE_ASSET)
             self._add_media_list(layout, ItemKey.AUDIO_ASSETS)
         self._build_options_editor(layout, exclusive=True)
 
     def _build_multi_select(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, ItemKey.PROMPT)
+        self._add_labeled_edit(layout, ItemKey.IMAGE_ASSET)
+        bounds = QHBoxLayout()
+        bounds.addWidget(QLabel(field_label(ItemKey.MIN_SELECTIONS)))
+        min_spin = QSpinBox()
+        min_spin.setRange(1, 99)
+        min_spin.setValue(int(self.item.get(ItemKey.MIN_SELECTIONS) or 1))
+        min_spin.setProperty("bound_field", ItemKey.MIN_SELECTIONS)
+        min_spin.valueChanged.connect(self._on_spin_field_changed)
+        bounds.addWidget(min_spin)
+        bounds.addWidget(QLabel(field_label(ItemKey.MAX_SELECTIONS)))
+        max_spin = QSpinBox()
+        max_spin.setRange(1, 2147483647)
+        max_spin.setValue(int(self.item.get(ItemKey.MAX_SELECTIONS) or 2147483647))
+        max_spin.setProperty("bound_field", ItemKey.MAX_SELECTIONS)
+        max_spin.valueChanged.connect(self._on_spin_field_changed)
+        bounds.addWidget(max_spin)
+        bounds.addStretch()
+        layout.addLayout(bounds)
         self._build_options_editor(layout, exclusive=False)
 
     def _build_fill_blank(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "sentence")
         self._add_labeled_edit(layout, "answer")
-        self._add_labeled_edit(layout, "translation")
-        layout.addWidget(QLabel(field_label("hints")))
-        edit = QTextEdit()
-        hints = self.item.get("hints")
-        if isinstance(hints, list):
-            edit.setPlainText("\n".join(str(h) for h in hints))
-        else:
-            edit.setPlainText(str(hints or ""))
-        edit.textChanged.connect(self._on_hints_text_changed)
-        layout.addWidget(edit)
+        self._add_labeled_edit(layout, "hint")
+        self._add_string_list(
+            layout,
+            "choices",
+            hint="非空时切换为「选择填空」（点选词块填入空白）；留空则保持打字输入。",
+        )
+        self._add_media_list(layout, ItemKey.AUDIO_ASSETS)
+        self._add_media_list(layout, ItemKey.IMAGE_ASSETS)
 
     def _on_hints_text_changed(self) -> None:
         sender = self.sender()
@@ -485,6 +538,7 @@ class QuestionCard(QFrame):
     def _build_translate(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "source")
         self._add_labeled_edit(layout, "expected")
+        self._add_string_list(layout, "acceptedAnswers")
         # hints is a string_list field: one hint per line in the editor.
         layout.addWidget(QLabel(field_label("hints")))
         edit = QTextEdit()
@@ -539,6 +593,7 @@ class QuestionCard(QFrame):
     def _build_short_answer(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "prompt")
         self._add_labeled_edit(layout, "expectedAnswer")
+        self._add_string_list(layout, "acceptedAnswers")
 
     def _add_media_list(self, layout: QVBoxLayout, field: str) -> None:
         """Editable placeholder list for media refs (audioAssets / imageAssets).
@@ -554,7 +609,7 @@ class QuestionCard(QFrame):
         def _on_media_changed(vals: list[str]) -> None:
             self._set_field(field, vals)
 
-        kind = "image" if field == "imageAssets" else "audio"
+        kind = "image" if "Image" in field or field == "imageAssets" else "audio"
 
         def _pick() -> str | None:
             from src.widgets.media_picker import pick_course_media
@@ -592,6 +647,8 @@ class QuestionCard(QFrame):
         back_edit.textChanged.connect(self._on_anki_back_changed)
         layout.addWidget(back_edit)
 
+        self._add_labeled_edit(layout, "hint")
+
         hint = str(self.item.get("hint", "") or "")
         if hint:
             hint_btn = QPushButton("提示")
@@ -600,6 +657,10 @@ class QuestionCard(QFrame):
             hint_btn.clicked.connect(self._on_hint_button_clicked)
             layout.addWidget(hint_btn)
 
+        self._add_media_list(layout, "frontAudioAssets")
+        self._add_media_list(layout, "frontImageAssets")
+        self._add_media_list(layout, "backAudioAssets")
+        self._add_media_list(layout, "backImageAssets")
         self._add_media_list(layout, "audioAssets")
         self._add_media_list(layout, "imageAssets")
 
@@ -669,6 +730,28 @@ class QuestionCard(QFrame):
         )
         hint.setWordWrap(True)
         layout.addWidget(hint)
+
+    def _build_image_recall(self, layout: QVBoxLayout) -> None:
+        self._add_media_list(layout, ItemKey.IMAGE_ASSETS)
+        self._add_labeled_edit(layout, ItemKey.ANSWER_TEXT)
+        self._add_labeled_edit(layout, ItemKey.HINT)
+        note = QLabel("💡 提示：提问面仅展示图片，点击揭示后再显示参考答案（ADR 0057）。")
+        note.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+    def _build_dictation(self, layout: QVBoxLayout) -> None:
+        self._add_media_list(layout, ItemKey.AUDIO_ASSETS)
+        self._add_labeled_edit(layout, ItemKey.EXPECTED)
+        self._add_labeled_edit(layout, ItemKey.HINT)
+        note = QLabel("💡 提示：提问面仅播放音频，不展示任何文本提示，学员输入拼写后判分。")
+        note.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
 
     def _build_fallback(self, layout: QVBoxLayout) -> None:
         from src.widgets.interaction_forms import InteractionForm

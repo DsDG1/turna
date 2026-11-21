@@ -156,7 +156,7 @@ class RuntimeTypeSwitchTest(unittest.TestCase):
 
 class SchemaTest(unittest.TestCase):
     def test_every_runtime_type_has_schema(self) -> None:
-        self.assertEqual(len(ALLOWED_RUNTIME_TYPES), 15)
+        self.assertEqual(len(ALLOWED_RUNTIME_TYPES), 17)
         for rt in ALLOWED_RUNTIME_TYPES:
             self.assertIn(rt, INTERACTION_SCHEMA, f"missing schema for {rt}")
 

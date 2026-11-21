@@ -235,19 +235,24 @@ class ReadingViewRenderTest(unittest.TestCase):
         self.stack = QUndoStack()
 
     def test_reading_view_renders_comprehension_and_syncs_paragraphs(self) -> None:
+        from PySide6.QtWidgets import QTableWidgetItem
+        from src.widgets.reading_passage_panel import ReadingPassagePanel
+
         lesson = _sample_lesson("reading")
         widget = ReadingTeacherWidget(
             self.adapter, self.section, self.unit, lesson, undo_stack=self.stack
         )
         widget.show()
         self.assertGreaterEqual(len(widget.findChildren(QuestionCard)), 1)
-        paras = widget.findChildren(QTextEdit)
-        self.assertEqual(len(paras), 2)
-        paras[0].setPlainText("New A\n\nNew B")
+        panel = widget.findChild(ReadingPassagePanel)
+        self.assertIsNotNone(panel)
+        panel.paras_edit.setPlainText("New A\n\nNew B")
         self.assertEqual(
             lesson["content"]["readingPassage"]["paragraphs"], ["New A", "New B"]
         )
-        paras[1].setPlainText("evimde=nt-w-ev")
+        panel.forms_table.setRowCount(1)
+        panel.forms_table.setItem(0, 0, QTableWidgetItem("evimde"))
+        panel.forms_table.setItem(0, 1, QTableWidgetItem("nt-w-ev"))
         self.assertEqual(
             lesson["content"]["readingPassage"]["wordFormMap"],
             {"evimde": "nt-w-ev"},

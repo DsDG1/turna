@@ -21,6 +21,14 @@ class LanguageCodes {
     turkish: 'turkish',
   };
 
+  static const Map<String, String> _soundDirs = {turkish: 'turkish'};
+
+  /// Directory under `assets/sounds/` for bundled audio in this language.
+  static String soundDirectoryFor(String raw) {
+    final code = canonicalize(raw);
+    return _soundDirs[code] ?? code;
+  }
+
   /// Azerbaijani shares Turkish's dotted/dotless-I casing rules (ASCII `I`
   /// lowercases to `ı`, `İ` to `i`). Packed courses never use it, but an
   /// imported pack may.

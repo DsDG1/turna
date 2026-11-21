@@ -237,47 +237,21 @@ class SubLessonTreeEditor(QWidget):
 
 
 class GuidePagesEditor(QWidget):
-    """Read-only page/block inspector that preserves guide JSON on save."""
+    """Visual editor for ``guide`` lessons (delegates to ``GuideEditor``)."""
 
-    def __init__(self, lesson: dict[str, Any]) -> None:
+    changed = Signal()
+
+    def __init__(self, lesson: dict[str, Any], adapter: Any = None) -> None:
         super().__init__()
+        from src.widgets.guide_editor import GuideEditor
+
         self.pages = lesson.setdefault("content", {}).setdefault(ContentKey.PAGES, [])
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("分页导览不含题目；这里检查页面与互动内容，保存时保留原结构。"))
-        splitter = QSplitter()
-        self.page_list = QListWidget()
-        self.detail = QTextEdit()
-        self.detail.setReadOnly(True)
-        splitter.addWidget(self.page_list)
-        splitter.addWidget(self.detail)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 3)
-        layout.addWidget(splitter)
-        for page in self.pages:
-            self.page_list.addItem(page.get("title", page.get("id", "")))
-        self.page_list.currentRowChanged.connect(self._show_page)
-        if self.pages:
-            self.page_list.setCurrentRow(0)
-
-    def _show_page(self, row: int) -> None:
-        if row < 0 or row >= len(self.pages):
-            self.detail.clear()
-            return
-        page = self.pages[row]
-        lines = [page.get("title", ""), page.get("intro", ""), ""]
-        for block in page.get("blocks", []):
-            runtime_type = block.get("runtimeType", "?")
-            title = block.get("title") or block.get("id") or runtime_type
-            lines.append(f"[{runtime_type}] {title}")
-            for key in ("body", "instruction", "translation", "note", "completionNote"):
-                if block.get(key):
-                    lines.append(str(block[key]))
-            for key in ("items", "categories", "cards", "examples", "tokens"):
-                values = block.get(key) or []
-                if values:
-                    lines.append(f"{key}: {len(values)} 项")
-            lines.append("")
-        self.detail.setPlainText("\n".join(lines))
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.editor = GuideEditor(adapter, lesson, read_only=False)
+        self.editor.changed.connect(self.changed.emit)
+        self.page_list = self.editor.page_list
+        layout.addWidget(self.editor)
 
 
 class MasteryEditor(QWidget):
@@ -422,10 +396,12 @@ class ListeningPhasesEditor(QWidget):
 
 
 class ReadingEditor(QWidget):
-    """reading: readingPassage editor + single comprehension stage items."""
+    """reading: full readingPassage editor + single comprehension stage items."""
 
     def __init__(self, adapter: CourseAdapter, lesson: dict[str, Any]) -> None:
         super().__init__()
+        from src.widgets.reading_passage_panel import ReadingPassagePanel
+
         self.adapter = adapter
         self.lesson = lesson
         content = lesson.setdefault("content", {})
@@ -435,6 +411,9 @@ class ReadingEditor(QWidget):
             "difficulty": 1,
             "linkedWordIds": [],
             "linkedExpressionIds": [],
+            "wordFormMap": {},
+            "imageAsset": "",
+            "imageAlt": "",
         })
         self.passage = passage
         stages = content.setdefault(ContentKey.STAGES, [])
@@ -443,36 +422,18 @@ class ReadingEditor(QWidget):
 
         layout = QVBoxLayout(self)
         passage_box = QGroupBox("阅读篇章")
-        pform = QFormLayout()
-        self.title_edit = QLineEdit(passage.get("title", ""))
-        self.title_edit.textChanged.connect(self._on_title_changed)
-        pform.addRow("title:", self.title_edit)
-        self.diff_spin = QSpinBox()
-        self.diff_spin.setRange(1, 5)
-        self.diff_spin.setValue(int(passage.get("difficulty", 1)))
-        self.diff_spin.valueChanged.connect(self._on_diff_changed)
-        pform.addRow("difficulty:", self.diff_spin)
-        self.paras_edit = QTextEdit("\n\n".join(passage.get("paragraphs", [])))
-        self.paras_edit.setMaximumHeight(120)
-        self.paras_edit.textChanged.connect(self._on_paras_changed)
-        pform.addRow("paragraphs (空行分隔):", self.paras_edit)
-        passage_box.setLayout(pform)
+        box_layout = QVBoxLayout(passage_box)
+        self.passage_panel = ReadingPassagePanel(adapter, passage, read_only=False)
+        box_layout.addWidget(self.passage_panel)
+        # Preserve legacy attribute aliases used by existing tests.
+        self.title_edit = self.passage_panel.title_edit
+        self.diff_spin = self.passage_panel.diff_spin
+        self.paras_edit = self.passage_panel.paras_edit
         layout.addWidget(passage_box)
 
         self.item_panel = ItemListPanel(adapter)
         layout.addWidget(self.item_panel, 1)
         self.item_panel.show_stage(stages[0])
-
-    def _on_title_changed(self, text: str) -> None:
-        self.passage["title"] = text
-
-    def _on_diff_changed(self, val: int) -> None:
-        self.passage["difficulty"] = val
-
-    def _on_paras_changed(self) -> None:
-        self.passage["paragraphs"] = [
-            s.strip() for s in self.paras_edit.toPlainText().split("\n\n") if s.strip()
-        ]
 
 
 class DialogueEditor(QWidget):
@@ -482,6 +443,7 @@ class DialogueEditor(QWidget):
 
     def __init__(self, adapter: CourseAdapter, lesson: dict[str, Any]) -> None:
         super().__init__()
+        self.adapter = adapter
         self.lesson = lesson
         content = lesson.setdefault("content", {})
         self.scene = content.setdefault(ContentKey.DIALOGUE_SCENE, {
@@ -510,16 +472,31 @@ class DialogueEditor(QWidget):
         self.characters.setMaximumHeight(150)
         self.characters.cellChanged.connect(self._character_changed)
         layout.addWidget(self.characters)
-        layout.addLayout(self._table_buttons(self._add_character, self._delete_character))
+        char_btns = self._table_buttons(self._add_character, self._delete_character)
+        pick_avatar_btn = QPushButton("选择角色头像")
+        pick_avatar_btn.clicked.connect(self._pick_character_avatar)
+        char_btns.insertWidget(2, pick_avatar_btn)
+        layout.addLayout(char_btns)
 
-        layout.addWidget(QLabel("轮次（text 与 interactionId 只填一个）"))
+        layout.addWidget(QLabel("轮次（text 与 interactionId 只填一个；回应轮次顺序需与下方题目顺序一致）"))
         self.turns = QTableWidget(0, 4)
         self.turns.setHorizontalHeaderLabels(["id", "speakerId", "text", "interactionId"])
         self.turns.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.turns.setMaximumHeight(180)
         self.turns.cellChanged.connect(self._turn_changed)
         layout.addWidget(self.turns)
-        layout.addLayout(self._table_buttons(self._add_turn, self._delete_turn))
+        turn_btns = self._table_buttons(self._add_turn, self._delete_turn)
+        add_resp_btn = QPushButton("+ 添加回应轮次（关联选中题）")
+        add_resp_btn.clicked.connect(self._add_response_turn)
+        turn_btns.insertWidget(1, add_resp_btn)
+        layout.addLayout(turn_btns)
+
+        self.ref_status = QLabel("")
+        self.ref_status.setWordWrap(True)
+        self.ref_status.setStyleSheet(
+            f"color: {current_palette().get('warning', current_palette()['text_secondary'])}; font-size: 11px;"
+        )
+        layout.addWidget(self.ref_status)
 
         self.item_panel = ItemListPanel(adapter)
         layout.addWidget(self.item_panel, 1)
@@ -552,7 +529,60 @@ class DialogueEditor(QWidget):
             self.scene["turns"],
             ("id", "speakerId", "text", "interactionId"),
         )
+        self._update_ref_status()
         self.changed.emit()
+
+    def _update_ref_status(self) -> None:
+        char_ids = {str(c.get("id") or "") for c in self.scene.get("characters", []) if c.get("id")}
+        item_ids = {
+            str(it.get("id") or "")
+            for st in self.lesson.get("content", {}).get(ContentKey.STAGES, [])
+            for it in st.get(ContentKey.ITEMS, [])
+            if it.get("id")
+        }
+        issues: list[str] = []
+        for turn in self.scene.get("turns", []):
+            tid = turn.get("id") or "?"
+            spk = str(turn.get("speakerId") or "")
+            if spk and spk not in char_ids:
+                issues.append(f"轮次 {tid} 的 speakerId={spk} 未在角色表定义")
+            iid = str(turn.get("interactionId") or "")
+            if iid and iid not in item_ids:
+                issues.append(f"轮次 {tid} 的 interactionId={iid} 在下方题目中不存在")
+        self.ref_status.setText("；".join(issues[:3]))
+        self.ref_status.setVisible(bool(issues))
+
+    def _pick_character_avatar(self) -> None:
+        from src.widgets.media_picker import pick_course_media
+
+        row = self.characters.currentRow()
+        if not (0 <= row < len(self.scene["characters"])):
+            return
+        course_dir = getattr(self.adapter, "course_dir", None)
+        chosen = pick_course_media(self, course_dir, kind="image")
+        if chosen:
+            self.scene["characters"][row]["imageAsset"] = chosen
+            self._refresh()
+
+    def _add_response_turn(self) -> None:
+        speaker = "learner"
+        char_ids = [str(c.get("id") or "") for c in self.scene["characters"]]
+        if "learner" not in char_ids and char_ids:
+            speaker = char_ids[-1]
+        stages = self.lesson.get("content", {}).get(ContentKey.STAGES, [])
+        items = stages[0].get(ContentKey.ITEMS, []) if stages else []
+        sel_row = self.item_panel.list_widget.currentRow()
+        iid = ""
+        if 0 <= sel_row < len(items):
+            iid = str(items[sel_row].get("id") or "")
+        elif items:
+            iid = str(items[-1].get("id") or "")
+        self.scene["turns"].append({
+            "id": f"turn-{len(self.scene['turns']) + 1}",
+            "speakerId": speaker,
+            "interactionId": iid,
+        })
+        self._refresh()
 
     def _refresh_table(self, table, rows, keys) -> None:
         table.blockSignals(True)
@@ -566,6 +596,7 @@ class DialogueEditor(QWidget):
         keys = ("id", "name", "imageAsset")
         if 0 <= row < len(self.scene["characters"]):
             self.scene["characters"][row][keys[column]] = self.characters.item(row, column).text()
+            self._update_ref_status()
             self.changed.emit()
 
     def _turn_changed(self, row: int, column: int) -> None:
@@ -578,6 +609,7 @@ class DialogueEditor(QWidget):
             self.scene["turns"][row].pop(key, None)
         else:
             self.scene["turns"][row][key] = value
+        self._update_ref_status()
         self.changed.emit()
 
     def _add_character(self) -> None:
@@ -774,7 +806,7 @@ class LessonEditor(QWidget):
         if template in ("intro", "practice", "review", "legacy"):
             editor: QWidget = SubLessonTreeEditor(self.adapter, self.lesson)
         elif template == "guide":
-            editor = GuidePagesEditor(self.lesson)
+            editor = GuidePagesEditor(self.lesson, self.adapter)
         elif template == "listening":
             editor = ListeningPhasesEditor(self.adapter, self.lesson)
         elif template == "dialogue":

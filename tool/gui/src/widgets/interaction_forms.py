@@ -254,8 +254,15 @@ class InteractionForm(QWidget):
             return chk
         if spec.kind == "string_list":
             picker = None
-            if spec.name in {"audioAssets", "imageAssets"}:
-                kind = "image" if spec.name == "imageAssets" else "audio"
+            if spec.name in {
+                "audioAssets",
+                "imageAssets",
+                "frontAudioAssets",
+                "frontImageAssets",
+                "backAudioAssets",
+                "backImageAssets",
+            }:
+                kind = "image" if "Image" in spec.name or spec.name == "imageAssets" else "audio"
                 picker = functools.partial(self._pick_media, kind)
             return StringListEditor(
                 list(value or []),

@@ -23,6 +23,7 @@ class CoursePackMedia {
     '.png',
     '.webp',
     '.gif',
+    '.svg',
     '.mp3',
     '.ogg',
     '.wav',

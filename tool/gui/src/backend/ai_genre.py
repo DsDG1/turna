@@ -28,9 +28,9 @@ GENRE_TEMPLATES: dict[str, dict[str, Any]] = {
     "[review]": {
         "template": "review",
         "label": "复习",
-        "primary_key": "subLessons",
-        "description": "复习已学内容，可混合使用 subLessons 和 stages。",
-        "suggested_types": ["multipleChoice", "fillBlank", "translateSentence"],
+        "primary_key": "stages",
+        "description": "复习已学内容，使用平铺 stages 题池配合 reviewPolicy（或兼容旧 subLessons）。",
+        "suggested_types": ["multipleChoice", "fillBlank", "translateSentence", "reorderSentence"],
     },
     "[listening]": {
         "template": "listening",
@@ -38,6 +38,20 @@ GENRE_TEMPLATES: dict[str, dict[str, Any]] = {
         "primary_key": "listeningPhases",
         "description": "通过听力阶段训练学生的听力理解。",
         "suggested_types": ["listenAndPick", "typeTheWord", "listenOnly"],
+    },
+    "[dialogue]": {
+        "template": "dialogue",
+        "label": "情景对话",
+        "primary_key": "dialogueScene",
+        "description": "角色对话场景（dialogueScene）穿插学习者回应题目（stages）。",
+        "suggested_types": ["multipleChoice", "fillBlank", "translateSentence", "reorderSentence"],
+    },
+    "[guide]": {
+        "template": "guide",
+        "label": "分页导览",
+        "primary_key": "pages",
+        "description": "无判分页式导览课（pages），由说明、词卡、分类、词缀拼接、语序探索块构成。",
+        "suggested_types": [],
     },
     "[reading]": {
         "template": "reading",
@@ -64,10 +78,12 @@ GENRE_TEMPLATES: dict[str, dict[str, Any]] = {
 
 
 TEMPLATE_LABELS: dict[str, str] = {
+    "guide": "分页导览",
     "intro": "认识新词",
     "practice": "巩固练习",
     "review": "复习",
     "listening": "听力训练",
+    "dialogue": "情景对话",
     "reading": "阅读理解",
     "mastery": "综合测验",
     "mixed": "混合",

@@ -34,6 +34,8 @@ The filename must exactly match the `audioAsset` value used in the listening les
 
 Use the same id that already appears in the course JSON. Do not invent new ids unless you also update the JSON.
 
+A bare listening ID resolves to `assets/sounds/<language-directory>/listening/<id>.mp3`. For Turkish, the canonical course code `tr` intentionally maps to the existing `turkish` sound directory; other languages use their canonical code. The GUI generator, desktop preview, CLI checks and the app's `AudioController` all follow this convention. Existing explicit `assets/…` paths and course-pack URIs are not rewritten. If bundled playback fails, the app retains its transcript / vocabulary TTS fallback.
+
 > The `assets/sounds/turkish/listening/` tree also contains show-format subdirectories (`bgm/`, `debut/`, `fin/`) used by the listening "broadcast" layout for BGM, intro, and outro assets. These are generated/mixed assets — put human voice recordings in the listening root as shown above, not in those subdirectories.
 
 ## Recording quality checklist

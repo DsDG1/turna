@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class PublishDialog(TurnaDialog):
-    """Modal publish checklist. On accept, applies version bump + save."""
+    """Finalize after structural validation and referenced-media review gates."""
 
     def __init__(
         self,
@@ -92,13 +92,18 @@ class PublishDialog(TurnaDialog):
         self.export_btn = self.add_button(
             "导出报告", variant="ghost", slot=self._on_export
         )
+        self.manifest_btn = self.add_button(
+            "清单审校…", variant="ghost", slot=self._on_open_manifests
+        )
         self.handoff_btn = self.add_button(
             "交给 App", variant="ghost", slot=self._on_handoff
         )
         self._footer.removeWidget(self.export_btn)
+        self._footer.removeWidget(self.manifest_btn)
         self._footer.removeWidget(self.handoff_btn)
         self._footer.insertWidget(0, self.export_btn)
-        self._footer.insertWidget(1, self.handoff_btn)
+        self._footer.insertWidget(1, self.manifest_btn)
+        self._footer.insertWidget(2, self.handoff_btn)
         self.cancel_btn = self.add_button("取消", slot=self.reject)
         self.ok_btn = self.add_button(
             "定稿" if self.teacher_friendly else "确认定稿",
@@ -106,6 +111,26 @@ class PublishDialog(TurnaDialog):
             slot=self._on_publish,
             default=True,
         )
+
+    def _media_blockers(self) -> list[dict[str, str]]:
+        gate = self._report.get("media_gate") or {}
+        return [
+            {"code": str(item.get("code") or "media"), "message": str(item.get("message") or "")}
+            for item in (gate.get("blockers") or [])
+            if isinstance(item, dict) and item.get("message")
+        ]
+
+    def _delivery_allowed(self) -> bool:
+        validation = self._report.get("validation") or {}
+        gate = self._report.get("media_gate") or {}
+        return bool(validation.get("ok", False) and gate.get("ok", True))
+
+    def _media_blocker_lines(self) -> list[str]:
+        blockers = self._media_blockers()
+        lines = [f"  • {item['message']}" for item in blockers[:6]]
+        if len(blockers) > 6:
+            lines.append(f"  …另有 {len(blockers) - 6} 项")
+        return lines
 
     def _build_expert_ui(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel("<b>本次改动</b>"))
@@ -117,11 +142,14 @@ class PublishDialog(TurnaDialog):
         self.bump_layout = QVBoxLayout(self.bump_group)
         layout.addWidget(self.bump_group)
 
-        self.audio_group = QGroupBox("音频资源核对")
+        self.audio_group = QGroupBox("媒体与音频清单核对")
         audio_layout = QVBoxLayout(self.audio_group)
         self.audio_label = QLabel()
         self.audio_label.setWordWrap(True)
         audio_layout.addWidget(self.audio_label)
+        self.media_manifest_label = QLabel()
+        self.media_manifest_label.setWordWrap(True)
+        audio_layout.addWidget(self.media_manifest_label)
         layout.addWidget(self.audio_group)
 
         self.diff_group = QGroupBox("id 集变更")
@@ -167,7 +195,7 @@ class PublishDialog(TurnaDialog):
         self._report = report
         self._render_report()
         self.export_btn.setEnabled(True)
-        self.handoff_btn.setEnabled(True)
+        self.handoff_btn.setEnabled(self._delivery_allowed())
 
     def _on_report_error(self, message: str) -> None:
         self._load_worker = None
@@ -267,6 +295,23 @@ class PublishDialog(TurnaDialog):
     def _render_audio(self) -> None:
         rows = self._report["audio_manifest"]
         missing = [r for r in rows if r["status"] == "missing"]
+        media = self._report.get("media_manifest_summary") or {}
+        audio_doc = self._report.get("audio_manifest_review_summary") or {}
+        media_line = ""
+        if media or audio_doc.get("total"):
+            parts = [
+                f"图片清单：已登记 {media.get('registered_count', 0)}"
+                f" · 缺失 {len(media.get('missing_files') or [])}"
+                f" · 未登记引用 {len(media.get('unregistered_refs') or [])}"
+                f" · 待审校 {media.get('pending_review_count', 0)}"
+            ]
+            if audio_doc.get("total"):
+                parts.append(
+                    f"音频审校清单：共 {audio_doc['total']} · 待审校 {audio_doc.get('pending_count', 0)}"
+                )
+            media_line = " ｜ ".join(parts)
+        if hasattr(self, "media_manifest_label"):
+            self.media_manifest_label.setText(media_line)
         if self.teacher_friendly:
             if not missing:
                 self.audio_label.setText("音频资源：✓ 全部就位" if rows else "")
@@ -286,6 +331,13 @@ class PublishDialog(TurnaDialog):
             lines.append(f"  ⚠️ {r['asset_id']}：{r['status']}")
         self.audio_label.setText("\n".join(lines))
 
+    def _on_open_manifests(self) -> None:
+        from src.widgets.manifest_dialog import ManifestDialog
+
+        dlg = ManifestDialog(self.adapter, parent=self)
+        dlg.exec()
+        self._load_report()
+
     def _render_diff(self) -> None:
         diff = self._report["diff"]
         lines = []
@@ -304,39 +356,49 @@ class PublishDialog(TurnaDialog):
 
     def _render_validation(self) -> None:
         v = self._report["validation"]
+        blockers = self._media_blockers()
+        allowed = self._delivery_allowed()
         if self.teacher_friendly:
-            if v["ok"]:
-                self.validation_label.setText("✓ 校验通过，可以定稿")
+            if allowed:
+                self.validation_label.setText("✓ 校验与媒体审校通过，可以定稿")
                 self.validation_label.setProperty("textRole", "success")
-                self.ok_btn.setEnabled(True)
             else:
-                lines = [f"✗ 校验未通过（{len(v['errors'])} 个问题），请先修复："]
-                for e in v["errors"]:
-                    lines.append(f"  • {humanize_problem(e)}")
+                lines: list[str] = []
+                if not v["ok"]:
+                    lines.append(f"✗ 校验未通过（{len(v['errors'])} 个问题），请先修复：")
+                    lines.extend(f"  • {humanize_problem(e)}" for e in v["errors"])
+                if blockers:
+                    lines.append(f"✗ 媒体尚未达到定稿条件（{len(blockers)} 项）：")
+                    lines.extend(self._media_blocker_lines())
                 self.validation_label.setText("\n".join(lines))
                 self.validation_label.setProperty("textRole", "error")
-                self.ok_btn.setEnabled(False)
-            return
-        if v["ok"]:
-            base = "✓ validate 通过"
         else:
-            base = f"✗ validate 失败（{len(v['errors'])} 个错误）"
-        warn = f" / ⚠ {len(v['warnings'])} 个 lint 警告" if v["warnings"] else ""
-        self.validation_label.setText(base + warn)
-        ok_enabled = v["ok"]
-        self.ok_btn.setEnabled(ok_enabled)
-        if not ok_enabled:
-            detail = "\n".join(e.get("message", "") for e in v["errors"])
-            self.validation_label.setToolTip(detail)
+            if v["ok"]:
+                base = "✓ validate 通过"
+            else:
+                base = f"✗ validate 失败（{len(v['errors'])} 个错误）"
+            warn = f" / ⚠ {len(v['warnings'])} 个 lint 警告" if v["warnings"] else ""
+            lines = [base + warn]
+            if blockers:
+                lines.append(f"✗ 媒体门禁阻断 {len(blockers)} 项：")
+                lines.extend(self._media_blocker_lines())
+            self.validation_label.setText("\n".join(lines))
+            details = [e.get("message", "") for e in v["errors"]]
+            details.extend(item["message"] for item in blockers)
+            self.validation_label.setToolTip("\n".join(details))
+        self.ok_btn.setEnabled(allowed)
+        self.handoff_btn.setEnabled(allowed)
 
     # --- actions -----------------------------------------------------------
 
     def _on_publish(self) -> None:
-        v = self._report["validation"]
-        if not v["ok"]:
+        if not self._delivery_allowed():
             if not self.teacher_friendly:
+                detail = "\n".join(item["message"] for item in self._media_blockers())
                 QMessageBox.warning(
-                    self, "无法定稿", "校验未通过，请先修复错误再定稿。"
+                    self,
+                    "无法定稿",
+                    detail or "校验未通过，请先修复错误再定稿。",
                 )
             return
         self._set_publishing_busy(True)
@@ -383,8 +445,11 @@ class PublishDialog(TurnaDialog):
 
     def _set_publishing_busy(self, busy: bool, ok_text: str | None = None) -> None:
         self._publishing = busy
-        for btn in (self.ok_btn, self.export_btn, self.handoff_btn, self.cancel_btn):
+        for btn in (self.export_btn, self.cancel_btn):
             btn.setEnabled(not busy)
+        allowed = self._delivery_allowed()
+        self.ok_btn.setEnabled(not busy and allowed)
+        self.handoff_btn.setEnabled(not busy and allowed)
         if busy:
             self.ok_btn.setText(ok_text or "定稿中…")
         else:
@@ -425,9 +490,13 @@ class PublishDialog(TurnaDialog):
 
     def _on_handoff(self) -> None:
         """Register an in-repo course, or write a .turnapack for an external one."""
-        validation = self._report.get("validation") or {}
-        if not validation.get("ok", False):
-            QMessageBox.warning(self, "无法交给 App", "校验未通过，请先修复错误。")
+        if not self._delivery_allowed():
+            detail = "\n".join(item["message"] for item in self._media_blockers())
+            QMessageBox.warning(
+                self,
+                "无法交给 App",
+                detail or "校验未通过，请先修复错误。",
+            )
             return
         course_dir = getattr(self.adapter, "course_dir", None)
         if course_dir is None:
@@ -562,6 +631,9 @@ class PublishDialog(TurnaDialog):
             lines.append(f"[校验] ok={v['ok']}")
             for e in v["errors"]:
                 lines.append(f"  ERROR: {humanize_problem(e)}")
+            if self._media_blockers():
+                lines.extend(["", "[媒体门禁]"])
+                lines.extend(self._media_blocker_lines())
             return "\n".join(lines) + "\n"
         lines: list[str] = ["Turna 定稿报告", "=" * 40, ""]
         lines.append("[改动检测]")
@@ -578,6 +650,16 @@ class PublishDialog(TurnaDialog):
         lines.append("[音频资源]")
         for row in r["audio_manifest"]:
             lines.append(f"  {row['asset_id']}: {row['status']}")
+        media = r.get("media_manifest_summary") or {}
+        if media:
+            lines.append("")
+            lines.append("[媒体清单]")
+            lines.append(
+                f"  已登记={media.get('registered_count', 0)}, "
+                f"缺失文件={len(media.get('missing_files') or [])}, "
+                f"未登记引用={len(media.get('unregistered_refs') or [])}, "
+                f"待审校={media.get('pending_review_count', 0)}"
+            )
         lines.append("")
         lines.append("[id 集变更]")
         for k, d in r["diff"].items():
@@ -592,4 +674,7 @@ class PublishDialog(TurnaDialog):
             lines.append(f"  ERROR: {e.get('message', '')}")
         for w in v["warnings"]:
             lines.append(f"  WARN: {w.get('message', '')}")
+        if self._media_blockers():
+            lines.extend(["", "[媒体门禁]"])
+            lines.extend(self._media_blocker_lines())
         return "\n".join(lines) + "\n"

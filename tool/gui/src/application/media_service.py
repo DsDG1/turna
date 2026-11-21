@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.backend import api
 from src.backend.course_media import (
     ALLOWED_MEDIA_EXTENSIONS,
     AUDIO_EXTENSIONS,
@@ -30,6 +31,7 @@ __all__ = [
     "copy_into_course_media",
     "media_filter_for",
     "reject_unsafe_media_value",
+    "resolve_audio_asset",
     "safe_filename",
 ]
 
@@ -63,3 +65,14 @@ def pick_media_into_course(
     if course_dir is None:
         raise MediaPathError("请先打开课程目录。")
     return copy_into_course_media(Path(course_dir), Path(source))
+
+
+def resolve_audio_asset(
+    course_dir: Path | None, asset_ref: str, *, repo_root: Path | None = None
+) -> Path | None:
+    """Resolve an existing local audio file for any supported course reference."""
+    ref = str(asset_ref or "").strip()
+    if not ref or "://" in ref:
+        return None
+    path = api.audio_asset_path(ref, course_dir, repo_root)
+    return path if path.is_file() else None
