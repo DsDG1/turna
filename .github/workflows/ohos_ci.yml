@@ -75,7 +75,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve DevEco command-line tools URL
         env:
@@ -101,7 +101,7 @@ jobs:
 
       - name: Cache DevEco command-line tools
         id: tools-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/deveco-tools
           key: ${{ env.TOOLS_CACHE_KEY }}
@@ -140,7 +140,7 @@ jobs:
 
       - name: Cache OHOS fork Flutter SDK
         id: sdk-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # 克隆 + bin/cache（dart-sdk 与 ohos 引擎工件都在里面），按 tag 键控。
           path: /home/runner/flutter_ohos
@@ -188,7 +188,7 @@ jobs:
           }
 
       - name: Upload hap artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: turna-ohos-debug-unsigned-hap
           path: ohos/entry/build/default/outputs/default/entry-default-unsigned.hap
