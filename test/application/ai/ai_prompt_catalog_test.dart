@@ -184,6 +184,52 @@ void main() {
       expect(convo, contains('conversation history'));
       expect(convo, startsWith(plain));
     });
+
+    test('freeChat, hint, dictionary, and diagnosis support generic mode', () {
+      final chat = AiPromptCatalog.freeChat(
+        language: null,
+        modeLine: AiPromptCatalog.freeChatModeQa,
+        prefs: prefs,
+      );
+      expect(chat, isNot(contains('companion for Turkish')));
+      expect(chat, contains('Do NOT assume the target language is Turkish'));
+      expect(chat, contains('Security & instruction hierarchy'));
+
+      final hint = AiPromptCatalog.hint(
+        language: null,
+        typeLabel: 'Flashcard',
+        allowReveal: false,
+        prefs: prefs,
+      );
+      expect(hint, isNot(contains('companion for Turkish')));
+      expect(hint, contains('Strict anti-spoiler policy'));
+
+      final dict = AiPromptCatalog.dictionary(language: null, prefs: prefs);
+      expect(dict, isNot(contains('tutor for Turkish')));
+      expect(dict, contains('never assume Turkish'));
+      expect(dict, contains('"expandedGloss":string'));
+
+      final diag = AiPromptCatalog.diagnosis(language: null, prefs: prefs);
+      expect(diag, isNot(contains('coach for Turkish')));
+      expect(diag, contains('"weakAreas"'));
+    });
+
+    test('cardExplain adds anti-spoiler rule when answer is not yet revealed',
+        () {
+      final hidden = AiPromptCatalog.cardExplain(
+        language: null,
+        prefs: prefs,
+        answerRevealed: false,
+      );
+      expect(hidden, contains('NOT been revealed yet'));
+
+      final shown = AiPromptCatalog.cardExplain(
+        language: null,
+        prefs: prefs,
+        answerRevealed: true,
+      );
+      expect(shown, isNot(contains('NOT been revealed yet')));
+    });
   });
 
   group('AiPromptOverridesStore', () {

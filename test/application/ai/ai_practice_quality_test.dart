@@ -143,16 +143,116 @@ void main() {
     );
   });
 
-  test('every word must be shown somewhere in the section', () {
-    final report = AiPracticeQualityChecker.check(_section(
+  test('unused word is advisory (not blocking) and words used in prompts count',
+      () {
+    final unusedReport = AiPracticeQualityChecker.check(_section(
       words: [
         {'id': 'w1', 'term': 'merhaba', 'translation': '你好'},
         {'id': 'w2', 'term': 'gunaydin', 'translation': '早安'},
       ],
       items: [_showWord('w1'), _mcq(), _mcq(prompt: 'x'), _mcq(prompt: 'y')],
     ));
-    expect(report.passed, isFalse);
-    expect(report.blocking.map((i) => i.code), contains('word.unused'));
+    expect(unusedReport.passed, isTrue);
+    expect(unusedReport.advisory.map((i) => i.code), contains('word.unused'));
+
+    // Mentioning gunaydin inside a graded item satisfies vocabulary coverage.
+    final usedInPromptReport = AiPracticeQualityChecker.check(_section(
+      words: [
+        {'id': 'w1', 'term': 'merhaba', 'translation': '你好'},
+        {'id': 'w2', 'term': 'gunaydin', 'translation': '早安'},
+      ],
+      items: [
+        _showWord('w1'),
+        _mcq(prompt: 'How do you reply to gunaydin?'),
+        _mcq(prompt: 'x'),
+        _mcq(prompt: 'y'),
+      ],
+    ));
+    expect(usedInPromptReport.passed, isTrue);
+    expect(
+      usedInPromptReport.advisory.map((i) => i.code),
+      isNot(contains('word.unused')),
+    );
+  });
+
+  test('walks subLessons stages for intro and practice templates', () {
+    final section = {
+      'id': 'sec-sub',
+      'words': [
+        {'id': 'w1', 'term': 'merhaba', 'translation': '你好'},
+      ],
+      'units': [
+        {
+          'id': 'u1',
+          'lessons': [
+            {
+              'id': 'l1',
+              'name': 'Intro 1',
+              'template': 'intro',
+              'content': {
+                'subLessons': [
+                  {
+                    'id': 'sl1',
+                    'name': 'Part 1',
+                    'stages': [
+                      {
+                        'id': 'st1',
+                        'name': 'Stage 1',
+                        'items': [
+                          _showWord('w1'),
+                          _mcq(prompt: 'p1'),
+                          _mcq(prompt: 'p2'),
+                          _mcq(prompt: 'p3'),
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    final report = AiPracticeQualityChecker.check(section);
+    expect(report.passed, isTrue, reason: report.blockingMessages.join(' | '));
+  });
+
+  test('validates guide lesson pages without requiring stages', () {
+    final section = {
+      'id': 'sec-guide',
+      'words': const [],
+      'units': [
+        {
+          'id': 'u1',
+          'lessons': [
+            {
+              'id': 'l1',
+              'name': 'Guide 1',
+              'template': 'guide',
+              'content': {
+                'pages': [
+                  {
+                    'id': 'p1',
+                    'title': '元音和谐',
+                    'blocks': [
+                      {
+                        'id': 'b1',
+                        'runtimeType': 'callout',
+                        'title': '规则',
+                        'body': '前元音配 e，后元音配 a',
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    final report = AiPracticeQualityChecker.check(section);
+    expect(report.passed, isTrue, reason: report.blockingMessages.join(' | '));
   });
 
   test('placeholder text blocks', () {

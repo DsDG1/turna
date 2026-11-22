@@ -1,9 +1,7 @@
-// Dart imports:
-import 'dart:convert';
-
 // Project imports:
 import 'package:turna/application/ai/ai_json_text.dart';
 import 'package:turna/application/ai/ai_resource_consistency.dart';
+import 'package:turna/application/ai/practice/ai_practice_normalizer.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/domain/course/section.dart';
 
@@ -17,13 +15,8 @@ import 'package:turna/domain/course/section.dart';
 abstract final class AiPracticePipeline {
   /// Templates the in-app generator may emit. `listening` is excluded because
   /// its items need pre-generated audio; `legacy` is a fallback, not a target.
-  static const Set<String> allowedTemplates = {
-    'intro',
-    'practice',
-    'review',
-    'reading',
-    'mastery',
-  };
+  static const Set<String> allowedTemplates =
+      AiPracticeNormalizer.allowedTemplates;
 
   /// Strip a leading ```lang fence and a trailing ``` so a model that ignored
   /// the "no fences" rule still decodes.
@@ -32,28 +25,26 @@ abstract final class AiPracticePipeline {
   /// service, the textbook importer and the companion surfaces.
   static String stripFences(String input) => AiJsonText.stripCodeFences(input);
 
-  /// Decode a model reply into a JSON object, stripping fences first.
-  ///
-  /// A model that wraps the object in a sentence still decodes: after the
-  /// first failure we slice from the first `{` to the last `}`. Anything else
-  /// stays a [FormatException] so the caller can surface/retry it.
-  static Map<String, dynamic> decodeObject(String input) {
-    var text = stripFences(input);
-    dynamic decoded;
-    try {
-      decoded = jsonDecode(text);
-    } on FormatException {
-      final start = text.indexOf('{');
-      final end = text.lastIndexOf('}');
-      if (start < 0 || end <= start) rethrow;
-      text = text.substring(start, end + 1);
-      decoded = jsonDecode(text);
-    }
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Model output is not a JSON object.');
-    }
-    return decoded;
-  }
+  /// Decode a model reply into a JSON object with resilient recovery
+  /// (strips `<think>` tags, code fences, trailing commas, and extracts the
+  /// first balanced `{...}` object).
+  static Map<String, dynamic> decodeObject(String input) =>
+      AiPracticeNormalizer.decodeObject(input);
+
+  /// Normalize an outline before validation (fills missing ids, maps `mixed`
+  /// onto valid concrete templates, prunes unknown `targetWordIds`).
+  static Map<String, dynamic> normalizeOutline(
+    Map<String, dynamic> outline, {
+    required String fallbackSectionId,
+    required String fallbackTitle,
+    required String requestedTemplate,
+  }) =>
+      AiPracticeNormalizer.normalizeOutline(
+        outline,
+        fallbackSectionId: fallbackSectionId,
+        fallbackTitle: fallbackTitle,
+        requestedTemplate: requestedTemplate,
+      );
 
   /// Human-readable errors for an outline; empty means usable.
   static List<String> validateOutline(
@@ -165,7 +156,7 @@ abstract final class AiPracticePipeline {
       'grammarPoints': _deepCopyList(outline['grammarPoints']),
       'units': [
         for (final rawUnit in (outline['units'] as List? ?? const []))
-          if (rawUnit is Map<String, dynamic>)
+          if (rawUnit is Map)
             {
               'id': rawUnit['id'],
               'name': rawUnit['name'] ?? rawUnit['id'],
@@ -174,7 +165,7 @@ abstract final class AiPracticePipeline {
               'lessons': [
                 for (final rawLesson
                     in (rawUnit['lessons'] as List? ?? const []))
-                  if (rawLesson is Map<String, dynamic>)
+                  if (rawLesson is Map)
                     {
                       'id': rawLesson['id'],
                       'name': rawLesson['name'] ?? rawLesson['id'],
@@ -183,7 +174,7 @@ abstract final class AiPracticePipeline {
                       'template': rawLesson['template'],
                       'prerequisiteLessonIds':
                           rawLesson['prerequisiteLessonIds'] ?? const [],
-                      'content': _emptyContentFor(
+                      'content': AiPracticeNormalizer.emptyContentFor(
                         rawLesson['template']?.toString() ?? 'mastery',
                       ),
                     },
@@ -199,11 +190,14 @@ abstract final class AiPracticePipeline {
   ) {
     final result = <({String unitId, Map<String, dynamic> lesson})>[];
     for (final unit in (outline['units'] as List? ?? const [])) {
-      if (unit is! Map<String, dynamic>) continue;
+      if (unit is! Map) continue;
       final unitId = unit['id']?.toString() ?? '';
       for (final lesson in (unit['lessons'] as List? ?? const [])) {
-        if (lesson is Map<String, dynamic> && lesson['id'] != null) {
-          result.add((unitId: unitId, lesson: lesson));
+        if (lesson is Map && lesson['id'] != null) {
+          result.add((
+            unitId: unitId,
+            lesson: Map<String, dynamic>.from(lesson),
+          ));
         }
       }
     }
@@ -217,13 +211,12 @@ abstract final class AiPracticePipeline {
     Map<String, dynamic> lesson,
   ) {
     for (final unit in (section['units'] as List? ?? const [])) {
-      if (unit is! Map<String, dynamic>) continue;
+      if (unit is! Map) continue;
       final lessons = unit['lessons'];
       if (lessons is! List) continue;
       for (var i = 0; i < lessons.length; i++) {
         final current = lessons[i];
-        if (current is Map<String, dynamic> &&
-            current['id']?.toString() == lessonId) {
+        if (current is Map && current['id']?.toString() == lessonId) {
           lesson['id'] = current['id'];
           lesson['template'] = current['template'];
           lesson['name'] ??= current['name'];
@@ -234,20 +227,52 @@ abstract final class AiPracticePipeline {
     }
   }
 
+  /// Normalize every lesson inside an already-assembled section (used by
+  /// whole-section `adjust` calls).
+  static Map<String, dynamic> normalizeSectionJson(
+    Map<String, dynamic> rawSection,
+  ) {
+    final section = Map<String, dynamic>.from(rawSection);
+    final wordById = <String, Map<String, dynamic>>{
+      for (final w in (section['words'] as List? ?? const []))
+        if (w is Map && w['id'] != null)
+          w['id'].toString(): Map<String, dynamic>.from(w),
+    };
+    final units = section['units'];
+    if (units is List) {
+      final fixedUnits = <Map<String, dynamic>>[];
+      for (final rawUnit in units) {
+        if (rawUnit is! Map) continue;
+        final unit = Map<String, dynamic>.from(rawUnit);
+        final lessons = unit['lessons'];
+        if (lessons is List) {
+          unit['lessons'] = [
+            for (final rawLesson in lessons)
+              if (rawLesson is Map)
+                AiPracticeNormalizer.normalizeLessonJson(
+                  Map<String, dynamic>.from(rawLesson),
+                  lessonId: rawLesson['id']?.toString() ?? 'lesson',
+                  template: rawLesson['template']?.toString() ?? 'mastery',
+                  outlineWordById: wordById,
+                ),
+          ];
+        }
+        fixedUnits.add(unit);
+      }
+      section['units'] = fixedUnits;
+    }
+    return section;
+  }
+
   /// Structural + resource validation of a generated section. Returns
   /// human-readable errors; empty means it can be stored/played.
   static List<String> validateSectionJson(Map<String, dynamic> parsed) {
     final errors = <String>[];
-    // Check references before auto-fix: a generated practice must not invent
-    // ids and have them silently repaired into "term = wordId" stubs.
-    try {
-      checkResourceSelfConsistency(parsed);
-    } catch (e) {
-      errors.add(e.toString());
-    }
+    // Normalize + auto-fix dangling resource references first (mirrors
+    // tool/gui's `parse_completion`), then enforce full CourseValidator rules.
     try {
       normalizeResources(parsed);
-      autoFixResources(parsed);
+      checkResourceSelfConsistency(parsed);
     } catch (e) {
       errors.add(e.toString());
     }
@@ -277,66 +302,20 @@ abstract final class AiPracticePipeline {
     Map<String, dynamic> lesson, {
     required String lessonId,
     required String template,
-  }) {
-    final fixed = Map<String, dynamic>.from(lesson);
-    fixed['id'] = lessonId;
-    fixed['template'] = template;
-    fixed['description'] ??= '';
-    fixed['prerequisiteLessonIds'] ??= const [];
-    fixed['type'] ??= 'normal';
-    final content = fixed['content'];
-    if (content is! Map) {
-      fixed['content'] = _emptyContentFor(template);
-      return fixed;
-    }
-    // Copy into a typed map: a literal / inferred map can have a narrower
-    // runtime value type than Map<String, dynamic>, and assigning the
-    // canonical stage list into it would throw.
-    final typedContent = Map<String, dynamic>.from(content);
-    fixed['content'] = typedContent;
-    // New authoring always writes canonical shapes. A flat `questions` array
-    // is normalized into one stage so a slightly-off model reply still works.
-    final questions = typedContent['questions'];
-    if (questions is List && typedContent['stages'] == null) {
-      typedContent['stages'] = [
-        {
-          'id': '$lessonId-st1',
-          'name': 'Practice',
-          'items': questions,
-        },
-      ];
-      typedContent.remove('questions');
-    }
-    return fixed;
-  }
-
-  static Map<String, dynamic> _emptyContentFor(String template) {
-    if (template == 'reading') {
-      return {
-        'readingPassage': {
-          'title': 'Reading',
-          'paragraphs': const <String>[],
-        },
-        'stages': [
-          {'id': 'st-placeholder', 'name': 'Comprehension', 'items': []},
-        ],
-      };
-    }
-    return {
-      'stages': [
-        {'id': 'st-placeholder', 'name': 'Practice', 'items': []},
-      ],
-    };
-  }
+    Map<String, Map<String, dynamic>> outlineWordById = const {},
+  }) =>
+      AiPracticeNormalizer.normalizeLessonJson(
+        lesson,
+        lessonId: lessonId,
+        template: template,
+        outlineWordById: outlineWordById,
+      );
 
   static List<dynamic> _deepCopyList(dynamic value) {
     if (value is! List) return const [];
     return [
       for (final item in value)
-        if (item is Map<String, dynamic>)
-          Map<String, dynamic>.from(item)
-        else
-          item,
+        if (item is Map) Map<String, dynamic>.from(item) else item,
     ];
   }
 }

@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
+import 'package:turna/application/ai/ai_target_language_resolver.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
@@ -115,9 +117,19 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
     TurnaSnackBar.maybeShow(context, AppStrings.aiPromptResetAllDone);
   }
 
+  String? _resolvePreviewLanguage(BuildContext context) {
+    try {
+      final scope = context.watch<CourseProvider>().scope;
+      return AiTargetLanguageResolver.fromCourseScope(scope).displayName;
+    } catch (_) {
+      // Optional dependency in isolated widget tests — fall back to LanguageProvider.
+    }
+    return context.watch<LanguageProvider>().displayName;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final language = context.watch<LanguageProvider>().displayName;
+    final language = _resolvePreviewLanguage(context);
     final prefs = AiExplainPrefsStore.resolve(allowEphemeral: true).snapshot;
     final prompt = AiPromptCatalog.preview(
       feature: _feature,
@@ -299,8 +311,8 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
         OutlinedButton(
           onPressed:
               _store.isOverridden(_feature) || _overrideCtrl.text.isNotEmpty
-              ? _reset
-              : null,
+                  ? _reset
+                  : null,
           child: Text(AppStrings.aiPromptResetDefault),
         ),
       ],

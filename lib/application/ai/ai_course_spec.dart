@@ -16,6 +16,10 @@ class AiCourseSpec {
     this.groundedMode = false,
     this.resourceScope = const ['words', 'expressions', 'grammarPoints'],
     this.maxGroundedResources = 200,
+    this.itemsPerLesson = 8,
+    this.preferredInteractionTypes = const <String>[],
+    this.focusItems = '',
+    this.presetId,
   });
 
   /// Target language to teach (e.g. "Turkish").
@@ -28,7 +32,7 @@ class AiCourseSpec {
   /// Free-form topic / theme (e.g. "Travel vocabulary", "Past tense").
   final String topic;
 
-  /// CEFR level hint (e.g. "A1", "A2", "B1").
+  /// CEFR level hint (e.g. "A1", "A2", "B1", "B2", "C1", "C2").
   final String level;
 
   /// How many units to generate.
@@ -38,7 +42,8 @@ class AiCourseSpec {
   final int lessonsPerUnit;
 
   /// Lesson template applied when not using genre batch:
-  /// intro / practice / review / listening / reading / mastery / mixed.
+  /// intro / practice / review / listening / reading / dialogue / guide /
+  /// mastery / mixed.
   final String template;
 
   /// Enable `[genre]` tag multi-template batch generation.
@@ -62,6 +67,21 @@ class AiCourseSpec {
   /// Cap on how many resources to inject into the prompt.
   final int maxGroundedResources;
 
+  /// Desired question/item count per lesson (e.g. 6 light, 10 standard,
+  /// 15 intensive). Default 8 preserves prior behavior.
+  final int itemsPerLesson;
+
+  /// Optional preferred interaction runtimeTypes chosen by the learner.
+  /// Empty means automatic template-appropriate mix.
+  final List<String> preferredInteractionTypes;
+
+  /// Optional learner-supplied focus vocabulary, phrases, or grammar points
+  /// that the generated course must cover.
+  final String focusItems;
+
+  /// Optional preset id selected in the custom course form (informational).
+  final String? presetId;
+
   AiCourseSpec copyWith({
     String? language,
     String? sourceLanguage,
@@ -76,6 +96,10 @@ class AiCourseSpec {
     bool? groundedMode,
     List<String>? resourceScope,
     int? maxGroundedResources,
+    int? itemsPerLesson,
+    List<String>? preferredInteractionTypes,
+    String? focusItems,
+    String? presetId,
   }) =>
       AiCourseSpec(
         language: language ?? this.language,
@@ -91,6 +115,11 @@ class AiCourseSpec {
         groundedMode: groundedMode ?? this.groundedMode,
         resourceScope: resourceScope ?? this.resourceScope,
         maxGroundedResources: maxGroundedResources ?? this.maxGroundedResources,
+        itemsPerLesson: itemsPerLesson ?? this.itemsPerLesson,
+        preferredInteractionTypes:
+            preferredInteractionTypes ?? this.preferredInteractionTypes,
+        focusItems: focusItems ?? this.focusItems,
+        presetId: presetId ?? this.presetId,
       );
 }
 

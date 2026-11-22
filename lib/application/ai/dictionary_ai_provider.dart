@@ -66,7 +66,7 @@ class DictionaryAiProvider extends AiRequestSessionBase {
 
   Future<DictionaryEnrichment?> enrich({
     required AiEngineConfig config,
-    required String language,
+    required String? language,
     required String term,
     String? translation,
   }) async {

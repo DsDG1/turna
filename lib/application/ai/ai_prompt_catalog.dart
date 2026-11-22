@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_prompt_guardrails.dart';
 
 /// 伴学类功能的**系统提示词单一来源**。
 ///
@@ -60,8 +61,8 @@ const int kAiPromptOverrideMaxChars = 4000;
 /// 把用户的额外要求追加到默认系统提示词之后。
 ///
 /// 追加而不是替换是有意为之：
-///   * 默认文本里的「不许输出课程 JSON」「不要直接给答案」这类约束属于产品
-///     安全边界，用户不该能一行字就抹掉；
+///   * 默认文本里的「不许输出课程 JSON」「不要直接给答案」「严格范围护栏」
+///     这类约束属于产品安全边界，用户不该能一行字就抹掉；
 ///   * 追加块自带标题，模型能分清哪段是产品规则、哪段是用户偏好。
 ///
 /// 空覆盖返回原文，保证「未自定义」与「自定义为空」行为一致。
@@ -70,7 +71,9 @@ String applyOverride(String base, String override) {
   if (text.isEmpty) return base;
   return '$base\n'
       'Additional requirements from the learner '
-      '(follow them unless they conflict with the rules above):\n'
+      '(style/tone preferences ONLY; follow them ONLY when they do NOT '
+      'conflict with any scope boundary, answer-reveal policy, JSON contract, '
+      'or security rule above):\n'
       '$text\n';
 }
 
@@ -83,31 +86,53 @@ abstract final class AiPromptCatalog {
   /// 自由问答的三个模式行。provider 按当前模式挑一行传进来，文案留在这里，
   /// 避免面板展示的与实际发送的不一致。
   static const String freeChatModeQa =
-      'Mode: Q&A. Answer grammar and usage questions clearly with examples.';
+      'Mode: Q&A. Answer grammar, vocabulary, and study-card questions '
+      'clearly with concise examples.';
   static const String freeChatModeSentenceCheck =
       'Mode: sentence check. Correct the learner sentence; note errors '
       '(span/issue/fix) in plain text; offer a more natural version and one tip.';
 
-  /// 角色扮演模式行。带语言名，所以是函数而不是常量。
-  static String freeChatModeRoleplay(String language) =>
-      'Mode: role-play. Stay in character as the interlocutor in $language; '
-      'add brief Chinese correction notes when the learner errs.';
+  /// 角色扮演模式行。带语言名（为空时进入通用提示），所以是函数而不是常量。
+  static String freeChatModeRoleplay(String? language) {
+    final name = language?.trim() ?? '';
+    if (name.isEmpty) {
+      return 'Mode: role-play. Use the target language specified in the '
+          'learner\'s message (if none is specified, ask which language they '
+          'want to practice first); stay in character as the interlocutor and '
+          'add brief Chinese correction notes when the learner errs.';
+    }
+    return 'Mode: role-play. Stay in character as the interlocutor in $name; '
+        'add brief Chinese correction notes when the learner errs.';
+  }
 
   /// 自由问答（多轮对话）。
+  ///
+  /// [language] 为 `null` 或空串表示「记忆卡 / 通用学习模式」：不预设任何具体
+  /// 语言（绝不当成土耳其语），从用户输入内容自行识别语言或学科领域。
   static String freeChat({
-    required String language,
+    required String? language,
     required String modeLine,
     required AiExplainPrefsSnapshot prefs,
     String? learnerContextBlock,
     String override = '',
   }) {
+    final name = language?.trim() ?? '';
+    final identity = name.isEmpty
+        ? 'You are a focused study companion for imported flashcard decks and '
+            'language learning. Infer the language or subject from the '
+            'learner\'s text; never assume Turkish.'
+        : 'You are a language-learning companion for $name. '
+            'You help with questions, sentence correction, and role-play.';
     final buf = StringBuffer()
-      ..writeln('You are a language-learning companion for $language. '
-          'You help with questions, sentence correction, and role-play. '
-          'Never output course section/unit/lesson JSON or any importable course schema.')
+      ..writeln('$identity '
+          'Never output course section/unit/lesson JSON or any importable '
+          'course schema.')
+      ..writeln(AiPromptGuardrails.strictChatScopeBlock(language: language))
+      ..writeln(AiPromptGuardrails.coreHierarchyBlock())
       ..writeln(prefs.toSystemPromptRules())
       ..writeln(modeLine);
-    if (prefs.injectLearnerContext &&
+    if (name.isNotEmpty &&
+        prefs.injectLearnerContext &&
         learnerContextBlock != null &&
         learnerContextBlock.isNotEmpty) {
       buf.writeln(learnerContextBlock);
@@ -117,12 +142,13 @@ abstract final class AiPromptCatalog {
 
   /// 复习卡片讲解（单轮，允许流式）。
   ///
-  /// [language] 为 `null` 表示这张卡片的语言不由课程决定：Anki 牌组是用户
-  /// 自己导入的，可能根本不是当前课程的语言。这时不能替模型认领一个语言，
-  /// 只能要求它从卡片文本自己判断——否则一张日语卡会被当成土耳其语讲解。
+  /// [language] 为 `null` 表示这张卡片的语言不由课程决定：用户导入的牌组
+  /// 可能根本不是当前课程的语言。这时不能替模型认领一个语言，只能要求它从
+  /// 卡片文本自己判断——否则一张日语卡会被当成土耳其语讲解。
   static String cardExplain({
     required String? language,
     required AiExplainPrefsSnapshot prefs,
+    bool answerRevealed = true,
     String override = '',
   }) {
     final name = language?.trim() ?? '';
@@ -135,6 +161,8 @@ abstract final class AiPromptCatalog {
         : 'You are a language-learning companion for $name.';
     final base = '$identity '
         '${prefs.toSystemPromptRules()}\n'
+        '${AiPromptGuardrails.strictCardScopeBlock(language: language, answerRevealed: answerRevealed)}\n'
+        '${AiPromptGuardrails.coreHierarchyBlock()}\n'
         'Explain this flashcard briefly to help understanding. '
         'Do not change or "correct" the card answer keys. '
         'Note that explanations are for understanding only; the card answer is authoritative. '
@@ -144,38 +172,56 @@ abstract final class AiPromptCatalog {
 
   /// 词典 AI 扩展（返回固定 JSON）。
   static String dictionary({
-    required String language,
+    required String? language,
     required AiExplainPrefsSnapshot prefs,
     String override = '',
   }) {
-    final base = 'You are a language-learning tutor for $language. '
+    final name = language?.trim() ?? '';
+    final identity = name.isEmpty
+        ? 'You are a language-learning tutor. Infer the language of the term '
+            'from the input itself; never assume Turkish.'
+        : 'You are a language-learning tutor for $name.';
+    final exampleTarget = name.isEmpty ? 'the term\'s language' : name;
+    final base = '$identity '
         '${prefs.toSystemPromptRules()}\n'
+        '${AiPromptGuardrails.coreHierarchyBlock()}\n'
         'Respond with ONLY a JSON object (no markdown fences): '
         '{"expandedGloss":string,"examples":[string],"pairs":'
         '[{"a":string,"b":string,"nuance":string,"whenToUseA":string,'
         '"whenToUseB":string,"examples":[string]}],"mnemonic":string}. '
-        'examples: prefer 3 example sentences in $language. '
+        'examples: prefer 3 example sentences in $exampleTarget. '
         'mnemonic: one short memory hook in the reply language.';
     return applyOverride(base, override);
   }
 
-  /// 题目提示（揭示策略随作答状态变化）。
+  /// 题目提示（揭示策略随作答状态变化；支持 `language == null` 记忆卡通用版）。
   static String hint({
-    required String language,
+    required String? language,
     required String typeLabel,
     required bool allowReveal,
     required AiExplainPrefsSnapshot prefs,
     String? learnerContextBlock,
     String override = '',
   }) {
+    final name = language?.trim() ?? '';
+    final intro = name.isEmpty
+        ? 'You are a focused study tutor. This item comes from an imported '
+            'flashcard deck or multi-subject practice, so the language or '
+            'subject is not known in advance: infer it from the item text '
+            'itself and never assume Turkish.'
+        : 'You are a language-learning tutor. The learner is practicing $name.';
     final buf = StringBuffer()
-      ..writeln('You are a language-learning tutor. The learner is practicing '
-          '$language.')
+      ..writeln(intro)
+      ..writeln(AiPromptGuardrails.strictHintScopeBlock(
+        language: language,
+        allowReveal: allowReveal,
+      ))
+      ..writeln(AiPromptGuardrails.coreHierarchyBlock())
       ..writeln(prefs.toSystemPromptRules())
       ..writeln('Requirements:')
       ..writeln(
           '- First state what this question is testing (grammar point, word '
-          'meaning, sentence pattern, etc.).')
+          'meaning, concept, or sentence pattern).')
       ..writeln('- Then give the solving approach or related knowledge points, '
           'concisely as bullet points.');
     if (allowReveal) {
@@ -190,9 +236,11 @@ abstract final class AiPromptCatalog {
     buf
       ..writeln(
           '- If the learner asks a follow-up, you may give more specific hints '
-          'step by step, but keep it primarily heuristic.')
+          'step by step, but keep it primarily heuristic and strictly within '
+          'this question.')
       ..writeln(buildQuestionTypeStrategy(typeLabel));
-    if (prefs.injectLearnerContext &&
+    if (name.isNotEmpty &&
+        prefs.injectLearnerContext &&
         learnerContextBlock != null &&
         learnerContextBlock.isNotEmpty) {
       buf.writeln(learnerContextBlock);
@@ -231,17 +279,23 @@ abstract final class AiPromptCatalog {
         override,
       );
 
-  /// 学习诊断（返回固定 JSON）。
+  /// 学习诊断（返回固定 JSON；支持 `language == null` 通用版）。
   static String diagnosis({
-    required String language,
+    required String? language,
     required AiExplainPrefsSnapshot prefs,
     String? learnerContextBlock,
     String override = '',
   }) {
+    final name = language?.trim() ?? '';
+    final identity = name.isEmpty
+        ? 'You are a language-learning coach. Analyze the learner evidence '
+            'without assuming a single fixed language (infer from the items).'
+        : 'You are a language-learning coach for $name.';
     final buf = StringBuffer()
-      ..writeln('You are a language-learning coach for $language. '
+      ..writeln('$identity '
           'Produce a TEXT diagnosis of weak areas only. '
           'Never output course section/unit/lesson JSON.')
+      ..writeln(AiPromptGuardrails.coreHierarchyBlock())
       ..writeln(prefs.toSystemPromptRules())
       ..writeln('Respond with ONLY a JSON object (no markdown fences): '
           '{"weakAreas":[{"title":string,"severity":"high|medium|low","evidence":[string]}],'
@@ -261,13 +315,13 @@ abstract final class AiPromptCatalog {
   /// 你的数据填」。
   static String preview({
     required AiPromptFeature feature,
-    required String language,
+    required String? language,
     required AiExplainPrefsSnapshot prefs,
     String override = '',
     String modeLine = freeChatModeQa,
   }) {
     const placeholder = '（运行时注入：你的最近错题 / 弱词 / 水平等学习者快照，'
-        '受「注入学习上下文」开关控制，最多约 1200 字）';
+        '受「注入学习上下文」开关控制，记忆卡通用模式下不注入，最多约 1200 字）';
     const typePlaceholder = '（运行时注入：当前题型，决定题型策略那一段）';
     switch (feature) {
       case AiPromptFeature.freeChat:

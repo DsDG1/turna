@@ -879,6 +879,14 @@ class LessonViewModel extends ChangeNotifier {
         lessonId: _lesson?.id ?? '',
       );
 
+  /// Whether the currently displayed interaction belongs to an imported
+  /// memory-card deck (official projection or legacy card).
+  bool get isCurrentInteractionAnkiOwned {
+    final interaction = currentInteraction;
+    if (interaction == null) return false;
+    return _isAnkiOwned(interaction, null);
+  }
+
   AnkiStudySessionHost _ankiSessionHost() {
     final override = AnkiStudySessionHost.debugOverride;
     if (override != null) return override;

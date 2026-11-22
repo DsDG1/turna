@@ -1840,10 +1840,57 @@ class AppStrings {
   static String get aiPracticeLibraryNotConfiguredHint => '连接 AI 后即可生成练习';
 
   /// 生成面板「课型」选项（原先散落在组件内的硬编码中文，R14 收进字符串表）。
+  static String get aiPracticeTemplateIntro => '认识新词';
   static String get aiPracticeTemplateMastery => '综合测验';
   static String get aiPracticeTemplatePractice => '巩固练习';
   static String get aiPracticeTemplateReview => '复习';
-  static String get aiPracticeTemplateMixed => '混合';
+  static String get aiPracticeTemplateReading => '阅读理解';
+  static String get aiPracticeTemplateDialogue => '情景对话';
+  static String get aiPracticeTemplateGuide => '知识导览';
+  static String get aiPracticeTemplateMixed => '综合混排';
+
+  /// 通用模式（记忆卡牌组课 / 自动识别语种）文案。
+  static String get aiLanguageGenericLabel => '记忆卡通用（自动识别）';
+  static String get aiLanguageGenericShort => '通用自动';
+  static String get aiLanguagePickerTitle => '学习语境';
+  static String get aiLanguageCustomInputHint => '或直接输入任意语言（如 日语 / 法语 / 德语）';
+  static String get aiDepthSentenceLabel => '要分析的句子或内容';
+  static String get aiDepthSentenceHint => '粘贴任意句子、短语或记忆卡内容';
+  static String get aiDepthInputRequired => '请先输入要分析的内容';
+
+  /// 自定义课程增强与先审大纲文案。
+  static String get aiPracticeCustomTargetLanguage => '目标语言';
+  static String get aiPracticeCustomSourceLanguage => '讲解 / 提示语言';
+  static String get aiPracticeSourceLangZh => '简体中文';
+  static String get aiPracticeSourceLangEn => 'English';
+  static String get aiPracticeSourceLangTarget => '目标语沉浸';
+  static String get aiPracticeItemsPerLesson => '每课题量';
+  static String get aiPracticeDensityLight => '轻练（约 6 题）';
+  static String get aiPracticeDensityStandard => '标准（约 10 题）';
+  static String get aiPracticeDensityIntensive => '强化（约 15 题）';
+  static String get aiPracticePresetsLabel => '快捷场景预设';
+  static String get aiPracticeAdvancedToggle => '更多设计自由度';
+  static String get aiPracticePreferredTypes => '偏好题型（可多选，不选则自动搭配）';
+  static String get aiPracticeFocusItems => '指定重点词汇 / 语法点（可选）';
+  static String get aiPracticeFocusItemsHint =>
+      '例如：过去时、餐厅点单高频词、merhaba / hesap';
+  static String get aiPracticeExplainToggle => '附带课程设计说明';
+  static String get aiPracticeLargeCourseHint =>
+      '课时较多，将后台分段生成并自动保存断点，中途中断可从断点续传';
+  static String get aiPracticePreviewOutline => '先审大纲再生成';
+  static String get aiPracticeGeneratingOutline => '正在生成大纲…';
+  static String get aiOutlineReviewTitle => '审核课程大纲';
+  static String get aiOutlineReviewSubtitle => '可修改单元/课时名、切换每课课型或增删课时，再开始填课';
+  static String get aiOutlineWordsSection => '核心词汇';
+  static String get aiOutlineUnitsSection => '单元与课时编排';
+  static String get aiOutlineAddLesson => '加一课';
+  static String get aiOutlineRegenerate => '重出大纲';
+  static String aiOutlineConfirmGenerate(int lessons) => '确认并生成（共 $lessons 课）';
+  static String get aiPracticeDetailExplanation => '课程设计说明';
+  static String get aiPracticeRegenerateLesson => '重生成本课';
+  static String get aiPracticeRegeneratingLesson => '正在重生成本课…';
+  static String get aiPracticeLessonRegenerated => '本课已重新生成';
+  static String aiPracticeLessonRegenerateFailed(Object e) => '单课重生成失败：$e';
 
   /// 诊断报告四段式（结论 → 依据 → 建议 → 行动）的段名。
   static String get aiDiagnosisSectionConclusion => '结论';

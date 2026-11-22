@@ -223,8 +223,13 @@ void main() {
           spec: mixed,
         ),
       );
-      expect(prompt, contains('never listening'));
-      expect(prompt, contains('intro / practice / review / reading / mastery'));
+      expect(prompt, contains('NEVER emit "mixed" or "listening"'));
+      expect(
+        prompt,
+        contains(
+          'intro / practice / review / reading / dialogue / guide / mastery',
+        ),
+      );
     });
 
     test('lesson prompt locks id/template and lists text-only types', () {

@@ -12,17 +12,15 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/ai_target_language_resolver.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
-import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
-import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/application/settings/settings_destination.dart';
-import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -235,17 +233,13 @@ class _NewLessonPageState extends State<NewLessonPage>
       return;
     }
 
-    final languageCode = switch (context.read<CourseProvider>().scope) {
-      BuiltinCourseScope(languageCode: final code) => code,
-      _ => LanguageRegistry.instance.defaultCode,
-    };
+    final resolved = AiTargetLanguageResolver.forLessonInteraction(
+      scope: context.read<CourseProvider>().scope,
+      interaction: interaction,
+      isAnkiOwned: vm.isCurrentInteractionAnkiOwned,
+    );
     final ctx = AiQuestionContext(
-      // Overlay first: an imported course's display name lives in the
-      // `importedLang:` meta, not the packed registry (which would
-      // synthesize the raw code).
-      language:
-          ImportedLanguageRegistry.instance.displayNameOrNull(languageCode) ??
-          LanguageRegistry.instance.displayName(languageCode),
+      language: resolved.displayName,
       typeLabel: interactionTypeLabel(interaction),
       promptLabel: interactionPromptLabel(interaction),
       optionsLabel: interactionOptionsLabel(interaction),
@@ -256,19 +250,24 @@ class _NewLessonPageState extends State<NewLessonPage>
     final hintProvider = context.read<AiHintProvider>();
     hintProvider.reset();
 
-    // Inject learner context (mistakes/weak terms) when the shared prefs
-    // allow it, so the first streamed reply already sees the snapshot.
-    AiExplainPrefsStore? prefsStore;
-    try {
-      prefsStore = context.read<AiExplainPrefsStore>();
-    } catch (_) {
-      // Optional dependency: AI context injection stays disabled without it.
+    // Only inject course-level learner context (mistakes/weak terms) when the
+    // item belongs to a specific language course; memory-card deck lessons
+    // run in generic mode so Turkish mistakes never leak into other decks.
+    if (!resolved.isGeneric) {
+      AiExplainPrefsStore? prefsStore;
+      try {
+        prefsStore = context.read<AiExplainPrefsStore>();
+      } catch (_) {
+        // Optional dependency: AI context injection stays disabled without it.
+      }
+      final learner = await LearnerAiContextAssembler.assembleIfInjectEnabled(
+        languageName: resolved.displayName,
+        prefs: prefsStore,
+      );
+      hintProvider.setLearnerContext(learner.isEmpty ? null : learner);
+    } else {
+      hintProvider.setLearnerContext(null);
     }
-    final learner = await LearnerAiContextAssembler.assembleIfInjectEnabled(
-      languageName: ctx.language,
-      prefs: prefsStore,
-    );
-    hintProvider.setLearnerContext(learner.isEmpty ? null : learner);
 
     if (!context.mounted) return;
     unawaited(hintProvider.explainQuestion(config: config, ctx: ctx));
@@ -452,10 +451,8 @@ class _LessonTopBand extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<
-      LessonViewModel,
-      ({bool aiEligible, int question, int total, LessonTemplate template})
-    >(
+    return Selector<LessonViewModel,
+        ({bool aiEligible, int question, int total, LessonTemplate template})>(
       selector: (context, vm) => (
         aiEligible: _aiEligible(vm),
         question: vm.isGuide ? vm.guidePageIndex + 1 : vm.currentQuestionNumber,
@@ -590,31 +587,30 @@ class _LessonBody extends StatelessWidget {
         final Widget? header = readingPassage != null
             ? LessonReadingPassageCard(passage: readingPassage)
             : legacyPassage.isNotEmpty
-            ? LessonLegacyReadingPassage(text: legacyPassage)
-            : dialogueScene != null
-            ? DialogueSceneHeader(
-                scene: dialogueScene,
-                interactions: [
-                  for (final s in lesson.flattenedStages) ...s.items,
-                ],
-                currentInteractionId: interaction.id,
-                currentSubmitted: interactionState.submitted,
-              )
-            : listeningPhase != null &&
-                  listeningPhase.type == ListeningPhaseType.dialogue
-            ? ListeningPhaseHeader(
-                key: ValueKey('listening-${listeningPhase.id}'),
-                phase: listeningPhase,
-              )
-            : null;
+                ? LessonLegacyReadingPassage(text: legacyPassage)
+                : dialogueScene != null
+                    ? DialogueSceneHeader(
+                        scene: dialogueScene,
+                        interactions: [
+                          for (final s in lesson.flattenedStages) ...s.items,
+                        ],
+                        currentInteractionId: interaction.id,
+                        currentSubmitted: interactionState.submitted,
+                      )
+                    : listeningPhase != null &&
+                            listeningPhase.type == ListeningPhaseType.dialogue
+                        ? ListeningPhaseHeader(
+                            key: ValueKey('listening-${listeningPhase.id}'),
+                            phase: listeningPhase,
+                          )
+                        : null;
 
         return Column(
           children: [
             Expanded(
               child: PracticeSessionBody(
-                stageName: stage == null
-                    ? profile.label
-                    : '${profile.label} · $stage',
+                stageName:
+                    stage == null ? profile.label : '${profile.label} · $stage',
                 stageAccent: TurnaTheme.brandTeal,
                 stageIcon: profile.icon,
                 maxWidth: profile.maxWidth,

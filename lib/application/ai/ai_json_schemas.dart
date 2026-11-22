@@ -104,8 +104,8 @@ abstract final class AiJsonSchemas {
   ///
   /// `content` is pinned as an object but deliberately not enumerated: its
   /// required members differ per template (`subLessons` / `stages` /
-  /// `listeningPhases` / `readingPassage`), and `normalizeLessonJson` already
-  /// repairs the near-miss shapes.
+  /// `listeningPhases` / `readingPassage` / `dialogueScene` / `pages`), and
+  /// `AiPracticeNormalizer` repairs the near-miss shapes.
   static final Map<String, dynamic> lessonBody = _object(
     name: 'lesson_body',
     properties: {
@@ -116,6 +116,24 @@ abstract final class AiJsonSchemas {
       'content': {'type': 'object'},
     },
     required: ['content'],
+  );
+
+  /// Full section envelope used by whole-section `adjust` calls.
+  static final Map<String, dynamic> courseSection = _object(
+    name: 'course_section',
+    properties: {
+      'id': {'type': 'string'},
+      'name': {'type': 'string'},
+      'description': {'type': 'string'},
+      'words': {'type': 'array'},
+      'expressions': {'type': 'array'},
+      'grammarPoints': {'type': 'array'},
+      'units': {
+        'type': 'array',
+        'items': {'type': 'object'},
+      },
+    },
+    required: ['id', 'units'],
   );
 
   /// Textbook knowledge extraction (`coerceKnowledgePoints`).

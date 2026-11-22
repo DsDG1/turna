@@ -8,9 +8,11 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/ai_target_language_resolver.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/hint_genres.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
@@ -25,13 +27,16 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// The three depth-learning genres offered by the tutor sheet.
 enum DepthGenre { grammar, synonyms, decompose }
 
-/// Bottom sheet attached to the in-lesson AI button. Offers three "deep"
-/// explanations of the current question - grammar point, synonym nuance and
-/// sentence decomposition - each a one-shot JSON call through [AiHintProvider]
-/// rendered as a structured card.
+/// Bottom sheet attached to the in-lesson AI button AND reachable standalone
+/// from AI Hub / Feature Guide. Offers three "deep" explanations — grammar
+/// point, synonym nuance, and sentence decomposition — each a one-shot JSON
+/// call through [AiHintProvider] rendered as a structured card.
 ///
-/// Reads the current question from [AiHintProvider.context] and the LLM config
-/// from [AiEngineConfigHolder], so it needs no constructor arguments.
+/// When opened inside a lesson, reads the current question from
+/// [AiHintProvider.context]; when opened standalone without an active
+/// question, shows an input field so the learner can paste any sentence/term
+/// and resolves the active course language (or generic memory-card mode) via
+/// [AiTargetLanguageResolver].
 class AiDepthTutorSheet extends StatefulWidget {
   const AiDepthTutorSheet({super.key});
 
@@ -41,6 +46,7 @@ class AiDepthTutorSheet extends StatefulWidget {
 
 class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   DepthGenre _genre = DepthGenre.decompose;
+  final _sentenceCtrl = TextEditingController();
   final _grammarCtrl = TextEditingController();
   final _synonymCtrl = TextEditingController();
   bool _loading = false;
@@ -51,8 +57,20 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
   AiQuestionContext? get _qctx => context.read<AiHintProvider>().context;
 
-  bool get _needsInput =>
+  bool get _needsSecondaryInput =>
       _genre == DepthGenre.grammar || _genre == DepthGenre.synonyms;
+
+  String? _resolvedLanguage() {
+    final ctx = _qctx;
+    if (ctx != null) return ctx.language;
+    try {
+      final scope = context.read<CourseProvider>().scope;
+      return AiTargetLanguageResolver.fromCourseScope(scope).displayName;
+    } catch (_) {
+      // Optional dependency in isolated widget tests — generic mode.
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -61,6 +79,9 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = _qctx;
       if (ctx == null || !mounted) return;
+      if (_sentenceCtrl.text.isEmpty && ctx.promptLabel.trim().isNotEmpty) {
+        _sentenceCtrl.text = ctx.promptLabel.trim();
+      }
       if (_grammarCtrl.text.isEmpty) {
         _grammarCtrl.text = ''; // AI infers when empty
       }
@@ -81,6 +102,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   @override
   void dispose() {
     _cancelToken?.cancel();
+    _sentenceCtrl.dispose();
     _grammarCtrl.dispose();
     _synonymCtrl.dispose();
     super.dispose();
@@ -109,7 +131,21 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     }
     final provider = context.read<AiHintProvider>();
     final ctx = _qctx;
-    if (ctx == null) return;
+    final language = _resolvedLanguage();
+    final sentence = _sentenceCtrl.text.trim().isNotEmpty
+        ? _sentenceCtrl.text.trim()
+        : (ctx?.promptLabel.trim() ?? '');
+
+    if (_genre == DepthGenre.synonyms) {
+      final rawWords = _synonymCtrl.text.trim();
+      if (rawWords.isEmpty) {
+        setState(() => _error = AppStrings.aiDepthInputRequired);
+        return;
+      }
+    } else if (sentence.isEmpty && _grammarCtrl.text.trim().isEmpty) {
+      setState(() => _error = AppStrings.aiDepthInputRequired);
+      return;
+    }
 
     _cancelToken?.cancel();
     final token = AiCancelToken();
@@ -126,10 +162,10 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         case DepthGenre.grammar:
           final r = await provider.explainGrammarPoint(
             config: config,
-            language: ctx.language,
-            sentence: ctx.promptLabel,
+            language: language,
+            sentence: sentence.isEmpty ? _grammarCtrl.text.trim() : sentence,
             grammarPoint: _grammarCtrl.text.trim().isEmpty
-                ? ctx.promptLabel
+                ? sentence
                 : _grammarCtrl.text.trim(),
             cancelToken: token,
           );
@@ -144,7 +180,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
               .toList();
           final r = await provider.compareSynonyms(
             config: config,
-            language: ctx.language,
+            language: language,
             words: words,
             cancelToken: token,
           );
@@ -154,8 +190,8 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         case DepthGenre.decompose:
           final r = await provider.decomposeSentence(
             config: config,
-            language: ctx.language,
-            sentence: ctx.promptLabel,
+            language: language,
+            sentence: sentence,
             cancelToken: token,
           );
           _result = _decomposeWidget(r);
@@ -185,6 +221,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     // [showTurnaSheet] 的 TurnaSheetPanel 统一提供，三个调用点（AI 大厅、
     // 功能手册、课时提示弹层）共用同一容器。
     final configured = context.watch<AiEngineConfigHolder>().config.isComplete;
+    final hasQuestionCtx = _qctx != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
@@ -199,7 +236,19 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _genreGrid(context),
-                  if (_needsInput) ...[
+                  if (!hasQuestionCtx && _genre != DepthGenre.synonyms) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _sentenceCtrl,
+                      maxLines: 2,
+                      decoration: aiSheetInputDecoration(
+                        context,
+                        label: AppStrings.aiDepthSentenceLabel,
+                        hint: AppStrings.aiDepthSentenceHint,
+                      ),
+                    ),
+                  ],
+                  if (_needsSecondaryInput) ...[
                     const SizedBox(height: 12),
                     _inputField(context),
                   ],
@@ -290,95 +339,95 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   // ─── Result renderers ────────────────────────────────────────────────
 
   Widget _grammarWidget(GrammarExplanation r) => _card([
-    SelectableText(
-      r.explanation,
-      style: Theme.of(context).textTheme.bodyMedium,
-    ),
-    if (r.relatedExamples.isNotEmpty) ...[
-      const SizedBox(height: 8),
-      _sectionLabel(AppStrings.aiDepthRelatedExamples),
-      for (final e in r.relatedExamples) _bullet(e),
-    ],
-    if (r.contrastWith.isNotEmpty) ...[
-      const SizedBox(height: 8),
-      _sectionLabel(AppStrings.aiDepthContrastWith),
-      for (final e in r.contrastWith) _bullet(e),
-    ],
-  ]);
-
-  Widget _synonymsWidget(SynonymComparison r) => _card([
-    for (final p in r.pairs) ...[
-      _pairHeader(p.a, p.b),
-      const SizedBox(height: 4),
-      _labeled(AppStrings.aiDepthNuance, p.nuance),
-      _labeled(AppStrings.aiDepthWhenToUseA, p.whenToUseA),
-      _labeled(AppStrings.aiDepthWhenToUseB, p.whenToUseB),
-      if (p.examples.isNotEmpty)
-        for (final e in p.examples) _bullet(e),
-      const Divider(height: 24),
-    ],
-  ]);
-
-  Widget _decomposeWidget(SentenceBreakdown r) => _card([
-    for (final t in r.tokens)
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: SelectableText(
-          '${t.surface}'
-          '${t.lemma == null || t.lemma!.isEmpty ? '' : ' (${t.lemma})'}'
-          '  —  ${t.gloss}  [${t.role}]',
+        SelectableText(
+          r.explanation,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-      ),
-    const SizedBox(height: 8),
-    _labeled(AppStrings.aiDepthStructure, r.structure),
-  ]);
+        if (r.relatedExamples.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _sectionLabel(AppStrings.aiDepthRelatedExamples),
+          for (final e in r.relatedExamples) _bullet(e),
+        ],
+        if (r.contrastWith.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _sectionLabel(AppStrings.aiDepthContrastWith),
+          for (final e in r.contrastWith) _bullet(e),
+        ],
+      ]);
+
+  Widget _synonymsWidget(SynonymComparison r) => _card([
+        for (final p in r.pairs) ...[
+          _pairHeader(p.a, p.b),
+          const SizedBox(height: 4),
+          _labeled(AppStrings.aiDepthNuance, p.nuance),
+          _labeled(AppStrings.aiDepthWhenToUseA, p.whenToUseA),
+          _labeled(AppStrings.aiDepthWhenToUseB, p.whenToUseB),
+          if (p.examples.isNotEmpty)
+            for (final e in p.examples) _bullet(e),
+          const Divider(height: 24),
+        ],
+      ]);
+
+  Widget _decomposeWidget(SentenceBreakdown r) => _card([
+        for (final t in r.tokens)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: SelectableText(
+              '${t.surface}'
+              '${t.lemma == null || t.lemma!.isEmpty ? '' : ' (${t.lemma})'}'
+              '  —  ${t.gloss}  [${t.role}]',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        const SizedBox(height: 8),
+        _labeled(AppStrings.aiDepthStructure, r.structure),
+      ]);
 
   /// 三种深度解释共用这一个容器，所以显式标识挂在这里：新增一种结果
   /// 形态也会自动带上《标识办法》要求的提示，不会漏标。
   Widget _card(List<Widget> children) => AiSurfaceCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [...children, const AiGeneratedNotice()],
-    ),
-  );
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [...children, const AiGeneratedNotice()],
+        ),
+      );
 
   Widget _sectionLabel(String text) => Padding(
-    padding: const EdgeInsets.only(top: 4, bottom: 2),
-    child: Text(
-      text,
-      style: Theme.of(context).textTheme.labelMedium
-          ?.copyWith(color: TurnaTheme.brandTeal, fontWeight: FontWeight.w600),
-    ),
-  );
+        padding: const EdgeInsets.only(top: 4, bottom: 2),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: TurnaTheme.brandTeal, fontWeight: FontWeight.w600),
+        ),
+      );
 
   Widget _bullet(String text) => Padding(
-    padding: const EdgeInsets.only(left: 12, top: 2),
-    child: SelectableText(
-      '• $text',
-      style: Theme.of(context).textTheme.bodyMedium,
-    ),
-  );
+        padding: const EdgeInsets.only(left: 12, top: 2),
+        child: SelectableText(
+          '• $text',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      );
 
   Widget _labeled(String label, String value) => Padding(
-    padding: const EdgeInsets.only(top: 4),
-    child: RichText(
-      text: TextSpan(
-        style: Theme.of(context).textTheme.bodyMedium,
-        children: [
-          TextSpan(
-            text: '$label：',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.only(top: 4),
+        child: RichText(
+          text: TextSpan(
+            style: Theme.of(context).textTheme.bodyMedium,
+            children: [
+              TextSpan(
+                text: '$label：',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              TextSpan(text: value),
+            ],
           ),
-          TextSpan(text: value),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 
   Widget _pairHeader(String a, String b) => Text(
-    '$a  vs  $b',
-    style: Theme.of(context).textTheme.titleSmall
-        ?.copyWith(fontWeight: FontWeight.w700, color: TurnaTheme.brandTeal),
-  );
+        '$a  vs  $b',
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700, color: TurnaTheme.brandTeal),
+      );
 }

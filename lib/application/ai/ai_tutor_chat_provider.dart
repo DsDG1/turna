@@ -9,6 +9,7 @@ import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_guardrails.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
@@ -65,10 +66,13 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   AiTutorChatMode _mode = AiTutorChatMode.qa;
   AiTutorChatMode get mode => _mode;
 
-  // Target language for prompts; the page sets the learner's current
-  // language right after construction — this default covers DI-less tests.
-  String _language = LanguageRegistry.instance.defaultLanguage.displayName;
-  String get language => _language;
+  // Target language for prompts; null/empty means generic memory-card study
+  // mode (infer language or subject from learner text, never assume Turkish).
+  // The page sets the active scope right after construction; this default
+  // covers DI-less tests.
+  String? _language = LanguageRegistry.instance.defaultLanguage.displayName;
+  String? get language => _language;
+  bool get isGenericLanguage => _language == null || _language!.trim().isEmpty;
 
   LearnerAiContext? _learnerContext;
   int _streamingAssistantIndex = -1;
@@ -99,7 +103,7 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     if (session == null) return false;
     _messages.addAll(session.messages);
     _mode = _modeFromName(session.modeName);
-    if (session.language.isNotEmpty) _language = session.language;
+    _language = session.language.trim().isEmpty ? null : session.language;
     _state = AiTutorChatState.ready;
     return true;
   }
@@ -111,8 +115,13 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     return AiTutorChatMode.qa;
   }
 
-  void setLanguage(String language) {
-    _language = language;
+  void setLanguage(String? language) {
+    final next = language?.trim();
+    final normalized = (next == null || next.isEmpty) ? null : next;
+    if (_language == normalized) return;
+    _language = normalized;
+    if (!isSessionDisposed) notifyListeners();
+    if (_messages.isNotEmpty) unawaited(_persistSession());
   }
 
   void setLearnerContext(LearnerAiContext? ctx) {
@@ -151,7 +160,7 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
       ..clear()
       ..addAll(session.messages);
     _mode = _modeFromName(session.modeName);
-    if (session.language.isNotEmpty) _language = session.language;
+    _language = session.language.trim().isEmpty ? null : session.language;
     _state = AiTutorChatState.ready;
     _error = null;
     _errorMapping = null;
@@ -182,9 +191,10 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     required AiEngineConfig config,
     required String sceneLabel,
   }) {
+    final langPrefix = isGenericLanguage ? '当前正在学习的语言' : _language!;
     return ask(
       config: config,
-      text: '请用$_language开始「$sceneLabel」情景对话。你扮演对方，'
+      text: '请用$langPrefix开始「$sceneLabel」情景对话。你扮演对方，'
           '我是学习者；必要时用简短中文旁注纠错。先开场。',
     );
   }
@@ -261,7 +271,7 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   Future<void> _persistSession() {
     return _sessionStore.save(AiTutorChatSession(
       modeName: _mode.name,
-      language: _language,
+      language: _language ?? '',
       messages: [
         for (final message in _messages)
           if (message.content.trim().isNotEmpty) message,
@@ -280,21 +290,57 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
         ? history.length - _recentMessageLimit
         : 0;
     final older = history.take(split).toList(growable: false);
-    final recent = history.skip(split);
+    final recent = history.skip(split).toList(growable: false);
+    final latestUser = recent.reversed.cast<AiChatMessage?>().firstWhere(
+          (m) => m != null && m.role == 'user',
+          orElse: () => null,
+        );
+    final bypass = latestUser != null &&
+        AiPromptGuardrails.detectBypassAttempt(latestUser.content);
+    final userTurnCount = history.where((m) => m.role == 'user').length;
+    final reinforce = bypass || userTurnCount >= 4;
+
+    final systemBuf = StringBuffer(_buildSystemPrompt());
+    if (older.isNotEmpty) {
+      // Fold older turns into a read-only data fence inside the single system
+      // message: avoids multiple system messages (which some endpoints reject)
+      // and prevents older untrusted text from acting as elevated instructions.
+      systemBuf
+        ..writeln()
+        ..writeln(AiPromptGuardrails.frameContextBlock(
+          'conversation_memory',
+          _summarizeOlderTurns(older),
+          maxChars: 1200,
+        ));
+    }
+    if (reinforce) {
+      systemBuf
+        ..writeln()
+        ..writeln(AiPromptGuardrails.turnReinforcementBlock(
+          bypassDetected: bypass,
+          withholdAnswer: false,
+        ));
+    }
     return <Map<String, dynamic>>[
-      {'role': 'system', 'content': _buildSystemPrompt()},
-      if (older.isNotEmpty)
-        {
-          'role': 'system',
-          'content': _summarizeOlderTurns(older),
-        },
-      for (final message in recent) message.toApiDict(),
+      {'role': 'system', 'content': systemBuf.toString()},
+      for (final message in recent)
+        message.role == 'user'
+            ? {
+                'role': 'user',
+                'content': AiPromptGuardrails.frameUserMessage(message.content),
+              }
+            : message.toApiDict(),
     ];
   }
 
   String _summarizeOlderTurns(List<AiChatMessage> messages) {
     final out = StringBuffer('Earlier conversation summary:\n');
     for (final message in messages) {
+      // Do not promote past bypass/injection attempts into memory.
+      if (message.role == 'user' &&
+          AiPromptGuardrails.detectBypassAttempt(message.content)) {
+        continue;
+      }
       final normalized = message.content.replaceAll(RegExp(r'\s+'), ' ').trim();
       final clipped = normalized.length > 160
           ? '${normalized.substring(0, 160)}…'
@@ -318,7 +364,8 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
       language: _language,
       modeLine: modeLine,
       prefs: _prefs.snapshot,
-      learnerContextBlock: _learnerContext?.toPromptBlock(),
+      learnerContextBlock:
+          isGenericLanguage ? null : _learnerContext?.toPromptBlock(),
       override: AiPromptOverridesStore.overrideFor(AiPromptFeature.freeChat),
     );
   }
@@ -328,9 +375,10 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   String buildSystemPromptForTest() => _buildSystemPrompt();
 
   void _recordRecent() {
+    final label = isGenericLanguage ? '通用' : _language!;
     recordAiRecentTask(
       kind: AiTaskKind.tutorChat,
-      summary: '自由问答 · $_language',
+      summary: '自由问答 · $label',
       route: AiRecentTaskRoute.tutorChat,
     );
   }

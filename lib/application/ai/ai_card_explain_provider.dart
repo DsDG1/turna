@@ -4,6 +4,7 @@ import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_guardrails.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
@@ -86,6 +87,7 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
             'content': AiPromptCatalog.cardExplain(
               language: language,
               prefs: _prefs.snapshot,
+              answerRevealed: context.answerRevealed,
               override: AiPromptOverridesStore.overrideFor(
                 AiPromptFeature.cardExplain,
               ),
@@ -94,7 +96,7 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
           {
             'role': 'user',
             'content': 'Please explain this review card:\n'
-                '${context.toPromptBlock()}',
+                '${AiPromptGuardrails.frameContextBlock('card_content', context.toPromptBlock())}',
           },
         ],
         cancelToken: session.cancelToken,

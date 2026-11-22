@@ -249,29 +249,50 @@ class AiPracticeJobQueue extends ChangeNotifier {
     return _enqueue(request);
   }
 
-  Future<AiCourse> startCustomCourse({
+  /// Phase A helper for the two-step "先审大纲再填课" sheet. Does NOT enqueue
+  /// a background job yet; returns the validated outline JSON so the learner
+  /// can inspect/edit units, lessons, templates, and words before committing.
+  Future<Map<String, dynamic>> generateOutlineForCustomCourse({
     required String topic,
     required String level,
     required int unitCount,
     required int lessonsPerUnit,
     required String template,
+    String? languageCode,
+    String? languageName,
+    String sourceLanguage = 'Chinese',
+    int itemsPerLesson = 8,
+    List<String> preferredInteractionTypes = const <String>[],
+    String focusItems = '',
+    String? presetId,
     String designBrief = '',
     bool grounded = true,
-    bool explanationRequested = false,
+    required AiCancelToken cancelToken,
   }) async {
+    final config = _configHolder.config;
+    if (!config.isComplete) {
+      throw const AiPracticeGenerationException('未配置 AI 引擎，请先配置连接。');
+    }
     final now = DateTime.now();
     final id = _newId(now);
     final title =
         topic.trim().isEmpty ? '自定义课程 · ${_stamp(now)}' : topic.trim();
+    final resolvedCode =
+        (languageCode != null && languageCode.trim().isNotEmpty)
+            ? languageCode.trim()
+            : _languageProvider.selectedLanguageCode;
+    final resolvedLang =
+        (languageName != null && languageName.trim().isNotEmpty)
+            ? languageName.trim()
+            : _languageProvider.displayName;
     final request = AiPracticeRequest(
       id: id,
       title: title,
       source: AiPracticeSource.custom,
-      languageCode: _languageProvider.selectedLanguageCode,
-      explanationRequested: explanationRequested,
+      languageCode: resolvedCode,
       spec: AiCourseSpec(
-        language: _languageProvider.displayName,
-        sourceLanguage: 'Chinese',
+        language: resolvedLang,
+        sourceLanguage: sourceLanguage,
         topic: title,
         level: level,
         unitCount: unitCount,
@@ -280,6 +301,73 @@ class AiPracticeJobQueue extends ChangeNotifier {
         designBrief: designBrief.trim(),
         groundedMode: grounded,
         maxGroundedResources: 200,
+        itemsPerLesson: itemsPerLesson,
+        preferredInteractionTypes: preferredInteractionTypes,
+        focusItems: focusItems.trim(),
+        presetId: presetId,
+      ),
+    );
+    return _generator.generateOutline(
+      config: config,
+      request: request,
+      cancelToken: cancelToken,
+    );
+  }
+
+  Future<AiCourse> startCustomCourse({
+    required String topic,
+    required String level,
+    required int unitCount,
+    required int lessonsPerUnit,
+    required String template,
+    String? languageCode,
+    String? languageName,
+    String sourceLanguage = 'Chinese',
+    int itemsPerLesson = 8,
+    List<String> preferredInteractionTypes = const <String>[],
+    String focusItems = '',
+    String? presetId,
+    String designBrief = '',
+    bool grounded = true,
+    bool explanationRequested = false,
+    Map<String, dynamic>? approvedOutline,
+  }) async {
+    final now = DateTime.now();
+    final id = approvedOutline?['id']?.toString().trim().isNotEmpty == true
+        ? approvedOutline!['id'].toString().trim()
+        : _newId(now);
+    final title =
+        topic.trim().isEmpty ? '自定义课程 · ${_stamp(now)}' : topic.trim();
+    final resolvedCode =
+        (languageCode != null && languageCode.trim().isNotEmpty)
+            ? languageCode.trim()
+            : _languageProvider.selectedLanguageCode;
+    final resolvedLang =
+        (languageName != null && languageName.trim().isNotEmpty)
+            ? languageName.trim()
+            : _languageProvider.displayName;
+    final request = AiPracticeRequest(
+      id: id,
+      title: title,
+      source: AiPracticeSource.custom,
+      languageCode: resolvedCode,
+      explanationRequested: explanationRequested,
+      approvedOutline: approvedOutline,
+      spec: AiCourseSpec(
+        language: resolvedLang,
+        sourceLanguage: sourceLanguage,
+        topic: title,
+        level: level,
+        unitCount: unitCount,
+        lessonsPerUnit: lessonsPerUnit,
+        template: template,
+        designBrief: designBrief.trim(),
+        groundedMode: grounded,
+        maxGroundedResources: 200,
+        itemsPerLesson: itemsPerLesson,
+        preferredInteractionTypes: preferredInteractionTypes,
+        focusItems: focusItems.trim(),
+        presetId: presetId,
       ),
     );
     return _enqueue(request);
@@ -289,7 +377,7 @@ class AiPracticeJobQueue extends ChangeNotifier {
     _deletedIds.remove(request.id);
     final now = DateTime.now();
     final versionId = _versionId(request.id, now, 0);
-    final total = request.spec.unitCount * request.spec.lessonsPerUnit;
+    final total = _expectedLessonCount(request);
     final course = AiCourse(
       id: request.id,
       languageCode: request.languageCode,
@@ -320,6 +408,54 @@ class AiPracticeJobQueue extends ChangeNotifier {
     notifyListeners();
     unawaited(_pump());
     return course;
+  }
+
+  int _expectedLessonCount(AiPracticeRequest request) {
+    final outline = request.approvedOutline;
+    if (outline != null) {
+      var count = 0;
+      for (final unit in (outline['units'] as List? ?? const [])) {
+        if (unit is Map && unit['lessons'] is List) {
+          count += (unit['lessons'] as List).length;
+        }
+      }
+      if (count > 0) return count;
+    }
+    return request.spec.unitCount * request.spec.lessonsPerUnit;
+  }
+
+  static const String _checkpointKey = '_checkpointCompletedIds';
+
+  ({Map<String, dynamic> section, Set<String> completedIds})? _readCheckpoint(
+      AiCourseVersion? version) {
+    final raw = version?.sectionJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    if (version?.status == AiPracticeStatus.ready) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final map = Map<String, dynamic>.from(decoded);
+      final rawIds = map.remove(_checkpointKey);
+      if (rawIds is! List) return null;
+      final completed = <String>{
+        for (final id in rawIds)
+          if (id != null && id.toString().isNotEmpty) id.toString(),
+      };
+      if (completed.isEmpty) return null;
+      return (section: map, completedIds: completed);
+    } catch (_) {
+      // Corrupt or non-checkpoint JSON — start fresh.
+      return null;
+    }
+  }
+
+  String _encodeCheckpoint(
+    Map<String, dynamic> partialSection,
+    Set<String> completedIds,
+  ) {
+    final copy = Map<String, dynamic>.from(partialSection);
+    copy[_checkpointKey] = completedIds.toList(growable: false);
+    return jsonEncode(copy);
   }
 
   Future<void> _pump() async {
@@ -377,10 +513,12 @@ class AiPracticeJobQueue extends ChangeNotifier {
       return;
     }
 
+    final checkpoint = _readCheckpoint(queued.latestVersion);
+    final totalLessons = _expectedLessonCount(request);
     var head = queued.latestVersion!.copyWith(
       status: AiPracticeStatus.running,
-      progressDone: 0,
-      progressTotal: request.spec.unitCount * request.spec.lessonsPerUnit,
+      progressDone: checkpoint?.completedIds.length ?? 0,
+      progressTotal: totalLessons,
       errorMessage: null,
       updatedAt: DateTime.now(),
     );
@@ -396,12 +534,26 @@ class AiPracticeJobQueue extends ChangeNotifier {
         config: config,
         request: request,
         cancelToken: token,
+        approvedOutline: request.approvedOutline,
+        resumeSection: checkpoint?.section,
+        completedLessonIds: checkpoint?.completedIds ?? const <String>{},
+        onCheckpoint: (partialSection, completedIds) {
+          head = head.copyWith(
+            sectionJson: _encodeCheckpoint(partialSection, completedIds),
+            progressDone: completedIds.length,
+            updatedAt: DateTime.now(),
+          );
+          // Persist checkpoints unconditionally so an interruption never loses
+          // completed lessons in large custom courses.
+          unawaited(_replaceVersion(
+            queued.copyWith(versions: _replaceHead(queued, head)),
+            persist: true,
+          ));
+        },
         onProgress: (progress) {
           head = head.copyWith(
             progressDone: progress.done,
-            progressTotal: progress.total > 0
-                ? progress.total
-                : request.spec.unitCount * request.spec.lessonsPerUnit,
+            progressTotal: progress.total > 0 ? progress.total : totalLessons,
             updatedAt: DateTime.now(),
           );
           final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -417,12 +569,14 @@ class AiPracticeJobQueue extends ChangeNotifier {
           ));
         },
       );
+      final cleanSection = Map<String, dynamic>.from(result.section)
+        ..remove(_checkpointKey);
       await _replaceVersion(queued.copyWith(
         versions: _replaceHead(
           queued,
           head.copyWith(
             status: AiPracticeStatus.ready,
-            sectionJson: jsonEncode(result.section),
+            sectionJson: jsonEncode(cleanSection),
             qualityJson: result.qualityJson,
             explanation: result.explanation,
             progressDone: head.progressTotal,
@@ -549,6 +703,89 @@ class AiPracticeJobQueue extends ChangeNotifier {
     }
   }
 
+  /// Regenerate one lesson in a ready course without regenerating the entire
+  /// section. Restores the prior section untouched on error or cancellation.
+  Future<void> regenerateLesson(String courseId, String lessonId) async {
+    final course = byId(courseId);
+    final current = course?.playableVersion;
+    if (course == null || current == null) return;
+    if (hasActiveJob) {
+      throw const AiPracticeGenerationException('已有生成任务在进行，请稍后再试。');
+    }
+    final request = _requestOf(course);
+    if (request == null) {
+      throw const AiPracticeGenerationException('生成参数已损坏，请删除后重新生成。');
+    }
+    final config = _configHolder.config;
+    if (!config.isComplete) {
+      throw const AiPracticeGenerationException('未配置 AI 引擎。');
+    }
+    final Map<String, dynamic> parsedCurrent;
+    try {
+      parsedCurrent = jsonDecode(current.sectionJson!) as Map<String, dynamic>;
+    } catch (e) {
+      throw AiPracticeGenerationException('练习 JSON 已损坏，无法重生成。', [e.toString()]);
+    }
+
+    final token = AiCancelToken();
+    _tokens[courseId] = token;
+    var running = course.copyWith(
+      versions: _replaceHead(
+        course,
+        current.copyWith(
+          status: AiPracticeStatus.running,
+          progressDone: 0,
+          progressTotal: 1,
+          errorMessage: null,
+          updatedAt: DateTime.now(),
+        ),
+      ),
+      updatedAt: DateTime.now(),
+    );
+    await _replaceVersion(running);
+    try {
+      final result = await _generator.regenerateLesson(
+        config: config,
+        request: request,
+        currentSection: parsedCurrent,
+        lessonId: lessonId,
+        cancelToken: token,
+      );
+      final head =
+          running.versions.firstWhere((version) => version.id == current.id);
+      running = running.copyWith(
+        versions: _replaceHead(
+          running,
+          head.copyWith(
+            status: AiPracticeStatus.ready,
+            sectionJson: jsonEncode(result.section),
+            qualityJson: result.qualityJson,
+            progressDone: 1,
+            progressTotal: 1,
+            errorMessage: null,
+            updatedAt: DateTime.now(),
+          ),
+        ),
+        updatedAt: DateTime.now(),
+      );
+      await _replaceVersion(running);
+    } on AiCancelled {
+      await _restoreAfterAdjustFailure(running, current, '已取消单课重生成。');
+    } on AiPracticeGenerationException catch (e) {
+      logger.w('practice regenerateLesson $courseId/$lessonId failed: $e');
+      await _restoreAfterAdjustFailure(running, current, e.message);
+    } catch (e) {
+      logger.w('practice regenerateLesson $courseId/$lessonId failed: $e');
+      await _restoreAfterAdjustFailure(
+        running,
+        current,
+        AiErrorMapper.map(e).message,
+      );
+    } finally {
+      _tokens.remove(courseId);
+    }
+  }
+
   /// Put the version back to `ready` with the untouched section plus an error
   /// note the card can show.
   Future<void> _restoreAfterAdjustFailure(
@@ -569,9 +806,11 @@ class AiPracticeJobQueue extends ChangeNotifier {
     ));
   }
 
-  /// Re-run generation. A fresh version is appended instead of resetting the
-  /// old one, so the previous content stays available if the retry fails.
-  Future<void> retry(String id) async {
+  /// Re-run generation. If the latest failed/interrupted version saved a
+  /// per-lesson checkpoint, [retry] resumes from that checkpoint so already
+  /// completed lessons are not regenerated; pass [fromScratch] to force a full
+  /// fresh generation.
+  Future<void> retry(String id, {bool fromScratch = false}) async {
     _deletedIds.remove(id);
     final course = _firstWhereOrNull(_items, id);
     if (course == null) return;
@@ -591,13 +830,20 @@ class AiPracticeJobQueue extends ChangeNotifier {
       ));
       return;
     }
+    final latest = course.latestVersion;
+    final checkpoint = fromScratch ? null : _readCheckpoint(latest);
     final now = DateTime.now();
+    final total = _expectedLessonCount(request);
     final fresh = AiCourseVersion(
       id: _versionId(course.id, now, course.versions.length),
       courseId: course.id,
       status: AiPracticeStatus.queued,
+      sectionJson: checkpoint != null
+          ? _encodeCheckpoint(checkpoint.section, checkpoint.completedIds)
+          : null,
       requestJson: jsonEncode(request.toJson()),
-      progressTotal: request.spec.unitCount * request.spec.lessonsPerUnit,
+      progressDone: checkpoint?.completedIds.length ?? 0,
+      progressTotal: total,
       createdAt: now,
       updatedAt: now,
     );

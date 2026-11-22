@@ -9,6 +9,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_target_language_resolver.dart';
+import 'package:turna/application/ai/practice/ai_practice_generator.dart';
 import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/application/ai/practice/ai_practice_quality.dart';
 import 'package:turna/core/spacing.dart';
@@ -21,6 +23,7 @@ import 'package:turna/views/ai/components/ai_practice_actions.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_reading_layout.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Course detail: the generated outline (unit → lesson → item count), the
@@ -86,6 +89,12 @@ class AiPracticeDetailPage extends StatelessWidget {
                       ),
                       children: [
                         _Header(course: course),
+                        if ((course.explanation ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _ExplanationSection(
+                            explanation: course.explanation!.trim(),
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.xl),
                         _QualitySection(course: course),
                         const SizedBox(height: AppSpacing.xl),
@@ -144,20 +153,28 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final expiry = _expiryText();
+    final lang = AiTargetLanguageResolver.fromLanguageCode(course.languageCode);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           course.title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: TurnaTheme.textPrimaryColor(context),
-          ),
+                fontWeight: FontWeight.w700,
+                color: TurnaTheme.textPrimaryColor(context),
+              ),
         ),
         const SizedBox(height: 6),
         Text(
-          [_sourceLabel, course.level, if (expiry != null) expiry].join(' · '),
-          style: Theme.of(context).textTheme.bodySmall
+          [
+            _sourceLabel,
+            if (!lang.isGeneric && lang.displayName != null) lang.displayName!,
+            course.level,
+            if (expiry != null) expiry,
+          ].join(' · '),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
               ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
         ),
         if (course.topic.trim().isNotEmpty &&
@@ -166,9 +183,9 @@ class _Header extends StatelessWidget {
           Text(
             course.topic,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: TurnaTheme.textSecondaryColor(context),
-              height: 1.5,
-            ),
+                  color: TurnaTheme.textSecondaryColor(context),
+                  height: 1.5,
+                ),
           ),
         ],
       ],
@@ -185,11 +202,35 @@ class _Header extends StatelessWidget {
   }
 
   String get _sourceLabel => switch (course.source) {
-    AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
-    AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
-    AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
-    AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
-  };
+        AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
+        AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
+        AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
+        AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
+      };
+}
+
+class _ExplanationSection extends StatelessWidget {
+  const _ExplanationSection({required this.explanation});
+
+  final String explanation;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: AppStrings.aiPracticeDetailExplanation,
+      accent: TurnaTheme.brandTeal,
+      children: [
+        Text(
+          explanation,
+          style: AppTextStyles.bodyText(context).copyWith(
+            fontSize: 14,
+            color: TurnaTheme.textSecondaryColor(context),
+            height: 1.55,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _QualitySection extends StatelessWidget {
@@ -233,11 +274,11 @@ class _QualitySection extends StatelessWidget {
               child: Text(
                 '· ${issue.message}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: issue.advisory
-                      ? TurnaTheme.textSecondaryColor(context)
-                      : TurnaTheme.error,
-                  height: 1.4,
-                ),
+                      color: issue.advisory
+                          ? TurnaTheme.textSecondaryColor(context)
+                          : TurnaTheme.error,
+                      height: 1.4,
+                    ),
               ),
             ),
         ],
@@ -251,8 +292,40 @@ class _OutlineSection extends StatelessWidget {
 
   final AiCourse course;
 
+  Future<void> _regenerateLesson(BuildContext context, String lessonId) async {
+    final queue = context.read<AiPracticeJobQueue>();
+    TurnaSnackBar.show(context, AppStrings.aiPracticeRegeneratingLesson);
+    try {
+      await queue.regenerateLesson(course.id, lessonId);
+      if (!context.mounted) return;
+      final updated = queue.byId(course.id);
+      if (updated?.errorMessage != null && updated!.errorMessage!.isNotEmpty) {
+        TurnaSnackBar.show(
+          context,
+          AppStrings.aiPracticeLessonRegenerateFailed(updated.errorMessage!),
+        );
+      } else {
+        TurnaSnackBar.show(context, AppStrings.aiPracticeLessonRegenerated);
+      }
+    } on AiPracticeGenerationException catch (e) {
+      if (!context.mounted) return;
+      TurnaSnackBar.show(
+        context,
+        AppStrings.aiPracticeLessonRegenerateFailed(e.message),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      TurnaSnackBar.show(
+        context,
+        AppStrings.aiPracticeLessonRegenerateFailed(e),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final queue = context.watch<AiPracticeJobQueue>();
+    final canRegenLesson = course.isPlayable && !queue.hasActiveJob;
     final units = _parseUnits(course.sectionJson);
     return _Card(
       title: AppStrings.aiPracticeDetailOutline,
@@ -270,9 +343,9 @@ class _OutlineSection extends StatelessWidget {
                   Text(
                     unit.name,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: TurnaTheme.textPrimaryColor(context),
-                    ),
+                          fontWeight: FontWeight.w600,
+                          color: TurnaTheme.textPrimaryColor(context),
+                        ),
                   ),
                   for (final lesson in unit.lessons)
                     Padding(
@@ -284,7 +357,9 @@ class _OutlineSection extends StatelessWidget {
                               lesson.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
                                   ?.copyWith(
                                     color: TurnaTheme.textSecondaryColor(
                                       context,
@@ -294,11 +369,30 @@ class _OutlineSection extends StatelessWidget {
                           ),
                           Text(
                             AppStrings.aiPracticeDetailItems(lesson.itemCount),
-                            style: Theme.of(context).textTheme.bodySmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
                                 ?.copyWith(
                                   color: TurnaTheme.textSecondaryColor(context),
                                 ),
                           ),
+                          if (canRegenLesson && lesson.id.isNotEmpty)
+                            IconButton(
+                              onPressed: () =>
+                                  _regenerateLesson(context, lesson.id),
+                              tooltip: AppStrings.aiPracticeRegenerateLesson,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.only(left: 6),
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                              icon: TurnaIcon(
+                                TurnaIconId.refresh,
+                                size: 15,
+                                color: TurnaTheme.textHintColor(context),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -309,7 +403,7 @@ class _OutlineSection extends StatelessWidget {
     );
   }
 
-  /// `unit → [(lesson name, item count)]` from the stored section JSON.
+  /// `unit → [(lesson id, name, item count)]` from the stored section JSON.
   static List<_UnitOutline> _parseUnits(String? sectionJson) {
     if (sectionJson == null) return const [];
     try {
@@ -329,9 +423,22 @@ class _OutlineSection extends StatelessWidget {
                 count += (stage['items'] as List? ?? const []).length;
               }
             }
+            for (final sub in (content['subLessons'] as List? ?? const [])) {
+              if (sub is Map) {
+                for (final stage in (sub['stages'] as List? ?? const [])) {
+                  if (stage is Map) {
+                    count += (stage['items'] as List? ?? const []).length;
+                  }
+                }
+              }
+            }
+            if (count == 0 && content['pages'] is List) {
+              count = (content['pages'] as List).length;
+            }
           }
           lessons.add(
             _LessonOutline(
+              id: lesson['id']?.toString() ?? '',
               name:
                   lesson['name']?.toString() ?? lesson['id']?.toString() ?? '',
               itemCount: count,
@@ -347,6 +454,7 @@ class _OutlineSection extends StatelessWidget {
       }
       return units;
     } catch (_) {
+      // Corrupt section JSON — show empty outline fallback.
       return const [];
     }
   }
@@ -374,17 +482,18 @@ class _HistorySection extends StatelessWidget {
                       course.versions.length - i,
                     ),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
+                          color: TurnaTheme.textSecondaryColor(context),
+                        ),
                   ),
                 ),
                 Text(
                   _statusLabel(course.versions[i].status),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: course.versions[i].status == AiPracticeStatus.failed
-                        ? TurnaTheme.error
-                        : TurnaTheme.textSecondaryColor(context),
-                  ),
+                        color:
+                            course.versions[i].status == AiPracticeStatus.failed
+                                ? TurnaTheme.error
+                                : TurnaTheme.textSecondaryColor(context),
+                      ),
                 ),
               ],
             ),
@@ -394,12 +503,12 @@ class _HistorySection extends StatelessWidget {
   }
 
   static String _statusLabel(AiPracticeStatus status) => switch (status) {
-    AiPracticeStatus.ready => AppStrings.aiPracticeReady,
-    AiPracticeStatus.queued => AppStrings.aiPracticeQueued,
-    AiPracticeStatus.running => AppStrings.aiPracticeGenerating,
-    AiPracticeStatus.failed => AppStrings.aiPracticeFailed,
-    AiPracticeStatus.interrupted => AppStrings.aiPracticeInterrupted,
-  };
+        AiPracticeStatus.ready => AppStrings.aiPracticeReady,
+        AiPracticeStatus.queued => AppStrings.aiPracticeQueued,
+        AiPracticeStatus.running => AppStrings.aiPracticeGenerating,
+        AiPracticeStatus.failed => AppStrings.aiPracticeFailed,
+        AiPracticeStatus.interrupted => AppStrings.aiPracticeInterrupted,
+      };
 }
 
 class _UnitOutline {
@@ -410,8 +519,13 @@ class _UnitOutline {
 }
 
 class _LessonOutline {
-  const _LessonOutline({required this.name, required this.itemCount});
+  const _LessonOutline({
+    required this.id,
+    required this.name,
+    required this.itemCount,
+  });
 
+  final String id;
   final String name;
   final int itemCount;
 }

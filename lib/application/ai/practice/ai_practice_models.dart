@@ -18,6 +18,7 @@ class AiPracticeRequest {
     required this.languageCode,
     this.sourceContext = '',
     this.explanationRequested = false,
+    this.approvedOutline,
   });
 
   /// Row id; also used as the section id prefix by the prompt.
@@ -36,6 +37,11 @@ class AiPracticeRequest {
   /// Whether a plain-language explanation is requested after generation.
   final bool explanationRequested;
 
+  /// Optional learner-reviewed outline JSON (from the two-step "先审大纲再填课"
+  /// flow). When present, the generator skips Phase A and fills lessons
+  /// straight from this outline.
+  final Map<String, dynamic>? approvedOutline;
+
   /// Persisted spec snapshot for retry after failure / interruption.
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -51,9 +57,14 @@ class AiPracticeRequest {
         'designBrief': spec.designBrief,
         'extraInstructions': spec.extraInstructions,
         'grounded': spec.groundedMode,
+        'itemsPerLesson': spec.itemsPerLesson,
+        'preferredInteractionTypes': spec.preferredInteractionTypes,
+        'focusItems': spec.focusItems,
+        if (spec.presetId != null) 'presetId': spec.presetId,
         'languageCode': languageCode,
         'sourceContext': sourceContext,
         'explanationRequested': explanationRequested,
+        if (approvedOutline != null) 'approvedOutline': approvedOutline,
       };
 
   static AiPracticeRequest? fromJson(Map<String, dynamic> json) {
@@ -61,6 +72,16 @@ class AiPracticeRequest {
     if (id.isEmpty) return null;
     final unitCount = json['unitCount'];
     final lessonsPerUnit = json['lessonsPerUnit'];
+    final itemsPerLesson = json['itemsPerLesson'];
+    final rawPreferred = json['preferredInteractionTypes'];
+    final preferred = rawPreferred is List
+        ? [
+            for (final entry in rawPreferred)
+              if (entry != null && entry.toString().trim().isNotEmpty)
+                entry.toString().trim(),
+          ]
+        : const <String>[];
+    final rawOutline = json['approvedOutline'];
     return AiPracticeRequest(
       id: id,
       title: json['title']?.toString() ?? 'AI practice',
@@ -68,6 +89,8 @@ class AiPracticeRequest {
       languageCode: json['languageCode']?.toString() ?? 'tr',
       sourceContext: json['sourceContext']?.toString() ?? '',
       explanationRequested: json['explanationRequested'] == true,
+      approvedOutline:
+          rawOutline is Map ? Map<String, dynamic>.from(rawOutline) : null,
       spec: AiCourseSpec(
         language: json['language']?.toString() ?? 'Turkish',
         sourceLanguage: json['sourceLanguage']?.toString() ?? 'Chinese',
@@ -79,6 +102,10 @@ class AiPracticeRequest {
         designBrief: json['designBrief']?.toString() ?? '',
         extraInstructions: json['extraInstructions']?.toString() ?? '',
         groundedMode: json['grounded'] == true,
+        itemsPerLesson: itemsPerLesson is int ? itemsPerLesson : 8,
+        preferredInteractionTypes: preferred,
+        focusItems: json['focusItems']?.toString() ?? '',
+        presetId: json['presetId']?.toString(),
       ),
     );
   }

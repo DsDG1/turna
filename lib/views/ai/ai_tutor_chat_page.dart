@@ -9,10 +9,13 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_target_language_resolver.dart';
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
 import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/turna_icon_id.dart';
@@ -62,6 +65,20 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
   final ScrollController _scrollCtrl = ScrollController();
   late final ChatAutoScrollCoordinator _autoScroll;
 
+  String? _resolveInitialLanguage() {
+    try {
+      final scope = context.read<CourseProvider>().scope;
+      return AiTargetLanguageResolver.fromCourseScope(scope).displayName;
+    } catch (_) {
+      // Optional dependency in isolated tests — fall back to LanguageProvider.
+    }
+    try {
+      return context.read<LanguageProvider>().displayName;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,7 +91,7 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
     _provider = AiTutorChatProvider(prefs: prefs);
     final restored = _provider.restorePersisted();
     if (!restored) {
-      _provider.setLanguage(context.read<LanguageProvider>().displayName);
+      _provider.setLanguage(_resolveInitialLanguage());
     }
     if (widget.initialMode != null) {
       _provider.setMode(widget.initialMode!);
@@ -239,10 +256,10 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
                           child: Text(
                             AppStrings.aiDisclaimer,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: TurnaTheme.textHintColor(context),
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: TurnaTheme.textHintColor(context),
+                                    ),
                           ),
                         ),
                       ],
@@ -263,33 +280,91 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
 class _ModeSection extends StatelessWidget {
   const _ModeSection();
 
+  Future<void> _pickLanguage(BuildContext context) async {
+    final provider = context.read<AiTutorChatProvider>();
+    final options = <(String?, String)>[
+      (null, AppStrings.aiLanguageGenericLabel),
+      for (final lang in LanguageRegistry.instance.languages)
+        (lang.displayName, lang.displayName),
+    ];
+    final current = provider.language;
+    if (current != null &&
+        current.isNotEmpty &&
+        !options.any((entry) => entry.$1 == current)) {
+      options.add((current, current));
+    }
+    final picked = await showTurnaSheet<String?>(
+      context: context,
+      title: AppStrings.aiLanguagePickerTitle,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < options.length; i++)
+              DirectoryEntryRow(
+                title: options[i].$2,
+                showDivider: i < options.length - 1,
+                trailing: options[i].$1 == current
+                    ? const TurnaIcon(
+                        TurnaIconId.check,
+                        size: 18,
+                        color: TurnaTheme.brandTeal,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(options[i].$1 ?? ''),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    provider.setLanguage(picked.isEmpty ? null : picked);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Selector<AiTutorChatProvider, AiTutorChatMode>(
-      selector: (_, p) => p.mode,
-      builder: (context, mode, _) {
+    return Selector<AiTutorChatProvider, (AiTutorChatMode, String?)>(
+      selector: (_, p) => (p.mode, p.language),
+      builder: (context, snap, _) {
+        final (mode, lang) = snap;
+        final langLabel = (lang == null || lang.trim().isEmpty)
+            ? AppStrings.aiLanguageGenericShort
+            : lang;
         return Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: TurnaSegmented<AiTutorChatMode>(
-                selected: mode,
-                onChanged: context.read<AiTutorChatProvider>().setMode,
-                segments: [
-                  ButtonSegment(
-                    value: AiTutorChatMode.qa,
-                    label: Text(AppStrings.aiTutorChatModeQa),
-                    icon: const TurnaIcon(TurnaIconId.help, size: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TurnaSegmented<AiTutorChatMode>(
+                      selected: mode,
+                      onChanged: context.read<AiTutorChatProvider>().setMode,
+                      segments: [
+                        ButtonSegment(
+                          value: AiTutorChatMode.qa,
+                          label: Text(AppStrings.aiTutorChatModeQa),
+                          icon: const TurnaIcon(TurnaIconId.help, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: AiTutorChatMode.sentenceCheck,
+                          label: Text(AppStrings.aiTutorChatModeSentence),
+                          icon: const TurnaIcon(TurnaIconId.edit, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: AiTutorChatMode.roleplay,
+                          label: Text(AppStrings.aiTutorChatModeRoleplay),
+                          icon: const TurnaIcon(TurnaIconId.chat, size: 16),
+                        ),
+                      ],
+                    ),
                   ),
-                  ButtonSegment(
-                    value: AiTutorChatMode.sentenceCheck,
-                    label: Text(AppStrings.aiTutorChatModeSentence),
-                    icon: const TurnaIcon(TurnaIconId.edit, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: AiTutorChatMode.roleplay,
-                    label: Text(AppStrings.aiTutorChatModeRoleplay),
-                    icon: const TurnaIcon(TurnaIconId.chat, size: 16),
+                  const SizedBox(width: AppSpacing.xs),
+                  ActionChip(
+                    avatar: const TurnaIcon(TurnaIconId.explore, size: 14),
+                    label: Text(langLabel),
+                    onPressed: () => _pickLanguage(context),
                   ),
                 ],
               ),
@@ -331,9 +406,9 @@ class _RoleplayChips extends StatelessWidget {
                     onPressed: busy
                         ? null
                         : () => provider.startRoleplayScene(
-                            config: config,
-                            sceneLabel: s,
-                          ),
+                              config: config,
+                              sceneLabel: s,
+                            ),
                   ),
                 ),
             ],
@@ -407,10 +482,8 @@ class _MessageList extends StatelessWidget {
                 return Selector<AiTutorChatProvider, int>(
                   selector: (_, p) => p.streamingRevision,
                   builder: (context, _, __) {
-                    final content = context
-                        .read<AiTutorChatProvider>()
-                        .messages[i]
-                        .content;
+                    final content =
+                        context.read<AiTutorChatProvider>().messages[i].content;
                     return ChatBubble(role: 'assistant', content: content);
                   },
                 );

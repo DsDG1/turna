@@ -38,6 +38,7 @@ abstract final class AiPracticeQualityChecker {
     final issues = <AiPracticeQualityIssue>[];
     final words = _listOf(section['words']);
     final showsUsed = <String>{};
+    final corpus = StringBuffer();
     final lessons = _iterLessons(section);
 
     if (lessons.isEmpty) {
@@ -49,20 +50,27 @@ abstract final class AiPracticeQualityChecker {
     }
 
     for (final entry in lessons) {
-      _checkLesson(entry, issues, showsUsed);
+      _checkLesson(entry, issues, showsUsed, corpus);
     }
 
-    // Zero-coverage vocabulary: a word the outline introduced but no lesson
-    // ever shows is a hole in the course, not a style problem.
+    // Vocabulary coverage across showWord AND all exercise/passage/guide text.
+    // Advisory (not blocking): a review/mastery drill or a large section may
+    // legitimately leave one outline word unmentioned without being unplayable.
     if (wordCoverage) {
+      final corpusLower = corpus.toString().toLowerCase();
       for (final word in words) {
+        if (word is! Map) continue;
         final id = (word['id'] ?? '').toString();
         if (id.isEmpty) continue;
-        if (!showsUsed.contains(id)) {
+        final term = (word['term'] ?? '').toString().trim().toLowerCase();
+        final seenByShowWord = showsUsed.contains(id);
+        final seenByText = term.isNotEmpty && corpusLower.contains(term);
+        if (!seenByShowWord && !seenByText) {
           issues.add(AiPracticeQualityIssue(
             code: 'word.unused',
             where: 'word:$id',
-            message: '生词「${word['term'] ?? id}」从未在任何课时中出现。',
+            message: '生词「${word['term'] ?? id}」未在课时练习中出现。',
+            advisory: true,
           ));
         }
       }
@@ -75,6 +83,7 @@ abstract final class AiPracticeQualityChecker {
     _LessonRef lesson,
     List<AiPracticeQualityIssue> issues,
     Set<String> showsUsed,
+    StringBuffer corpus,
   ) {
     final content = lesson.lesson['content'];
     final where = 'lesson:${lesson.id}';
@@ -88,6 +97,42 @@ abstract final class AiPracticeQualityChecker {
     }
     final template = lesson.lesson['template']?.toString() ?? '';
 
+    if (template == 'guide') {
+      final pages = _listOf(content['pages']);
+      if (pages.isEmpty) {
+        issues.add(AiPracticeQualityIssue(
+          code: 'guide.no-pages',
+          where: where,
+          message: '导览课「${lesson.name}」没有页面。',
+        ));
+        return;
+      }
+      for (var p = 0; p < pages.length; p++) {
+        final page = pages[p];
+        if (page is! Map) continue;
+        final blocks = _listOf(page['blocks']);
+        if (blocks.isEmpty) {
+          issues.add(AiPracticeQualityIssue(
+            code: 'guide.empty-page',
+            where: '$where/p$p',
+            message: '导览课「${lesson.name}」第 ${p + 1} 页没有任何内容块。',
+          ));
+        }
+        corpus
+          ..write(' ')
+          ..write(page['title'] ?? '')
+          ..write(' ')
+          ..write(page['intro'] ?? '');
+        for (final block in blocks) {
+          if (block is! Map) continue;
+          corpus
+            ..write(' ')
+            ..write(jsonEncode(block));
+        }
+      }
+      return;
+    }
+
     if (template == 'reading') {
       final passage = content['readingPassage'];
       final paragraphs =
@@ -98,10 +143,47 @@ abstract final class AiPracticeQualityChecker {
           where: where,
           message: '阅读课「${lesson.name}」没有正文段落。',
         ));
+      } else {
+        for (final para in paragraphs) {
+          corpus
+            ..write(' ')
+            ..write(para);
+        }
       }
     }
 
-    final stages = _listOf(content['stages']);
+    if (template == 'dialogue') {
+      final scene = content['dialogueScene'];
+      final turns = scene is Map ? _listOf(scene['turns']) : const [];
+      if (scene is! Map || turns.isEmpty) {
+        issues.add(AiPracticeQualityIssue(
+          code: 'dialogue.no-scene',
+          where: where,
+          message: '情景对话课「${lesson.name}」缺少对话轮次。',
+        ));
+      } else {
+        for (final turn in turns) {
+          if (turn is Map && turn['text'] != null) {
+            corpus
+              ..write(' ')
+              ..write(turn['text']);
+          }
+        }
+      }
+    }
+
+    // Collect stages from both flat `content.stages` AND `content.subLessons[].stages`
+    // (intro / practice lessons author canonical `subLessons`).
+    final stages = <Map>[];
+    for (final st in _listOf(content['stages'])) {
+      if (st is Map) stages.add(st);
+    }
+    for (final sub in _listOf(content['subLessons'])) {
+      if (sub is! Map) continue;
+      for (final st in _listOf(sub['stages'])) {
+        if (st is Map) stages.add(st);
+      }
+    }
     if (stages.isEmpty) {
       issues.add(AiPracticeQualityIssue(
         code: 'lesson.no-stages',
@@ -115,7 +197,6 @@ abstract final class AiPracticeQualityChecker {
     final stems = <String>{};
     for (var s = 0; s < stages.length; s++) {
       final stage = stages[s];
-      if (stage is! Map) continue;
       final stageName = stage['id']?.toString() ?? 'stage$s';
       final items = _listOf(stage['items']);
       if (items.isEmpty) {
@@ -145,6 +226,7 @@ abstract final class AiPracticeQualityChecker {
           continue;
         }
         itemCount++;
+        _appendItemCorpus(item, corpus);
         _checkItem(
           item,
           where: '$where/$stageName#$i',
@@ -161,6 +243,40 @@ abstract final class AiPracticeQualityChecker {
         where: where,
         message: '课时「${lesson.name}」没有任何题目。',
       ));
+    }
+  }
+
+  static void _appendItemCorpus(Map item, StringBuffer corpus) {
+    for (final key in const [
+      'term',
+      'translation',
+      'context',
+      'prompt',
+      'sentence',
+      'answer',
+      'source',
+      'expected',
+      'statement',
+      'expectedAnswer',
+    ]) {
+      final val = item[key];
+      if (val is String && val.isNotEmpty) {
+        corpus
+          ..write(' ')
+          ..write(val);
+      }
+    }
+    for (final listKey in const ['options', 'correct', 'scrambled']) {
+      final list = item[listKey];
+      if (list is List) {
+        for (final entry in list) {
+          if (entry != null) {
+            corpus
+              ..write(' ')
+              ..write(entry);
+          }
+        }
+      }
     }
   }
 

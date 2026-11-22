@@ -10,7 +10,9 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/ai_diagnosis_provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
+import 'package:turna/application/ai/ai_target_language_resolver.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -68,7 +70,18 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
   }
 
   Future<LearnerAiContext> _buildContext() async {
-    final language = context.read<LanguageProvider>().displayName;
+    String language = '';
+    try {
+      final scope = context.read<CourseProvider>().scope;
+      language =
+          AiTargetLanguageResolver.fromCourseScope(scope).displayName ?? '';
+    } catch (_) {
+      try {
+        language = context.read<LanguageProvider>().displayName;
+      } catch (_) {
+        language = '';
+      }
+    }
 
     final mistakes = <String>[];
     try {
@@ -324,17 +337,17 @@ class _ReportBody extends StatelessWidget {
   }
 
   static String _severityLabel(String severity) => switch (severity) {
-    'high' => AppStrings.aiDiagnosisSeverityHigh,
-    'medium' => AppStrings.aiDiagnosisSeverityMedium,
-    'low' => AppStrings.aiDiagnosisSeverityLow,
-    _ => severity,
-  };
+        'high' => AppStrings.aiDiagnosisSeverityHigh,
+        'medium' => AppStrings.aiDiagnosisSeverityMedium,
+        'low' => AppStrings.aiDiagnosisSeverityLow,
+        _ => severity,
+      };
 
   static Color? _severityColor(String severity) => switch (severity) {
-    'high' => TurnaTheme.error,
-    'medium' => TurnaTheme.warning,
-    _ => null,
-  };
+        'high' => TurnaTheme.error,
+        'medium' => TurnaTheme.warning,
+        _ => null,
+      };
 }
 
 /// 编号行：报告建议段的排版（序号淡色左、正文右，无卡无泡）。

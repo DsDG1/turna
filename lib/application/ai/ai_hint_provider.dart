@@ -6,6 +6,7 @@ import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_prompt_catalog.dart';
+import 'package:turna/application/ai/ai_prompt_guardrails.dart';
 import 'package:turna/application/ai/ai_prompt_overrides.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
@@ -35,8 +36,13 @@ class AiQuestionContext {
     this.userAnswer,
   });
 
-  /// Target language being taught (e.g. "Turkish").
-  final String language;
+  /// Target language being taught (e.g. "Turkish"), or `null` in generic
+  /// memory-card deck mode where the language/subject must be inferred from
+  /// the question content itself.
+  final String? language;
+
+  /// True when no fixed target language is assumed (e.g. imported deck cards).
+  bool get isGenericLanguage => language == null || language!.trim().isEmpty;
 
   /// Human-readable question type (e.g. "Multiple Choice").
   final String typeLabel;
@@ -184,7 +190,10 @@ class AiHintProvider extends AiStreamingSessionBase {
     notifySessionListeners();
     try {
       final apiMessages = <Map<String, dynamic>>[
-        {'role': 'system', 'content': buildSystemPrompt(ctx)},
+        {
+          'role': 'system',
+          'content': buildSystemPrompt(ctx),
+        },
         _messages[0].toApiDict(),
       ];
       final result = await _engine.chat(
@@ -248,10 +257,32 @@ class AiHintProvider extends AiStreamingSessionBase {
     _streamingAssistantIndex = assistantIndex;
     notifySessionListeners();
     try {
+      final ctx = _context!;
+      final reveal =
+          _prefs.snapshot.allowRevealAnswer || ctx.hasSubmittedAnswer;
+      final bypass = AiPromptGuardrails.detectBypassAttempt(text);
+      final userTurns = _messages.where((m) => m.role == 'user').length;
+      final reinforce = bypass || userTurns >= 3;
+      final systemContent = buildSystemPrompt(
+        ctx,
+        reinforceGuardrail: reinforce,
+        bypassDetected: bypass,
+        withholdAnswer: !reveal,
+      );
       final apiMessages = <Map<String, dynamic>>[
-        {'role': 'system', 'content': buildSystemPrompt(_context!)},
+        {'role': 'system', 'content': systemContent},
         for (var i = 0; i < _messages.length; i++)
-          if (i != assistantIndex) _messages[i].toApiDict(),
+          if (i != assistantIndex)
+            i == 0
+                ? _messages[i].toApiDict()
+                : _messages[i].role == 'user'
+                    ? {
+                        'role': 'user',
+                        'content': AiPromptGuardrails.frameUserMessage(
+                          _messages[i].content,
+                        ),
+                      }
+                    : _messages[i].toApiDict(),
       ];
       final result = await _engine.chat(
         config: config,
@@ -334,38 +365,56 @@ class AiHintProvider extends AiStreamingSessionBase {
   /// 文案在 [AiPromptCatalog.hint]（单一来源）；这里只负责把它需要的运行时
   /// 变量（语言、题型、揭示策略、上下文）准备好。
   @visibleForTesting
-  String buildSystemPrompt(AiQuestionContext ctx) {
+  String buildSystemPrompt(
+    AiQuestionContext ctx, {
+    bool reinforceGuardrail = false,
+    bool bypassDetected = false,
+    bool withholdAnswer = false,
+  }) {
     final prefs = _prefs.snapshot;
     final reveal = prefs.allowRevealAnswer || ctx.hasSubmittedAnswer;
-    return AiPromptCatalog.hint(
+    final base = AiPromptCatalog.hint(
       language: ctx.language,
       typeLabel: ctx.typeLabel,
       allowReveal: reveal,
       prefs: prefs,
-      learnerContextBlock:
-          prefs.injectLearnerContext && (_learnerContext?.isEmpty == false)
-              ? _learnerContext!.toPromptBlock()
-              : null,
+      learnerContextBlock: !ctx.isGenericLanguage &&
+              prefs.injectLearnerContext &&
+              (_learnerContext?.isEmpty == false)
+          ? _learnerContext!.toPromptBlock()
+          : null,
       override: AiPromptOverridesStore.overrideFor(AiPromptFeature.hint),
     );
+    if (!reinforceGuardrail) return base;
+    return '$base\n${AiPromptGuardrails.turnReinforcementBlock(
+      bypassDetected: bypassDetected,
+      withholdAnswer: withholdAnswer,
+    )}';
   }
 
-  /// The first user turn: describe the question for the model.
+  /// The first user turn: describe the question for the model inside a
+  /// `<question_context>` data fence so embedded text cannot act as rules.
   String _buildExplainPrompt(AiQuestionContext ctx) {
-    final buf = StringBuffer()
-      ..writeln(
-          'Please explain the following ${ctx.language} practice question '
-          '(question type: ${ctx.typeLabel}):')
+    final langDesc =
+        ctx.isGenericLanguage ? 'study card / practice' : ctx.language!.trim();
+    final inner = StringBuffer()
+      ..writeln('Question type: ${ctx.typeLabel}')
       ..writeln('Question: ${ctx.promptLabel}');
     if (ctx.optionsLabel != null && ctx.optionsLabel!.isNotEmpty) {
-      buf.writeln('Options: ${ctx.optionsLabel}');
+      inner.writeln('Options: ${ctx.optionsLabel}');
     }
     if (ctx.userAnswer != null && ctx.userAnswer!.isNotEmpty) {
-      buf.writeln('My answer: ${ctx.userAnswer}');
+      inner.writeln('Learner answer: ${ctx.userAnswer}');
     }
+    final buf = StringBuffer()
+      ..writeln('Please explain the following $langDesc question:')
+      ..writeln(AiPromptGuardrails.frameContextBlock(
+        'question_context',
+        inner.toString(),
+      ));
     if (!ctx.hasSubmittedAnswer && !_prefs.snapshot.allowRevealAnswer) {
       buf.writeln(
-          'Explain according to your rules; do not give the answer directly.');
+          'Explain according to your rules; do not give or confirm the answer directly.');
     } else {
       buf.writeln('Explain according to your rules.');
     }
@@ -401,26 +450,41 @@ class AiHintProvider extends AiStreamingSessionBase {
     return parse(decodeJsonObject(result.content));
   }
 
-  /// Explain a grammar point illustrated by [sentence].
+  static String _depthIdentity(String? language) {
+    final name = language?.trim() ?? '';
+    if (name.isEmpty) {
+      return 'You are a focused study tutor. Infer the language or subject '
+          'directly from the provided text; never assume Turkish.';
+    }
+    return 'You are a language-learning tutor. The learner is practicing $name.';
+  }
+
+  /// Explain a grammar point or concept illustrated by [sentence].
   Future<GrammarExplanation> explainGrammarPoint({
     required AiEngineConfig config,
-    required String language,
+    required String? language,
     required String sentence,
     required String grammarPoint,
     AiCancelToken? cancelToken,
   }) {
+    final lang = language?.trim() ?? '';
+    final exampleTarget =
+        lang.isEmpty ? 'the same language as the input' : lang;
     return _typedChat<GrammarExplanation>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a language-learning tutor. The learner is '
-          'practicing $language. Explain grammar points in plain Chinese. '
+      systemPrompt: '${_depthIdentity(language)} Explain grammar points or '
+          'key concepts in plain Chinese.\n'
+          '${AiPromptGuardrails.coreHierarchyBlock()}\n'
           'Respond with ONLY a JSON object (no markdown fences): '
           '{"explanation": string, "relatedExamples": [string], '
           '"contrastWith": [string]}.',
-      userPrompt: 'Grammar point: $grammarPoint\n'
-          'Sentence illustrating it: $sentence\n'
+      userPrompt: '${AiPromptGuardrails.frameContextBlock(
+        'question_context',
+        'Grammar point / focus: $grammarPoint\nSentence / text: $sentence',
+      )}\n'
           'Explain the point. relatedExamples: 2-3 example sentences in '
-          '$language. contrastWith: other points it is often confused with '
+          '$exampleTarget. contrastWith: other points it is often confused with '
           '(may be empty).',
       parse: GrammarExplanation.fromJson,
     );
@@ -429,23 +493,29 @@ class AiHintProvider extends AiStreamingSessionBase {
   /// Compare near-synonymous [words].
   Future<SynonymComparison> compareSynonyms({
     required AiEngineConfig config,
-    required String language,
+    required String? language,
     required List<String> words,
     AiCancelToken? cancelToken,
   }) {
+    final lang = language?.trim() ?? '';
+    final exampleTarget =
+        lang.isEmpty ? 'the same language as the words' : lang;
     final wordList = words.map((w) => '- $w').join('\n');
     return _typedChat<SynonymComparison>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a language-learning tutor. The learner is '
-          'practicing $language. Compare near-synonymous words in plain '
-          'Chinese. Respond with ONLY a JSON object (no markdown fences): '
+      systemPrompt: '${_depthIdentity(language)} Compare near-synonymous words '
+          'or related concepts in plain Chinese.\n'
+          '${AiPromptGuardrails.coreHierarchyBlock()}\n'
+          'Respond with ONLY a JSON object (no markdown fences): '
           '{"pairs": [{"a": string, "b": string, "nuance": string, '
           '"whenToUseA": string, "whenToUseB": string, "examples": [string]}]}.',
-      userPrompt: 'Compare these $language words and explain the nuances:\n'
-          '$wordList\n'
+      userPrompt: '${AiPromptGuardrails.frameContextBlock(
+        'question_context',
+        'Words / terms to compare:\n$wordList',
+      )}\n'
           'Produce one pair entry per meaningful contrast; examples should be '
-          'short sentences in $language.',
+          'short sentences in $exampleTarget.',
       parse: SynonymComparison.fromJson,
     );
   }
@@ -453,31 +523,37 @@ class AiHintProvider extends AiStreamingSessionBase {
   /// Decompose [sentence] token-by-token.
   Future<SentenceBreakdown> decomposeSentence({
     required AiEngineConfig config,
-    required String language,
+    required String? language,
     required String sentence,
     AiCancelToken? cancelToken,
   }) {
     return _typedChat<SentenceBreakdown>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a language-learning tutor. The learner is '
-          'practicing $language. Decompose sentences token by token. Respond '
-          'with ONLY a JSON object (no markdown fences): {"tokens": [{"surface": '
+      systemPrompt: '${_depthIdentity(language)} Decompose sentences token by '
+          'token.\n'
+          '${AiPromptGuardrails.coreHierarchyBlock()}\n'
+          'Respond with ONLY a JSON object (no markdown fences): {"tokens": [{"surface": '
           'string, "lemma": string|null, "gloss": string, "role": string}], '
           '"structure": string}. Glosses and roles in Chinese.',
-      userPrompt: 'Decompose this $language sentence:\n$sentence\n'
+      userPrompt: '${AiPromptGuardrails.frameContextBlock(
+        'question_context',
+        'Sentence to decompose:\n$sentence',
+      )}\n'
           'One token per entry; "structure" is a one-line Chinese summary of '
           'the sentence pattern.',
       parse: SentenceBreakdown.fromJson,
     );
   }
 
-  void _recordRecent(String language) {
+  void _recordRecent(String? language) {
     final context = _context;
     if (context == null) return;
+    final label =
+        (language == null || language.trim().isEmpty) ? '通用' : language.trim();
     recordAiRecentTask(
       kind: AiTaskKind.hintChat,
-      summary: '${context.typeLabel} · $language',
+      summary: '${context.typeLabel} · $label',
       route: AiRecentTaskRoute.hintChat,
     );
   }
