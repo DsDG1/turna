@@ -1,22 +1,8 @@
-/// 目录行族 ——「湿地雾光」阅读目录 / 偏好目录 / 任务台的公共行（P2 组件，
-/// P3 / P4 逐域接线）。
+/// 目录行族 ——「湿地雾光」阅读目录 / 偏好目录 / 任务台的公共行（ADR 0075）。
 ///
 /// 评审确认的版面语言：**行不是卡**。目录用排版 + 发丝线（[Divider] 高 1
 /// 的 [TurnaTheme.dividerBg]）组织，不逐行包卡片；状态用轮廓与形状表达
 /// （实心 = 完成、环 = 当前、浅灰 = 未达 / 锁定），高对比下不靠颜色。
-///
-/// | 行 | 用途 | 规格要点 |
-/// |---|---|---|
-/// | [DirectoryLessonRow] | 课程目录 · 课时 | 46 高，20 圆状态符 |
-/// | [DirectorySubLessonRow] | 课程目录 · 子课 | 40 高，16 圆点，缩进由父级给 |
-/// | [DirectoryGroupHeader] | 课程目录 · 单元头 | 序号块 + 名 + x/n，吸顶由父级 Sliver 做 |
-/// | [DirectoryTaskRow] | 任务台 · 队列行 | 4×26 色条 + 计数，顺序即优先级 |
-/// | [DirectoryEntryRow] | 阅读目录 · 词条/条目 | 标题 + 释义 + 元信息 |
-/// | [DirectoryLinkRow] | 偏好目录 · 分类入口 | 图标井 + 标题 + 一句说明 |
-/// | [DirectoryValueRow] | 偏好目录 · 表单行 | 标签左、值右对齐 |
-///
-/// 状态胶囊、玻璃卡行、假 chevron（不可点行带箭头）是这代组件**刻意不做**
-/// 的旧模式（P0 issues B 类）。
 library;
 
 // Flutter imports:
@@ -27,6 +13,8 @@ import 'package:flutter/widget_previews.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 目录节点的旅程状态。形状语义：实心 = 完成，环 = 当前，淡 = 未达 / 锁定。
 enum DirectoryNodeStatus { todo, current, done, locked }
@@ -45,19 +33,10 @@ class DirectoryLessonRow extends StatelessWidget {
   });
 
   final DirectoryNodeStatus status;
-
-  /// `todo` 态下状态符里显示的序号（「3」）；缺省画空心点。
   final int? indexLabel;
-
   final String title;
-
-  /// 右侧元信息（「5 个子课」「下一个」）。
   final String? meta;
-
-  /// 元信息用 teal 强调（下一个可学的行）。
   final bool metaEmphasized;
-
-  /// `null`（含锁定行）时整行不可点。
   final VoidCallback? onTap;
   final bool showDivider;
 
@@ -85,15 +64,14 @@ class DirectoryLessonRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyText(context).copyWith(
-                    fontSize: 15,
                     fontWeight: status == DirectoryNodeStatus.current
                         ? FontWeight.w600
                         : FontWeight.w400,
                     color: dimmed
                         ? TurnaTheme.textHintColor(context)
                         : status == DirectoryNodeStatus.done
-                            ? TurnaTheme.textSecondaryColor(context)
-                            : TurnaTheme.textPrimaryColor(context),
+                        ? TurnaTheme.textSecondaryColor(context)
+                        : TurnaTheme.textPrimaryColor(context),
                   ),
                 ),
               ),
@@ -102,13 +80,12 @@ class DirectoryLessonRow extends StatelessWidget {
                 Text(
                   meta!,
                   style: AppTextStyles.captionSm(context).copyWith(
-                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: metaEmphasized
                         ? TurnaTheme.brandTeal
                         : dimmed
-                            ? TurnaTheme.textHintColor(context)
-                            : TurnaTheme.textSecondaryColor(context),
+                        ? TurnaTheme.textHintColor(context)
+                        : TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
               ],
@@ -155,32 +132,30 @@ class _LessonSymbol extends StatelessWidget {
               ),
       ),
       child: switch (status) {
-        DirectoryNodeStatus.done => const Icon(
-            Icons.check_rounded,
-            size: 12,
-            color: TurnaTheme.textOnPrimary,
-          ),
+        DirectoryNodeStatus.done => const TurnaIcon(
+          TurnaIconId.check,
+          size: 12,
+          color: TurnaTheme.textOnPrimary,
+        ),
         DirectoryNodeStatus.current => null,
-        _ => indexLabel != null
-            ? Text(
-                '$indexLabel',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: dimmed
-                      ? TurnaTheme.textHintColor(context)
-                      : TurnaTheme.textSecondaryColor(context),
-                ),
-              )
-            : null,
+        _ =>
+          indexLabel != null
+              ? Text(
+                  '$indexLabel',
+                  style: AppTextStyles.caption(context).copyWith(
+                    letterSpacing: 0,
+                    color: dimmed
+                        ? TurnaTheme.textHintColor(context)
+                        : TurnaTheme.textSecondaryColor(context),
+                  ),
+                )
+              : null,
       },
     );
   }
 }
 
 /// 子课行：比课时行矮一号，状态点 16。
-///
-/// 左侧缩进线（评审稿的 2px 芦苇线）由父级分组容器画，本行只负责自己。
 class DirectorySubLessonRow extends StatelessWidget {
   const DirectorySubLessonRow({
     required this.status,
@@ -229,8 +204,8 @@ class DirectorySubLessonRow extends StatelessWidget {
                         ),
                 ),
                 child: status == DirectoryNodeStatus.done
-                    ? const Icon(
-                        Icons.check_rounded,
+                    ? const TurnaIcon(
+                        TurnaIconId.check,
                         size: 10,
                         color: TurnaTheme.brandTeal,
                       )
@@ -243,12 +218,11 @@ class DirectorySubLessonRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.captionSm(context).copyWith(
-                    fontSize: 14,
                     color: dimmed
                         ? TurnaTheme.textHintColor(context)
                         : isCurrent
-                            ? TurnaTheme.textPrimaryColor(context)
-                            : TurnaTheme.textSecondaryColor(context),
+                        ? TurnaTheme.textPrimaryColor(context)
+                        : TurnaTheme.textSecondaryColor(context),
                     fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
@@ -257,8 +231,9 @@ class DirectorySubLessonRow extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   meta!,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppTextStyles.caption(context).copyWith(
+                    letterSpacing: 0,
+                    fontWeight: FontWeight.w500,
                     color: TurnaTheme.textHintColor(context),
                   ),
                 ),
@@ -271,9 +246,7 @@ class DirectorySubLessonRow extends StatelessWidget {
   }
 }
 
-/// 单元 / 分组头：序号块 + 名 + 计数 + 展开指示。
-///
-/// 吸顶（sticky）由调用方用 Sliver 完成；本行只保证自身 44 高的可点区。
+/// 单元 / 分组头：4px 序号块 + 名 + 计数 + 展开指示。
 class DirectoryGroupHeader extends StatelessWidget {
   const DirectoryGroupHeader({
     required this.indexLabel,
@@ -301,17 +274,17 @@ class DirectoryGroupHeader extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
                 child: Text(
                   indexLabel,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.caption(context).copyWith(
+                    letterSpacing: 0,
                     fontWeight: FontWeight.w700,
                     color: TurnaTheme.brandTeal,
                   ),
@@ -323,29 +296,22 @@ class DirectoryGroupHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyText(context).copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: AppTextStyles.cardTitle(context),
                 ),
               ),
               if (meta != null && meta!.isNotEmpty) ...[
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   meta!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TurnaTheme.textSecondaryColor(context),
+                  style: AppTextStyles.captionSm(context).copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
               const SizedBox(width: AppSpacing.xs + 2),
-              Icon(
-                expanded
-                    ? Icons.keyboard_arrow_up_rounded
-                    : Icons.keyboard_arrow_down_rounded,
-                size: 18,
+              TurnaIcon(
+                expanded ? TurnaIconId.chevronUp : TurnaIconId.chevronDown,
+                size: 16,
                 color: TurnaTheme.textSecondaryColor(context),
               ),
             ],
@@ -369,16 +335,10 @@ class DirectoryTaskRow extends StatelessWidget {
     super.key,
   });
 
-  final IconData icon;
-
-  /// 左侧 4×26 色条的色相（错题重练 clay 置顶、SRS teal、语法 sky）。
+  final TurnaIconId icon;
   final Color accent;
   final String title;
-
-  /// 右侧计数（待处理量）；空则不渲染。
   final String? countLabel;
-
-  /// 置顶 / 需要注意的行：标题与图标加粗提权。
   final bool emphasized;
   final VoidCallback? onTap;
   final bool showDivider;
@@ -403,11 +363,11 @@ class DirectoryTaskRow extends StatelessWidget {
                 height: 26,
                 decoration: BoxDecoration(
                   color: accent,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
-              Icon(
+              TurnaIcon(
                 icon,
                 size: 16,
                 color: emphasized
@@ -421,7 +381,6 @@ class DirectoryTaskRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyText(context).copyWith(
-                    fontSize: 15,
                     fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
@@ -430,8 +389,7 @@ class DirectoryTaskRow extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   countLabel!,
-                  style: AppTextStyles.bodyText(context).copyWith(
-                    fontSize: 16,
+                  style: AppTextStyles.cardTitle(context).copyWith(
                     fontWeight: FontWeight.w700,
                     color: TurnaTheme.brandTealDark,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -439,9 +397,9 @@ class DirectoryTaskRow extends StatelessWidget {
                 ),
               ],
               const SizedBox(width: AppSpacing.xs + 2),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
+              TurnaIcon(
+                TurnaIconId.chevronRight,
+                size: 16,
                 color: TurnaTheme.textSecondaryColor(context),
               ),
             ],
@@ -497,8 +455,7 @@ class DirectoryEntryRow extends StatelessWidget {
                       subtitle!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.captionSm(context)
-                          .copyWith(fontSize: 14, height: 1.45),
+                      style: AppTextStyles.captionSm(context),
                     ),
                   ],
                   if (meta != null && meta!.isNotEmpty) ...[
@@ -507,10 +464,9 @@ class DirectoryEntryRow extends StatelessWidget {
                       meta!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TurnaTheme.textHintColor(context),
-                      ),
+                      style: AppTextStyles.caption(
+                        context,
+                      ).copyWith(letterSpacing: 0, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ],
@@ -527,7 +483,7 @@ class DirectoryEntryRow extends StatelessWidget {
   }
 }
 
-/// 链接行：偏好目录的分类入口（图标井 + 标题 + 一句说明）。
+/// 链接行：偏好目录的分类入口（4px 图标井 + 标题 + 一句说明）。
 class DirectoryLinkRow extends StatelessWidget {
   const DirectoryLinkRow({
     required this.icon,
@@ -539,9 +495,7 @@ class DirectoryLinkRow extends StatelessWidget {
     super.key,
   });
 
-  final IconData icon;
-
-  /// 图标井的色相（按域取湿地色相）。
+  final TurnaIconId icon;
   final Color iconTone;
   final String title;
   final String? description;
@@ -565,9 +519,9 @@ class DirectoryLinkRow extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.softTint(context, iconTone, alpha: 0.12),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: Icon(
+                child: TurnaIcon(
                   icon,
                   size: 18,
                   color: TurnaTheme.accentOnCard(context, iconTone),
@@ -590,20 +544,16 @@ class DirectoryLinkRow extends StatelessWidget {
                         description!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.4,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
+                        style: AppTextStyles.captionSm(context),
                       ),
                     ],
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.xs + 2),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
+              TurnaIcon(
+                TurnaIconId.chevronRight,
+                size: 16,
                 color: TurnaTheme.textSecondaryColor(context),
               ),
             ],
@@ -615,9 +565,6 @@ class DirectoryLinkRow extends StatelessWidget {
 }
 
 /// 表单值行：偏好目录深页的「标签左、值右」行。
-///
-/// [control] 给开关 / 滑块等就地控件；给了 [control] 就不再画值与箭头
-/// （整行不响应点按，控件自己接事件）。
 class DirectoryValueRow extends StatelessWidget {
   const DirectoryValueRow({
     required this.label,
@@ -650,7 +597,7 @@ class DirectoryValueRow extends StatelessWidget {
                 child: Text(
                   label,
                   style: AppTextStyles.bodyText(context)
-                      .copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+                      .copyWith(fontWeight: FontWeight.w500),
                 ),
               ),
               if (control != null) ...[
@@ -662,7 +609,6 @@ class DirectoryValueRow extends StatelessWidget {
                   Text(
                     value!,
                     style: AppTextStyles.bodyText(context).copyWith(
-                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -670,9 +616,9 @@ class DirectoryValueRow extends StatelessWidget {
                 ],
                 if (interactive) ...[
                   const SizedBox(width: AppSpacing.xs + 2),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
+                  TurnaIcon(
+                    TurnaIconId.chevronRight,
+                    size: 16,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ],
@@ -685,7 +631,6 @@ class DirectoryValueRow extends StatelessWidget {
   }
 }
 
-/// 行壳：InkWell + 底发丝线。私有——行族内部统一，外部不需要。
 class _RowShell extends StatelessWidget {
   const _RowShell({required this.child, this.onTap, this.showDivider = true});
 
@@ -710,9 +655,10 @@ class _RowShell extends StatelessWidget {
 
 @Preview(name: 'Directory rows · light', group: 'Wetland mist')
 @Preview(
-    name: 'Directory rows · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Directory rows · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget directoryRowsPreview() => const _DirectoryRowsPreview();
 
 class _DirectoryRowsPreview extends StatelessWidget {
@@ -720,60 +666,59 @@ class _DirectoryRowsPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return const SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const DirectoryGroupHeader(
-                indexLabel: '5', title: '咖啡与茶', meta: '0 / 4'),
-            const DirectoryLessonRow(
+            DirectoryGroupHeader(indexLabel: '5', title: '咖啡与茶', meta: '0 / 4'),
+            DirectoryLessonRow(
               status: DirectoryNodeStatus.done,
               title: 'Merhaba!',
             ),
-            const DirectoryLessonRow(
+            DirectoryLessonRow(
               status: DirectoryNodeStatus.current,
               title: 'Merhaba，练熟它',
               meta: '下一个',
               metaEmphasized: true,
             ),
-            const DirectoryLessonRow(
+            DirectoryLessonRow(
               status: DirectoryNodeStatus.todo,
               indexLabel: 3,
               title: 'nasılsın？',
             ),
-            const DirectorySubLessonRow(
+            DirectorySubLessonRow(
               status: DirectoryNodeStatus.current,
               title: '欢迎来到土耳其语的世界',
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const DirectoryTaskRow(
-              icon: Icons.book_rounded,
+            SizedBox(height: AppSpacing.xl),
+            DirectoryTaskRow(
+              icon: TurnaIconId.book,
               accent: TurnaTheme.anatolianClay,
               title: '错题重练',
               countLabel: '6',
               emphasized: true,
             ),
-            const DirectoryTaskRow(
-              icon: Icons.book_rounded,
+            DirectoryTaskRow(
+              icon: TurnaIconId.book,
               accent: TurnaTheme.brandTeal,
               title: '单词 · SRS',
               countLabel: '12',
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const DirectoryEntryRow(
+            SizedBox(height: AppSpacing.xl),
+            DirectoryEntryRow(
               title: 'merhaba',
               subtitle: '感叹词 · 你好',
               meta: 'Türkçe 1k · 已学',
             ),
-            const DirectoryLinkRow(
-              icon: Icons.book_rounded,
+            DirectoryLinkRow(
+              icon: TurnaIconId.book,
               iconTone: TurnaTheme.brandTeal,
               title: '学习',
               description: '语言、课程更新、朗读与复习节奏',
             ),
-            const DirectoryValueRow(label: '主题', value: '跟随系统'),
+            DirectoryValueRow(label: '主题', value: '跟随系统'),
           ],
         ),
       ),

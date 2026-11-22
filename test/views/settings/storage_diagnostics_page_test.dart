@@ -16,9 +16,11 @@ import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/storage_diagnostics_page.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 class _FakeScanner implements StorageInventoryService {
   _FakeScanner(this.report);
@@ -45,10 +47,10 @@ class _PageCache implements CacheDiagnosticsAdapter {
   String get owner => 'ai.responseCache';
   @override
   Future<CacheFootprint> inspect() async => const CacheFootprint(
-        owner: 'ai.responseCache',
-        entries: 7,
-        estimatedBytes: null,
-      );
+    owner: 'ai.responseCache',
+    entries: 7,
+    estimatedBytes: null,
+  );
   @override
   Future<CacheClearResult> clearRegenerable() async =>
       const CacheClearResult(owner: 'ai.responseCache', clearedEntries: 7);
@@ -112,7 +114,7 @@ void main() {
     WidgetTester tester,
     StorageInventoryService scanner, {
     Future<OfficialStorageOptimizeResult> Function({required bool force})?
-        optimize,
+    optimize,
     Future<List<StorageDeletableItem>> Function()? listOfficialSources,
     Future<bool> Function(String id)? uninstall,
     Future<OfficialAnkiGhostPurgeResult> Function()? forcePurgeOfficial,
@@ -131,8 +133,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders the dashboard, plain categories and the clear action',
-      (tester) async {
+  testWidgets('renders the dashboard, plain categories and the clear action', (
+    tester,
+  ) async {
     await pumpPage(tester, _FakeScanner(_cannedReport));
 
     expect(find.text('存储与性能'), findsOneWidget);
@@ -150,7 +153,12 @@ void main() {
     // 512 + 256 = 768 bytes safely reclaimable.
     expect(find.textContaining('清理缓存，可释放 768 B'), findsOneWidget);
     // Rescan moved to the app bar.
-    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TurnaIcon && w.id == TurnaIconId.refresh,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('low-level jargon never appears on the page', (tester) async {
@@ -174,21 +182,24 @@ void main() {
     expect(find.text('重试'), findsOneWidget);
   });
 
-  testWidgets('runtime memory uses plain wording, separate from disk usage',
-      (tester) async {
+  testWidgets('runtime memory uses plain wording, separate from disk usage', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(MaterialApp(
-      home: StorageDiagnosticsPage(
-        scanner: _FakeScanner(_cannedReport),
-        cacheRegistry: CacheDiagnosticsRegistry([_PageCache()]),
-        memorySampler: () async => RuntimeMemorySnapshot(
-          currentRssBytes: 8 * 1024 * 1024,
-          dartHeapBytes: null,
-          sampledAt: DateTime(2026, 8, 23, 12),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StorageDiagnosticsPage(
+          scanner: _FakeScanner(_cannedReport),
+          cacheRegistry: CacheDiagnosticsRegistry([_PageCache()]),
+          memorySampler: () async => RuntimeMemorySnapshot(
+            currentRssBytes: 8 * 1024 * 1024,
+            dartHeapBytes: null,
+            sampledAt: DateTime(2026, 8, 23, 12),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('当前运行内存'), findsOneWidget);
@@ -197,8 +208,9 @@ void main() {
     expect(find.textContaining('和磁盘上的文件大小是两回事'), findsOneWidget);
   });
 
-  testWidgets('optimize button confirms then calls force compact',
-      (tester) async {
+  testWidgets('optimize button confirms then calls force compact', (
+    tester,
+  ) async {
     var calls = 0;
     var lastForce = false;
     await pumpPage(
@@ -215,10 +227,9 @@ void main() {
     await tester.tap(find.byKey(const Key('storage-optimize-db')));
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.storageOptimizeConfirmTitle), findsOneWidget);
-    await tester.tap(find.widgetWithText(
-      FilledButton,
-      AppStrings.storageOptimizeDatabase,
-    ));
+    await tester.tap(
+      find.widgetWithText(FilledButton, AppStrings.storageOptimizeDatabase),
+    );
     await tester.pumpAndSettle();
 
     expect(calls, 1);
@@ -244,8 +255,9 @@ void main() {
     expect(calls, 0);
   });
 
-  testWidgets('official collection drill-down deletes selected sources',
-      (tester) async {
+  testWidgets('official collection drill-down deletes selected sources', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final uninstalled = <String>[];
@@ -371,7 +383,9 @@ void main() {
     await tester.tap(find.byKey(const Key('storage-category-official')));
     await tester.pumpAndSettle();
     expect(
-        find.text(AppStrings.storageOfficialCollectionEmpty), findsOneWidget);
+      find.text(AppStrings.storageOfficialCollectionEmpty),
+      findsOneWidget,
+    );
     final button = tester.widget<FilledButton>(
       find.byKey(const Key('storage-delete-selected')),
     );
@@ -427,10 +441,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('storage-force-purge')));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(
-      FilledButton,
-      AppStrings.storageForcePurgeOfficial,
-    ));
+    await tester.tap(
+      find.widgetWithText(FilledButton, AppStrings.storageForcePurgeOfficial),
+    );
     await tester.pumpAndSettle();
     expect(purges, 1);
     expect(find.text(AppStrings.storageForcePurgeOfficialDone), findsOneWidget);

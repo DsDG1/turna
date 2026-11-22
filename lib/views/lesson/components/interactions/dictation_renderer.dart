@@ -8,12 +8,14 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/turkish_text.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 听写 (ADR 0057 §4): audio only on the question face, typed answer.
 ///
@@ -70,10 +72,8 @@ class _DictationBodyState extends State<_DictationBody> {
   void _syncDraft(BuildContext context) {
     final canSubmit =
         !widget.state.submitted && _controller.text.trim().isNotEmpty;
-    LessonActionScope.maybeOf(context)?.report(
-      canSubmit: canSubmit,
-      submit: canSubmit ? _trySubmit : null,
-    );
+    LessonActionScope.maybeOf(context)
+        ?.report(canSubmit: canSubmit, submit: canSubmit ? _trySubmit : null);
   }
 
   void _onTextChanged() {
@@ -126,8 +126,8 @@ class _DictationBodyState extends State<_DictationBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.hearing_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.headphones,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -145,9 +145,7 @@ class _DictationBodyState extends State<_DictationBody> {
                   style: AppTextStyles.promptMd(context),
                 ),
                 const SizedBox(height: 18),
-                Center(
-                  child: AnkiMediaStrip(audioAssets: widget.audioAssets),
-                ),
+                Center(child: AnkiMediaStrip(audioAssets: widget.audioAssets)),
               ],
             ),
           ),
@@ -158,8 +156,10 @@ class _DictationBodyState extends State<_DictationBody> {
           const SizedBox(height: 24),
           InteractionTextField(
             controller: _controller,
-            verdict:
-                interactionVerdictOf(submitted: submitted, correct: correct),
+            verdict: interactionVerdictOf(
+              submitted: submitted,
+              correct: correct,
+            ),
             enabled: !submitted,
             autofocus: !submitted,
             textAlign: TextAlign.center,

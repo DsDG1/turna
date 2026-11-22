@@ -19,7 +19,10 @@ import 'package:flutter/widget_previews.dart';
 // Project imports:
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// 搜索输入框（防抖内建）。
 class TurnaSearchField extends StatefulWidget {
@@ -86,8 +89,9 @@ class _TurnaSearchFieldState extends State<TurnaSearchField> {
 
   void _adoptController() {
     _ownedController?.dispose();
-    _ownedController =
-        widget.controller == null ? TextEditingController() : null;
+    _ownedController = widget.controller == null
+        ? TextEditingController()
+        : null;
   }
 
   TextEditingController get _effectiveController =>
@@ -125,45 +129,39 @@ class _TurnaSearchFieldState extends State<TurnaSearchField> {
           style: Theme.of(context).textTheme.bodyLarge,
           decoration: InputDecoration(
             hintText: widget.hint,
-            prefixIcon: const Icon(Icons.search_rounded),
-            // 查询中给 spinner；有词给清除键；都没有就留空——右侧三种态
-            // 共用同一个槽位，宽度不跳。
+            prefixIcon: const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: TurnaIcon(TurnaIconId.search, size: 20),
+            ),
             suffixIcon: widget.searching
-                ? const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                ? Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md + 2),
+                    child: TurnaLoader.inline(size: 16),
                   )
                 : (value.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: AppStrings.commonClose,
-                        onPressed: _clear,
-                      )),
+                      ? null
+                      : IconButton(
+                          icon: const TurnaIcon(TurnaIconId.close, size: 18),
+                          tooltip: AppStrings.commonClose,
+                          onPressed: _clear,
+                        )),
             filled: true,
             fillColor: TurnaTheme.inputFillColor(context),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.md + 2,
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            border: const OutlineInputBorder(
+              borderRadius: TurnaTheme.borderRadius,
               borderSide: BorderSide.none,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: TurnaTheme.borderRadius,
               borderSide: BorderSide.none,
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              borderSide: const BorderSide(
-                color: TurnaTheme.brandTeal,
-                width: 1.5,
-              ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: TurnaTheme.borderRadius,
+              borderSide: BorderSide(color: TurnaTheme.brandTeal, width: 1.5),
             ),
           ),
         );
@@ -174,15 +172,13 @@ class _TurnaSearchFieldState extends State<TurnaSearchField> {
 
 @Preview(name: 'Search field · light', group: 'Wetland mist')
 @Preview(
-    name: 'Search field · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Search field · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget turnaSearchFieldPreview() => const Padding(
-      padding: EdgeInsets.all(AppSpacing.pageMargin),
-      child: TurnaSearchField(
-        hint: '搜索词条',
-        onDebouncedChanged: _noop,
-      ),
-    );
+  padding: EdgeInsets.all(AppSpacing.pageMargin),
+  child: TurnaSearchField(hint: '搜索词条', onDebouncedChanged: _noop),
+);
 
 void _noop(String value) {}

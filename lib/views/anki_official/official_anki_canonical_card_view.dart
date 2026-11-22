@@ -5,11 +5,13 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_router.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// Inline interaction surface for official `canonicalLink` items — the card
 /// renders inside the lesson itself instead of pushing the reviewer page.
@@ -168,10 +170,7 @@ class _OfficialAnkiCanonicalCardViewState
       );
     }
     if (_booting) {
-      return const SizedBox(
-        height: 280,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return SizedBox(height: 280, child: Center(child: TurnaLoader.page()));
     }
     final bootError = _bootError;
     if (bootError != null) {
@@ -192,16 +191,15 @@ class _OfficialAnkiCanonicalCardViewState
     final controller = _controller;
     final paths = _paths;
     if (controller == null || paths == null) {
-      return const SizedBox(
-        height: 280,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return SizedBox(height: 280, child: Center(child: TurnaLoader.page()));
     }
     // The lesson hosts renderers under a SingleChildScrollView (unbounded
     // height), but the stage is a Column+Expanded over a platform view —
     // give it an explicit height slice of the screen.
-    final stageHeight =
-        (MediaQuery.sizeOf(context).height * 0.55).clamp(280.0, 520.0);
+    final stageHeight = (MediaQuery.sizeOf(context).height * 0.55).clamp(
+      280.0,
+      520.0,
+    );
     return Column(
       key: const Key('official-canonical-card'),
       mainAxisSize: MainAxisSize.min,
@@ -228,10 +226,8 @@ class _OfficialAnkiCanonicalCardViewState
         padding: const EdgeInsets.only(top: 4),
         child: Text(
           AppStrings.officialAnkiCanonicalViewed,
-          style: TextStyle(
-            fontSize: 13,
-            color: TurnaTheme.textHintColor(context),
-          ),
+          style: AppTextStyles.captionSm(context)
+              .copyWith(color: TurnaTheme.textHintColor(context)),
         ),
       );
     }
@@ -252,10 +248,8 @@ class _OfficialAnkiCanonicalCardViewState
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               AppStrings.officialAnkiCanonicalFlipHint,
-              style: TextStyle(
-                fontSize: 13,
-                color: TurnaTheme.textHintColor(context),
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textHintColor(context)),
             ),
           ),
       ],

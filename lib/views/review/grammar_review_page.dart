@@ -18,6 +18,7 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/grammar_point.dart';
@@ -30,7 +31,9 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/review/components/review_components.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 enum _GrammarCardPhase { explain, practice, rate }
 
@@ -104,8 +107,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
       _showExplanation = true;
       final point = _currentPoint;
       final items = _practiceFor(point);
-      _phase =
-          items.isEmpty ? _GrammarCardPhase.rate : _GrammarCardPhase.practice;
+      _phase = items.isEmpty
+          ? _GrammarCardPhase.rate
+          : _GrammarCardPhase.practice;
       _practiceIndex = 0;
       _practiceSubmitted = false;
       _practiceCorrect = null;
@@ -176,20 +180,21 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     // Record study activity for statistics dashboard
     try {
       await context.read<StudyStatsProvider>().recordActivity(
-            type: StudyActivityType.grammarReview,
-            xpEarned: xp,
-            durationSeconds: 0,
-            correctCount: reviewedCount,
-            incorrectCount: 0,
-          );
+        type: StudyActivityType.grammarReview,
+        xpEarned: xp,
+        durationSeconds: 0,
+        correctCount: reviewedCount,
+        incorrectCount: 0,
+      );
     } catch (e) {
       logger.w('Error recording grammar study stats: $e');
     }
 
     // Achievement evaluation after the authoritative writes above.
     try {
-      await getIt<AchievementService>()
-          .recordReviewSession(cardsAnswered: reviewedCount);
+      await getIt<AchievementService>().recordReviewSession(
+        cardsAnswered: reviewedCount,
+      );
     } catch (e) {
       logger.w('Error evaluating achievements: $e');
     }
@@ -254,9 +259,10 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     setState(() => _ratingInFlight = true);
     var ok = false;
     try {
-      ok = await context
-          .read<GrammarReviewProvider>()
-          .rollbackGrammarPoint(previous.wordId, previous);
+      ok = await context.read<GrammarReviewProvider>().rollbackGrammarPoint(
+        previous.wordId,
+        previous,
+      );
       if (!ok && mounted) {
         TurnaSnackBar.show(context, AppStrings.grammarRateFailed);
       }
@@ -292,12 +298,15 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
 
     if (_queue.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(AppStrings.reviewGrammarReviewTitle)),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        appBar: TurnaTopBar(title: AppStrings.reviewGrammarReviewTitle),
         body: PracticeEmptyState(
           title: AppStrings.reviewNoItemsDue,
           message: dueCount > 0
               ? AppStrings.reviewDueCountMessage(
-                  dueCount, AppStrings.reviewGrammarDueMessage)
+                  dueCount,
+                  AppStrings.reviewGrammarDueMessage,
+                )
               : AppStrings.reviewGrammarEmptyMessage,
           actionLabel: AppStrings.commonRefresh,
           onAction: _loadQueue,
@@ -314,8 +323,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
         onDone: () => Navigator.of(context).pop(),
         onReviewMore: _loadQueue,
         title: AppStrings.reviewGrammarSessionComplete,
-        completionMessage:
-            AppStrings.reviewGrammarCompletionMessage(_sessionCount),
+        completionMessage: AppStrings.reviewGrammarCompletionMessage(
+          _sessionCount,
+        ),
       );
     }
 
@@ -334,7 +344,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
         actions: [
           IconButton(
             tooltip: AppStrings.commonUndoLastCard,
-            icon: const Icon(Icons.undo_rounded),
+            icon: const TurnaIcon(TurnaIconId.undo, size: 20),
             onPressed: _canUndo ? _onUndo : null,
           ),
         ],
@@ -349,21 +359,23 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
           ),
           child:
               _phase == _GrammarCardPhase.practice && practiceItems.isNotEmpty
-                  ? _PracticePanel(
-                      interaction: practiceItems[_practiceIndex],
-                      renderers: _renderers,
-                      submitted: _practiceSubmitted,
-                      correct: _practiceCorrect,
-                      onSubmit: _onPracticeSubmit,
-                      progressLabel: AppStrings.reviewGrammarPracticeLabel(
-                          _practiceIndex + 1, practiceItems.length),
-                    )
-                  : _GrammarCard(
-                      word: item,
-                      point: point,
-                      showExplanation: _showExplanation,
-                      onFlip: _onRevealExplanation,
-                    ),
+              ? _PracticePanel(
+                  interaction: practiceItems[_practiceIndex],
+                  renderers: _renderers,
+                  submitted: _practiceSubmitted,
+                  correct: _practiceCorrect,
+                  onSubmit: _onPracticeSubmit,
+                  progressLabel: AppStrings.reviewGrammarPracticeLabel(
+                    _practiceIndex + 1,
+                    practiceItems.length,
+                  ),
+                )
+              : _GrammarCard(
+                  word: item,
+                  point: point,
+                  showExplanation: _showExplanation,
+                  onFlip: _onRevealExplanation,
+                ),
         ),
       ),
       bottomNavigationBar: SessionActionBand(
@@ -376,9 +388,10 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
   /// 双档评分带（ReviewGrade.unknown → outline、known → primary）。
   Widget _buildPhaseAction(List<Interaction> practiceItems) {
     if (_phase == _GrammarCardPhase.rate) {
-      final passDays = context
-          .read<GrammarReviewProvider>()
-          .previewOutcomeDays(_queue[_currentIndex], ReviewOutcome.pass);
+      final passDays = context.read<GrammarReviewProvider>().previewOutcomeDays(
+        _queue[_currentIndex],
+        ReviewOutcome.pass,
+      );
       return SessionRatingBand(
         above: Text(
           AppStrings.reviewGrammarDoYouUnderstand,
@@ -395,8 +408,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
           SessionRatingAction(
             label: AppStrings.reviewKnowIt,
             tone: SessionRatingTone.primary,
-            interval:
-                passDays > 0 ? AppStrings.reviewIntervalDays(passDays) : null,
+            interval: passDays > 0
+                ? AppStrings.reviewIntervalDays(passDays)
+                : null,
             onPressed: () => unawaited(_onRate(ReviewGrade.known)),
           ),
         ],
@@ -444,32 +458,29 @@ class _PracticePanel extends StatelessWidget {
     final renderer = lookupRenderer(renderers, interaction);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.cardPadding,
       // ADR 0062：题干卡 → teal L1 玻璃。
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassFocus,
         level: GlassLevel.l1,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             progressLabel,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: TurnaTheme.brandTeal,
-                  fontWeight: FontWeight.w700,
-                ),
+            style: AppTextStyles.captionSm(context).copyWith(
+              color: TurnaTheme.brandTeal,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             child: renderer.build(
               interaction,
-              InteractionState(
-                submitted: submitted,
-                correct: correct,
-              ),
+              InteractionState(submitted: submitted, correct: correct),
               submitted ? (_, {userAnswerText, reviewQuality}) {} : onSubmit,
             ),
           ),
@@ -498,13 +509,13 @@ class _GrammarCard extends StatelessWidget {
       onTap: showExplanation ? null : onFlip,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         // ADR 0062：语法点解释卡 → teal L1 玻璃（内容卡层级）。
         decoration: TurnaTheme.glassDecoration(
           context,
           TurnaTheme.glassFocus,
           level: GlassLevel.l1,
-          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+          borderRadius: TurnaTheme.borderRadius,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -513,61 +524,53 @@ class _GrammarCard extends StatelessWidget {
               if (point != null) ...[
                 Text(
                   point!.title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
+                  style: AppTextStyles.promptLg(context)
+                      .copyWith(fontWeight: FontWeight.w700),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 if (showExplanation) ...[
-                  const Divider(),
-                  const SizedBox(height: 16),
+                  Divider(height: 1, color: TurnaTheme.dividerBg(context)),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     point!.explanation,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.5,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
+                    style: AppTextStyles.bodyText(context),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Consumer<GrammarReviewProvider>(
                     builder: (context, grammar, _) {
-                      final lessonName =
-                          grammar.getLessonNameForGrammarPoint(word.wordId);
+                      final lessonName = grammar.getLessonNameForGrammarPoint(
+                        word.wordId,
+                      );
                       return Text(
                         lessonName != null
                             ? AppStrings.reviewGrammarLearnedIn(lessonName)
                             : AppStrings.reviewGrammarFirstSeen(word.wordId),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textHintColor(context),
-                            ),
+                        style: AppTextStyles.captionSm(context)
+                            .copyWith(color: TurnaTheme.textHintColor(context)),
                       );
                     },
                   ),
                 ] else ...[
                   Text(
                     AppStrings.reviewGrammarTapToReveal,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: AppTextStyles.captionSm(context)
+                        .copyWith(color: TurnaTheme.textHintColor(context)),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ] else ...[
                 Text(
                   word.wordId,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: AppTextStyles.promptLg(context)
+                      .copyWith(fontWeight: FontWeight.w700),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   AppStrings.reviewGrammarPointNotFound,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
+                  style: AppTextStyles.captionSm(context)
+                      .copyWith(color: TurnaTheme.textHintColor(context)),
                   textAlign: TextAlign.center,
                 ),
               ],

@@ -17,6 +17,8 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 Future<OfficialAnkiReviewerController> createOfficialAnkiReviewerController({
   required OfficialAnkiPaths paths,
@@ -118,12 +120,15 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
   @override
   Widget build(BuildContext context) {
     if (_booting) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(body: Center(child: TurnaLoader.page()));
     }
     if (_bootError != null) {
       final error = _bootError;
       return Scaffold(
-        appBar: AppBar(title: Text(AppStrings.ankiOfficialPreviewTitle)),
+        appBar: TurnaTopBar(
+          title: AppStrings.ankiOfficialPreviewTitle,
+          showDivider: true,
+        ),
         body: OfficialAnkiReviewerErrorView(
           messageKey: error is OfficialAnkiException
               ? error.messageKey
@@ -135,7 +140,10 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: Text(AppStrings.ankiOfficialPreviewTitle)),
+      appBar: TurnaTopBar(
+        title: AppStrings.ankiOfficialPreviewTitle,
+        showDivider: true,
+      ),
       body: OfficialAnkiReviewerStage(
         controller: _controller!,
         paths: widget.paths,

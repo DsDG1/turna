@@ -4,11 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// 全局弹层（P2 组件）的行为契约：结构完整性（拖手 / 标题 / 操作区）、
 /// 次左主右、危险色、关闭路径与确认弹层的返回值。
 void main() {
+  Finder findCloseIcon() => find.byWidgetPredicate(
+    (w) => w is TurnaIcon && w.id == TurnaIconId.close,
+  );
+
   Future<void> openSheet(
     WidgetTester tester, {
     List<TurnaSheetAction>? actions,
@@ -44,7 +50,7 @@ void main() {
       expect(find.text('删除学习记录'), findsOneWidget);
       expect(find.text('只删除这一课的完成记录'), findsOneWidget);
       expect(find.text('正文'), findsOneWidget);
-      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      expect(findCloseIcon(), findsOneWidget);
     });
 
     testWidgets('主操作弹层返回值；关闭键返回 null', (tester) async {
@@ -57,19 +63,22 @@ void main() {
               builder: (context) => Center(
                 child: FilledButton(
                   onPressed: () async {
-                    result.add(await showTurnaSheet<String>(
-                      context: context,
-                      title: '选择',
-                      body: const Text('正文'),
-                      actions: [
-                        const TurnaSheetAction(label: '取消', onPressed: null),
-                        TurnaSheetAction(
-                          label: '删除',
-                          primary: true,
-                          onPressed: () => Navigator.of(context).pop('deleted'),
-                        ),
-                      ],
-                    ));
+                    result.add(
+                      await showTurnaSheet<String>(
+                        context: context,
+                        title: '选择',
+                        body: const Text('正文'),
+                        actions: [
+                          const TurnaSheetAction(label: '取消', onPressed: null),
+                          TurnaSheetAction(
+                            label: '删除',
+                            primary: true,
+                            onPressed: () =>
+                                Navigator.of(context).pop('deleted'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                   child: const Text('打开'),
                 ),
@@ -88,7 +97,7 @@ void main() {
       // 再开一次，走关闭键。
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.tap(findCloseIcon());
       await tester.pumpAndSettle();
       expect(result.length, 2);
       expect(result.last, isNull);

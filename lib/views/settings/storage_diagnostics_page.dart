@@ -19,15 +19,19 @@ import 'package:turna/application/maintenance/official_anki_ghost_purge_service.
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/platform_page_route.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// User-facing storage overview ("存储与性能"): a dashboard over
@@ -61,7 +65,7 @@ class StorageDiagnosticsPage extends StatefulWidget {
 
   /// Test seam: inject instead of [OfficialStorageOptimizeService.runForceCompact].
   final Future<OfficialStorageOptimizeResult> Function({required bool force})?
-      optimizeDatabases;
+  optimizeDatabases;
 
   /// Test seam: official source rows for the Anki-collection drill-down.
   final Future<List<StorageDeletableItem>> Function()? listOfficialSources;
@@ -134,8 +138,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     final confirmed = await showTurnaConfirmDialog(
       context: context,
       title: AppStrings.storageDiagClearCacheTitle,
-      message:
-          AppStrings.storageDiagClearCacheBody(_formatBytes(reclaimableBytes)),
+      message: AppStrings.storageDiagClearCacheBody(
+        _formatBytes(reclaimableBytes),
+      ),
       confirmLabel: AppStrings.ankiRepairCleanAction,
     );
     if (confirmed != true || !mounted) return;
@@ -158,8 +163,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       if (injected != null) {
         result = await injected(force: true);
       } else {
-        final doctorRes =
-            await const DatabaseDoctorService().optimizeAll(force: true);
+        final doctorRes = await const DatabaseDoctorService().optimizeAll(
+          force: true,
+        );
         result = OfficialStorageOptimizeResult(
           ok: doctorRes.ok,
           completedJobs: doctorRes.ankiJobsCompleted,
@@ -177,8 +183,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     setState(() => _optimizing = false);
     final message = !result.ok
         ? (result.errorCode == 'capability_missing'
-            ? AppStrings.storageOptimizeUnavailable
-            : AppStrings.storageOptimizeFailed)
+              ? AppStrings.storageOptimizeUnavailable
+              : AppStrings.storageOptimizeFailed)
         : AppStrings.storageOptimizeDone(result.completedJobs);
     TurnaSnackBar.show(context, message);
     await _rescan();
@@ -195,7 +201,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       context: context,
       title: AppStrings.storageDiagDeleteOrphansTitle,
       message: AppStrings.storageDiagDeleteOrphansBody(
-          orphans.length, _formatBytes(bytes)),
+        orphans.length,
+        _formatBytes(bytes),
+      ),
       confirmLabel: AppStrings.commonDelete,
       destructive: true,
     );
@@ -208,8 +216,10 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           cleaned++;
         }
       } catch (e) {
-        logger.w('[StorageDiagnostics] orphan delete failed '
-            'for ${orphan.ownerId}: $e');
+        logger.w(
+          '[StorageDiagnostics] orphan delete failed '
+          'for ${orphan.ownerId}: $e',
+        );
       }
     }
     if (!mounted) return;
@@ -236,8 +246,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       logger.d('StorageDiagnostics: readOnly locator init failed: $e');
     }
     return [
-      for (final source in const OfficialAnkiCatalogService()
-          .deletableSources(CourseCatalog.officialProfileId))
+      for (final source in const OfficialAnkiCatalogService().deletableSources(
+        CourseCatalog.officialProfileId,
+      ))
         StorageDeletableItem(
           id: source.sourceId,
           displayName: source.displayName,
@@ -271,8 +282,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   }
 
   Future<void> _openOfficialCollection(StorageInventoryReport report) async {
-    final bytes =
-        _bytesOf(report, const {StorageArtifactCategory.officialAnki});
+    final bytes = _bytesOf(report, const {
+      StorageArtifactCategory.officialAnki,
+    });
     await _pushCategoryItems(
       title: AppStrings.storageOfficialCollectionTitle,
       totalBytesLabel: _formatBytes(bytes),
@@ -341,7 +353,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       actions: [
         IconButton(
           onPressed: _loading ? null : _rescan,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: const TurnaIcon(TurnaIconId.refresh),
           tooltip: AppStrings.storageDiagRescan,
         ),
       ],
@@ -358,7 +370,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           onRetry: _rescan,
         );
       }
-      return const Center(child: CircularProgressIndicator());
+      return const TurnaLoader.page();
     }
     final report = data.report;
     final reclaimable = report.safelyReclaimableBytes;
@@ -376,16 +388,17 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           width: double.infinity,
           child: FilledButton.icon(
             onPressed: reclaimable > 0 ? () => _clearCaches(reclaimable) : null,
-            icon: Icon(
+            icon: TurnaIcon(
               reclaimable > 0
-                  ? Icons.cleaning_services_outlined
-                  : Icons.check_circle_outline,
+                  ? TurnaIconId.deleteSweep
+                  : TurnaIconId.checkCircle,
               size: 18,
             ),
             label: Text(
               reclaimable > 0
                   ? AppStrings.storageDiagClearCacheButton(
-                      _formatBytes(reclaimable))
+                      _formatBytes(reclaimable),
+                    )
                   : AppStrings.storageDiagCacheClean,
             ),
           ),
@@ -397,12 +410,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
             key: const Key('storage-optimize-db'),
             onPressed: (_loading || _optimizing) ? null : _optimizeDatabases,
             icon: _optimizing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.compress_outlined, size: 18),
+                ? const TurnaLoader.button()
+                : const TurnaIcon(TurnaIconId.storage, size: 18),
             label: Text(
               _optimizing
                   ? AppStrings.storageOptimizeBusy
@@ -444,10 +453,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
         Text(
           AppStrings.storageDiagScannedAt(_formatTime(report.scannedAt)),
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 11,
-            color: TurnaTheme.textHintColor(context),
-          ),
+          style: AppTextStyles.captionSm(context)
+              .copyWith(color: TurnaTheme.textHintColor(context)),
         ),
       ],
     );
@@ -508,7 +515,7 @@ class _CategorySpec {
   final _UserBucket bucket;
   final String title;
   final String subtitle;
-  final IconData icon;
+  final TurnaIconId icon;
   final Color color;
   final int bytes;
 }
@@ -532,7 +539,7 @@ List<_CategorySpec> _categorySpecs(
       bucket: _UserBucket.study,
       title: AppStrings.storageDiagStudyData,
       subtitle: AppStrings.storageDiagStudyDataSubtitle,
-      icon: Icons.school_outlined,
+      icon: TurnaIconId.school,
       color: TurnaTheme.brandTeal,
       bytes: _bytesOf(report, const {
         StorageArtifactCategory.mainDatabase,
@@ -543,27 +550,23 @@ List<_CategorySpec> _categorySpecs(
       bucket: _UserBucket.media,
       title: AppStrings.storageMediaFilesTitle,
       subtitle: AppStrings.storageDiagMediaSubtitle,
-      icon: Icons.perm_media_outlined,
+      icon: TurnaIconId.image,
       color: TurnaTheme.brandSky,
-      bytes: _bytesOf(report, const {
-        StorageArtifactCategory.legacyAnkiMedia,
-      }),
+      bytes: _bytesOf(report, const {StorageArtifactCategory.legacyAnkiMedia}),
     ),
     _CategorySpec(
       bucket: _UserBucket.official,
       title: AppStrings.storageOfficialCollectionTitle,
       subtitle: AppStrings.storageDiagOfficialSubtitle,
-      icon: Icons.style_outlined,
+      icon: TurnaIconId.cards,
       color: TurnaTheme.anatolianClay,
-      bytes: _bytesOf(report, const {
-        StorageArtifactCategory.officialAnki,
-      }),
+      bytes: _bytesOf(report, const {StorageArtifactCategory.officialAnki}),
     ),
     _CategorySpec(
       bucket: _UserBucket.cache,
       title: AppStrings.storageDiagCacheTitle,
       subtitle: AppStrings.storageDiagCacheSubtitle,
-      icon: Icons.cleaning_services_outlined,
+      icon: TurnaIconId.deleteSweep,
       color: TurnaTheme.textHintColor(context),
       bytes: _bytesOf(report, const {
         StorageArtifactCategory.regenerableCache,
@@ -609,8 +612,8 @@ class _CategoryGrid extends StatelessWidget {
                   onTap: spec.bucket == _UserBucket.official
                       ? onOpenOfficial
                       : spec.bucket == _UserBucket.media
-                          ? onOpenMedia
-                          : null,
+                      ? onOpenMedia
+                      : null,
                 ),
               ),
           ],
@@ -631,27 +634,19 @@ class _CategoryCard extends StatelessWidget {
     final empty = spec.bytes <= 0;
     final card = Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
-        ),
-      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(spec.icon, size: 18, color: spec.color),
+              TurnaIcon(spec.icon, size: 18, color: spec.color),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   spec.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: AppTextStyles.bodyText(context)
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -659,9 +654,7 @@ class _CategoryCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _formatBytes(spec.bytes),
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
+            style: AppTextStyles.cardTitle(context).copyWith(
               color: empty
                   ? TurnaTheme.textHintColor(context)
                   : TurnaTheme.brandTeal,
@@ -670,10 +663,8 @@ class _CategoryCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             spec.subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
+            style: AppTextStyles.caption(context)
+                .copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
         ],
       ),
@@ -682,14 +673,14 @@ class _CategoryCard extends StatelessWidget {
     final keyName = spec.bucket == _UserBucket.official
         ? 'storage-category-official'
         : spec.bucket == _UserBucket.media
-            ? 'storage-category-media'
-            : null;
+        ? 'storage-category-media'
+        : null;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         key: keyName == null ? null : Key(keyName),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: card,
       ),
     );
@@ -712,14 +703,17 @@ class _OrphanWarningCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: TurnaTheme.warningSurface(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              size: 20, color: TurnaTheme.warning),
+          const TurnaIcon(
+            TurnaIconId.warning,
+            size: 20,
+            color: TurnaTheme.warning,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -727,19 +721,17 @@ class _OrphanWarningCard extends StatelessWidget {
               children: [
                 Text(
                   AppStrings.storageDiagOrphansFound(
-                      orphans.length, _formatBytes(bytes)),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                    orphans.length,
+                    _formatBytes(bytes),
                   ),
+                  style: AppTextStyles.bodySm(context)
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   AppStrings.storageDiagOrphansExplanation,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+                  style: AppTextStyles.caption(context)
+                      .copyWith(color: TurnaTheme.textSecondaryColor(context)),
                 ),
                 if (onDelete != null) ...[
                   const SizedBox(height: 10),
@@ -747,7 +739,7 @@ class _OrphanWarningCard extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
                       onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 18),
+                      icon: const TurnaIcon(TurnaIconId.delete, size: 18),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: TurnaTheme.warning,
                         side: BorderSide(
@@ -778,13 +770,7 @@ class _MemoryCard extends StatelessWidget {
     final sampledAt = snapshot?.sampledAt;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
-        ),
-      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -793,39 +779,36 @@ class _MemoryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   AppStrings.storageDiagMemoryTitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+                  style: AppTextStyles.bodySm(context)
+                      .copyWith(color: TurnaTheme.textSecondaryColor(context)),
                 ),
               ),
               Text(
                 rss == null
                     ? AppStrings.storageDiagMemoryUnavailable
                     : _formatBytes(rss),
-                style: const TextStyle(
+                style: AppTextStyles.bodyText(context).copyWith(
                   fontWeight: FontWeight.w700,
                   color: TurnaTheme.brandTeal,
                 ),
               ),
-              if (rss != null && sampledAt != null)
+              if (rss != null && sampledAt != null) ...[
+                const SizedBox(width: 6),
                 Text(
                   AppStrings.storageDiagMemorySampledAt(
-                      _formatShortTime(sampledAt)),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TurnaTheme.textHintColor(context),
+                    _formatShortTime(sampledAt),
                   ),
+                  style: AppTextStyles.caption(context)
+                      .copyWith(color: TurnaTheme.textHintColor(context)),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 4),
           Text(
             AppStrings.storageDiagMemoryExplanation,
-            style: TextStyle(
-              fontSize: 12,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.caption(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ),
@@ -848,7 +831,7 @@ class _ErrorCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: TurnaTheme.error.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
           ),
           child: Column(
@@ -856,11 +839,14 @@ class _ErrorCard extends StatelessWidget {
             children: [
               Text(
                 message,
-                style: const TextStyle(color: TurnaTheme.error, fontSize: 13),
+                style: AppTextStyles.bodySm(context)
+                    .copyWith(color: TurnaTheme.error),
               ),
               const SizedBox(height: 10),
               OutlinedButton(
-                  onPressed: onRetry, child: Text(AppStrings.commonRetry)),
+                onPressed: onRetry,
+                child: Text(AppStrings.commonRetry),
+              ),
             ],
           ),
         ),

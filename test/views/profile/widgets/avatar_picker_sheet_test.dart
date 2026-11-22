@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/components/avatar_picker_sheet.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Bare-bones wrapper so the modal route can be hosted in the test binding
 /// without pulling in the rest of the app (DI, providers, services).
@@ -44,8 +46,11 @@ void main() {
 
       // Every catalog avatar shows up as a label in the grid.
       for (final a in AvatarCatalog.all) {
-        expect(find.text(a.name), findsWidgets,
-            reason: 'expected avatar ${a.id} to be rendered');
+        expect(
+          find.text(a.name),
+          findsWidgets,
+          reason: 'expected avatar ${a.id} to be rendered',
+        );
       }
     });
 
@@ -57,11 +62,17 @@ void main() {
 
       // The check icon is part of the selected tile's overlay.
       // (Easier: there should be exactly one check icon for the selection.)
-      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is TurnaIcon && w.id == TurnaIconId.check,
+        ),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('tapping a tile pops the sheet with the picked id',
-        (tester) async {
+    testWidgets('tapping a tile pops the sheet with the picked id', (
+      tester,
+    ) async {
       await tester.pumpWidget(_TestHost(user: LocalUser.local));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
@@ -79,14 +90,21 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap the close button (global sheet header).
-      await tester.tap(find.byIcon(Icons.close_rounded).first);
+      await tester.tap(
+        find
+            .byWidgetPredicate(
+              (w) => w is TurnaIcon && w.id == TurnaIconId.close,
+            )
+            .first,
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('小狐狸').hitTestable(), findsNothing);
     });
 
-    testWidgets('footer exposes a reset action that dismisses the sheet',
-        (tester) async {
+    testWidgets('footer exposes a reset action that dismisses the sheet', (
+      tester,
+    ) async {
       await tester.pumpWidget(_TestHost(user: LocalUser.local));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();

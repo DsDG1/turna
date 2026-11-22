@@ -8,12 +8,13 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/settings/commands/update_daily_reminder_command.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/settings/components/settings_sound_section.dart';
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/core/theme.dart';
-import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Daily reminder toggle + time picker. All changes go through
@@ -28,8 +29,10 @@ class SettingsDailyReminderTile extends StatelessWidget {
     required bool enabled,
     TimeOfDay? time,
   }) async {
-    final result = await getIt<UpdateDailyReminderCommand>()
-        .execute(enabled: enabled, time: time);
+    final result = await getIt<UpdateDailyReminderCommand>().execute(
+      enabled: enabled,
+      time: time,
+    );
     if (!context.mounted) return;
     if (result is SettingsOperationFailure) {
       TurnaSnackBar.show(context, result.userMessage);
@@ -52,13 +55,14 @@ class SettingsDailyReminderTile extends StatelessWidget {
     // A platform with no notification registrant (HarmonyOS) cannot schedule
     // anything, so the toggle would only ever flip a preference that nothing
     // reads. Disable it and say why instead of letting the tap fail.
-    final schedulable = !getIt.isRegistered<LocalReminderService>() ||
+    final schedulable =
+        !getIt.isRegistered<LocalReminderService>() ||
         getIt<LocalReminderService>().supportsScheduling;
 
     return Column(
       children: [
         SettingsToggleTile(
-          icon: Icons.notifications_active_outlined,
+          iconId: TurnaIconId.bell,
           title: AppStrings.settingsDailyReminderTitle,
           subtitle: schedulable
               ? AppStrings.settingsDailyReminderSubtitle
@@ -70,15 +74,15 @@ class SettingsDailyReminderTile extends StatelessWidget {
         if (enabled && schedulable) ...[
           settingsTileDivider(context),
           SettingsTile(
-            icon: Icons.schedule_rounded,
+            iconId: TurnaIconId.timer,
             title: AppStrings.settingsReminderTimeTitle,
             subtitle: AppStrings.settingsReminderTimeSubtitle(timeLabel),
             trailing: Text(
               timeLabel,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.brandTeal,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: TurnaTheme.brandTeal,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             onTap: () async {
               final settings = context.read<SettingsProvider>();

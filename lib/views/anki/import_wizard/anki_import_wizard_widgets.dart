@@ -1,70 +1,136 @@
 import 'package:flutter/material.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/session_shell.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Shared wizard widgets (maintainability plan §10.5): pure view
 /// primitives receiving models + callbacks — no database, engine, DAO or
 /// GetIt imports live here.
 
-/// Top-of-page step indicator for the 5-step import wizard.
+/// Top-of-page step workspace header for the 5-step import wizard.
 class WizardStepper extends StatelessWidget {
   final int currentStep; // 0..4
   const WizardStepper({super.key, required this.currentStep});
 
   // Non-const: AppStrings getters aren't const-evaluable, so the list of step
   // labels has to be built at runtime.
-  static final _steps = <(String, IconData)>[
-    (AppStrings.ankiStepSelect, Icons.upload_file_rounded),
-    (AppStrings.ankiStepParse, Icons.manage_search_rounded),
-    (AppStrings.ankiStepPreview, Icons.preview_rounded),
-    (AppStrings.ankiStepImport, Icons.cloud_download_rounded),
-    (AppStrings.ankiStepDone, Icons.check_circle_outline_rounded),
+  static final _steps = <(String, TurnaIconId)>[
+    (AppStrings.ankiStepSelect, TurnaIconId.upload),
+    (AppStrings.ankiStepParse, TurnaIconId.search),
+    (AppStrings.ankiStepPreview, TurnaIconId.eye),
+    (AppStrings.ankiStepImport, TurnaIconId.download),
+    (AppStrings.ankiStepDone, TurnaIconId.checkCircle),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Row(
+    final safeIndex = currentStep.clamp(0, _steps.length - 1);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.md,
+        AppSpacing.pageMargin,
+        AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: TurnaTheme.flatPaperDecoration(
+        context,
+        borderRadius: TurnaTheme.borderRadius,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var i = 0; i < _steps.length; i++) ...[
-            StepDot(
-              label: _steps[i].$1,
-              icon: _steps[i].$2,
-              stepNumber: i + 1,
-              stepCount: _steps.length,
-              state: i < currentStep
-                  ? StepState.done
-                  : i == currentStep
-                      ? StepState.active
-                      : StepState.idle,
-            ),
-            if (i < _steps.length - 1)
-              Expanded(
-                child: Container(
-                  height: 2,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  color: i < currentStep
-                      ? TurnaTheme.brandTeal.withValues(alpha: 0.5)
-                      : TurnaTheme.textHintColor(context)
-                          .withValues(alpha: 0.2),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
+                  borderRadius: TurnaTheme.borderRadius,
+                ),
+                child: Text(
+                  AppStrings.ankiWizardStepCompact(
+                    safeIndex + 1,
+                    _steps.length,
+                  ),
+                  style: AppTextStyles.caption(context).copyWith(
+                    color: TurnaTheme.brandTeal,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
-          ],
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  _steps[safeIndex].$1,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.captionSm(context).copyWith(
+                    color: TurnaTheme.textPrimaryColor(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              for (var i = 0; i < _steps.length; i++) ...[
+                StepDot(
+                  label: _steps[i].$1,
+                  icon: _steps[i].$2,
+                  stepNumber: i + 1,
+                  stepCount: _steps.length,
+                  state: i < currentStep
+                      ? StepState.done
+                      : i == currentStep
+                      ? StepState.active
+                      : StepState.idle,
+                ),
+                if (i < _steps.length - 1)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: i < currentStep
+                            ? TurnaTheme.brandTeal
+                            : TurnaTheme.dividerBg(context),
+                        borderRadius: TurnaTheme.borderRadius,
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-/// Visual state of one stepper dot.
+/// Visual state of one stepper block.
 enum StepState { done, active, idle }
 
 // Public only to satisfy the analyzer's public-API rule; treat as private.
 class StepDot extends StatelessWidget {
   final String label;
-  final IconData icon;
+  final TurnaIconId icon;
   final StepState state;
   final int stepNumber;
   final int stepCount;
@@ -90,30 +156,39 @@ class StepDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 30,
+          height: 30,
           decoration: BoxDecoration(
-            color: isActive || isDone
+            color: isDone
+                ? TurnaTheme.brandTeal
+                : isActive
                 ? color.withValues(alpha: 0.12)
                 : Colors.transparent,
-            border: Border.all(color: color, width: 1.5),
-            shape: BoxShape.circle,
+            border: Border.all(
+              color: isActive || isDone ? color : TurnaTheme.dividerBg(context),
+              width: isActive ? 1.5 : 1,
+            ),
+            borderRadius: TurnaTheme.borderRadius,
           ),
           alignment: Alignment.center,
           child: isDone
-              ? Icon(Icons.check_rounded, size: 16, color: color)
-              : Icon(icon, size: 16, color: color),
+              ? const TurnaIcon(
+                  TurnaIconId.check,
+                  size: 15,
+                  color: TurnaTheme.textOnPrimary,
+                )
+              : TurnaIcon(icon, size: 15, color: color),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             MediaQuery.textScalerOf(context).scale(1) > 1.3
                 ? AppStrings.ankiWizardStepCompact(stepNumber, stepCount)
                 : label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+            style: AppTextStyles.caption(context).copyWith(
+              letterSpacing: 0,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
               color: color,
             ),
           ),
@@ -128,7 +203,7 @@ class StepDot extends StatelessWidget {
 /// sees three clear groups (content / mapping / strategy) instead of a
 /// flat list of seven.
 class SectionCard extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final String hint;
   final List<Widget> children;
@@ -151,7 +226,7 @@ class SectionCard extends StatelessWidget {
         level: GlassLevel.l1Subtle,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         side: BorderSide(
           color: TurnaTheme.glassStroke(
             context,
@@ -172,30 +247,21 @@ class SectionCard extends StatelessWidget {
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+                    borderRadius: TurnaTheme.borderRadius,
                   ),
-                  child: Icon(icon, color: TurnaTheme.brandTeal, size: 18),
+                  child: TurnaIcon(icon, color: TurnaTheme.brandTeal, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      Text(title, style: AppTextStyles.cardTitle(context)),
                       const SizedBox(height: 2),
                       Text(
                         hint,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: TurnaTheme.textSecondaryColor(context),
-                          height: 1.3,
-                        ),
+                        style: AppTextStyles.captionSm(context)
+                            .copyWith(height: 1.3),
                       ),
                     ],
                   ),
@@ -230,12 +296,8 @@ class Subheader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: TurnaTheme.textHintColor(context),
-        letterSpacing: 0.3,
-      ),
+      style: AppTextStyles.caption(context)
+          .copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3),
     );
   }
 }
@@ -271,27 +333,25 @@ class StatChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: TurnaTheme.brandTeal.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-        ),
+        borderRadius: TurnaTheme.borderRadius,
+        border: Border.all(color: TurnaTheme.brandTeal.withValues(alpha: 0.12)),
       ),
       child: Column(
         children: [
           Text(
             '$value',
-            style: const TextStyle(
-              fontSize: 18,
+            style: AppTextStyles.sectionTitle(context).copyWith(
               fontWeight: FontWeight.w800,
               color: TurnaTheme.brandTeal,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
+            style: AppTextStyles.caption(context).copyWith(
               color: TurnaTheme.textSecondaryColor(context),
+              letterSpacing: 0,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -309,8 +369,11 @@ class StatChip extends StatelessWidget {
 class StickyImportBar extends StatelessWidget {
   final VoidCallback? onPressed;
   final String? disabledHint;
-  const StickyImportBar(
-      {super.key, required this.onPressed, this.disabledHint});
+  const StickyImportBar({
+    super.key,
+    required this.onPressed,
+    this.disabledHint,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -321,17 +384,15 @@ class StickyImportBar extends StatelessWidget {
           if (disabledHint != null) ...[
             Text(
               disabledHint!,
-              style: const TextStyle(
-                color: TurnaTheme.error,
-                fontSize: 12,
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.error),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
           ],
           SessionPrimaryAction(
             label: AppStrings.ankiPreviewStartImport,
-            trailingIcon: Icons.cloud_download_rounded,
+            trailingIcon: TurnaIconId.download,
             onPressed: onPressed,
           ),
         ],
@@ -355,31 +416,21 @@ class DoneGroup extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: TurnaTheme.textHintColor(context),
-              letterSpacing: 0.3,
-            ),
+            style: AppTextStyles.caption(context)
+                .copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           for (final row in rows)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Text(
-                row,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-              ),
+              child: Text(row, style: AppTextStyles.captionSm(context)),
             ),
         ],
       ),
@@ -390,16 +441,13 @@ class DoneGroup extends StatelessWidget {
 /// Single-line learning-progress summary on the done step.
 class LearningProgressBadge extends StatelessWidget {
   final bool kept;
-  const LearningProgressBadge({
-    super.key,
-    required this.kept,
-  });
+  const LearningProgressBadge({super.key, required this.kept});
 
   @override
   Widget build(BuildContext context) {
     if (!kept) {
       return Badge(
-        icon: Icons.restart_alt_rounded,
+        icon: TurnaIconId.restart,
         color: TurnaTheme.textSecondaryColor(context),
         text: AppStrings.ankiDoneProgressReset,
       );
@@ -407,7 +455,7 @@ class LearningProgressBadge extends StatelessWidget {
     // Doc 39 P5: official-first has no carried-over scheduling/history, so
     // the reset/imported pair is the whole badge now.
     return Badge(
-      icon: Icons.check_circle_outline,
+      icon: TurnaIconId.checkCircle,
       color: TurnaTheme.textHintColor(context),
       text: AppStrings.ankiImportedBadge,
     );
@@ -415,7 +463,7 @@ class LearningProgressBadge extends StatelessWidget {
 }
 
 class Badge extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final Color color;
   final String text;
   const Badge({
@@ -428,24 +476,24 @@ class Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          TurnaIcon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
             text,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(fontWeight: FontWeight.w600, color: color),
           ),
         ],
       ),
@@ -462,7 +510,7 @@ class InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,19 +522,20 @@ class InfoRow extends StatelessWidget {
               label,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+              style: AppTextStyles.captionSm(context),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Flexible(
             child: Text(
               value,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.end,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: AppTextStyles.captionSm(context).copyWith(
+                fontWeight: FontWeight.w600,
+                color: TurnaTheme.textPrimaryColor(context),
+              ),
             ),
           ),
         ],

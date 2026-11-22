@@ -9,18 +9,21 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// AI 助手功能介绍页 — 常驻手册。
 ///
-/// 从 AI Hub AppBar 右上角的帮助图标进入。一页讲清楚 6 个主推功能（伴学 4 + 复习 2）
+/// 从 AI Hub 顶栏右上角的帮助图标进入。一页讲清楚 6 个主推功能（伴学 4 + 复习 2）
 /// 是干嘛的、什么时候用、怎么操作、有啥小贴士。每张功能卡可直接点开对应功能。
 ///
 /// 文案集中在 AppStrings 的 `aiGuide*` 分组；[_FeatureSpec] 的 5 个 String
@@ -33,9 +36,10 @@ class AiFeatureGuidePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.surfaceColor(context),
-      appBar: AppBar(
+      appBar: TurnaTopBar(
         centerTitle: true,
-        title: Text(AppStrings.aiFeatureGuideTitle),
+        showDivider: true,
+        title: AppStrings.aiFeatureGuideTitle,
       ),
       body: const _FeatureGuideContent(),
     );
@@ -51,47 +55,61 @@ class _FeatureGuideContent extends StatelessWidget {
       top: false,
       child: CustomScrollView(
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
           const SliverToBoxAdapter(child: _HeroCard()),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SectionTitle(title: AppStrings.aiGuideSectionCompanion),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.pageMargin,
+              ),
+              child: TurnaReadingSectionHeader(
+                indexLabel: '01',
+                title: AppStrings.aiGuideSectionCompanion,
+              ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageMargin,
+            ),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, i) => Padding(
-                  padding: EdgeInsets.only(bottom: i < 3 ? 12 : 0),
+                  padding: EdgeInsets.only(bottom: i < 3 ? AppSpacing.md : 0),
                   child: _FeatureCard(spec: _kFeatures[i]),
                 ),
                 childCount: 4,
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SectionTitle(title: AppStrings.aiGuideSectionReview),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.pageMargin,
+              ),
+              child: TurnaReadingSectionHeader(
+                indexLabel: '02',
+                title: AppStrings.aiGuideSectionReview,
+              ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageMargin,
+            ),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, i) => Padding(
-                  padding: EdgeInsets.only(bottom: i < 1 ? 12 : 0),
+                  padding: EdgeInsets.only(bottom: i < 1 ? AppSpacing.md : 0),
                   child: _FeatureCard(spec: _kFeatures[4 + i]),
                 ),
                 childCount: 2,
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
         ],
       ),
     );
@@ -118,9 +136,7 @@ class _HeroCard extends StatelessWidget {
             children: [
               Text(
                 AppStrings.aiGuideHeroTitle,
-                style: AppTextStyles.pageTitle(context).copyWith(
-                  fontSize: 24,
-                ),
+                style: AppTextStyles.pageTitle(context),
               ),
               const SizedBox(height: AppSpacing.xs + 2),
               Text(
@@ -158,8 +174,8 @@ class _HeroCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    Icons.lock_outline_rounded,
+                  TurnaIcon(
+                    TurnaIconId.lock,
                     size: 14,
                     color: TurnaTheme.textHintColor(context),
                   ),
@@ -169,10 +185,8 @@ class _HeroCard extends StatelessWidget {
                       AppStrings.aiGuidePrivacyChip,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.captionSm(context).copyWith(
-                        fontSize: 12,
-                        color: TurnaTheme.textHintColor(context),
-                      ),
+                      style: AppTextStyles.captionSm(context)
+                          .copyWith(color: TurnaTheme.textHintColor(context)),
                     ),
                   ),
                 ],
@@ -199,7 +213,7 @@ class _FeatureSpec {
     required this.open,
   });
 
-  final IconData icon;
+  final TurnaIconId icon;
   final Color accent;
   final String title;
   final String purpose;
@@ -212,7 +226,7 @@ class _FeatureSpec {
 final List<_FeatureSpec> _kFeatures = [
   // 1. 自由问答
   _FeatureSpec(
-    icon: Icons.chat_bubble_outline_rounded,
+    icon: TurnaIconId.chat,
     accent: TurnaTheme.brandTeal,
     title: AppStrings.aiGuideFreeChatTitle,
     purpose: AppStrings.aiGuideFreeChatPurpose,
@@ -223,7 +237,7 @@ final List<_FeatureSpec> _kFeatures = [
   ),
   // 2. 学习诊断
   _FeatureSpec(
-    icon: Icons.analytics_outlined,
+    icon: TurnaIconId.insights,
     accent: TurnaTheme.brandSky,
     title: AppStrings.aiGuideDiagnosisTitle,
     purpose: AppStrings.aiGuideDiagnosisPurpose,
@@ -234,7 +248,7 @@ final List<_FeatureSpec> _kFeatures = [
   ),
   // 3. 收藏的回答
   _FeatureSpec(
-    icon: Icons.bookmark_outline_rounded,
+    icon: TurnaIconId.bookmark,
     accent: TurnaTheme.anatolianClay,
     title: AppStrings.aiGuideSavedTitle,
     purpose: AppStrings.aiGuideSavedPurpose,
@@ -245,7 +259,7 @@ final List<_FeatureSpec> _kFeatures = [
   ),
   // 4. 深度讲解
   _FeatureSpec(
-    icon: Icons.account_tree_outlined,
+    icon: TurnaIconId.tree,
     accent: TurnaTheme.brandReed,
     title: AppStrings.aiGuideDepthTitle,
     purpose: AppStrings.aiGuideDepthPurpose,
@@ -256,7 +270,7 @@ final List<_FeatureSpec> _kFeatures = [
   ),
   // 5. 按错题练习
   _FeatureSpec(
-    icon: Icons.history_toggle_off_rounded,
+    icon: TurnaIconId.repeat,
     accent: TurnaTheme.brandTeal,
     title: AppStrings.aiGuideMistakesTitle,
     purpose: AppStrings.aiGuideMistakesPurpose,
@@ -267,7 +281,7 @@ final List<_FeatureSpec> _kFeatures = [
   ),
   // 6. 按弱词练习
   _FeatureSpec(
-    icon: Icons.quiz_rounded,
+    icon: TurnaIconId.target,
     accent: TurnaTheme.brandReed,
     title: AppStrings.aiGuideWeakTitle,
     purpose: AppStrings.aiGuideWeakPurpose,
@@ -290,8 +304,6 @@ void _openSaved(BuildContext context) =>
     context.router.push(const AiSavedListRoute());
 
 void _openDepthTutor(BuildContext context) {
-  // 深度讲解 sheet 属课时域且自带标题行，容器迁移随课时域批次走；这里只
-  // 保证入口是本域的目录式行。
   showTurnaSheet(
     context: context,
     title: AppStrings.aiDepthTutorTitle,
@@ -301,18 +313,11 @@ void _openDepthTutor(BuildContext context) {
 }
 
 void _openTutorMistakes(BuildContext context) {
-  // 侧重由本卡片钉死传下去；生成进入后台队列，不再阻塞在本页。
-  showAiPracticeGenerateSheet(
-    context,
-    source: AiPracticeSource.mistakes,
-  );
+  showAiPracticeGenerateSheet(context, source: AiPracticeSource.mistakes);
 }
 
 void _openTutorWeak(BuildContext context) {
-  showAiPracticeGenerateSheet(
-    context,
-    source: AiPracticeSource.weakWords,
-  );
+  showAiPracticeGenerateSheet(context, source: AiPracticeSource.weakWords);
 }
 
 // ─── Feature card ─────────────────────────────────────────────────────────
@@ -323,170 +328,166 @@ class _FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // R14：手册是阅读页 → 功能块走纸面（实色 + 发丝边），不再是淡彩软卡。
-    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
+    return TurnaReadingCard(
+      padding: EdgeInsets.zero,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => spec.open(context),
-          borderRadius: radius,
-          child: Ink(
-            decoration: TurnaTheme.flatPaperDecoration(
-              context,
-              borderRadius: radius,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题行
-                  Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: TurnaTheme.softTint(
-                            context,
-                            spec.accent,
-                            alpha: 0.12,
-                          ),
-                          borderRadius:
-                              BorderRadius.circular(TurnaTheme.radiusMedium),
+          borderRadius: TurnaTheme.borderRadius,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 标题行
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: TurnaTheme.softTint(
+                          context,
+                          spec.accent,
+                          alpha: 0.12,
                         ),
-                        child: Icon(
-                          spec.icon,
-                          size: 18,
-                          color: TurnaTheme.accentOnCard(context, spec.accent),
-                        ),
+                        borderRadius: TurnaTheme.borderRadius,
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          spec.title,
-                          style: AppTextStyles.cardTitle(context)
-                              .copyWith(color: spec.accent),
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
+                      child: TurnaIcon(
+                        spec.icon,
                         size: 18,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md + 2),
-                  // 作用
-                  _SectionLabel(
-                      label: AppStrings.aiGuideLabelPurpose,
-                      color: spec.accent),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    spec.purpose,
-                    style: AppTextStyles.bodyText(context)
-                        .copyWith(fontSize: 15, height: 1.55),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  // 适用场景
-                  _SectionLabel(
-                      label: AppStrings.aiGuideLabelScenarios,
-                      color: spec.accent),
-                  const SizedBox(height: AppSpacing.xs),
-                  for (final s in spec.scenarios)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 7, right: 6),
-                            child: Container(
-                              width: 4,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: spec.accent,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              s,
-                              style: AppTextStyles.captionSm(context)
-                                  .copyWith(height: 1.5),
-                            ),
-                          ),
-                        ],
+                        color: TurnaTheme.accentOnCard(context, spec.accent),
                       ),
                     ),
-                  const SizedBox(height: AppSpacing.md),
-                  // 操作流程
-                  _SectionLabel(
-                      label: AppStrings.aiGuideLabelSteps, color: spec.accent),
-                  const SizedBox(height: AppSpacing.xs),
-                  for (var i = 0; i < spec.steps.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            child: Text(
-                              '${i + 1}.',
-                              style: AppTextStyles.captionSm(context).copyWith(
-                                color: spec.accent,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              spec.steps[i],
-                              style: AppTextStyles.captionSm(context)
-                                  .copyWith(height: 1.5),
-                            ),
-                          ),
-                        ],
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        spec.title,
+                        style: AppTextStyles.cardTitle(context)
+                            .copyWith(color: spec.accent),
                       ),
                     ),
-                  const SizedBox(height: AppSpacing.md),
-                  // 小贴士
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: TurnaTheme.softTint(context, spec.accent,
-                          alpha: 0.08),
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.cardRadius),
+                    TurnaIcon(
+                      TurnaIconId.chevronRight,
+                      size: 18,
+                      color: TurnaTheme.textSecondaryColor(context),
                     ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md + 2),
+                // 作用
+                _SectionLabel(
+                  label: AppStrings.aiGuideLabelPurpose,
+                  color: spec.accent,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  spec.purpose,
+                  style: AppTextStyles.bodyText(context).copyWith(height: 1.55),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // 适用场景
+                _SectionLabel(
+                  label: AppStrings.aiGuideLabelScenarios,
+                  color: spec.accent,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                for (final s in spec.scenarios)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.lightbulb_outline_rounded,
-                          size: 16,
-                          color: spec.accent,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 7, right: 6),
+                          child: Container(
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: spec.accent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: AppSpacing.xs + 2),
                         Expanded(
                           child: Text(
-                            spec.tip,
-                            style: AppTextStyles.captionSm(context).copyWith(
-                              color: TurnaTheme.textPrimaryColor(context),
-                              height: 1.5,
-                            ),
+                            s,
+                            style: AppTextStyles.captionSm(context)
+                                .copyWith(height: 1.5),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                const SizedBox(height: AppSpacing.md),
+                // 操作流程
+                _SectionLabel(
+                  label: AppStrings.aiGuideLabelSteps,
+                  color: spec.accent,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                for (var i = 0; i < spec.steps.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          child: Text(
+                            '${i + 1}.',
+                            style: AppTextStyles.captionSm(context).copyWith(
+                              color: spec.accent,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            spec.steps[i],
+                            style: AppTextStyles.captionSm(context)
+                                .copyWith(height: 1.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.md),
+                // 小贴士
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.softTint(
+                      context,
+                      spec.accent,
+                      alpha: 0.08,
+                    ),
+                    borderRadius: TurnaTheme.borderRadius,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TurnaIcon(
+                        TurnaIconId.lightbulb,
+                        size: 16,
+                        color: spec.accent,
+                      ),
+                      const SizedBox(width: AppSpacing.xs + 2),
+                      Expanded(
+                        child: Text(
+                          spec.tip,
+                          style: AppTextStyles.captionSm(context).copyWith(
+                            color: TurnaTheme.textPrimaryColor(context),
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -504,12 +505,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: AppTextStyles.captionSm(context).copyWith(
-        color: color,
-        fontWeight: FontWeight.w800,
-        fontSize: 12,
-        letterSpacing: 0.3,
-      ),
+      style: AppTextStyles.caption(
+        context,
+      ).copyWith(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.3),
     );
   }
 }

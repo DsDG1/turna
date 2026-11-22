@@ -5,14 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/widgets/ambient_backdrop.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 隐私详情页 — Settings → 关于 → 隐私详情 入口。
 ///
@@ -29,18 +32,18 @@ import 'package:turna/views/widgets/turna_page_content.dart';
 ///
 /// 视觉语言与 `AboutTurnaPage` 一致（R18 长文阅读）:
 ///   - 纯白画布（ADR 0062：不再铺薄荷渐变，淡彩由卡片自身承载）
-///   - `_AboutCard` 纸面卡（`flatPaperDecoration`，长文不铺玻璃）
-///   - `_SectionHeader` 走 sectionTitle 版面角色
+///   - [TurnaReadingCard] 纸面卡（`flatPaperDecoration`，长文不铺玻璃）
+///   - [TurnaReadingSectionHeader] 走 sectionTitle 版面角色
 ///   - 网络访问两栏使用不同色温的 callout 区分「离线」与「可选联网」
 ///
 /// 交互:
-///   - 滚动超过 [kPillRevealOffset] 后,右下角的「透明度报告」药丸从底部滑上
-///   - 点击药丸跳到 [TransparencyLogPage](Turna 自己的透明日志)
+///   - 滚动超过 [kPillRevealOffset] 后,右下角的「透明度报告」条从底部滑上
+///   - 点击跳到 [TransparencyLogPage](Turna 自己的透明日志)
 @RoutePage()
 class PrivacyDetailsPage extends StatefulWidget {
   const PrivacyDetailsPage({super.key});
 
-  /// 滚动多少像素后浮现药丸。
+  /// 滚动多少像素后浮现入口条。
   static const double kPillRevealOffset = 80;
 
   @override
@@ -48,7 +51,7 @@ class PrivacyDetailsPage extends StatefulWidget {
 }
 
 class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
-  /// 药丸是否已浮现(只允许从 false -> true 单向翻,避免来回弹)。
+  /// 入口条是否已浮现(只允许从 false -> true 单向翻,避免来回弹)。
   bool _pillVisible = false;
 
   bool _onScroll(ScrollNotification notification) {
@@ -65,143 +68,135 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSquareControlTheme(
-      child: Scaffold(
-        backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          title: Text(
-            AppStrings.privacyDetailsTitle,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ),
-        body: AmbientBackdrop(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _onScroll,
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.pageMargin, 8, AppSpacing.pageMargin, 24),
-                    child: TurnaPageContent(
-                      maxWidth: AppSpacing.formColumnMaxWidth,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _PrivacyHero(),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsOverviewTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro: AppStrings.privacyDetailsOverviewIntro,
-                              body: AppStrings.privacyDetailsOverviewBody,
-                            ),
+    return Scaffold(
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(title: AppStrings.privacyDetailsTitle),
+      body: AmbientBackdrop(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pageMargin,
+                    8,
+                    AppSpacing.pageMargin,
+                    24,
+                  ),
+                  child: TurnaPageContent(
+                    maxWidth: AppSpacing.formColumnMaxWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _PrivacyHero(),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsOverviewTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsOverviewIntro,
+                            body: AppStrings.privacyDetailsOverviewBody,
                           ),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsNotCollectTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro: AppStrings.privacyDetailsNotCollectIntro,
-                              body: AppStrings.privacyDetailsNotCollectBody,
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsNotCollectTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsNotCollectIntro,
+                            body: AppStrings.privacyDetailsNotCollectBody,
                           ),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsStorageTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro: AppStrings.privacyDetailsStorageIntro,
-                              body: AppStrings.privacyDetailsStorageBody,
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsStorageTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsStorageIntro,
+                            body: AppStrings.privacyDetailsStorageBody,
                           ),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsNetworkTitle),
-                          const SizedBox(height: 4),
-                          _SectionIntro(
-                              text: AppStrings.privacyDetailsNetworkIntro),
-                          const SizedBox(height: 10),
-                          const _NetworkCalloutRow(),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text:
-                                  AppStrings.privacyDetailsExternalLinksTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro:
-                                  AppStrings.privacyDetailsExternalLinksIntro,
-                              body: AppStrings.privacyDetailsExternalLinksBody,
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsNetworkTitle,
+                        ),
+                        _SectionIntro(
+                          text: AppStrings.privacyDetailsNetworkIntro,
+                        ),
+                        const SizedBox(height: 10),
+                        const _NetworkCalloutRow(),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsExternalLinksTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsExternalLinksIntro,
+                            body: AppStrings.privacyDetailsExternalLinksBody,
                           ),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsYourRightsTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro: AppStrings.privacyDetailsYourRightsIntro,
-                              body: AppStrings.privacyDetailsYourRightsBody,
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsYourRightsTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsYourRightsIntro,
+                            body: AppStrings.privacyDetailsYourRightsBody,
                           ),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsUpdatesTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro: AppStrings.privacyDetailsUpdatesIntro,
-                              body: AppStrings.privacyDetailsUpdatesBody,
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsUpdatesTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsUpdatesIntro,
+                            body: AppStrings.privacyDetailsUpdatesBody,
                           ),
-                          const SizedBox(height: 20),
-                          _SectionHeader(
-                              text: AppStrings.privacyDetailsContactTitle),
-                          const SizedBox(height: 10),
-                          _AboutCard(
-                            child: _SectionBody(
-                              intro: AppStrings.privacyDetailsContactIntro,
-                              body: AppStrings.privacyDetailsContactBody,
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TurnaReadingSectionHeader(
+                          title: AppStrings.privacyDetailsContactTitle,
+                        ),
+                        TurnaReadingCard(
+                          child: _SectionBody(
+                            intro: AppStrings.privacyDetailsContactIntro,
+                            body: AppStrings.privacyDetailsContactBody,
                           ),
-                          // 给药丸留底部空间,避免覆盖最后一张卡片。
-                          const SizedBox(height: 80),
-                        ],
-                      ),
+                        ),
+                        // 给入口条留底部空间,避免覆盖最后一张卡片。
+                        const SizedBox(height: 80),
+                      ],
                     ),
                   ),
                 ),
               ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: IgnorePointer(
-                  ignoring: !_pillVisible,
-                  child: AnimatedSlide(
-                    offset: _pillVisible ? Offset.zero : const Offset(0, 1.6),
-                    duration: const Duration(milliseconds: 360),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedOpacity(
-                      opacity: _pillVisible ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 220),
-                      child: _TransparencyHintPill(
-                        onTap: _openTransparencyLog,
-                      ),
-                    ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: IgnorePointer(
+                ignoring: !_pillVisible,
+                child: AnimatedSlide(
+                  offset: _pillVisible ? Offset.zero : const Offset(0, 1.6),
+                  duration: const Duration(milliseconds: 360),
+                  curve: Curves.easeOutCubic,
+                  child: AnimatedOpacity(
+                    opacity: _pillVisible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 220),
+                    child: _TransparencyHintPill(onTap: _openTransparencyLog),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -214,69 +209,47 @@ class _PrivacyHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: TurnaTheme.flatPaperDecoration(context),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              ),
-              child: const Icon(
-                Icons.shield_outlined,
-                color: TurnaTheme.brandTeal,
-                size: 26,
-              ),
+    return TurnaReadingCard(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+              borderRadius: TurnaTheme.borderRadius,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppStrings.privacyDetailsTitle,
-                    style: AppTextStyles.sectionTitle(context),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    AppStrings.privacyDetailsEntrySubtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+            child: const TurnaIcon(
+              TurnaIconId.shield,
+              color: TurnaTheme.brandTeal,
+              size: 26,
             ),
-            const SizedBox(width: 8),
-            // 最后更新角标
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-              ),
-              child: Text(
-                AppStrings.privacyDetailsLastUpdated,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: TurnaTheme.brandTeal,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.privacyDetailsTitle,
+                  style: AppTextStyles.sectionTitle(context),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  AppStrings.privacyDetailsEntrySubtitle,
+                  style: AppTextStyles.bodySm(context)
+                      .copyWith(color: TurnaTheme.textSecondaryColor(context)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          TurnaReadingBadge(label: AppStrings.privacyDetailsLastUpdated),
+        ],
       ),
     );
   }
@@ -294,14 +267,14 @@ class _NetworkCalloutRow extends StatelessWidget {
         // 窄屏(手机)上下堆叠,宽屏(平板/桌面)左右并排
         final isWide = constraints.maxWidth >= 520;
         final left = _NetworkCallout(
-          icon: Icons.cloud_off_rounded,
+          icon: TurnaIconId.cloudOff,
           tintColor: TurnaTheme.brandTeal,
           title: AppStrings.privacyDetailsNonAiTitle,
           intro: AppStrings.privacyDetailsNonAiIntro,
           body: AppStrings.privacyDetailsNonAiBody,
         );
         final right = _NetworkCallout(
-          icon: Icons.hub_outlined,
+          icon: TurnaIconId.spark,
           tintColor: TurnaTheme.brandSky,
           title: AppStrings.privacyDetailsAiTitle,
           intro: AppStrings.privacyDetailsAiIntro,
@@ -317,13 +290,7 @@ class _NetworkCalloutRow extends StatelessWidget {
             ],
           );
         }
-        return Column(
-          children: [
-            left,
-            const SizedBox(height: 10),
-            right,
-          ],
-        );
+        return Column(children: [left, const SizedBox(height: 10), right]);
       },
     );
   }
@@ -331,7 +298,7 @@ class _NetworkCalloutRow extends StatelessWidget {
 
 /// 单个网络 callout:左侧色条 + 顶部 icon + 标题 + 简短导语 + 段落。
 class _NetworkCallout extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final Color tintColor;
   final String title;
   final String intro;
@@ -372,18 +339,15 @@ class _NetworkCallout extends StatelessWidget {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: accent.withValues(alpha: 0.12),
-                            borderRadius:
-                                BorderRadius.circular(TurnaTheme.radiusMedium),
+                            borderRadius: TurnaTheme.borderRadius,
                           ),
-                          child: Icon(icon, color: accent, size: 20),
+                          child: TurnaIcon(icon, color: accent, size: 20),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: TurnaTheme.textPrimaryColor(context),
@@ -396,18 +360,18 @@ class _NetworkCallout extends StatelessWidget {
                     Text(
                       intro,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.5,
-                            color: accent,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        height: 1.5,
+                        color: accent,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       body,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            height: 1.55,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
+                        height: 1.55,
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
                     ),
                   ],
                 ),
@@ -472,39 +436,7 @@ class _BodyText extends StatelessWidget {
   }
 }
 
-/// 区块标题（R18 长文阅读）：sectionTitle 排版角色，不带装饰条。
-class _SectionHeader extends StatelessWidget {
-  final String text;
-
-  const _SectionHeader({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: AppTextStyles.sectionTitle(context));
-  }
-}
-
-/// 通用内容卡片（R18 长文阅读）：纸面（实色 + 中性细边），长文不铺玻璃。
-class _AboutCard extends StatelessWidget {
-  final Widget child;
-
-  const _AboutCard({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: TurnaTheme.flatPaperDecoration(context),
-      child: child,
-    );
-  }
-}
-
-/// 滚动后从底部浮出的「透明度报告」药丸。
-///
-/// 视觉:teal 主色 + 白字 + 圆角药丸,带 visibility 图标与简短的引导文字。
-/// 点击进入 [TransparencyLogPage]。
+/// 滚动后从底部浮出的「透明度报告」入口条（4px Bauhaus 几何块）。
 class _TransparencyHintPill extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -515,20 +447,16 @@ class _TransparencyHintPill extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        borderRadius: TurnaTheme.borderRadius,
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: TurnaTheme.brandTeal,
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-            boxShadow: [
-              BoxShadow(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.32),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            borderRadius: TurnaTheme.borderRadius,
+            border: Border.all(
+              color: TurnaTheme.textOnPrimary.withValues(alpha: 0.16),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -538,12 +466,12 @@ class _TransparencyHintPill extends StatelessWidget {
                 height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  color: TurnaTheme.textOnPrimary.withValues(alpha: 0.18),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: const Icon(
-                  Icons.visibility_outlined,
-                  color: Colors.white,
+                child: const TurnaIcon(
+                  TurnaIconId.eye,
+                  color: TurnaTheme.textOnPrimary,
                   size: 16,
                 ),
               ),
@@ -551,10 +479,9 @@ class _TransparencyHintPill extends StatelessWidget {
               Flexible(
                 child: Text(
                   AppStrings.transparencyPillHint,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: AppTextStyles.bodySm(context).copyWith(
+                    color: TurnaTheme.textOnPrimary,
                     fontWeight: FontWeight.w700,
-                    fontSize: 13,
                     height: 1.2,
                   ),
                   maxLines: 1,
@@ -562,9 +489,9 @@ class _TransparencyHintPill extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.white,
+              const TurnaIcon(
+                TurnaIconId.arrowForward,
+                color: TurnaTheme.textOnPrimary,
                 size: 16,
               ),
             ],

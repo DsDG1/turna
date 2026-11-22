@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -16,7 +17,8 @@ import 'package:turna/views/profile/achievements/achievement_filter_bar.dart';
 import 'package:turna/views/profile/achievements/achievement_overview_header.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
 import 'package:turna/views/widgets/adaptive_card_grid.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Badge-collection achievements home (plan §7.2): overview hero, nearest
 /// recommendations, filter chips, a two-column badge grid, and the recent
@@ -71,8 +73,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
     final inProgressViews = views
         .where((v) => !v.isSeriesComplete && v.currentProgress > 0)
         .toList(growable: false);
-    final unlockedViews =
-        views.where((v) => v.completedTierCount > 0).toList(growable: false);
+    final unlockedViews = views
+        .where((v) => v.completedTierCount > 0)
+        .toList(growable: false);
 
     final filtered = switch (_filter) {
       AchievementFilter.all => views,
@@ -84,9 +87,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.profileAchievementsTitle),
-        backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(
+        title: AppStrings.profileAchievementsTitle,
+        showDivider: true,
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -163,10 +166,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
     for (final view in views) {
       final next = view.nextTier;
       if (next == null || view.currentProgress <= 0) continue;
-      candidates.add(_NearestCandidate(
-        seriesId: view.seriesId,
-        ratio: (view.currentProgress / next.target).clamp(0.0, 1.0),
-      ));
+      candidates.add(
+        _NearestCandidate(
+          seriesId: view.seriesId,
+          ratio: (view.currentProgress / next.target).clamp(0.0, 1.0),
+        ),
+      );
     }
     candidates.sort((a, b) => b.ratio.compareTo(a.ratio));
     return candidates.take(2).map((c) => c.seriesId).toList(growable: false);
@@ -206,9 +211,8 @@ class _SectionTitle extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 8),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -246,20 +250,13 @@ class _GridCard extends StatelessWidget {
   final AchievementSeriesProgress view;
   final VoidCallback onTap;
 
-  const _GridCard({
-    required this.view,
-    required this.onTap,
-  });
+  const _GridCard({required this.view, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final series = AchievementCatalog.seriesById(view.seriesId);
     if (series == null) return const SizedBox.shrink();
-    return AchievementBadgeCard(
-      series: series,
-      progress: view,
-      onTap: onTap,
-    );
+    return AchievementBadgeCard(series: series, progress: view, onTap: onTap);
   }
 }
 
@@ -271,25 +268,25 @@ class _RecentStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = service.state.unlockedTiers.values
-        .where((t) => AchievementCatalog.tierById(t.tierId) != null)
-        .toList()
-      ..sort((a, b) {
-        // Live unlocks first (by time desc), migration backfills after.
-        if (a.origin != b.origin) {
-          return a.origin == AchievementUnlockOrigin.live ? -1 : 1;
-        }
-        return b.unlockedAt.compareTo(a.unlockedAt);
-      });
+    final entries =
+        service.state.unlockedTiers.values
+            .where((t) => AchievementCatalog.tierById(t.tierId) != null)
+            .toList()
+          ..sort((a, b) {
+            // Live unlocks first (by time desc), migration backfills after.
+            if (a.origin != b.origin) {
+              return a.origin == AchievementUnlockOrigin.live ? -1 : 1;
+            }
+            return b.unlockedAt.compareTo(a.unlockedAt);
+          });
 
     if (entries.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Text(
           AppStrings.achievementsRecentEmpty,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textHintColor(context),
-              ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: TurnaTheme.textHintColor(context)),
         ),
       );
     }
@@ -325,8 +322,9 @@ class _RecentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tier = AchievementCatalog.tierById(tierId);
     if (tier == null) return const SizedBox.shrink();
-    final series =
-        AchievementCatalog.allSeries.where((s) => s.tiers.contains(tier)).first;
+    final series = AchievementCatalog.allSeries
+        .where((s) => s.tiers.contains(tier))
+        .first;
     final accent = AchievementUiCatalog.colorFor(series.id);
     final date =
         '${unlockedAt.year}-${unlockedAt.month.toString().padLeft(2, '0')}-${unlockedAt.day.toString().padLeft(2, '0')}';
@@ -338,21 +336,23 @@ class _RecentRow extends StatelessWidget {
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Row(
         children: [
-          Icon(AchievementUiCatalog.iconFor(series.id),
-              color: accent, size: 20),
+          TurnaIcon(
+            AchievementUiCatalog.iconFor(series.id),
+            color: accent,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '${AchievementUiCatalog.titleFor(series.id)} · '
               '${tier.rarity.displayName} ${tier.target} '
               '${AchievementUiCatalog.unitFor(series.metric)}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -362,9 +362,8 @@ class _RecentRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 8),
               child: Text(
                 AppStrings.achievementsMigrationBackfillTag,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             )
           else
@@ -372,9 +371,8 @@ class _RecentRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 8),
               child: Text(
                 date,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             ),
         ],

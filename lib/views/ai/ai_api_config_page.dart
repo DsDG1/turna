@@ -15,14 +15,17 @@ import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_api_config_sections.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// AI connection settings page (高级 → AI 连接, Plan 2 §6.2).
 ///
@@ -197,8 +200,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     setState(() {
       _draft = _draft.copyWith(
         preset: preset,
-        customBaseUrl:
-            preset.id == AiProvider.custom ? _draft.customBaseUrl : null,
+        customBaseUrl: preset.id == AiProvider.custom
+            ? _draft.customBaseUrl
+            : null,
         // copyWith drops models on a preset change so the new vendor's
         // default model wins; mirror that in the text fields. Reasoning is
         // opt-in and defaults off, so reset the toggle on every switch.
@@ -283,22 +287,21 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       },
       child: Scaffold(
         backgroundColor: TurnaTheme.surfaceColor(context),
-        appBar: AppBar(
+        appBar: TurnaTopBar(
           centerTitle: true,
-          title: Row(
+          showDivider: true,
+          titleWidget: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
+              const TurnaIcon(
+                TurnaIconId.spark,
                 color: TurnaTheme.brandTeal,
-                size: 22,
+                size: 20,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 AppStrings.settingsAiApiConfigSheetTitle,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: AppTextStyles.cardTitle(context),
               ),
             ],
           ),
@@ -334,9 +337,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                 AiConfigSectionHeading(AppStrings.aiConfigGroupConnection),
                 Text(
                   AppStrings.aiConfigProviderSectionHint,
-                  style: AppTextStyles.captionSm(context).copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+                  style: AppTextStyles.captionSm(context)
+                      .copyWith(color: TurnaTheme.textHintColor(context)),
                 ),
                 const SizedBox(height: AppSpacing.sm + 2),
                 TurnaSegmented<AiProvider>(
@@ -375,7 +377,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                     hint: _draft.apiKey.isEmpty
                         ? AppStrings.settingsApiKeyHint
                         : AppStrings.aiConfigKeyStoredHint(
-                            _maskKey(_draft.apiKey)),
+                            _maskKey(_draft.apiKey),
+                          ),
                     onChanged: (_) => _scheduleCommit(),
                   ),
                 ),
@@ -430,8 +433,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                     value: _draft.reasoningEnabled,
                     onChanged: (value) {
                       setState(() {
-                        _draft =
-                            _draft.copyWith(supportsReasoningOverride: value);
+                        _draft = _draft.copyWith(
+                          supportsReasoningOverride: value,
+                        );
                       });
                       _scheduleCommit();
                     },
@@ -486,9 +490,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
         children: [
           Text(
             label,
-            style: AppTextStyles.captionSm(context).copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.sm - 2),
           child,

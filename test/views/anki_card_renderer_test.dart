@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -42,22 +44,17 @@ void main() {
   testWidgets('shows Anki binary recall buttons after reveal settles', (
     tester,
   ) async {
-    await pumpCard(
-      tester,
-      onSubmit: (_, {userAnswerText, reviewQuality}) {},
-    );
+    await pumpCard(tester, onSubmit: (_, {userAnswerText, reviewQuality}) {});
     await revealAnswer(tester);
 
     expect(find.text('不记得'), findsOneWidget);
     expect(find.text('记得'), findsOneWidget);
   });
 
-  testWidgets('grade buttons are deferred until pulse completes',
-      (tester) async {
-    await pumpCard(
-      tester,
-      onSubmit: (_, {userAnswerText, reviewQuality}) {},
-    );
+  testWidgets('grade buttons are deferred until pulse completes', (
+    tester,
+  ) async {
+    await pumpCard(tester, onSubmit: (_, {userAnswerText, reviewQuality}) {});
 
     await tester.tap(find.text('显示答案'));
     // Mid-pulse: face may already switch, but grades must not appear yet.
@@ -96,26 +93,28 @@ void main() {
     expect(results, [(false, 1)]);
   });
 
-  testWidgets('the card offers no read-aloud control on either face',
-      (tester) async {
+  testWidgets('the card offers no read-aloud control on either face', (
+    tester,
+  ) async {
+    Finder findSpeakVoiceIcon() => find.byWidgetPredicate(
+      (w) => w is TurnaIcon && w.id == TurnaIconId.speakVoice,
+    );
     // Read-aloud was an addition, not a rendering: the two faces carry no
     // language semantics (see `Interaction.ankiCard`), so speaking them used
     // the course voice on text the course never taught.
-    await pumpCard(
-      tester,
-      onSubmit: (_, {userAnswerText, reviewQuality}) {},
-    );
-    expect(find.byIcon(Icons.record_voice_over_rounded), findsNothing);
+    await pumpCard(tester, onSubmit: (_, {userAnswerText, reviewQuality}) {});
+    expect(findSpeakVoiceIcon(), findsNothing);
     expect(find.byTooltip('朗读'), findsNothing);
 
     await revealAnswer(tester);
     expect(find.text('Back side'), findsOneWidget);
-    expect(find.byIcon(Icons.record_voice_over_rounded), findsNothing);
+    expect(findSpeakVoiceIcon(), findsNothing);
     expect(find.byTooltip('朗读'), findsNothing);
   });
 
-  testWidgets("the card's own media strip still mounts after the removal",
-      (tester) async {
+  testWidgets("the card's own media strip still mounts after the removal", (
+    tester,
+  ) async {
     // The removal is scoped to app-side TTS. `[sound:]` media is the card's own
     // content and has to keep reaching the learner, so the strip must still be
     // built for a card that carries audio. The strip's own play/resolve
@@ -143,8 +142,9 @@ void main() {
     expect(find.byType(AnkiMediaStrip), findsOneWidget);
   });
 
-  testWidgets('media with an unproven face waits for the reveal',
-      (tester) async {
+  testWidgets('media with an unproven face waits for the reveal', (
+    tester,
+  ) async {
     // ADR 0057 §5: legacy all-media lists carry no face proof, so they must not
     // be built before the answer is revealed — otherwise an answer clip is
     // playable (and screen-readable) on the question face.
@@ -171,8 +171,9 @@ void main() {
     expect(find.byType(AnkiMediaStrip), findsOneWidget);
   });
 
-  testWidgets('tapping the revealed card flips back to the front',
-      (tester) async {
+  testWidgets('tapping the revealed card flips back to the front', (
+    tester,
+  ) async {
     final results = <(bool, int?)>[];
     await pumpCard(
       tester,

@@ -4,14 +4,18 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
-import 'package:turna/domain/game/gem_consumable.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
+import 'package:turna/domain/game/gem_consumable.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Slot-based cosmetic shop. The historical route name is retained so old
 /// deep links continue to work.
@@ -59,9 +63,8 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
     if (_voucherBusy) return;
     setState(() => _voucherBusy = true);
     final result = await context.read<GemsProvider>().purchaseStreakVoucher(
-          idempotencyKey:
-              'voucher-shop-${DateTime.now().microsecondsSinceEpoch}',
-        );
+      idempotencyKey: 'voucher-shop-${DateTime.now().microsecondsSinceEpoch}',
+    );
     await _loadVoucherInfo();
     if (!mounted) return;
     setState(() => _voucherBusy = false);
@@ -80,17 +83,17 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
   Widget build(BuildContext context) {
     final cosmetics = context.watch<CosmeticProvider>();
     final gems = context.watch<GemsProvider>().balance;
-    final voucherLimitReached = (_voucherPurchasesThisMonth ?? 0) >=
+    final voucherLimitReached =
+        (_voucherPurchasesThisMonth ?? 0) >=
         GemsProvider.streakVoucherMonthlyPurchaseLimit;
 
     return DefaultTabController(
       length: _visibleSlots.length,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          elevation: 0,
+        appBar: TurnaTopBar(
           centerTitle: true,
-          title: Text(AppStrings.cosmeticsTitle),
+          title: AppStrings.cosmeticsTitle,
           bottom: TabBar(
             tabs: [
               for (final slot in _visibleSlots)
@@ -111,18 +114,16 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.diamond_rounded,
+                        const TurnaIcon(
+                          TurnaIconId.diamond,
                           size: 20,
                           color: TurnaTheme.brandTeal,
                         ),
                         const SizedBox(width: 10),
                         Text(
                           AppStrings.cosmeticsGemsBalance(gems),
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
@@ -135,7 +136,7 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
               child: SettingsCard(
                 children: [
                   SettingsTile(
-                    icon: Icons.shield_rounded,
+                    iconId: TurnaIconId.shield,
                     title: AppStrings.cosmeticsVoucherTitle,
                     subtitle: AppStrings.cosmeticsVoucherSubtitle(
                       _voucherCount ?? 0,
@@ -149,11 +150,8 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
                           ? null
                           : _buyVoucher,
                       icon: _voucherBusy
-                          ? const SizedBox.square(
-                              dimension: 15,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.diamond_rounded, size: 16),
+                          ? TurnaLoader.inline(size: 15)
+                          : const TurnaIcon(TurnaIconId.diamond, size: 16),
                       label: Text('${GemsProvider.streakVoucherPrice}'),
                     ),
                   ),
@@ -183,8 +181,9 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
   Future<void> _onAction(CosmeticItem item) async {
     if (_busyItems.contains(item.id)) return;
     setState(() => _busyItems.add(item.id));
-    final result =
-        await context.read<CosmeticProvider>().unlockAndEquipItem(item.id);
+    final result = await context.read<CosmeticProvider>().unlockAndEquipItem(
+      item.id,
+    );
     if (!mounted) return;
     setState(() => _busyItems.remove(item.id));
     final message = switch (result) {
@@ -267,13 +266,18 @@ class _CosmeticTile extends StatelessWidget {
     final stateLabel = equipped
         ? AppStrings.cosmeticsInUse
         : unlocked
-            ? AppStrings.cosmeticsOwned
-            : canAfford
-                ? AppStrings.cosmeticsRedeem
-                : AppStrings.cosmeticsInsufficientGems;
+        ? AppStrings.cosmeticsOwned
+        : canAfford
+        ? AppStrings.cosmeticsRedeem
+        : AppStrings.cosmeticsInsufficientGems;
     return Semantics(
-      label: '${AppStrings.cosmeticsItemTitle(item.id)}，'
-          '${equipped ? AppStrings.cosmeticsInUse : unlocked ? AppStrings.cosmeticsOwned : AppStrings.cosmeticsRingPrice(item.price)}',
+      label:
+          '${AppStrings.cosmeticsItemTitle(item.id)}，'
+          '${equipped
+              ? AppStrings.cosmeticsInUse
+              : unlocked
+              ? AppStrings.cosmeticsOwned
+              : AppStrings.cosmeticsRingPrice(item.price)}',
       button: !equipped,
       enabled: enabled,
       value: stateLabel,
@@ -288,7 +292,7 @@ class _CosmeticTile extends StatelessWidget {
                 : TurnaTheme.statCardBorder(context),
             width: highContrast ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+          borderRadius: TurnaTheme.borderRadius,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -328,16 +332,15 @@ class _CosmeticTile extends StatelessWidget {
       children: [
         Text(
           AppStrings.cosmeticsItemTitle(item.id),
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
         Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Icon(
-              unlocked ? Icons.check_circle : Icons.diamond_rounded,
+            TurnaIcon(
+              unlocked ? TurnaIconId.checkCircle : TurnaIconId.diamond,
               size: 15,
               color: unlocked || canAfford
                   ? TurnaTheme.brandTeal
@@ -348,11 +351,10 @@ class _CosmeticTile extends StatelessWidget {
               item.isFree
                   ? AppStrings.cosmeticsFree
                   : unlocked
-                      ? AppStrings.cosmeticsOwned
-                      : AppStrings.cosmeticsRingPrice(item.price),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  ? AppStrings.cosmeticsOwned
+                  : AppStrings.cosmeticsRingPrice(item.price),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -363,17 +365,14 @@ class _CosmeticTile extends StatelessWidget {
   Widget _action(bool enabled) {
     if (equipped) {
       return Chip(
-        avatar: const Icon(Icons.check, size: 16),
+        avatar: const TurnaIcon(TurnaIconId.check, size: 16),
         label: Text(AppStrings.cosmeticsInUse),
       );
     }
     return FilledButton.tonal(
       onPressed: enabled ? onAction : null,
       child: busy
-          ? const SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? TurnaLoader.inline(size: 16)
           : Text(
               unlocked ? AppStrings.cosmeticsUse : AppStrings.cosmeticsRedeem,
             ),
@@ -392,25 +391,31 @@ class _ItemPreview extends StatelessWidget {
       return AvatarWithRing(
         radius: 23,
         ring: CosmeticCatalog.ringById(item.id),
-        child: const Icon(Icons.person_rounded, color: TurnaTheme.brandTeal),
+        child: const TurnaIcon(
+          TurnaIconId.person,
+          color: TurnaTheme.brandTeal,
+          size: 20,
+        ),
       );
     }
     return Container(
       width: 52,
       height: 52,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             item.accentColor ?? TurnaTheme.brandTeal,
             item.secondaryColor ??
-                (item.accentColor ?? TurnaTheme.brandTeal)
-                    .withValues(alpha: 0.45),
+                (item.accentColor ?? TurnaTheme.brandTeal).withValues(
+                  alpha: 0.45,
+                ),
           ],
         ),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: TurnaTheme.textPrimaryColor(context)),
       ),
-      child: Icon(item.icon, color: Colors.white),
+      child: TurnaIcon(item.icon, color: TurnaTheme.textOnPrimary, size: 22),
     );
   }
 }

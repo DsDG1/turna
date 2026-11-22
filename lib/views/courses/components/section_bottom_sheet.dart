@@ -7,12 +7,15 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/application/progress_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
-import 'package:turna/core/theme.dart';
 
 /// 章节切换底部弹层（R18 全局容器：拖手 / 标题 / 副题 / 关闭统一走
 /// [showTurnaSheet]；面不透明——底下压着课程列表，半透明会透内容）。
@@ -38,17 +41,23 @@ class SectionBottomSheet extends StatelessWidget {
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) || a11y.reducedMotion;
 
-    return Consumer2<CourseProvider, ProgressProvider>(
-      builder: (context, courseProvider, progressProvider, _) {
+    return Consumer<CourseProvider>(
+      builder: (context, courseProvider, _) {
         final sections = courseProvider.sections;
         final currentId = courseProvider.currentSectionId;
 
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMarginCompact,
+            AppSpacing.xs,
+            AppSpacing.pageMarginCompact,
+            AppSpacing.lg + AppSpacing.xs,
+          ),
           shrinkWrap: true,
           physics: const BouncingScrollPhysics(),
           itemCount: sections.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, __) =>
+              const SizedBox(height: AppSpacing.sm + 2),
           itemBuilder: (context, index) {
             final section = sections[index];
             final isSelected = section.id == currentId;
@@ -84,9 +93,9 @@ class _SectionSheetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SectionVisuals.colorsFor(section.id);
-    final borderRadius = BorderRadius.circular(TurnaTheme.radiusMedium);
-    final duration =
-        reduceMotion ? Duration.zero : const Duration(milliseconds: 180);
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
 
     return AnimatedContainer(
       duration: duration,
@@ -95,7 +104,7 @@ class _SectionSheetTile extends StatelessWidget {
         color: isSelected
             ? TurnaTheme.brandTeal.withValues(alpha: 0.08)
             : TurnaTheme.cardBg(context),
-        borderRadius: borderRadius,
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(
           color: isSelected
               ? TurnaTheme.brandTeal.withValues(alpha: 0.45)
@@ -106,27 +115,31 @@ class _SectionSheetTile extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: borderRadius,
+          borderRadius: TurnaTheme.borderRadius,
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md + 2,
+              vertical: AppSpacing.md,
+            ),
             child: Row(
               children: [
                 // Thematic Icon Badge
                 Container(
                   width: 44,
                   height: 44,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: colors.background,
-                    borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+                    borderRadius: TurnaTheme.borderRadius,
                   ),
-                  child: Icon(
+                  child: TurnaIcon(
                     SectionVisuals.iconFor(section.id),
                     size: 22,
                     color: colors.foreground,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: AppSpacing.md + 2),
                 // Section Title + Description
                 Expanded(
                   child: Column(
@@ -136,8 +149,7 @@ class _SectionSheetTile extends StatelessWidget {
                       sectionNameWithLevel(
                         name: section.name,
                         level: section.level,
-                        style: TextStyle(
-                          fontSize: 15,
+                        style: AppTextStyles.cardTitle(context).copyWith(
                           fontWeight: FontWeight.w700,
                           color: isSelected
                               ? TurnaTheme.brandTeal
@@ -150,26 +162,23 @@ class _SectionSheetTile extends StatelessWidget {
                           section.description,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
+                          style: AppTextStyles.captionSm(context),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 // Selected checkmark or arrow
                 if (isSelected)
-                  const Icon(
-                    Icons.check_circle_rounded,
+                  const TurnaIcon(
+                    TurnaIconId.checkCircle,
                     color: TurnaTheme.brandTeal,
                     size: 20,
                   )
                 else
-                  Icon(
-                    Icons.chevron_right_rounded,
+                  TurnaIcon(
+                    TurnaIconId.chevronRight,
                     color: TurnaTheme.textHintColor(context),
                     size: 18,
                   ),

@@ -19,15 +19,19 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_quick_chips.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 @RoutePage()
 class AiHintChatPage extends StatefulWidget {
@@ -100,7 +104,8 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     try {
       final inject = context.read<AiExplainPrefsStore>().injectLearnerContext;
       if (inject) {
-        final lang = widget.context?.language ??
+        final lang =
+            widget.context?.language ??
             context.read<LanguageProvider>().displayName;
         provider.setLearnerContext(
           await LearnerAiContextAssembler.assemble(languageName: lang),
@@ -108,7 +113,9 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       } else {
         provider.setLearnerContext(null);
       }
-    } catch (_) {/* learner context optional — chat proceeds without it */}
+    } catch (_) {
+      /* learner context optional — chat proceeds without it */
+    }
     if (!mounted) return;
     final ctx = widget.context;
     if (provider.messages.isEmpty && ctx != null) {
@@ -135,14 +142,16 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     if (reply == null || reply.isEmpty) return;
     final store = context.read<AiSavedExplanationsStore>();
     final ctx = provider.context;
-    await store.save(SavedExplanation(
-      id: AiSavedExplanationsStore.newId(),
-      title: ctx?.promptLabel ?? AppStrings.aiTutorTitle,
-      body: reply,
-      source: 'hint',
-      language: ctx?.language,
-      createdAt: DateTime.now(),
-    ));
+    await store.save(
+      SavedExplanation(
+        id: AiSavedExplanationsStore.newId(),
+        title: ctx?.promptLabel ?? AppStrings.aiTutorTitle,
+        body: reply,
+        source: 'hint',
+        language: ctx?.language,
+        createdAt: DateTime.now(),
+      ),
+    );
     if (mounted) {
       TurnaSnackBar.maybeShow(context, AppStrings.aiExplanationSaved);
     }
@@ -154,20 +163,16 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     final configured = context.watch<AiEngineConfigHolder>().config.isComplete;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(
-          ctx == null
-              ? AppStrings.aiTutorTitle
-              : AppStrings.aiTutorTitleWithType(ctx.typeLabel),
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
+      appBar: TurnaTopBar(
+        title: ctx == null
+            ? AppStrings.aiTutorTitle
+            : AppStrings.aiTutorTitleWithType(ctx.typeLabel),
         backgroundColor: TurnaTheme.bottomNavBg(context),
+        showDivider: true,
         actions: [
           IconButton(
             tooltip: AppStrings.aiSaveExplanation,
-            icon: const Icon(Icons.bookmark_add_outlined),
+            icon: const TurnaIcon(TurnaIconId.bookmark, size: 20),
             onPressed: _saveLatest,
           ),
         ],
@@ -178,89 +183,98 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             : Column(
                 children: [
                   Expanded(
-                    child: Selector<
-                        AiHintProvider,
-                        ({
-                          bool empty,
-                          int count,
-                          bool hasError,
-                          AiHintState state,
-                        })>(
-                      selector: (_, w) => (
-                        empty: w.messages.isEmpty,
-                        count: w.messages.length,
-                        hasError: w.error != null,
-                        state: w.state,
-                      ),
-                      builder: (context, v, _) {
-                        if (v.empty && v.state != AiHintState.loading) {
-                          return _emptyHint();
-                        }
-                        final showThinking = v.state == AiHintState.loading &&
-                            _lastIsUserOrEmptyAssistant(v.count);
-                        final itemCount = v.count +
-                            (v.hasError ? 1 : 0) +
-                            (showThinking && !_hasStreamingAssistant(v.count)
-                                ? 1
-                                : 0);
-                        return NotificationListener<UserScrollNotification>(
-                          onNotification: (n) {
-                            if (n.direction == ScrollDirection.forward) {
-                              _autoScroll.lockFollow();
-                            } else if (n.metrics.pixels >=
-                                n.metrics.maxScrollExtent - 120) {
-                              _autoScroll.unlockFollow();
-                            }
-                            return false;
-                          },
-                          child: ListView.builder(
-                            controller: _scrollCtrl,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.pageMarginCompact,
-                              vertical: AppSpacing.sm,
-                            ),
-                            itemCount: itemCount,
-                            itemBuilder: (context, i) {
-                              final w = context.read<AiHintProvider>();
-                              if (i < w.messages.length) {
-                                final m = w.messages[i];
-                                final streamingTarget = i == v.count - 1 &&
-                                    m.role == 'assistant' &&
-                                    v.state == AiHintState.loading;
-                                if (streamingTarget && m.content.isEmpty) {
-                                  return _thinkingBubble();
-                                }
-                                if (streamingTarget) {
-                                  return Selector<AiHintProvider, int>(
-                                    selector: (_, p) => p.streamingRevision,
-                                    builder: (context, _, __) {
-                                      final latest = context
-                                          .read<AiHintProvider>()
-                                          .messages[i];
-                                      return ChatBubble(
-                                        role: latest.role,
-                                        content: latest.content,
-                                      );
-                                    },
-                                  );
-                                }
-                                return ChatBubble(
-                                    role: m.role, content: m.content);
-                              }
-                              if (v.hasError && i == v.count) {
-                                final mapping = w.errorMapping;
-                                if (mapping != null) {
-                                  return AiErrorBanner(mapping: mapping);
-                                }
-                                return _errorBubble(
-                                    w.error ?? AppStrings.aiErrorUnknown);
-                              }
-                              return _thinkingBubble();
-                            },
+                    child:
+                        Selector<
+                          AiHintProvider,
+                          ({
+                            bool empty,
+                            int count,
+                            bool hasError,
+                            AiHintState state,
+                          })
+                        >(
+                          selector: (_, w) => (
+                            empty: w.messages.isEmpty,
+                            count: w.messages.length,
+                            hasError: w.error != null,
+                            state: w.state,
                           ),
-                        );
-                      },
-                    ),
+                          builder: (context, v, _) {
+                            if (v.empty && v.state != AiHintState.loading) {
+                              return _emptyHint();
+                            }
+                            final showThinking =
+                                v.state == AiHintState.loading &&
+                                _lastIsUserOrEmptyAssistant(v.count);
+                            final itemCount =
+                                v.count +
+                                (v.hasError ? 1 : 0) +
+                                (showThinking &&
+                                        !_hasStreamingAssistant(v.count)
+                                    ? 1
+                                    : 0);
+                            return NotificationListener<UserScrollNotification>(
+                              onNotification: (n) {
+                                if (n.direction == ScrollDirection.forward) {
+                                  _autoScroll.lockFollow();
+                                } else if (n.metrics.pixels >=
+                                    n.metrics.maxScrollExtent - 120) {
+                                  _autoScroll.unlockFollow();
+                                }
+                                return false;
+                              },
+                              child: ListView.builder(
+                                controller: _scrollCtrl,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.pageMarginCompact,
+                                  vertical: AppSpacing.sm,
+                                ),
+                                itemCount: itemCount,
+                                itemBuilder: (context, i) {
+                                  final w = context.read<AiHintProvider>();
+                                  if (i < w.messages.length) {
+                                    final m = w.messages[i];
+                                    final streamingTarget =
+                                        i == v.count - 1 &&
+                                        m.role == 'assistant' &&
+                                        v.state == AiHintState.loading;
+                                    if (streamingTarget && m.content.isEmpty) {
+                                      return _thinkingBubble();
+                                    }
+                                    if (streamingTarget) {
+                                      return Selector<AiHintProvider, int>(
+                                        selector: (_, p) => p.streamingRevision,
+                                        builder: (context, _, __) {
+                                          final latest = context
+                                              .read<AiHintProvider>()
+                                              .messages[i];
+                                          return ChatBubble(
+                                            role: latest.role,
+                                            content: latest.content,
+                                          );
+                                        },
+                                      );
+                                    }
+                                    return ChatBubble(
+                                      role: m.role,
+                                      content: m.content,
+                                    );
+                                  }
+                                  if (v.hasError && i == v.count) {
+                                    final mapping = w.errorMapping;
+                                    if (mapping != null) {
+                                      return AiErrorBanner(mapping: mapping);
+                                    }
+                                    return _errorBubble(
+                                      w.error ?? AppStrings.aiErrorUnknown,
+                                    );
+                                  }
+                                  return _thinkingBubble();
+                                },
+                              ),
+                            );
+                          },
+                        ),
                   ),
                   // 底部独立输入区（R14）：快捷追问、进度、输入行与免责声明
                   // 收进同一条动作带；流式停止 / 失败重试状态保持原位。
@@ -290,9 +304,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                               child: Text(
                                 AppStrings.aiDisclaimer,
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
+                                style: Theme.of(context).textTheme.labelSmall
                                     ?.copyWith(
                                       color: TurnaTheme.textHintColor(context),
                                     ),
@@ -327,7 +339,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
   Widget _emptyHint() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Text(
           AppStrings.aiEmptyHintTutor,
           textAlign: TextAlign.center,
@@ -341,25 +353,14 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-          border: Border.all(color: TurnaTheme.dividerBg(context)),
-        ),
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: TurnaTheme.flatPaperDecoration(context),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: TurnaTheme.brandTeal,
-              ),
-            ),
-            const SizedBox(width: 8),
+            TurnaLoader.inline(size: 16),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               AppStrings.aiThinking,
               style: Theme.of(context).textTheme.bodyMedium,
@@ -374,16 +375,13 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(10),
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        padding: const EdgeInsets.all(AppSpacing.sm + 2),
         decoration: BoxDecoration(
           color: TurnaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          borderRadius: TurnaTheme.borderRadius,
         ),
-        child: Text(
-          error,
-          style: const TextStyle(color: TurnaTheme.error),
-        ),
+        child: Text(error, style: const TextStyle(color: TurnaTheme.error)),
       ),
     );
   }
@@ -405,13 +403,21 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
         if (busy)
           IconButton.filled(
             onPressed: () => context.read<AiHintProvider>().cancel(),
-            icon: const Icon(Icons.stop_rounded),
+            icon: const TurnaIcon(
+              TurnaIconId.stop,
+              size: 18,
+              color: TurnaTheme.textOnPrimary,
+            ),
             tooltip: AppStrings.aiStopGenerating,
           )
         else
           IconButton.filled(
             onPressed: () => _onSend(),
-            icon: const Icon(Icons.send_rounded),
+            icon: const TurnaIcon(
+              TurnaIconId.send,
+              size: 18,
+              color: TurnaTheme.textOnPrimary,
+            ),
             tooltip: AppStrings.commonSend,
           ),
       ],

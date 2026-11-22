@@ -29,13 +29,15 @@ import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
+import 'package:turna/views/widgets/glass_surface.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 /// 练习页主页（「湿地雾光」R07 · 今日任务台版式）。
 ///
@@ -180,23 +182,28 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
 
     return PlayQueueSnapshot(
       mistakeCount: mistakes.length,
-      mistakeGrammarCount:
-          mistakes.where((e) => e.grammarPointId != null).length,
+      mistakeGrammarCount: mistakes
+          .where((e) => e.grammarPointId != null)
+          .length,
       mistakeRewriteCount: mistakes.where((e) => e.rewriteCount == 0).length,
       recentMistakes: recentMistakes.take(3).toList(),
       srsDue: srsDue,
       srsExpressionDue: context.select((SrsProvider p) => p.expressionDueCount),
       srsSeen: context.select((SrsProvider p) => p.totalSeen),
       srsRegistered: context.select((SrsProvider p) => p.totalRegistered),
-      srsLapse: context.select((SrsProvider p) =>
-          p.getLapseWords().length + p.getLapseExpressions().length),
+      srsLapse: context.select(
+        (SrsProvider p) =>
+            p.getLapseWords().length + p.getLapseExpressions().length,
+      ),
       grammarDue: context.select((GrammarReviewProvider p) => p.dueCount),
       grammarSeen: context.select((GrammarReviewProvider p) => p.totalSeen),
-      grammarRegistered:
-          context.select((GrammarReviewProvider p) => p.totalRegistered),
+      grammarRegistered: context.select(
+        (GrammarReviewProvider p) => p.totalRegistered,
+      ),
       legacyAnkiDue: ankiDueWords.length,
-      officialAnkiDue:
-          ankiUnavailable ? null : dueRepo.snapshot.introducedOfficialDue,
+      officialAnkiDue: ankiUnavailable
+          ? null
+          : dueRepo.snapshot.introducedOfficialDue,
       ankiUnavailable: ankiUnavailable,
       weakWords: WeakWordQuizAssembler.aggregateWeakWords(mistakes),
       ankiCourse: ankiCourse,
@@ -249,16 +256,18 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
     final snapshot = _gatherSnapshot(context);
     final totalDue = snapshot.totalDue;
     final ankiCourse = snapshot.ankiCourse;
-    final ankiChipCount =
-        snapshot.ankiUnavailable ? null : snapshot.ankiDueCount;
-    final engineReady =
-        context.select((AiEngineConfigHolder h) => h.config.isComplete);
+    final ankiChipCount = snapshot.ankiUnavailable
+        ? null
+        : snapshot.ankiDueCount;
+    final engineReady = context.select(
+      (AiEngineConfigHolder h) => h.config.isComplete,
+    );
     ({bool active, int ready}) practiceStatus = (active: false, ready: 0);
     try {
-      practiceStatus =
-          context.select<AiPracticeJobQueue, ({bool active, int ready})>(
-        (q) => (active: q.hasActiveJob, ready: q.readyCount),
-      );
+      practiceStatus = context
+          .select<AiPracticeJobQueue, ({bool active, int ready})>(
+            (q) => (active: q.hasActiveJob, ready: q.readyCount),
+          );
     } catch (_) {
       // Optional dependency: widget tests pump the hub without the queue.
     }
@@ -280,8 +289,10 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(AppStrings.playTitle,
-                      style: AppTextStyles.pageTitle(context)),
+                  Text(
+                    AppStrings.playTitle,
+                    style: AppTextStyles.pageTitle(context),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     AppStrings.playHeaderDate(now.month, now.day),
@@ -348,7 +359,7 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
                         onLongPress: () =>
                             _showMistakePopup(rowContext, snapshot),
                         child: DirectoryTaskRow(
-                          icon: Icons.priority_high_rounded,
+                          icon: TurnaIconId.warning,
                           accent: TurnaTheme.anatolianClay,
                           title: AppStrings.playMistakeReviewTitle,
                           countLabel: snapshot.mistakeCount > 0
@@ -365,11 +376,12 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
                         semanticsLabel: AppStrings.playReviewTitle,
                         onLongPress: () => _showSrsPopup(rowContext, snapshot),
                         child: DirectoryTaskRow(
-                          icon: Icons.repeat_rounded,
+                          icon: TurnaIconId.repeat,
                           accent: TurnaTheme.brandTeal,
                           title: AppStrings.playReviewTitle,
-                          countLabel:
-                              snapshot.srsDue > 0 ? '${snapshot.srsDue}' : null,
+                          countLabel: snapshot.srsDue > 0
+                              ? '${snapshot.srsDue}'
+                              : null,
                           onTap: () =>
                               context.router.push(const SrsReviewRoute()),
                         ),
@@ -381,7 +393,7 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
                         onLongPress: () =>
                             _showGrammarPopup(rowContext, snapshot),
                         child: DirectoryTaskRow(
-                          icon: Icons.menu_book_rounded,
+                          icon: TurnaIconId.book,
                           accent: TurnaTheme.brandSky,
                           title: AppStrings.playGrammarReviewTitle,
                           countLabel: snapshot.grammarDue > 0
@@ -402,14 +414,14 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
                         semanticsLabel: AppStrings.playAnkiReviewTitle,
                         onLongPress: () => _showAnkiPopup(rowContext, snapshot),
                         child: DirectoryTaskRow(
-                          icon: Icons.style_rounded,
+                          icon: TurnaIconId.cards,
                           accent: TurnaTheme.brandSky,
                           title: AppStrings.playAnkiReviewTitle,
                           countLabel: snapshot.ankiUnavailable
                               ? '—'
                               : (ankiChipCount != null && ankiChipCount > 0
-                                  ? '$ankiChipCount'
-                                  : null),
+                                    ? '$ankiChipCount'
+                                    : null),
                           onTap: () => unawaited(_openAnkiReview(context)),
                         ),
                       ),
@@ -423,17 +435,17 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
                         semanticsLabel: AppStrings.playSmartPracticeTitle,
                         onLongPress: () => _showAiPopup(rowContext),
                         child: DirectoryTaskRow(
-                          icon: Icons.auto_awesome_rounded,
+                          icon: TurnaIconId.spark,
                           // teal 已归 SRS 队列（P2 任务行色规），智能练习
                           // 按湿地色轴取芦苇青，与错题 clay、语法 sky 分开。
                           accent: TurnaTheme.brandReed,
                           title: AppStrings.playSmartPracticeTitle,
                           countLabel: engineReady
                               ? (practiceStatus.active
-                                  ? '…'
-                                  : practiceStatus.ready > 0
-                                      ? '${practiceStatus.ready}'
-                                      : null)
+                                    ? '…'
+                                    : practiceStatus.ready > 0
+                                    ? '${practiceStatus.ready}'
+                                    : null)
                               : AppStrings.playAiEngineNotConfigured,
                           onTap: () => context.router.push(const AiHubRoute()),
                         ),
@@ -503,9 +515,7 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
             ),
           ),
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 16 + MediaQuery.paddingOf(context).bottom,
-            ),
+            child: SizedBox(height: 16 + MediaQuery.paddingOf(context).bottom),
           ),
         ],
       ),
@@ -542,15 +552,18 @@ class _PlayHubPageState extends State<PlayHubPage> with WidgetsBindingObserver {
     }
     if (snapshot.mistakeCount > 0) {
       return AppStrings.playTodayHeroNext(
-          '${AppStrings.playMistakeReviewTitle} · ${snapshot.mistakeCount}');
+        '${AppStrings.playMistakeReviewTitle} · ${snapshot.mistakeCount}',
+      );
     }
     if (snapshot.srsDue > 0) {
       return AppStrings.playTodayHeroNext(
-          '${AppStrings.playReviewTitle} · ${snapshot.srsDue}');
+        '${AppStrings.playReviewTitle} · ${snapshot.srsDue}',
+      );
     }
     if (snapshot.grammarDue > 0) {
       return AppStrings.playTodayHeroNext(
-          '${AppStrings.playGrammarReviewTitle} · ${snapshot.grammarDue}');
+        '${AppStrings.playGrammarReviewTitle} · ${snapshot.grammarDue}',
+      );
     }
     return AppStrings.playTodayHeroAllClear;
   }
@@ -646,8 +659,9 @@ class _TodayGlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final estimateMinutes =
-        totalDue > 0 ? (totalDue * _secondsPerItem / 60).ceil() : 0;
+    final estimateMinutes = totalDue > 0
+        ? (totalDue * _secondsPerItem / 60).ceil()
+        : 0;
 
     return Semantics(
       container: true,
@@ -662,7 +676,7 @@ class _TodayGlassPanel extends StatelessWidget {
           decoration: TurnaTheme.glassDecoration(
             context,
             TurnaTheme.glassFocus,
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -679,13 +693,14 @@ class _TodayGlassPanel extends StatelessWidget {
                   Text(
                     '$totalDue',
                     key: const Key('play-today-hero-number'),
-                    style: AppTextStyles.metricHero(
-                      context,
-                      color: TurnaTheme.brandTealDark,
-                    ).copyWith(
-                      fontSize: 46,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                    style:
+                        AppTextStyles.metricHero(
+                          context,
+                          color: TurnaTheme.brandTealDark,
+                        ).copyWith(
+                          fontSize: 46,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                   ),
                   const SizedBox(width: AppSpacing.xs + 2),
                   Text(
@@ -706,7 +721,7 @@ class _TodayGlassPanel extends StatelessWidget {
               SessionPrimaryAction(
                 label: AppStrings.playTodayStartReview,
                 onPressed: onTap,
-                trailingIcon: Icons.play_arrow_rounded,
+                trailingIcon: TurnaIconId.play,
               ),
             ],
           ),
@@ -762,7 +777,7 @@ class _ToolIndexLink extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+      borderRadius: TurnaTheme.borderRadius,
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs + 2,
@@ -770,11 +785,9 @@ class _ToolIndexLink extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: AppTextStyles.captionSm(context).copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: TurnaTheme.brandTeal,
-          ),
+          style: AppTextStyles.captionSm(
+            context,
+          ).copyWith(fontWeight: FontWeight.w600, color: TurnaTheme.brandTeal),
         ),
       ),
     );
@@ -789,9 +802,8 @@ class _ToolIndexDot extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '·',
-      style: AppTextStyles.captionSm(context).copyWith(
-        color: TurnaTheme.textHintColor(context),
-      ),
+      style: AppTextStyles.captionSm(context)
+          .copyWith(color: TurnaTheme.textHintColor(context)),
     );
   }
 }
@@ -804,34 +816,49 @@ class _AnkiDueRetryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoftCard(
+    return GlassSurface(
       key: const Key('play-anki-due-unavailable'),
-      accentColor: TurnaTheme.warning,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-        child: Row(
-          children: [
-            AccentIconChip(
-              icon: Icons.sync_problem_rounded,
-              color: TurnaTheme.warning,
-              size: 20,
-              padding: 7,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                AppStrings.ankiDueUnavailable,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+      accent: TurnaTheme.warning,
+      level: GlassLevel.l1Subtle,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm + 2,
+        AppSpacing.sm,
+        AppSpacing.sm + 2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: TurnaTheme.softTint(
+                context,
+                TurnaTheme.warning,
+                alpha: 0.14,
               ),
+              borderRadius: TurnaTheme.borderRadius,
             ),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(AppStrings.ankiReviewRetry),
+            child: const TurnaIcon(
+              TurnaIconId.warning,
+              color: TurnaTheme.warning,
+              size: 18,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              AppStrings.ankiDueUnavailable,
+              style: AppTextStyles.bodyText(context)
+                  .copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(AppStrings.ankiReviewRetry),
+          ),
+        ],
       ),
     );
   }

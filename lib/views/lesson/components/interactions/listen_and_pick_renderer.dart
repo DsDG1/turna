@@ -92,8 +92,9 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
   }
 
   Future<void> _speak() async {
-    final result =
-        await getIt<AudioController>().speakWordWithResult(widget.audioAsset);
+    final result = await getIt<AudioController>().speakWordWithResult(
+      widget.audioAsset,
+    );
     if (!mounted) return;
     setState(() => _hasPlayed = true);
     showTtsFailureFeedback(context, result);
@@ -110,9 +111,9 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
       canSubmit: canSubmit,
       submit: canSubmit
           ? () => widget.onSubmit(
-                _picked == widget.correctIndex,
-                userAnswerText: widget.options[_picked!],
-              )
+              _picked == widget.correctIndex,
+              userAnswerText: widget.options[_picked!],
+            )
           : null,
     );
 

@@ -26,7 +26,9 @@ import 'package:flutter/widget_previews.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 顶部会话进度带的进度表达方式。
 enum SessionProgressStyle {
@@ -76,8 +78,8 @@ class SessionProgressBand extends StatelessWidget
   Widget build(BuildContext context) {
     final effectiveStyle =
         style == SessionProgressStyle.dots && totalCount > _maxDots
-            ? SessionProgressStyle.bar
-            : style;
+        ? SessionProgressStyle.bar
+        : style;
 
     final content = SizedBox(
       height: bandHeight,
@@ -88,7 +90,7 @@ class SessionProgressBand extends StatelessWidget
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.close_rounded),
+              icon: const TurnaIcon(TurnaIconId.close, size: 20),
               tooltip: exitTooltip ?? AppStrings.commonClose,
               onPressed: onExit ?? () => Navigator.of(context).maybePop(),
             ),
@@ -97,15 +99,15 @@ class SessionProgressBand extends StatelessWidget
               child: Center(
                 child: switch (effectiveStyle) {
                   SessionProgressStyle.dots => SessionSegmentedDots(
-                      done: currentIndex - 1,
-                      isCurrentReached: currentIndex <= totalCount,
-                      total: totalCount,
-                    ),
+                    done: currentIndex - 1,
+                    isCurrentReached: currentIndex <= totalCount,
+                    total: totalCount,
+                  ),
                   SessionProgressStyle.bar => SessionThinProgressBar(
-                      value: totalCount <= 0
-                          ? 0
-                          : (currentIndex / totalCount).clamp(0.0, 1.0),
-                    ),
+                    value: totalCount <= 0
+                        ? 0
+                        : (currentIndex / totalCount).clamp(0.0, 1.0),
+                  ),
                 },
               ),
             ),
@@ -133,10 +135,8 @@ class _CountLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '$currentIndex / $totalCount',
-      style: TextStyle(
-        fontSize: 13,
+      style: AppTextStyles.captionSm(context).copyWith(
         fontWeight: FontWeight.w600,
-        color: TurnaTheme.textSecondaryColor(context),
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
@@ -144,9 +144,6 @@ class _CountLabel extends StatelessWidget {
 }
 
 /// 分段进度点：已完成实心 teal、当前空心环、未达浅灰。
-///
-/// [done] 是已完成数；当前项画环（[isCurrentReached] 为 false 时全部画点，
-/// 用于「进入即完成」之外的装配态）。
 class SessionSegmentedDots extends StatelessWidget {
   const SessionSegmentedDots({
     required this.done,
@@ -175,8 +172,8 @@ class SessionSegmentedDots extends StatelessWidget {
               color: i < done
                   ? TurnaTheme.brandTeal
                   : (i == done && isCurrentReached)
-                      ? Colors.transparent
-                      : track,
+                  ? Colors.transparent
+                  : track,
               border: (i == done && isCurrentReached)
                   ? Border.all(color: TurnaTheme.brandTeal, width: 2.5)
                   : null,
@@ -198,7 +195,7 @@ class SessionThinProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: TurnaTheme.borderRadius,
       child: LinearProgressIndicator(
         value: value.clamp(0.0, 1.0),
         minHeight: 3,
@@ -210,8 +207,6 @@ class SessionThinProgressBar extends StatelessWidget {
 }
 
 /// 会话来源行：图标 + 来源说明 + 尾部动作（更多 / AI）。
-///
-/// 放在进度带之下、画布之上，是三相位会话唯一的「上下文行」差异位。
 class SessionSourceLine extends StatelessWidget {
   const SessionSourceLine({
     required this.icon,
@@ -220,7 +215,7 @@ class SessionSourceLine extends StatelessWidget {
     super.key,
   });
 
-  final IconData icon;
+  final TurnaIconId icon;
   final String label;
   final Widget? trailing;
 
@@ -233,7 +228,7 @@ class SessionSourceLine extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
+          TurnaIcon(
             icon,
             size: 14,
             color: TurnaTheme.textSecondaryColor(context),
@@ -242,7 +237,7 @@ class SessionSourceLine extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: AppTextStyles.captionSm(context).copyWith(fontSize: 12),
+              style: AppTextStyles.captionSm(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -279,13 +274,14 @@ class SessionRecallCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints:
-          minHeight == null ? null : BoxConstraints(minHeight: minHeight!),
+      constraints: minHeight == null
+          ? null
+          : BoxConstraints(minHeight: minHeight!),
       alignment: alignment,
       padding: padding,
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: child,
     );
@@ -315,12 +311,12 @@ class SessionActionBand extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: TurnaTheme.cardBg(context),
-        border: Border(
-          top: BorderSide(color: TurnaTheme.dividerBg(context)),
-        ),
+        border: Border(top: BorderSide(color: TurnaTheme.dividerBg(context))),
       ),
-      child:
-          SafeArea(top: false, child: Padding(padding: padding, child: child)),
+      child: SafeArea(
+        top: false,
+        child: Padding(padding: padding, child: child),
+      ),
     );
   }
 }
@@ -340,17 +336,14 @@ class SessionPrimaryAction extends StatelessWidget {
 
   final String label;
   final VoidCallback? onPressed;
-  final IconData? trailingIcon;
+  final TurnaIconId? trailingIcon;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    const radius = TurnaTheme.borderRadius;
     final decoration = enabled
-        ? TurnaTheme.primaryCtaDecoration(
-            borderRadius: radius,
-            vertical: true,
-          )
+        ? TurnaTheme.primaryCtaDecoration(borderRadius: radius, vertical: true)
         : BoxDecoration(
             color: TurnaTheme.brandTeal.withValues(alpha: 0.30),
             borderRadius: radius,
@@ -363,29 +356,35 @@ class SessionPrimaryAction extends StatelessWidget {
         decoration: decoration,
         child: ElevatedButton(
           onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            foregroundColor: TurnaTheme.textOnPrimary,
-            disabledForegroundColor:
-                TurnaTheme.textOnPrimary.withValues(alpha: 0.55),
-            minimumSize: const Size.fromHeight(52),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(borderRadius: radius),
-          ).copyWith(
-            elevation: const WidgetStatePropertyAll<double>(0),
-            shadowColor: const WidgetStatePropertyAll<Color>(
-              Colors.transparent,
-            ),
-          ),
+          style:
+              ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                disabledBackgroundColor: Colors.transparent,
+                foregroundColor: TurnaTheme.textOnPrimary,
+                disabledForegroundColor: TurnaTheme.textOnPrimary.withValues(
+                  alpha: 0.55,
+                ),
+                minimumSize: const Size.fromHeight(52),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: TurnaTheme.shape,
+              ).copyWith(
+                elevation: const WidgetStatePropertyAll<double>(0),
+                shadowColor: const WidgetStatePropertyAll<Color>(
+                  Colors.transparent,
+                ),
+              ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(label, style: AppTextStyles.buttonLabel),
               if (trailingIcon != null) ...[
                 const SizedBox(width: AppSpacing.sm),
-                Icon(trailingIcon, size: 18),
+                TurnaIcon(
+                  trailingIcon!,
+                  size: 18,
+                  color: TurnaTheme.textOnPrimary,
+                ),
               ],
             ],
           ),
@@ -446,19 +445,13 @@ class SessionRatingBand extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (above != null) ...[
-          above!,
-          const SizedBox(height: AppSpacing.md),
-        ],
+        if (above != null) ...[above!, const SizedBox(height: AppSpacing.md)],
         Row(
           children: [
             for (var i = 0; i < actions.length; i++) ...[
               if (i > 0) const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: _RatingButton(
-                  action: actions[i],
-                  enabled: enabled,
-                ),
+                child: _RatingButton(action: actions[i], enabled: enabled),
               ),
             ],
           ],
@@ -488,8 +481,9 @@ class _RatingButton extends StatelessWidget {
         onPressed: enabled ? action.onPressed : null,
         // styleFrom treats elevation as a base level (pressed: +6); pin flat.
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              tone == SessionRatingTone.primary ? color : Colors.transparent,
+          backgroundColor: tone == SessionRatingTone.primary
+              ? color
+              : Colors.transparent,
           foregroundColor: color,
           disabledBackgroundColor: tone == SessionRatingTone.primary
               ? color.withValues(alpha: 0.30)
@@ -502,7 +496,7 @@ class _RatingButton extends StatelessWidget {
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: TurnaTheme.borderRadius,
             side: tone == SessionRatingTone.outline
                 ? BorderSide(color: color.withValues(alpha: 0.55), width: 1.5)
                 : BorderSide.none,
@@ -514,21 +508,18 @@ class _RatingButton extends StatelessWidget {
           children: [
             Text(
               action.label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                height: 1.15,
-              ),
+              style: AppTextStyles.cardTitle(context)
+                  .copyWith(color: color, height: 1.15),
             ),
             if (showInterval) ...[
               const SizedBox(height: 3),
               Text(
                 action.interval!,
-                style: TextStyle(
-                  fontSize: 11,
+                style: AppTextStyles.caption(context).copyWith(
                   fontWeight: FontWeight.w500,
                   color: color.withValues(alpha: 0.75),
                   height: 1.15,
+                  letterSpacing: 0,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -542,9 +533,10 @@ class _RatingButton extends StatelessWidget {
 
 @Preview(name: 'Session shell · light', group: 'Wetland mist')
 @Preview(
-    name: 'Session shell · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Session shell · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget sessionShellPreview() {
   return const _SessionShellPreview();
 }
@@ -562,21 +554,20 @@ class _SessionShellPreview extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'AI',
-            icon: Icon(Icons.auto_awesome_rounded),
+            icon: TurnaIcon(TurnaIconId.spark),
             onPressed: null,
           ),
         ],
       ),
-      body: const Padding(
-        padding: EdgeInsets.all(AppSpacing.pageMargin),
+      body: Padding(
+        padding: const EdgeInsets.all(AppSpacing.pageMargin),
         child: SessionRecallCanvas(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('döner',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700)),
-              SizedBox(height: AppSpacing.md),
-              Text('转 · 名词'),
+              Text('döner', style: AppTextStyles.pageTitle(context)),
+              const SizedBox(height: AppSpacing.md),
+              const Text('转 · 名词'),
             ],
           ),
         ),

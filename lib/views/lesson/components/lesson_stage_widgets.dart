@@ -1,18 +1,26 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/core/course_answer.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/domain/course/reading_passage.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 class LessonStageBanner extends StatelessWidget {
   final String name;
   final Color accent;
-  final IconData? icon;
+  final TurnaIconId? icon;
 
   const LessonStageBanner({
     super.key,
@@ -38,7 +46,7 @@ class LessonStageBanner extends StatelessWidget {
       child: Row(
         children: [
           if (icon != null)
-            Icon(icon, size: 17, color: accent)
+            TurnaIcon(icon!, size: 17, color: accent)
           else
             Container(
               width: 6,
@@ -49,8 +57,7 @@ class LessonStageBanner extends StatelessWidget {
           Expanded(
             child: Text(
               name,
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTextStyles.captionSm(context).copyWith(
                 fontWeight: FontWeight.w600,
                 color: accent,
                 letterSpacing: 0.2,
@@ -100,11 +107,7 @@ class _CollapsedPassage extends StatelessWidget {
   final List<String> paragraphs;
   final ReadingPassage? passage;
 
-  const _CollapsedPassage({
-    required this.paragraphs,
-    this.title,
-    this.passage,
-  });
+  const _CollapsedPassage({required this.paragraphs, this.title, this.passage});
 
   @override
   Widget build(BuildContext context) {
@@ -116,24 +119,22 @@ class _CollapsedPassage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.menu_book_rounded,
+              const TurnaIcon(
+                TurnaIconId.book,
                 size: 16,
                 color: TurnaTheme.brandTeal,
               ),
               const SizedBox(width: 8),
               Text(
                 AppStrings.lessonTemplateReading,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyles.caption(context).copyWith(
                   letterSpacing: 0.4,
                   color: TurnaTheme.textSecondaryColor(context),
                 ),
@@ -144,10 +145,8 @@ class _CollapsedPassage extends StatelessWidget {
           if (title != null && title!.isNotEmpty) ...[
             Text(
               title!,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
+              style: AppTextStyles.cardTitle(context)
+                  .copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
           ],
@@ -155,11 +154,7 @@ class _CollapsedPassage extends StatelessWidget {
             body,
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.7,
-              color: TurnaTheme.textPrimaryColor(context),
-            ),
+            style: AppTextStyles.bodyText(context).copyWith(height: 1.7),
           ),
           const SizedBox(height: 4),
           _ExpandRow(
@@ -190,7 +185,7 @@ class _ExpandRow extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+          borderRadius: TurnaTheme.borderRadius,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Row(
@@ -198,15 +193,14 @@ class _ExpandRow extends StatelessWidget {
               children: [
                 Text(
                   AppStrings.lessonReadingExpand,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppTextStyles.captionSm(context).copyWith(
                     fontWeight: FontWeight.w600,
                     color: TurnaTheme.brandTeal,
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
+                const TurnaIcon(
+                  TurnaIconId.chevronDown,
                   size: 16,
                   color: TurnaTheme.brandTeal,
                 ),
@@ -226,68 +220,38 @@ Future<void> showReadingPassageSheet(
   required List<String> paragraphs,
   ReadingPassage? passage,
 }) {
-  return showModalBottomSheet<void>(
+  final hasTitle = title != null && title.isNotEmpty;
+  return showTurnaSheet<void>(
     context: context,
+    title: hasTitle ? title : AppStrings.lessonTemplateReading,
+    subtitle: hasTitle ? AppStrings.lessonTemplateReading : null,
     isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusXLarge),
+    body: ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.sm,
+        AppSpacing.pageMargin,
+        AppSpacing.xxl,
       ),
-    ),
-    builder: (sheetContext) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      minChildSize: 0.45,
-      maxChildSize: 0.95,
-      builder: (context, controller) => ListView(
-        controller: controller,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: TurnaTheme.textHint.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      children: [
+        if (passage?.imageAsset case final asset?) ...[
+          Semantics(
+            label: passage!.imageAlt,
+            child: RoundedCachedAssetImage(asset: asset, maxHeight: 220),
           ),
-          if (passage?.imageAsset case final asset?) ...[
-            Semantics(
-              label: passage!.imageAlt,
-              child: RoundedCachedAssetImage(asset: asset, maxHeight: 220),
-            ),
-            const SizedBox(height: 16),
-          ],
-          if (title != null && title.isNotEmpty) ...[
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
-            ),
-            const SizedBox(height: 16),
-          ],
-          for (final paragraph in paragraphs) ...[
-            if (passage case final value?)
-              _InteractiveParagraph(text: paragraph, passage: value)
-            else
-              Text(
-                paragraph,
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.75,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
-              ),
-            const SizedBox(height: 16),
-          ],
+          const SizedBox(height: AppSpacing.lg),
         ],
-      ),
+        for (final paragraph in paragraphs) ...[
+          if (passage case final value?)
+            _InteractiveParagraph(text: paragraph, passage: value)
+          else
+            Text(
+              paragraph,
+              style: AppTextStyles.bodyText(context).copyWith(height: 1.75),
+            ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+      ],
     ),
   );
 }
@@ -310,11 +274,7 @@ class _InteractiveParagraph extends StatelessWidget {
         if (allowed.isEmpty || allowed.contains(entry.id))
           normalizeCourseAnswer(entry.term): entry.id,
     };
-    final baseStyle = TextStyle(
-      fontSize: 16,
-      height: 1.75,
-      color: TurnaTheme.textPrimaryColor(context),
-    );
+    final baseStyle = AppTextStyles.bodyText(context).copyWith(height: 1.75);
     return Wrap(
       children: [
         for (final token in text.split(RegExp(r'(\s+)')))
@@ -362,20 +322,12 @@ class _InteractiveParagraph extends StatelessWidget {
   void _showWord(BuildContext context, String wordId) {
     final word = vocabById[wordId];
     if (word == null) return;
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(word.term),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(word.translation),
-            if (word.pronunciation case final pronunciation?)
-              Text(pronunciation),
-          ],
-        ),
-      ),
+    final pronunciation = word.pronunciation;
+    final message = pronunciation != null && pronunciation.isNotEmpty
+        ? '${word.translation}\n$pronunciation'
+        : word.translation;
+    unawaited(
+      showTurnaInfoDialog(context: context, title: word.term, message: message),
     );
   }
 }

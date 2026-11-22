@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 enum _Mode { a, b, c }
 
 void main() {
+  Finder findCheckIcon() => find.byWidgetPredicate(
+    (w) => w is TurnaIcon && w.id == TurnaIconId.check,
+  );
+
   Widget wrap(Widget child) {
     return MaterialApp(
       theme: TurnaTheme.lightTheme,
       home: Scaffold(
-          body: Padding(padding: const EdgeInsets.all(8), child: child)),
+        body: Padding(padding: const EdgeInsets.all(8), child: child),
+      ),
     );
   }
 
-  testWidgets('TurnaSegmented reports the tapped value and has no check icon',
-      (tester) async {
+  testWidgets('TurnaSegmented reports the tapped value and has no check icon', (
+    tester,
+  ) async {
     var selected = _Mode.a;
     await tester.pumpWidget(
       wrap(
@@ -35,7 +43,7 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.check), findsNothing);
+    expect(findCheckIcon(), findsNothing);
     await tester.tap(find.text('乙'));
     await tester.pumpAndSettle();
     expect(selected, _Mode.b);
@@ -57,8 +65,8 @@ void main() {
               selected: selected,
               onSelected: (v) => setState(() => selected = v),
               items: const [
-                (_Mode.a, '错题', Icons.history),
-                (_Mode.b, '弱词', Icons.quiz),
+                (_Mode.a, '错题', TurnaIconId.timer),
+                (_Mode.b, '弱词', TurnaIconId.help),
               ],
             );
           },
@@ -73,15 +81,9 @@ void main() {
 
   testWidgets('TurnaFilterChip has no checkmark', (tester) async {
     await tester.pumpWidget(
-      wrap(
-        TurnaFilterChip(
-          label: '已标记',
-          selected: true,
-          onSelected: (_) {},
-        ),
-      ),
+      wrap(TurnaFilterChip(label: '已标记', selected: true, onSelected: (_) {})),
     );
     expect(find.text('已标记'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsNothing);
+    expect(findCheckIcon(), findsNothing);
   });
 }

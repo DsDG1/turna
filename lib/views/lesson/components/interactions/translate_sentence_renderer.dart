@@ -8,11 +8,13 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/course_answer.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Free-text translation. User types the translation of a source sentence.
 /// Match is case-insensitive, whitespace-trimmed, and ignores trailing
@@ -69,10 +71,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
   void _syncDraft(BuildContext context) {
     final canSubmit =
         !widget.state.submitted && _controller.text.trim().isNotEmpty;
-    LessonActionScope.maybeOf(context)?.report(
-      canSubmit: canSubmit,
-      submit: canSubmit ? _trySubmit : null,
-    );
+    LessonActionScope.maybeOf(context)
+        ?.report(canSubmit: canSubmit, submit: canSubmit ? _trySubmit : null);
   }
 
   void _onTextChanged() {
@@ -96,11 +96,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
     super.dispose();
   }
 
-  bool _matches(String input) => matchesCourseAnswer(
-        input,
-        widget.expected,
-        widget.acceptedAnswers,
-      );
+  bool _matches(String input) =>
+      matchesCourseAnswer(input, widget.expected, widget.acceptedAnswers);
 
   void _applyHint(String hint) {
     final current = _controller.text;
@@ -108,8 +105,9 @@ class _TranslateBodyState extends State<_TranslateBody> {
         current.isNotEmpty && !current.endsWith(' ') && !hint.startsWith(' ');
     // Updating the controller notifies ValueListenableBuilder — no setState.
     _controller.text = current + (needsSpace ? ' ' : '') + hint;
-    _controller.selection =
-        TextSelection.collapsed(offset: _controller.text.length);
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
   }
 
   void _trySubmit() {
@@ -140,8 +138,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.translate_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.translate,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -155,9 +153,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
                 const SizedBox(height: 16),
                 Text(
                   widget.source,
-                  style: AppTextStyles.promptLg(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyles.promptLg(context)
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -166,8 +163,10 @@ class _TranslateBodyState extends State<_TranslateBody> {
           // 明确书写区（§7.1「下方是明确书写区」）。
           InteractionTextField(
             controller: _controller,
-            verdict:
-                interactionVerdictOf(submitted: submitted, correct: correct),
+            verdict: interactionVerdictOf(
+              submitted: submitted,
+              correct: correct,
+            ),
             enabled: !submitted,
             maxLines: 3,
             minLines: 1,

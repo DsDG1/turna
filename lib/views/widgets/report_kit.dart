@@ -47,10 +47,7 @@ class ReportMetricHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: AppTextStyles.caption(context),
-        ),
+        Text(label, style: AppTextStyles.caption(context)),
         const SizedBox(height: AppSpacing.sm - 2),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -67,9 +64,8 @@ class ReportMetricHeader extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs + 2),
               Text(
                 unit!,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ],
@@ -97,7 +93,8 @@ class ReportSectionHeading extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-              child: Text(title, style: AppTextStyles.sectionTitle(context))),
+            child: Text(title, style: AppTextStyles.sectionTitle(context)),
+          ),
           if (trailing != null) trailing!,
         ],
       ),
@@ -148,7 +145,7 @@ class ReportCompositionBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: TurnaTheme.borderRadius,
           child: Row(
             children: [
               for (var i = 0; i < visible.length; i++) ...[
@@ -177,8 +174,11 @@ class ReportCompositionBar extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm + 2),
                 Expanded(
-                    child: Text(visible[i].label,
-                        style: AppTextStyles.captionSm(context))),
+                  child: Text(
+                    visible[i].label,
+                    style: AppTextStyles.captionSm(context),
+                  ),
+                ),
                 Text(
                   visible[i].valueLabel ?? _defaultLabel(visible[i].value),
                   style: AppTextStyles.captionSm(context).copyWith(
@@ -203,8 +203,11 @@ class ReportCompositionBar extends StatelessWidget {
 
 /// 一根柱（柱状图的一个数据点）。
 class ReportBar {
-  const ReportBar(
-      {required this.label, required this.value, this.highlight = false});
+  const ReportBar({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
 
   final String label;
   final double value;
@@ -237,7 +240,8 @@ class ReportBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     if (bars.isEmpty) return const SizedBox.shrink();
 
-    final resolvedMax = maxValue ??
+    final resolvedMax =
+        maxValue ??
         bars
             .fold<double>(0, (m, b) => math.max(m, b.value))
             .clamp(1, double.infinity);
@@ -314,7 +318,9 @@ class _BarChartPainter extends CustomPainter {
           const Radius.circular(4),
         );
         canvas.drawRRect(
-            rect, Paint()..color = bar.highlight ? highlightColor : barColor);
+          rect,
+          Paint()..color = bar.highlight ? highlightColor : barColor,
+        );
       }
 
       _paintLabel(canvas, bar.label, Offset(cx, plotHeight + _labelHeight / 2));
@@ -369,7 +375,8 @@ class ReportLineChart extends StatelessWidget {
   Widget build(BuildContext context) {
     if (points.length < 2) return const SizedBox.shrink();
 
-    final resolvedMax = maxValue ??
+    final resolvedMax =
+        maxValue ??
         points
             .fold<double>(0, (m, p) => math.max(m, p.value))
             .clamp(1, double.infinity);
@@ -415,10 +422,9 @@ class _LineChartPainter extends CustomPainter {
     final dx = points.length <= 1 ? 0.0 : size.width / (points.length - 1);
 
     Offset at(int i) => Offset(
-          dx * i,
-          plotHeight -
-              (points[i].value / maxValue).clamp(0.0, 1.0) * plotHeight,
-        );
+      dx * i,
+      plotHeight - (points[i].value / maxValue).clamp(0.0, 1.0) * plotHeight,
+    );
 
     final line = Path()..moveTo(at(0).dx, at(0).dy);
     for (var i = 1; i < points.length; i++) {
@@ -518,30 +524,37 @@ class ReportHeatmap extends StatelessWidget {
                 children: [
                   for (var c = 0; c < columns; c++) ...[
                     if (c > 0) SizedBox(width: gap),
-                    Builder(builder: (context) {
-                      final index = r * columns + c;
-                      final level = index < levels.length ? levels[index] : 0;
-                      final cell = Container(
-                        width: cellSize,
-                        height: cellSize,
-                        decoration: BoxDecoration(
-                          color: _cellColor(context, track, accentColor, level),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      );
-                      final raw = cellLabel?.call(index, level);
-                      final label = raw == null || raw.isEmpty ? null : raw;
-                      return label == null
-                          ? cell
-                          : Semantics(
-                              // container：逐格成为独立语义节点，否则会被
-                              // 合并进父级、逐日粒度丢失。
-                              container: true,
-                              label: label,
-                              excludeSemantics: true,
-                              child: cell,
-                            );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        final index = r * columns + c;
+                        final level = index < levels.length ? levels[index] : 0;
+                        final cell = Container(
+                          width: cellSize,
+                          height: cellSize,
+                          decoration: BoxDecoration(
+                            color: _cellColor(
+                              context,
+                              track,
+                              accentColor,
+                              level,
+                            ),
+                            borderRadius: TurnaTheme.borderRadius,
+                          ),
+                        );
+                        final raw = cellLabel?.call(index, level);
+                        final label = raw == null || raw.isEmpty ? null : raw;
+                        return label == null
+                            ? cell
+                            : Semantics(
+                                // container：逐格成为独立语义节点，否则会被
+                                // 合并进父级、逐日粒度丢失。
+                                container: true,
+                                label: label,
+                                excludeSemantics: true,
+                                child: cell,
+                              );
+                      },
+                    ),
                   ],
                 ],
               ),
@@ -553,12 +566,7 @@ class ReportHeatmap extends StatelessWidget {
 
   /// 档位 → 色值。0 = 轨道；1–4 走 [TurnaTheme.softTint] 阶梯（浅色罩白、
   /// 深色罩暗面，同一条主题感知混色）。
-  Color _cellColor(
-    BuildContext context,
-    Color track,
-    Color accent,
-    int level,
-  ) {
+  Color _cellColor(BuildContext context, Color track, Color accent, int level) {
     if (level <= 0) return track;
     const alphas = [0.0, 0.18, 0.38, 0.62, 0.88];
     // 数据侧不保证截断，这里防御 0–4 之外的档位。
@@ -569,8 +577,11 @@ class ReportHeatmap extends StatelessWidget {
 
 /// 一行定义（定义列表）。
 class ReportDefinitionRow {
-  const ReportDefinitionRow(
-      {required this.label, required this.value, this.valueColor});
+  const ReportDefinitionRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   final String label;
   final String value;
@@ -600,8 +611,11 @@ class ReportDefinitionList extends StatelessWidget {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Expanded(
-                    child: Text(rows[i].label,
-                        style: AppTextStyles.captionSm(context))),
+                  child: Text(
+                    rows[i].label,
+                    style: AppTextStyles.captionSm(context),
+                  ),
+                ),
                 Text(
                   rows[i].value,
                   style: AppTextStyles.cardTitle(context).copyWith(
@@ -620,9 +634,10 @@ class ReportDefinitionList extends StatelessWidget {
 
 @Preview(name: 'Report kit · light', group: 'Wetland mist')
 @Preview(
-    name: 'Report kit · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Report kit · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget reportKitPreview() {
   return _ReportKitPreview();
 }
@@ -671,11 +686,20 @@ class _ReportKitPreview extends StatelessWidget {
             const ReportCompositionBar(
               segments: [
                 ReportSegment(
-                    label: '单词 · SRS', value: 12, color: TurnaTheme.brandTeal),
+                  label: '单词 · SRS',
+                  value: 12,
+                  color: TurnaTheme.brandTeal,
+                ),
                 ReportSegment(
-                    label: '语法', value: 5, color: TurnaTheme.brandSky),
+                  label: '语法',
+                  value: 5,
+                  color: TurnaTheme.brandSky,
+                ),
                 ReportSegment(
-                    label: '错题重练', value: 6, color: TurnaTheme.anatolianClay),
+                  label: '错题重练',
+                  value: 6,
+                  color: TurnaTheme.anatolianClay,
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.xl),

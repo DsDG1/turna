@@ -2,10 +2,11 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/domain/achievements/achievement_definition.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/core/theme.dart';
 
 /// UI-layer resolver for achievement presentation: icons, colors, localized
 /// strings, and progress units. The domain layer stays free of Flutter
@@ -24,24 +25,24 @@ class AchievementUiCatalog {
   static const Color _rubyRed = TurnaTheme.achievementCrimson;
   static const Color _diamondBlue = TurnaTheme.achievementCyan;
 
-  static IconData iconFor(String iconKey) {
+  static TurnaIconId iconFor(String iconKey) {
     switch (iconKey) {
       case AchievementCatalog.courseJourneyId:
-        return Icons.explore_rounded;
+        return TurnaIconId.explore;
       case AchievementCatalog.perfectJourneyId:
-        return Icons.track_changes_rounded;
+        return TurnaIconId.target;
       case AchievementCatalog.streakJourneyId:
-        return Icons.local_fire_department_rounded;
+        return TurnaIconId.flame;
       case AchievementCatalog.xpJourneyId:
-        return Icons.bolt_rounded;
+        return TurnaIconId.bolt;
       case AchievementCatalog.dailyFocusId:
-        return Icons.wb_sunny_rounded;
+        return TurnaIconId.sun;
       case AchievementCatalog.reviewJourneyId:
-        return Icons.style_rounded;
+        return TurnaIconId.cards;
       case AchievementCatalog.vocabularyJourneyId:
-        return Icons.auto_stories_rounded;
+        return TurnaIconId.book;
       default:
-        return Icons.military_tech_rounded;
+        return TurnaIconId.trophy;
     }
   }
 

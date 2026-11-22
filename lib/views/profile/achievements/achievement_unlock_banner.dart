@@ -2,10 +2,12 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/achievements/achievement_unlock_result.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Inline achievement banner for completion dialogs / pages (plan §7.5).
 /// Shows one badge or a collapsed "N 枚徽章" summary; never stacks multiple
@@ -33,7 +35,7 @@ class AchievementUnlockBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: accent.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -41,18 +43,20 @@ class AchievementUnlockBanner extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: SweepGradient(
-                colors: [
-                  accent.withValues(alpha: 0.9),
-                  TurnaTheme.warmSand,
-                  accent.withValues(alpha: 0.9),
-                ],
+              borderRadius: TurnaTheme.borderRadius,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [accent.withValues(alpha: 0.92), TurnaTheme.warmSand],
               ),
             ),
-            child: const Icon(Icons.military_tech_rounded,
-                color: Colors.white, size: 24),
+            child: const TurnaIcon(
+              TurnaIconId.trophy,
+              color: TurnaTheme.textOnPrimary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -63,21 +67,18 @@ class AchievementUnlockBanner extends StatelessWidget {
                   unlocks.length > 1
                       ? AppStrings.achievementsUnlockBannerCount(unlocks.length)
                       : AppStrings.achievementsUnlockBannerTitle,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: accent,
-                      ),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800, color: accent),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   unlocks.length > 1
                       ? '$firstSeriesTitle${_moreSuffix(context)}'
                       : '$firstSeriesTitle · ${first.target} · '
-                          '+${first.gemReward} ${AppStrings.achievementsGemRewardSuffix}'
-                          '${cosmetic != null ? ' · $cosmetic' : ''}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
+                            '+${first.gemReward} ${AppStrings.achievementsGemRewardSuffix}'
+                            '${cosmetic != null ? ' · $cosmetic' : ''}',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

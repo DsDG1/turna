@@ -10,19 +10,25 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/app_startup.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
-import 'package:turna/core/text_styles.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
-import 'package:turna/views/widgets/turna_snack_bar.dart';
-import 'package:turna/views/widgets/turna_geometry.dart';
-import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Returns true when a TTS dialog was shown (counts against the session
 /// modal budget). Dismissing the barrier keeps the system voice.
@@ -82,83 +88,84 @@ Future<bool> maybePromptTtsAvailability(
     if (!context.mounted) return false;
     final (title, body) = switch (diag.preferredStatus) {
       TtsPreferredStatus.ready => (
-          AppStrings.splashOhosNoVoiceTitle,
-          AppStrings.splashOhosNoVoiceBody(voices),
-        ),
-      TtsPreferredStatus.voiceMissing => (
-          AppStrings.splashOhosVoiceMissingTitle(languageName),
-          AppStrings.splashOhosVoiceMissingBody(languageName, voices),
-        ),
-      TtsPreferredStatus.googleMissing => (
-          AppStrings.splashOhosNoVoiceTitle,
-          AppStrings.splashOhosNoVoiceBody(voices),
-        ),
-    };
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppStrings.splashAcknowledge),
-          ),
-        ],
+        AppStrings.splashOhosNoVoiceTitle,
+        AppStrings.splashOhosNoVoiceBody(voices),
       ),
+      TtsPreferredStatus.voiceMissing => (
+        AppStrings.splashOhosVoiceMissingTitle(languageName),
+        AppStrings.splashOhosVoiceMissingBody(languageName, voices),
+      ),
+      TtsPreferredStatus.googleMissing => (
+        AppStrings.splashOhosNoVoiceTitle,
+        AppStrings.splashOhosNoVoiceBody(voices),
+      ),
+    };
+    await showTurnaInfoDialog(
+      context: context,
+      title: title,
+      message: body,
+      doneLabel: AppStrings.splashAcknowledge,
     );
-    await prefs.setBool(
-      LocalStateKeys.ttsAvailabilityPromptShown,
-      value: true,
-    );
+    await prefs.setBool(LocalStateKeys.ttsAvailabilityPromptShown, value: true);
     return true;
   }
 
   final (title, body) = switch (diag.preferredStatus) {
     TtsPreferredStatus.voiceMissing => (
-        AppStrings.splashVoiceMissingTitle(languageName),
-        AppStrings.splashVoiceMissingBody(languageName),
-      ),
+      AppStrings.splashVoiceMissingTitle(languageName),
+      AppStrings.splashVoiceMissingBody(languageName),
+    ),
     TtsPreferredStatus.googleMissing => (
-        AppStrings.splashGoogleTtsMissingTitle,
-        AppStrings.splashGoogleTtsMissingBody(languageName),
-      ),
+      AppStrings.splashGoogleTtsMissingTitle,
+      AppStrings.splashGoogleTtsMissingBody(languageName),
+    ),
     TtsPreferredStatus.ready => (
-        AppStrings.splashGoogleTtsNotReadyTitle,
-        AppStrings.splashGoogleTtsNotReadyBody(languageName),
-      ),
+      AppStrings.splashGoogleTtsNotReadyTitle,
+      AppStrings.splashGoogleTtsNotReadyBody(languageName),
+    ),
   };
 
-  final action = await showDialog<_GoogleTtsPromptAction>(
+  final action = await showTurnaFormDialog<_GoogleTtsPromptAction>(
     context: context,
+    title: title,
     barrierDismissible: true,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(body),
-      actions: [
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
-          child: Text(AppStrings.splashKeepCurrentVoice),
-        ),
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
-          child: Text(AppStrings.splashTtsSettings),
-        ),
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
-          child: Text(AppStrings.splashInstallGoogleTts),
-        ),
-      ],
+    body: Builder(
+      builder: (dialogContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            body,
+            style: AppTextStyles.bodyText(dialogContext)
+                .copyWith(color: TurnaTheme.textSecondaryColor(dialogContext)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () =>
+                Navigator.of(dialogContext)
+                    .pop(_GoogleTtsPromptAction.openSettings),
+            icon: const TurnaIcon(TurnaIconId.speakVoice, size: 18),
+            label: Text(AppStrings.splashTtsSettings),
+          ),
+        ],
+      ),
     ),
+    actions: [
+      TurnaSheetAction(
+        label: AppStrings.splashKeepCurrentVoice,
+        onPressed: () =>
+            Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
+      ),
+      TurnaSheetAction(
+        label: AppStrings.splashInstallGoogleTts,
+        primary: true,
+        onPressed: () =>
+            Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
+      ),
+    ],
   );
 
-  await prefs.setBool(
-    LocalStateKeys.ttsAvailabilityPromptShown,
-    value: true,
-  );
+  await prefs.setBool(LocalStateKeys.ttsAvailabilityPromptShown, value: true);
 
   if (!context.mounted) return true;
   switch (action) {
@@ -190,11 +197,7 @@ String? splashStartupStatusLabel(
   return AppStrings.splashPhaseSeeding;
 }
 
-enum _GoogleTtsPromptAction {
-  installGoogle,
-  openSettings,
-  keepSystem,
-}
+enum _GoogleTtsPromptAction { installGoogle, openSettings, keepSystem }
 
 /// Startup gate — NOT a welcome screen.
 ///
@@ -231,6 +234,7 @@ class _SplashPageState extends State<SplashPage> {
       game = context.read<GameProvider>();
       course = context.read<CourseProvider>();
     } catch (_) {
+      // Optional provider guard: SplashPage can be pumped in isolated tests.
       return;
     }
     if (game.initialized && course.isLoaded) {
@@ -247,6 +251,7 @@ class _SplashPageState extends State<SplashPage> {
       game = context.watch<GameProvider>();
       course = context.watch<CourseProvider>();
     } catch (_) {
+      // Optional provider guard: SplashPage can be pumped in isolated tests.
       game = null;
       course = null;
     }
@@ -265,61 +270,72 @@ class _SplashPageState extends State<SplashPage> {
     }
     final bootFailed = course?.bootFailed ?? false;
     // The logo source PNG is a 1024×1024 store render (~4 MB decoded); cap
-    // the decode to the 80 dp box at the device ratio so splash never
+    // the decode to the 76 dp box at the device ratio so splash never
     // decodes the full-size bitmap.
-    final logoPx = (80 * MediaQuery.devicePixelRatioOf(context)).round();
-    return Scaffold(
-      backgroundColor: TurnaTheme.scaffoldBg(context),
-      body: SafeArea(
-        child: Center(
-          child: TurnaPageContent(
-            maxWidth: 420,
-            padding: const EdgeInsets.all(24),
-            child: bootFailed
-                ? PracticeEmptyState(
-                    title: AppStrings.splashCourseLoadFailed,
-                    actionLabel: AppStrings.commonRetry,
-                    onAction: () => continueTurnaStartup(retrySeed: true),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TurnaGeometry(
-                        kind: TurnaGeometryKind.journey,
-                        size: 156,
-                        child: Image.asset(
-                          'assets/images/app_logo.png',
-                          width: 80,
-                          height: 80,
-                          cacheWidth: logoPx,
-                          cacheHeight: logoPx,
-                        ),
+    final logoPx = (76 * MediaQuery.devicePixelRatioOf(context)).round();
+    return AmbientBackdrop(
+      baseColor: TurnaTheme.scaffoldBg(context),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: TurnaGeometryBackdrop(
+          kind: TurnaGeometryKind.arch,
+          alignment: Alignment.bottomCenter,
+          size: (MediaQuery.sizeOf(context).width * 0.95).clamp(240.0, 420.0),
+          intensity: 0.72,
+          child: SafeArea(
+            child: Center(
+              child: TurnaPageContent(
+                maxWidth: 420,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: bootFailed
+                    ? PracticeEmptyState(
+                        title: AppStrings.splashCourseLoadFailed,
+                        actionLabel: AppStrings.commonRetry,
+                        onAction: () => continueTurnaStartup(retrySeed: true),
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TurnaGeometry(
+                            kind: TurnaGeometryKind.journey,
+                            size: 164,
+                            child: Container(
+                              width: 84,
+                              height: 84,
+                              padding: const EdgeInsets.all(AppSpacing.xs),
+                              decoration: TurnaTheme.glassDecoration(
+                                context,
+                                TurnaTheme.brandTeal,
+                                level: GlassLevel.l1Subtle,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: TurnaTheme.borderRadius,
+                                child: Image.asset(
+                                  'assets/images/app_logo.png',
+                                  width: 76,
+                                  height: 76,
+                                  cacheWidth: logoPx,
+                                  cacheHeight: logoPx,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          ListenableBuilder(
+                            listenable: turnaStartupProgress,
+                            builder: (context, _) {
+                              final label = splashStartupStatusLabel(
+                                turnaStartupProgress.phase,
+                                courseLoaded: course?.isLoaded ?? false,
+                                bootFailed: course?.bootFailed ?? false,
+                              );
+                              return TurnaLoader.page(label: label);
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      ),
-                      const SizedBox(height: 14),
-                      ListenableBuilder(
-                        listenable: turnaStartupProgress,
-                        builder: (context, _) {
-                          final label = splashStartupStatusLabel(
-                            turnaStartupProgress.phase,
-                            courseLoaded: course?.isLoaded ?? false,
-                            bootFailed: course?.bootFailed ?? false,
-                          );
-                          if (label == null) return const SizedBox.shrink();
-                          return Text(
-                            label,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.captionSm(context),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+              ),
+            ),
           ),
         ),
       ),

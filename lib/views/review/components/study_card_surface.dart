@@ -169,17 +169,21 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
           backAudioAssets: [
             ...presentation.backAudioMedia,
             ...presentation.media
-                .where((ref) =>
-                    ref.side == MediaOccurrenceSide.unknown &&
-                    ref.kind == CanonicalMediaKind.audio)
+                .where(
+                  (ref) =>
+                      ref.side == MediaOccurrenceSide.unknown &&
+                      ref.kind == CanonicalMediaKind.audio,
+                )
                 .map((ref) => ref.filename),
           ],
           backImageAssets: [
             ...presentation.backImageMedia,
             ...presentation.media
-                .where((ref) =>
-                    ref.side == MediaOccurrenceSide.unknown &&
-                    ref.kind == CanonicalMediaKind.image)
+                .where(
+                  (ref) =>
+                      ref.side == MediaOccurrenceSide.unknown &&
+                      ref.kind == CanonicalMediaKind.image,
+                )
                 .map((ref) => ref.filename),
           ],
         ),
@@ -191,8 +195,9 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
     final content = widget.content;
     if (content is OfficialTemplateContent) {
       return OfficialTemplateWebViewBody(
-        presentation:
-            presentation is FidelityCardPresentation ? presentation : null,
+        presentation: presentation is FidelityCardPresentation
+            ? presentation
+            : null,
         generation: widget.generation,
         onPresented: widget.onPresented,
         content: content,
@@ -231,8 +236,11 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            child: renderer.build(interaction, _state, (correct,
-                {userAnswerText, reviewQuality}) {
+            child: renderer.build(interaction, _state, (
+              correct, {
+              userAnswerText,
+              reviewQuality,
+            }) {
               setState(() {
                 _state = InteractionState(
                   submitted: true,

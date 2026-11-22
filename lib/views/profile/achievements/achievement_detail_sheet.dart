@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/achievements/achievement_definition.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_badge_card.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
-import 'package:turna/core/theme.dart';
 
 /// Series detail sheet（湿地雾光 R15：详情走全局弹层容器）: story, full tier
 /// ladder with per-tier target / reward / status, unlock date, next step, and
@@ -25,11 +28,7 @@ Future<void> showAchievementDetailSheet({
     title: AchievementUiCatalog.titleFor(series.titleKey),
     subtitle: AchievementUiCatalog.descriptionFor(series.descriptionKey),
     isScrollControlled: true,
-    body: _DetailContent(
-      series: series,
-      progress: progress,
-      service: service,
-    ),
+    body: _DetailContent(series: series, progress: progress, service: service),
   );
 }
 
@@ -86,22 +85,24 @@ class _DetailContent extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Builder(builder: (context) {
-                final nextTarget =
-                    progress.nextTier?.target ?? progress.currentProgress;
-                final progressLabel = AppStrings.achievementsTierProgress(
-                  progress.currentProgress,
-                  nextTarget,
-                );
-                return Text(
-                  '$progressLabel $unit',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: accent,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                );
-              }),
+              child: Builder(
+                builder: (context) {
+                  final nextTarget =
+                      progress.nextTier?.target ?? progress.currentProgress;
+                  final progressLabel = AppStrings.achievementsTierProgress(
+                    progress.currentProgress,
+                    nextTarget,
+                  );
+                  return Text(
+                    '$progressLabel $unit',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -111,19 +112,17 @@ class _DetailContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+              borderRadius: TurnaTheme.borderRadius,
             ),
             child: Row(
               children: [
-                Icon(Icons.flag_rounded, color: accent, size: 18),
+                TurnaIcon(TurnaIconId.flag, color: accent, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '${AppStrings.achievementsDetailNextStep} · $_remainingLabel',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: accent,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: accent, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -134,19 +133,21 @@ class _DetailContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: TurnaTheme.success.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+              borderRadius: TurnaTheme.borderRadius,
             ),
             child: Row(
               children: [
-                const Icon(Icons.emoji_events_rounded,
-                    color: TurnaTheme.warning, size: 18),
+                const TurnaIcon(
+                  TurnaIconId.trophy,
+                  color: TurnaTheme.warning,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     AppStrings.achievementsStateMaxed,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -156,17 +157,15 @@ class _DetailContent extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${AppStrings.achievementsPersonalBest}：${progress.currentProgress} ${AppStrings.achievementsUnitXp}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
         ],
         const SizedBox(height: 20),
         Text(
           AppStrings.achievementsDetailTierLadder,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         ...series.tiers.map((tier) {
@@ -216,7 +215,7 @@ class _TierRow extends StatelessWidget {
         color: highlighted
             ? accent.withValues(alpha: 0.08)
             : TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(
           color: highlighted
               ? accent.withValues(alpha: 0.5)
@@ -228,8 +227,9 @@ class _TierRow extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: TurnaTheme.borderRadius,
               color: unlocked
                   ? rarityColor.withValues(alpha: 0.85)
                   : Colors.transparent,
@@ -240,9 +240,13 @@ class _TierRow extends StatelessWidget {
               ),
             ),
             child: unlocked
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
-                : Icon(
-                    Icons.lock_outline_rounded,
+                ? const TurnaIcon(
+                    TurnaIconId.check,
+                    color: TurnaTheme.textOnPrimary,
+                    size: 18,
+                  )
+                : TurnaIcon(
+                    TurnaIconId.lock,
                     size: 15,
                     color: TurnaTheme.textHintColor(context),
                   ),
@@ -258,11 +262,11 @@ class _TierRow extends StatelessWidget {
                       child: Text(
                         '${tier.rarity.displayName} · ${tier.target} $unit',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: unlocked
-                                  ? TurnaTheme.textPrimaryColor(context)
-                                  : TurnaTheme.textSecondaryColor(context),
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: unlocked
+                              ? TurnaTheme.textPrimaryColor(context)
+                              : TurnaTheme.textSecondaryColor(context),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -271,7 +275,6 @@ class _TierRow extends StatelessWidget {
                         AchievementUnlockOrigin.migration) ...[
                       const SizedBox(width: 6),
                       _MiniTag(
-                        context: context,
                         text: AppStrings.achievementsMigrationBackfillTag,
                         color: TurnaTheme.textHintColor(context),
                       ),
@@ -283,18 +286,16 @@ class _TierRow extends StatelessWidget {
                   cosmetic != null
                       ? '+${tier.gemReward} ${AppStrings.achievementsGemRewardSuffix} · $cosmetic'
                       : '+${tier.gemReward} ${AppStrings.achievementsGemRewardSuffix}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
                 ),
                 if (unlocked && tierState?.unlockedAt != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     '${AppStrings.achievementsDetailUnlockedOn} '
                     '${_formatDate(tierState!.unlockedAt)}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: TurnaTheme.textHintColor(context)),
                   ),
                 ],
               ],
@@ -310,12 +311,10 @@ class _TierRow extends StatelessWidget {
 }
 
 class _MiniTag extends StatelessWidget {
-  final BuildContext context;
   final String text;
   final Color color;
 
-  const _MiniTag(
-      {required this.context, required this.text, required this.color});
+  const _MiniTag({required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -323,14 +322,12 @@ class _MiniTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontSize: 10,
-            ),
+        style: AppTextStyles.caption(context)
+            .copyWith(letterSpacing: 0, color: color),
       ),
     );
   }

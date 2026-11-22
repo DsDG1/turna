@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// 后台生成任务的**一行化**进度行（R14：运行中进度一行 + 可取消）。
 ///
@@ -31,8 +34,8 @@ class AiPracticeJobBanner extends StatelessWidget {
     final status = job.status == AiPracticeStatus.queued
         ? AppStrings.aiPracticeQueued
         : total > 0
-            ? AppStrings.aiPracticeProgress(done, total)
-            : AppStrings.aiPracticeGenerating;
+        ? AppStrings.aiPracticeProgress(done, total)
+        : AppStrings.aiPracticeGenerating;
     return InkWell(
       onTap: onOpen,
       child: Container(
@@ -44,32 +47,23 @@ class AiPracticeJobBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: TurnaTheme.brandTeal,
-              ),
-            ),
+            TurnaLoader.inline(size: 18),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 '${job.title} · $status',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.bodyText(context).copyWith(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTextStyles.bodyText(context)
+                    .copyWith(fontWeight: FontWeight.w500),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             IconButton(
               tooltip: AppStrings.aiPracticeCancel,
               onPressed: onCancel,
-              icon: Icon(
-                Icons.stop_circle_outlined,
+              icon: TurnaIcon(
+                TurnaIconId.stop,
                 size: 20,
                 color: TurnaTheme.textSecondaryColor(context),
               ),

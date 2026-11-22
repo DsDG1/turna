@@ -4,12 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/home/components/light_top_bar.dart';
 import 'package:turna/views/home/components/text_tab_bar.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 外壳两件（P2 组件）的行为契约：顶栏只承载课程切换与连胜，
 /// 文字导航的选中语义与受光短条占位。
 void main() {
+  Finder findFlameIcon() => find.byWidgetPredicate(
+    (w) => w is TurnaIcon && w.id == TurnaIconId.flame,
+  );
+
   group('LightTopBar', () {
     testWidgets('课程名与连胜渲染，切换可点', (tester) async {
       var switched = false;
@@ -27,7 +33,7 @@ void main() {
       );
       expect(find.text('土耳其语 · 新版'), findsOneWidget);
       expect(find.text('7 天'), findsOneWidget);
-      expect(find.byIcon(Icons.local_fire_department_rounded), findsOneWidget);
+      expect(findFlameIcon(), findsOneWidget);
 
       await tester.tap(find.text('土耳其语 · 新版'));
       expect(switched, isTrue);
@@ -37,12 +43,10 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: TurnaTheme.lightTheme,
-          home: const Scaffold(
-            appBar: LightTopBar(courseName: '土耳其语'),
-          ),
+          home: const Scaffold(appBar: LightTopBar(courseName: '土耳其语')),
         ),
       );
-      expect(find.byIcon(Icons.local_fire_department_rounded), findsNothing);
+      expect(findFlameIcon(), findsNothing);
     });
   });
 

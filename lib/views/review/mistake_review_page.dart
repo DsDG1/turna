@@ -21,8 +21,13 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 @RoutePage()
 class MistakeReviewPage extends StatefulWidget {
@@ -163,9 +168,20 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
 
   @override
   Widget build(BuildContext context) {
+    final isNonSession = _blockedMessage != null || _empty;
+    final listAction = IconButton(
+      tooltip: AppStrings.reviewViewMistakeList,
+      icon: const TurnaIcon(TurnaIconId.list, size: 20),
+      onPressed: () => context.router.push(const MistakeListRoute()),
+    );
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: _buildAppBar(context),
+      appBar: isNonSession
+          ? TurnaTopBar(
+              title: AppStrings.reviewMistakeReviewTitle,
+              actions: [listAction],
+            )
+          : _MistakeReviewProgressBar(listAction: listAction),
       body: _blockedMessage != null
           ? PracticeEmptyState(
               title: _blockedMessage!,
@@ -173,95 +189,49 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
               onAction: () => Navigator.of(context).maybePop(),
             )
           : _empty
-              ? _buildEmpty()
-              : Selector<LessonViewModel,
-                  (Interaction?, InteractionState, String?, bool, bool)>(
-                  selector: (context, vm) => (
-                    vm.currentInteraction,
-                    vm.currentInteractionState,
-                    vm.currentStageName,
-                    vm.hasSubmitted,
-                    vm.isAnswerCorrect,
-                  ),
-                  builder: (context, selected, _) {
-                    final vm = _vm;
-                    final interaction = selected.$1;
-                    if (interaction == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final renderer = lookupRenderer(_renderers, interaction);
-                    return PracticeSessionBody(
-                      stageName: selected.$3,
-                      stageAccent: TurnaTheme.error,
-                      interactionKey: ValueKey(vm.currentInteractionId),
-                      wrapRendererBoundary: true,
-                      submitted: selected.$4,
-                      autoAdvance: renderer.autoAdvance,
-                      continueLabel: selected.$5
-                          ? AppStrings.commonContinue
-                          : AppStrings.commonGotIt,
-                      onAdvance: () => vm.advance(),
-                      child: renderer.build(
-                        interaction,
-                        selected.$2,
-                        (correct, {userAnswerText, reviewQuality}) {
-                          vm.submitInteraction(
-                            correct,
-                            userAnswerText: userAnswerText,
-                            reviewQuality: reviewQuality,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: TurnaTheme.surfaceColor(context),
-      elevation: 0,
-      leading: IconButton(
-        tooltip: AppStrings.commonClose,
-        icon: Icon(
-          Icons.close_rounded,
-          color: TurnaTheme.textPrimaryColor(context),
-        ),
-        onPressed: () => Navigator.of(context).maybePop(),
-      ),
-      title: Text(
-        AppStrings.reviewMistakeReviewTitle,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: TurnaTheme.textPrimaryColor(context),
-        ),
-      ),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          tooltip: AppStrings.reviewViewMistakeList,
-          icon: Icon(
-            Icons.list_rounded,
-            color: TurnaTheme.textPrimaryColor(context),
-          ),
-          onPressed: () => context.router.push(const MistakeListRoute()),
-        ),
-      ],
-      bottom: _empty
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(4),
-              child: Selector<LessonViewModel, double>(
-                selector: (context, vm) => vm.progress,
-                builder: (context, progress, _) => LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: TurnaTheme.error.withValues(alpha: 0.1),
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(TurnaTheme.error),
-                ),
+          ? _buildEmpty()
+          : Selector<
+              LessonViewModel,
+              (Interaction?, InteractionState, String?, bool, bool)
+            >(
+              selector: (context, vm) => (
+                vm.currentInteraction,
+                vm.currentInteractionState,
+                vm.currentStageName,
+                vm.hasSubmitted,
+                vm.isAnswerCorrect,
               ),
+              builder: (context, selected, _) {
+                final vm = _vm;
+                final interaction = selected.$1;
+                if (interaction == null) {
+                  return Center(child: TurnaLoader.page());
+                }
+                final renderer = lookupRenderer(_renderers, interaction);
+                return PracticeSessionBody(
+                  stageName: selected.$3,
+                  stageAccent: TurnaTheme.error,
+                  interactionKey: ValueKey(vm.currentInteractionId),
+                  wrapRendererBoundary: true,
+                  submitted: selected.$4,
+                  autoAdvance: renderer.autoAdvance,
+                  continueLabel: selected.$5
+                      ? AppStrings.commonContinue
+                      : AppStrings.commonGotIt,
+                  onAdvance: () => vm.advance(),
+                  child: renderer.build(interaction, selected.$2, (
+                    correct, {
+                    userAnswerText,
+                    reviewQuality,
+                  }) {
+                    vm.submitInteraction(
+                      correct,
+                      userAnswerText: userAnswerText,
+                      reviewQuality: reviewQuality,
+                    );
+                  }),
+                );
+              },
             ),
     );
   }
@@ -272,6 +242,32 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
       message: AppStrings.reviewMistakeEmptyHint,
       actionLabel: AppStrings.commonBack,
       onAction: () => Navigator.of(context).maybePop(),
+    );
+  }
+}
+
+class _MistakeReviewProgressBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _MistakeReviewProgressBar({required this.listAction});
+
+  final Widget listAction;
+
+  @override
+  Size get preferredSize =>
+      const Size.fromHeight(SessionProgressBand.bandHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    final (current, total) = context.select<LessonViewModel, (int, int)>(
+      (vm) => (vm.currentQuestionNumber, vm.totalInteractionCount),
+    );
+    return SessionProgressBand(
+      currentIndex: current,
+      totalCount: total,
+      style: SessionProgressStyle.dots,
+      exitTooltip: AppStrings.commonClose,
+      onExit: () => Navigator.of(context).maybePop(),
+      actions: [listAction],
     );
   }
 }

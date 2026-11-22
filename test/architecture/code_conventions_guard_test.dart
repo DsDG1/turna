@@ -65,7 +65,8 @@ bool _isGeneratedDart(String normalizedPath) {
     if (source[quoteStart] == "'" || source[quoteStart] == '"') {
       final quoteChar = source[quoteStart];
       final triple = quoteChar * 3;
-      final isTriple = quoteStart + 2 < n &&
+      final isTriple =
+          quoteStart + 2 < n &&
           source.substring(quoteStart, quoteStart + 3) == triple;
       final delimLen = isTriple ? 3 : 1;
       var j = quoteStart + delimLen;
@@ -159,14 +160,14 @@ void main() {
       );
     });
 
-    test(
-        'raw .like() / SQL LIKE is restricted to sql_like.dart and constant ratchet',
-        () {
+    test('raw .like() / SQL LIKE is restricted to sql_like.dart and constant ratchet', () {
       const helperPath = 'lib/data/sql_like.dart';
       final driftLikeCall = RegExp(r'\.like\s*\(');
       final sqlLikeKeyword = RegExp(r'\bLIKE\b');
-      final sqlLowerLike =
-          RegExp(r'(?:\bnot\s+like\b|\blike\s+[\x27?])', caseSensitive: false);
+      final sqlLowerLike = RegExp(
+        r'(?:\bnot\s+like\b|\blike\s+[\x27?])',
+        caseSensitive: false,
+      );
 
       final hits = <String>{};
       for (final file in libFiles) {
@@ -192,7 +193,8 @@ void main() {
       expect(
         stale,
         isEmpty,
-        reason: 'Shrink _allowedConstantLikeFiles: these files no longer use '
+        reason:
+            'Shrink _allowedConstantLikeFiles: these files no longer use '
             'raw LIKE directly.',
       );
     });
@@ -205,13 +207,13 @@ void main() {
       expect(
         actualScreens.difference(_legacyScreenFiles),
         isEmpty,
-        reason:
-            'New UI routes/screens must be named *_page.dart, not *_screen.dart.',
+        reason: 'New UI routes/screens must be named *_page.dart, not *_screen.dart.',
       );
       expect(
         _legacyScreenFiles.difference(actualScreens),
         isEmpty,
-        reason: 'Shrink _legacyScreenFiles when existing *_screen.dart files '
+        reason:
+            'Shrink _legacyScreenFiles when existing *_screen.dart files '
             'are migrated or removed.',
       );
 
@@ -225,23 +227,25 @@ void main() {
       expect(
         actualFeatureWidgets.difference(_legacyFeatureWidgetsDirs),
         isEmpty,
-        reason: 'Feature-private widgets belong under <feature>/components/, '
+        reason:
+            'Feature-private widgets belong under <feature>/components/, '
             'not <feature>/widgets/.',
       );
       expect(
         _legacyFeatureWidgetsDirs.difference(actualFeatureWidgets),
         isEmpty,
-        reason: 'Shrink _legacyFeatureWidgetsDirs when legacy feature widgets/ '
+        reason:
+            'Shrink _legacyFeatureWidgetsDirs when legacy feature widgets/ '
             'folders are retired.',
       );
     });
 
-    test(
-        'lib/views/ has zero bare Color(0x...) and lib/ has zero peacock* aliases',
-        () {
+    test('lib/views/ has zero bare Color(0x...) and lib/ has zero peacock* aliases', () {
       final bareHexColor = RegExp(r'\bColor\s*\(\s*0[xX][0-9a-fA-F]+\s*\)');
-      final peacockAlias =
-          RegExp(r'\bpeacock[A-Za-z0-9_]*\b', caseSensitive: false);
+      final peacockAlias = RegExp(
+        r'\bpeacock[A-Za-z0-9_]*\b',
+        caseSensitive: false,
+      );
       final leagueAlias = RegExp(r'\bleague[A-Z][A-Za-z0-9_]*\b');
       final bareColorHits = <String>[];
       final peacockHits = <String>[];
@@ -266,13 +270,15 @@ void main() {
       expect(
         bareColorHits,
         isEmpty,
-        reason: 'Use TurnaTheme tokens in lib/core/theme.dart instead of bare '
+        reason:
+            'Use TurnaTheme tokens in lib/core/theme.dart instead of bare '
             'Color(0x...) literals in lib/views/.',
       );
       expect(
         peacockHits,
         isEmpty,
-        reason: 'Legacy peacock* palette aliases are retired; use TurnaTheme '
+        reason:
+            'Legacy peacock* palette aliases are retired; use TurnaTheme '
             'brand tokens.',
       );
       expect(
@@ -281,6 +287,132 @@ void main() {
         reason:
             'Retired league* palette tokens must not be used; use TurnaTheme '
             'semantic tokens.',
+      );
+    });
+
+    test('ADR 0075: lib/views/ enforces uniform 4px geometry (no StadiumBorder, '
+        'BorderRadius.circular, or legacy radius tokens)', () {
+      final stadiumBorder = RegExp(r'\bStadiumBorder\b');
+      final rawBorderRadius = RegExp(r'\bBorderRadius\.circular\s*\(');
+      final legacyRadius = RegExp(
+        r'\b(?:radiusSmall|radiusMedium|radiusOption|radiusLarge|radiusXLarge|radiusRound)\b',
+      );
+      final hits = <String>[];
+
+      for (final file in libFiles) {
+        final rel = _norm(file.path);
+        if (_isGeneratedDart(rel) || !rel.startsWith('lib/views/')) continue;
+        final tokens = _tokenizeDart(file.readAsStringSync());
+        if (stadiumBorder.hasMatch(tokens.codeOnly)) {
+          hits.add('$rel: StadiumBorder');
+        }
+        if (rawBorderRadius.hasMatch(tokens.codeOnly)) {
+          hits.add('$rel: BorderRadius.circular(...)');
+        }
+        if (legacyRadius.hasMatch(tokens.codeOnly)) {
+          hits.add('$rel: legacy radius* token');
+        }
+      }
+
+      expect(
+        hits,
+        isEmpty,
+        reason:
+            'ADR 0075 enforces uniform 4px geometry via TurnaTheme.radius / '
+            'borderRadius / sheetTopBorderRadius / shape (and BoxShape.circle '
+            'for true circles). Violations:\n${hits.join('\n')}',
+      );
+    });
+
+    test('ADR 0075: lib/ has zero Material Icons.* references', () {
+      final materialIcon = RegExp(r'\bIcons\.[A-Za-z0-9_]+\b');
+      final hits = <String>[];
+
+      for (final file in libFiles) {
+        final rel = _norm(file.path);
+        if (_isGeneratedDart(rel)) continue;
+        final tokens = _tokenizeDart(file.readAsStringSync());
+        if (materialIcon.hasMatch(tokens.codeOnly)) {
+          hits.add(rel);
+        }
+      }
+
+      expect(
+        hits,
+        isEmpty,
+        reason:
+            'Use TurnaIcon + TurnaIconId (assets/icons/*.svg) instead of '
+            'Material Icons.*:\n${hits.join('\n')}',
+      );
+    });
+
+    test('ADR 0075: lib/views/ uses shared TurnaTopBar, TurnaSheet/Dialog, '
+        'and TurnaLoader primitives', () {
+      const allowedAppBar = {'lib/views/widgets/turna_top_bar.dart'};
+      const allowedBottomSheet = {'lib/views/widgets/turna_sheet.dart'};
+      final bareAppBar = RegExp(r'(?<![A-Za-z_])AppBar\s*\(');
+      final bareAlertDialog = RegExp(r'\bAlertDialog\s*\(');
+      final bareBottomSheet = RegExp(r'\bshowModalBottomSheet\b');
+      final bareSpinner = RegExp(r'\bCircularProgressIndicator\b');
+
+      final appBarHits = <String>{};
+      final alertDialogHits = <String>[];
+      final bottomSheetHits = <String>{};
+      final spinnerHits = <String>[];
+
+      for (final file in libFiles) {
+        final rel = _norm(file.path);
+        if (_isGeneratedDart(rel) || !rel.startsWith('lib/views/')) continue;
+        final tokens = _tokenizeDart(file.readAsStringSync());
+        if (bareAppBar.hasMatch(tokens.codeOnly)) appBarHits.add(rel);
+        if (bareAlertDialog.hasMatch(tokens.codeOnly)) alertDialogHits.add(rel);
+        if (bareBottomSheet.hasMatch(tokens.codeOnly)) bottomSheetHits.add(rel);
+        if (bareSpinner.hasMatch(tokens.codeOnly)) spinnerHits.add(rel);
+      }
+
+      expect(
+        appBarHits,
+        equals(allowedAppBar),
+        reason:
+            'Use TurnaTopBar (or SessionProgressBand) instead of bare AppBar.',
+      );
+      expect(
+        alertDialogHits,
+        isEmpty,
+        reason:
+            'Use showTurnaConfirmDialog / showTurnaInfoDialog / '
+            'showTurnaFormDialog / TurnaDialogPanel instead of AlertDialog.',
+      );
+      expect(
+        bottomSheetHits,
+        equals(allowedBottomSheet),
+        reason: 'Use showTurnaSheet instead of bare showModalBottomSheet.',
+      );
+      expect(
+        spinnerHits,
+        isEmpty,
+        reason: 'Use TurnaLoader instead of CircularProgressIndicator.',
+      );
+    });
+
+    test('ADR 0075: lib/views/ avoids bare Colors.white / Colors.black', () {
+      const allowedSpecular = {'lib/views/widgets/glass_surface.dart'};
+      final bareBw = RegExp(r'\bColors\.(?:white|black)\b');
+      final hits = <String>{};
+
+      for (final file in libFiles) {
+        final rel = _norm(file.path);
+        if (_isGeneratedDart(rel) || !rel.startsWith('lib/views/')) continue;
+        final tokens = _tokenizeDart(file.readAsStringSync());
+        if (bareBw.hasMatch(tokens.codeOnly)) hits.add(rel);
+      }
+
+      expect(
+        hits,
+        equals(allowedSpecular),
+        reason:
+            'Use TurnaTheme semantic tokens (textOnPrimary, cardBg, '
+            'dividerBg, etc.) instead of bare Colors.white / Colors.black.',
       );
     });
   });

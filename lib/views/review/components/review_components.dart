@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 // 「湿地雾光」R08：ReviewRatingBar（与 BinaryRecallBar 平行的评分条）已由
 // SessionRatingBand 取代并退役；本文件只剩语法复习的完成态。
@@ -36,19 +40,23 @@ class ReviewCompletionState extends StatelessWidget {
     required this.onReviewMore,
     String? title,
     String? completionMessage,
-  })  : title = title ?? AppStrings.reviewCompletionTitle,
-        completionMessage =
-            completionMessage ?? AppStrings.reviewCompletionMessage;
+  }) : title = title ?? AppStrings.reviewCompletionTitle,
+       completionMessage =
+           completionMessage ?? AppStrings.reviewCompletionMessage;
 
   @override
   Widget build(BuildContext context) {
     final hasMore = dueCount > 0;
 
     return Scaffold(
-      appBar: AppBar(title: Text(AppStrings.reviewGrammarReviewTitle)),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(title: AppStrings.reviewGrammarReviewTitle),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.pageMargin,
+            vertical: AppSpacing.xl,
+          ),
           // 定义列表的行内有 Expanded，列宽必须有界（平板上收到 560）。
           child: TurnaPageContent(
             maxWidth: 560,
@@ -59,29 +67,23 @@ class ReviewCompletionState extends StatelessWidget {
                   kind: TurnaGeometryKind.achievement,
                   size: 112,
                   child: CosmeticCompletionBadge(
-                    fallbackIcon: Icons.emoji_events_rounded,
+                    fallbackIcon: TurnaIconId.trophy,
                     fallbackColor: TurnaTheme.success,
                     iconSize: 44,
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xl),
+                Text(title, style: AppTextStyles.pageTitle(context)),
+                const SizedBox(height: AppSpacing.sm),
                 // 结果一行。
                 Text(
                   completionMessage,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
+                  style: AppTextStyles.bodyText(context)
+                      .copyWith(color: TurnaTheme.textSecondaryColor(context)),
                   textAlign: TextAlign.center,
                 ),
                 if (xpEarned > 0 || gemsEarned > 0) ...[
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppSpacing.xl + AppSpacing.xs),
                   ReportDefinitionList(
                     rows: [
                       if (xpEarned > 0)
@@ -98,14 +100,13 @@ class ReviewCompletionState extends StatelessWidget {
                   ),
                 ],
                 const AchievementFeedbackBanner(),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 SessionPrimaryAction(
                   label: hasMore
                       ? AppStrings.reviewReviewMore
                       : AppStrings.commonDone,
                   onPressed: hasMore ? onReviewMore : onDone,
-                  trailingIcon:
-                      hasMore ? Icons.play_arrow_rounded : Icons.check_rounded,
+                  trailingIcon: hasMore ? TurnaIconId.play : TurnaIconId.check,
                 ),
               ],
             ),

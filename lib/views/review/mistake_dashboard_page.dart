@@ -12,9 +12,13 @@ import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 错题仪表盘 ——「湿地雾光」R09/R10 学习报告构图。
 ///
@@ -30,15 +34,16 @@ class MistakeDashboardPage extends StatelessWidget {
     final hasLoadError = context.select((MistakeProvider p) => p.hasLoadError);
     final entries = context.select((MistakeProvider p) => p.entries);
     final dailyCounts = context.select((MistakeProvider p) => p.dailyCounts);
-    final masteredTotal =
-        context.select((MistakeProvider p) => p.masteredTotal);
+    final masteredTotal = context.select(
+      (MistakeProvider p) => p.masteredTotal,
+    );
 
     final hasAnyData =
         entries.isNotEmpty || dailyCounts.isNotEmpty || masteredTotal > 0;
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(title: Text(AppStrings.mistakeDashboardTitle)),
+      appBar: TurnaTopBar(title: AppStrings.mistakeDashboardTitle),
       body: hasLoadError && !hasAnyData
           ? PracticeEmptyState(
               title: AppStrings.mistakesLoadFailed,
@@ -46,51 +51,50 @@ class MistakeDashboardPage extends StatelessWidget {
               onAction: () => context.read<MistakeProvider>().retry(),
             )
           : !hasAnyData
-              ? PracticeEmptyState(
-                  title: AppStrings.mistakeDashboardEmptyTitle,
-                  message: AppStrings.mistakeDashboardEmptyMessage,
-                )
-              : RefreshIndicator(
-                  color: TurnaTheme.brandTeal,
-                  onRefresh: () => context.read<MistakeProvider>().retry(),
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pageMargin,
-                      AppSpacing.md,
-                      AppSpacing.pageMargin,
-                      AppSpacing.xxl,
-                    ),
-                    children: [
-                      if (hasLoadError)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: _DashboardLoadErrorBanner(
-                            onRetry: () =>
-                                context.read<MistakeProvider>().retry(),
-                          ),
-                        ),
-                      _MetricOpening(
-                        entries: entries,
-                        masteredTotal: masteredTotal,
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      _TrendSection(dailyCounts: dailyCounts),
-                      const SizedBox(height: AppSpacing.xl),
-                      _DistributionSection(entries: entries),
-                      if (_frequentMistakes(entries).isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.xl),
-                        _FrequentSection(entries: entries),
-                      ],
-                      if (entries.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.xl),
-                        _OldestSection(entries: entries),
-                      ],
-                    ],
-                  ),
+          ? PracticeEmptyState(
+              title: AppStrings.mistakeDashboardEmptyTitle,
+              message: AppStrings.mistakeDashboardEmptyMessage,
+            )
+          : RefreshIndicator(
+              color: TurnaTheme.brandTeal,
+              onRefresh: () => context.read<MistakeProvider>().retry(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pageMargin,
+                  AppSpacing.md,
+                  AppSpacing.pageMargin,
+                  AppSpacing.xxl,
+                ),
+                children: [
+                  if (hasLoadError)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: _DashboardLoadErrorBanner(
+                        onRetry: () => context.read<MistakeProvider>().retry(),
+                      ),
+                    ),
+                  _MetricOpening(
+                    entries: entries,
+                    masteredTotal: masteredTotal,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  _TrendSection(dailyCounts: dailyCounts),
+                  const SizedBox(height: AppSpacing.xl),
+                  _DistributionSection(entries: entries),
+                  if (_frequentMistakes(entries).isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xl),
+                    _FrequentSection(entries: entries),
+                  ],
+                  if (entries.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xl),
+                    _OldestSection(entries: entries),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }
@@ -104,24 +108,27 @@ class _DashboardLoadErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: TurnaTheme.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 16, color: TurnaTheme.error),
-            const SizedBox(width: 8),
+            const TurnaIcon(
+              TurnaIconId.cloudOff,
+              size: 16,
+              color: TurnaTheme.error,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 AppStrings.mistakesLoadFailed,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: AppTextStyles.captionSm(context),
               ),
             ),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(AppStrings.commonRetry),
-            ),
+            TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
           ],
         ),
       ),
@@ -149,7 +156,8 @@ class _MetricOpening extends StatelessWidget {
     return ReportMetricHeader(
       label: AppStrings.mistakeDashboardActiveLabel,
       value: '${entries.length}',
-      caption: '${AppStrings.mistakeDashboardMasteredLabel} $masteredTotal · '
+      caption:
+          '${AppStrings.mistakeDashboardMasteredLabel} $masteredTotal · '
           '${AppStrings.mistakeDashboardConsolidateLabel} $toConsolidate',
     );
   }
@@ -176,10 +184,8 @@ class _TrendSection extends StatelessWidget {
         if (total == 0)
           Text(
             AppStrings.mistakeDashboardTrendEmpty,
-            style: TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           )
         else ...[
           ReportBarChart(
@@ -201,10 +207,8 @@ class _TrendSection extends StatelessWidget {
           // 文本语义摘要（无障碍：图表不只用颜色表达）。
           Text(
             AppStrings.mistakeDashboardTrendSummary(activeDays, total),
-            style: TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ],
@@ -251,14 +255,13 @@ class _DistributionSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ReportSectionHeading(
-            title: AppStrings.mistakeDashboardDistributionTitle),
+          title: AppStrings.mistakeDashboardDistributionTitle,
+        ),
         if (total == 0)
           Text(
             AppStrings.mistakeDashboardTrendEmpty,
-            style: TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           )
         else
           ReportCompositionBar(

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+  <g stroke="#19324A" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter">
+    <circle cx="12" cy="9.5" r="5.5" fill="#19324A" fill-opacity="0.16"/>
+    <line x1="9" y1="17.5" x2="15" y2="17.5"/>
+    <line x1="10" y1="20.5" x2="14" y2="20.5"/>
+  </g>
+</svg>

@@ -56,8 +56,8 @@ class _CachedAssetImageState extends State<CachedAssetImage> {
   @override
   Widget build(BuildContext context) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cacheWidth =
-        (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr).round();
+    final cacheWidth = (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr)
+        .round();
     final cacheHeight = (widget.maxHeight * dpr).round();
     final isSvg = widget.asset.toLowerCase().endsWith('.svg');
     final packPath = _packPath;
@@ -107,7 +107,7 @@ class RoundedCachedAssetImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      borderRadius: TurnaTheme.borderRadius,
       child: CachedAssetImage(asset: asset, maxHeight: maxHeight),
     );
   }

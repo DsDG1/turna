@@ -18,7 +18,10 @@ import 'package:turna/views/anki/import_wizard/deck_directory_tree_view.dart';
 import 'package:turna/views/anki/import_wizard/mcq_preview_sheet.dart';
 import 'package:turna/views/anki/import_wizard/quick_front_picker_sheet.dart';
 import 'package:turna/views/anki/import_wizard/study_preset_selector.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Resolves a deck node to the notetype that owns the most cards in it.
 OfficialAnkiProjectionSchema? officialSchemaForPreviewNode({
@@ -117,9 +120,11 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
     ];
     if (modes.every((mode) => mode == StudyPresetMode.fidelity)) {
       _selectedMode = StudyPresetMode.fidelity;
-    } else if (modes.every((mode) =>
-        mode == StudyPresetMode.classicFlip ||
-        mode == StudyPresetMode.fidelity)) {
+    } else if (modes.every(
+      (mode) =>
+          mode == StudyPresetMode.classicFlip ||
+          mode == StudyPresetMode.fidelity,
+    )) {
       _selectedMode = StudyPresetMode.classicFlip;
     } else {
       _selectedMode = StudyPresetMode.interactive;
@@ -133,9 +138,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
         officialAnkiSuggestMapping(schema);
   }
 
-  NotetypePresentationPreview _previewFor(
-    OfficialAnkiProjectionSchema schema,
-  ) {
+  NotetypePresentationPreview _previewFor(OfficialAnkiProjectionSchema schema) {
     return resolveNotetypePresentationPreview(
       schema: schema,
       suggestion: _effectiveSuggestion(schema),
@@ -206,21 +209,16 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
   List<String> _kindsFor(StudyPresetMode mode) {
     return switch (mode) {
       StudyPresetMode.interactive => const <String>[
-          'multipleChoice',
-          'multiSelect',
-          'fillBlank',
-          'listenPick',
-          'typeAnswer',
-          'flip',
-          'canonicalLink',
-        ],
-      StudyPresetMode.classicFlip => const <String>[
-          'flip',
-          'canonicalLink',
-        ],
-      StudyPresetMode.fidelity => const <String>[
-          'canonicalLink',
-        ],
+        'multipleChoice',
+        'multiSelect',
+        'fillBlank',
+        'listenPick',
+        'typeAnswer',
+        'flip',
+        'canonicalLink',
+      ],
+      StudyPresetMode.classicFlip => const <String>['flip', 'canonicalLink'],
+      StudyPresetMode.fidelity => const <String>['canonicalLink'],
     };
   }
 
@@ -244,11 +242,13 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
     if (schema == null) return;
     await widget.controller.loadSamples(schema);
     if (!mounted) return;
-    final fresh = widget.preview.schemas
+    final fresh =
+        widget.preview.schemas
             .where((item) => item.notetypeId == schema.notetypeId)
             .firstOrNull ??
         schema;
-    final current = widget.preview.suggestions[fresh.notetypeId] ??
+    final current =
+        widget.preview.suggestions[fresh.notetypeId] ??
         officialAnkiSuggestMapping(schema);
     showMcqPreviewSheet(
       context: context,
@@ -288,27 +288,24 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: TurnaTheme.error.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(
-                                TurnaTheme.cardRadius,
-                              ),
+                              borderRadius: TurnaTheme.borderRadius,
                               border: Border.all(
                                 color: TurnaTheme.error.withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.error_outline_rounded,
+                                const TurnaIcon(
+                                  TurnaIconId.error,
                                   color: TurnaTheme.error,
-                                  size: 20,
+                                  size: 18,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     widget.error!,
-                                    style: const TextStyle(
-                                      color: TurnaTheme.error,
-                                    ),
+                                    style: AppTextStyles.captionSm(context)
+                                        .copyWith(color: TurnaTheme.error),
                                   ),
                                 ),
                               ],
@@ -338,11 +335,8 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                           schema: schema,
                           mode: _modeFor(schema),
                           countsLabel: _countsLabelFor(schema),
-                          onChanged: (mode) =>
-                              widget.controller.setNotetypeStudyMode(
-                            schema,
-                            _kindsFor(mode),
-                          ),
+                          onChanged: (mode) => widget.controller
+                              .setNotetypeStudyMode(schema, _kindsFor(mode)),
                         ),
                     ],
                   ),
@@ -365,8 +359,9 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
           ),
         ),
         StickyImportBar(
-          onPressed:
-              hasBlocking || noneIncluded ? null : widget.controller.commit,
+          onPressed: hasBlocking || noneIncluded
+              ? null
+              : widget.controller.commit,
           disabledHint: hasBlocking
               ? AppStrings.ankiPreviewBlockingHint
               : (noneIncluded ? AppStrings.ankiPreviewBlockingHint : null),
@@ -380,15 +375,15 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: TurnaTheme.error.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.warning_amber_rounded,
+          const TurnaIcon(
+            TurnaIconId.warning,
             color: TurnaTheme.error,
-            size: 22,
+            size: 20,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -397,8 +392,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
               children: [
                 Text(
                   AppStrings.ankiPreviewBlockingTitle(schemas.length),
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: AppTextStyles.captionSm(context).copyWith(
                     fontWeight: FontWeight.w700,
                     color: TurnaTheme.error,
                   ),
@@ -408,8 +402,8 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                   schemas.map((s) => s.name).join('、'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.caption(context).copyWith(
+                    letterSpacing: 0,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
@@ -432,14 +426,16 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                         onPressed: () {
                           final current =
                               widget.preview.suggestions[schema.notetypeId] ??
-                                  officialAnkiSuggestMapping(schema);
+                              officialAnkiSuggestMapping(schema);
                           showQuickFrontPicker(
                             context: context,
                             schema: schema,
                             currentSuggestion: current,
                             onConfirmed: (updated) {
-                              widget.controller
-                                  .confirmOfficialMapping(schema, updated);
+                              widget.controller.confirmOfficialMapping(
+                                schema,
+                                updated,
+                              );
                             },
                           );
                         },

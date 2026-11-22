@@ -9,9 +9,14 @@ import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/session_shell.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 来源详情 ——「湿地雾光」R10 学习报告构图：核心指标开篇（今日到期）→
 /// 近 14 天活动柱状（主图）→ 辅助指标定义列表 → 单一主行动（开始该来源
@@ -41,18 +46,21 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
 
   Future<_SourceDetailData> _load() async {
     final active = widget.source.active;
-    final snapshot = await _insights.load(InsightsQuery(
-      range: EventRange.d30,
-      source: widget.source,
-      type: ProgressTypeFilter.all,
-    ));
+    final snapshot = await _insights.load(
+      InsightsQuery(
+        range: EventRange.d30,
+        source: widget.source,
+        type: ProgressTypeFilter.all,
+      ),
+    );
     return _SourceDetailData(active: active, snapshot: snapshot);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.source.label)),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(title: widget.source.label),
       body: FutureBuilder<_SourceDetailData>(
         future: _future,
         builder: (context, state) {
@@ -62,17 +70,22 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
               return Center(
                 child: FilledButton.icon(
                   onPressed: () => setState(() => _future = _load()),
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const TurnaIcon(
+                    TurnaIconId.refresh,
+                    size: 18,
+                    color: TurnaTheme.textOnPrimary,
+                  ),
                   label: Text(AppStrings.reviewSourceReload),
                 ),
               );
             }
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: TurnaLoader.page());
           }
           final summary = data.snapshot.aggregate;
           final activity = data.snapshot.activity;
-          final todayCompleted =
-              activity.isEmpty ? 0 : activity.last.reviewedCount;
+          final todayCompleted = activity.isEmpty
+              ? 0
+              : activity.last.reviewedCount;
           final reviews7 = activity
               .skip(activity.length > 7 ? activity.length - 7 : 0)
               .fold<int>(0, (sum, row) => sum + row.reviewedCount);
@@ -92,13 +105,16 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                 AppSpacing.xxl,
               ),
               children: [
-                if (!data.active)
+                if (!data.active) ...[
                   const ReviewSourceAvailabilityBanner(active: false),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
                 ReportMetricHeader(
                   label: AppStrings.reviewSourceMetricDueToday,
                   value: '${summary.forecast.dueToday}',
                   caption: AppStrings.reviewSourceMetricNewCards(
-                      summary.maturity.newCards),
+                    summary.maturity.newCards,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _TrendSection(
@@ -124,7 +140,7 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                   SessionPrimaryAction(
                     label: AppStrings.reviewSourceStartReview,
                     onPressed: _startReview,
-                    trailingIcon: Icons.play_arrow_rounded,
+                    trailingIcon: TurnaIconId.play,
                   ),
                 ],
               ],
@@ -168,8 +184,10 @@ class _TrendSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final windowTotal =
-        window.fold<int>(0, (sum, row) => sum + row.reviewedCount);
+    final windowTotal = window.fold<int>(
+      0,
+      (sum, row) => sum + row.reviewedCount,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -177,14 +195,14 @@ class _TrendSection extends StatelessWidget {
         if (windowTotal == 0)
           Text(
             AppStrings.reviewProgressEmpty,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           )
         else ...[
           ReportBarChart(
-            semanticsLabel:
-                AppStrings.reviewSevenDayChartSemantics(windowTotal),
+            semanticsLabel: AppStrings.reviewSevenDayChartSemantics(
+              windowTotal,
+            ),
             height: 150,
             bars: [
               for (var i = 0; i < window.length; i++)
@@ -201,9 +219,8 @@ class _TrendSection extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             AppStrings.reviewSourceTrendSummary(reviews7, reviews30),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ],
@@ -225,12 +242,42 @@ class ReviewSourceAvailabilityBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (active) return const SizedBox.shrink();
-    return Card(
-      color: TurnaTheme.warning.withValues(alpha: 0.12),
-      child: ListTile(
-        leading: const Icon(Icons.inventory_2_outlined),
-        title: Text(AppStrings.reviewSourceDeletedTitle),
-        subtitle: Text(AppStrings.reviewSourceDeletedSubtitle),
+    return Container(
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: TurnaTheme.warning.withValues(alpha: 0.12),
+        borderRadius: TurnaTheme.borderRadius,
+        border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.32)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: TurnaIcon(
+              TurnaIconId.folder,
+              size: 20,
+              color: TurnaTheme.warning,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.reviewSourceDeletedTitle,
+                  style: AppTextStyles.cardTitle(context),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  AppStrings.reviewSourceDeletedSubtitle,
+                  style: AppTextStyles.captionSm(context),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

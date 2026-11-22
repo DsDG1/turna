@@ -5,11 +5,15 @@ import 'package:flutter/services.dart';
 // Project imports:
 import 'package:turna/application/settings/changelog_entries.dart';
 import 'package:turna/application/settings/release_manifest.dart';
-import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 // Re-exported for the pages/tests that historically imported the entry
@@ -87,11 +91,7 @@ class JourneyOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      // R18 阅读语：历程卡走纸面，与关于页 Tab 同一套材质。
-      decoration: TurnaTheme.flatPaperDecoration(context),
+    return TurnaReadingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -100,12 +100,13 @@ class JourneyOverviewCard extends StatelessWidget {
               Container(
                 width: 36,
                 height: 36,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: const Icon(
-                  Icons.timeline_rounded,
+                child: const TurnaIcon(
+                  TurnaIconId.insights,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
@@ -127,9 +128,8 @@ class JourneyOverviewCard extends StatelessWidget {
               ChangelogPage.journeySteps.last.label,
               ChangelogPage.journeySteps.length,
             ),
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < ChangelogPage.journeySteps.length; i++)
@@ -175,7 +175,24 @@ class ChangelogFromAsset extends StatelessWidget {
       future: rootBundle.loadString(assetPath),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return _LoadingState();
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const TurnaLoader.inline(),
+                  const SizedBox(height: 12),
+                  Text(
+                    AppStrings.changelogIntro,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption(context)
+                        .copyWith(color: TurnaTheme.textHintColor(context)),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return _ReleaseList(
@@ -202,39 +219,6 @@ class ChangelogFromAsset extends StatelessWidget {
   }
 }
 
-/// 内部:聚焦中状态。
-class _LoadingState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: TurnaTheme.brandTeal,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppStrings.changelogIntro,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 内部:统一的 release 列表渲染。
 class _ReleaseList extends StatelessWidget {
   final List<ChangelogRelease> releases;
@@ -253,13 +237,16 @@ class _ReleaseList extends StatelessWidget {
       maxWidth: AppSpacing.formColumnMaxWidth,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
-            AppSpacing.pageMargin, 12, AppSpacing.pageMargin, 32),
+          AppSpacing.pageMargin,
+          12,
+          AppSpacing.pageMargin,
+          32,
+        ),
         children: [
           Text(
             AppStrings.changelogIntro,
-            style: AppTextStyles.bodyText(context).copyWith(
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
+            style: AppTextStyles.bodyText(context)
+                .copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
           const SizedBox(height: 16),
           const JourneyOverviewCard(),
@@ -269,15 +256,15 @@ class _ReleaseList extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: TurnaTheme.warning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                borderRadius: TurnaTheme.borderRadius,
                 border: Border.all(
                   color: TurnaTheme.warning.withValues(alpha: 0.4),
                 ),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
+                  const TurnaIcon(
+                    TurnaIconId.warning,
                     size: 18,
                     color: TurnaTheme.warning,
                   ),
@@ -294,10 +281,7 @@ class _ReleaseList extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           for (var i = 0; i < releases.length; i++) ...[
-            ChangelogReleaseCard(
-              release: releases[i],
-              isLatest: i == 0,
-            ),
+            ChangelogReleaseCard(release: releases[i], isLatest: i == 0),
             if (i < releases.length - 1) const SizedBox(height: 14),
           ],
           const SizedBox(height: 20),
@@ -309,7 +293,7 @@ class _ReleaseList extends StatelessWidget {
                 sourceText ??
                     ChangelogPage.buildClipboardText(releases: releases),
               ),
-              icon: const Icon(Icons.content_copy_rounded, size: 18),
+              icon: const TurnaIcon(TurnaIconId.copy, size: 18),
               label: Text(AppStrings.changelogCopyButton),
             ),
           ),
@@ -317,9 +301,8 @@ class _ReleaseList extends StatelessWidget {
           Text(
             AppStrings.changelogFooterNote,
             textAlign: TextAlign.center,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ),
@@ -463,25 +446,7 @@ class JourneyStepRow extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusSmall),
-                    ),
-                    child: Text(
-                      step.label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.brandTeal,
-                      ),
-                    ),
-                  ),
+                  TurnaReadingBadge(label: step.label),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -494,9 +459,9 @@ class JourneyStepRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           step.subtitle,
-                          style: AppTextStyles.captionSm(context).copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                          style: AppTextStyles.captionSm(
+                            context,
+                          ).copyWith(color: TurnaTheme.textHintColor(context)),
                         ),
                       ],
                     ),
@@ -540,26 +505,26 @@ class ChangelogReleaseCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isLatest
-                      ? TurnaTheme.brandTeal
-                      : TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-                ),
-                child: Text(
-                  release.version,
-                  style: TextStyle(
-                    color: isLatest
-                        ? TurnaTheme.textOnPrimary
-                        : TurnaTheme.brandTeal,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+              if (isLatest)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                ),
-              ),
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.brandTeal,
+                    borderRadius: TurnaTheme.borderRadius,
+                  ),
+                  child: Text(
+                    release.version,
+                    style: AppTextStyles.captionSm(context).copyWith(
+                      color: TurnaTheme.textOnPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else
+                TurnaReadingBadge(label: release.version),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -591,9 +556,9 @@ class ChangelogReleaseCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item,
-                      style: AppTextStyles.bodyText(context).copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
+                      style: AppTextStyles.bodyText(
+                        context,
+                      ).copyWith(color: TurnaTheme.textSecondaryColor(context)),
                     ),
                   ),
                 ],

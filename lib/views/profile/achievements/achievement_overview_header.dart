@@ -2,11 +2,12 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/theme.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
 import 'package:turna/views/widgets/report_kit.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 完成度开篇（湿地雾光 R15）：报告构图的指标头 —— 完成度百分数为大数字，
 /// 已获得数为副行。暖沙 / 陶土是成就域的衬底色相（ADR 0062）。
@@ -24,8 +25,9 @@ class AchievementOverviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ratio =
-        totalCount > 0 ? (unlockedCount / totalCount).clamp(0.0, 1.0) : 0.0;
+    final ratio = totalCount > 0
+        ? (unlockedCount / totalCount).clamp(0.0, 1.0)
+        : 0.0;
     final percent = (ratio * 100).round();
 
     return ReportMetricHeader(
@@ -64,14 +66,14 @@ class AchievementNearestCard extends StatelessWidget {
       // ADR 0062：用该成就系列自己的色相做均匀淡彩实面（同徽章卡：
       // 网格里的小卡不铺渐变与彩影）。
       color: TurnaTheme.glassSolid(context, accent, level: GlassLevel.l1),
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(
               color: TurnaTheme.glassStroke(
                 context,
@@ -82,7 +84,7 @@ class AchievementNearestCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
+              TurnaIcon(
                 AchievementUiCatalog.iconFor(seriesId),
                 color: accent,
                 size: 22,
@@ -94,16 +96,14 @@ class AchievementNearestCard extends StatelessWidget {
                   children: [
                     Text(
                       AchievementUiCatalog.titleFor(seriesId),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusRound),
+                      borderRadius: TurnaTheme.borderRadius,
                       child: LinearProgressIndicator(
                         value: ratio,
                         minHeight: 5,
@@ -121,10 +121,8 @@ class AchievementNearestCard extends StatelessWidget {
                     progress.currentProgress,
                     nextTarget,
                   ),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: accent, fontWeight: FontWeight.w700),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,

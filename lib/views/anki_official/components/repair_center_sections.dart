@@ -5,9 +5,14 @@ import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// Inline error card shown when a repair-center diagnostic probe fails.
 class RepairDiagnosticsErrorBanner extends StatelessWidget {
@@ -23,35 +28,27 @@ class RepairDiagnosticsErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: TurnaTheme.dangerSurface(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.error.withValues(alpha: 0.35),
-        ),
+        borderRadius: TurnaTheme.borderRadius,
+        border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: TurnaTheme.error,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
+          const TurnaIcon(TurnaIconId.error, color: TurnaTheme.error, size: 18),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                fontSize: 12,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textPrimaryColor(context)),
             ),
           ),
-          TextButton(
-            onPressed: onRetry,
-            child: Text(AppStrings.commonRetry),
-          ),
+          TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
         ],
       ),
     );
@@ -65,28 +62,21 @@ class RepairEmptyCatalogCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline_rounded,
+          TurnaIcon(
+            TurnaIconId.info,
+            size: 20,
             color: TurnaTheme.textSecondaryColor(context),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               AppStrings.ankiRepairCenterEmptyCatalog,
-              style: TextStyle(
-                color: TurnaTheme.textSecondaryColor(context),
-                height: 1.4,
-              ),
+              style: AppTextStyles.captionSm(context),
             ),
           ),
         ],
@@ -129,173 +119,170 @@ class RepairHealthOverviewCard extends StatelessWidget {
         ? TurnaTheme.achievementEmerald
         : (doctorError != null ? TurnaTheme.error : TurnaTheme.warning);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        side: BorderSide(
-          color: color.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: TurnaTheme.flatPaperDecoration(context).copyWith(
+        color: color.withValues(alpha: 0.05),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
       ),
-      color: color.withValues(alpha: 0.05),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  isHealthy
-                      ? Icons.verified_rounded
-                      : Icons.warning_amber_rounded,
-                  color: color,
-                  size: 28,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isHealthy
-                            ? AppStrings.databaseDoctorHealthy
-                            : (report?.courseDb.integrityOk == false ||
+                child: TurnaIcon(
+                  isHealthy ? TurnaIconId.verified : TurnaIconId.warning,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isHealthy
+                          ? AppStrings.databaseDoctorHealthy
+                          : (report?.courseDb.integrityOk == false ||
                                     doctorError != null
                                 ? AppStrings.databaseDoctorError
                                 : AppStrings.databaseDoctorWarning),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
-                      ),
-                      if (report != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          isHealthy
-                              ? AppStrings.ankiRepairHealthyDetail
-                              : AppStrings.ankiRepairIssuesCount(
-                                  report!.totalIssuesCount,
-                                ),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (doctorError != null) ...[
-              const SizedBox(height: 12),
-              RepairDiagnosticsErrorBanner(
-                message: doctorError!,
-                onRetry: onRetryDoctor,
-              ),
-            ],
-            if (report != null || doctorError == null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: TurnaTheme.cardBg(context),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-                ),
-                child: Column(
-                  children: [
-                    _StatusRow(
-                      icon: Icons.menu_book_rounded,
-                      title: AppStrings.databaseDoctorCourseDbTitle,
-                      status: report?.courseDb.integrityOk == true
-                          ? AppStrings.databaseDoctorCourseDbOk
-                          : AppStrings.ankiRepairDbAbnormal,
-                      statusColor: report?.courseDb.integrityOk == true
-                          ? TurnaTheme.achievementEmerald
-                          : TurnaTheme.error,
-                      detail: report != null
-                          ? AppStrings.ankiRepairCourseDbDetail(
-                              report!.courseDb.lessonCount,
-                              report!.courseDb.wordCount,
-                              report!.courseDb.srsCount,
-                            )
-                          : null,
+                      style: AppTextStyles.cardTitle(context)
+                          .copyWith(fontWeight: FontWeight.w700),
                     ),
-                    const Divider(height: 12),
-                    _StatusRow(
-                      icon: Icons.collections_bookmark_outlined,
-                      title: AppStrings.databaseDoctorAnkiDbTitle,
-                      status: report?.ankiDb.isConfigured == true
-                          ? (report!.ankiDb.failedJobsCount > 0
-                              ? AppStrings.ankiRepairHasFailedJobs
-                              : AppStrings.databaseDoctorAnkiDbOk)
-                          : AppStrings.databaseDoctorAnkiDbNotConfigured,
-                      statusColor: report?.ankiDb.isConfigured == true
-                          ? (report!.ankiDb.failedJobsCount > 0
-                              ? TurnaTheme.warning
-                              : TurnaTheme.achievementEmerald)
-                          : TurnaTheme.textSecondaryColor(context),
-                      detail: report?.ankiDb.isConfigured == true
-                          ? AppStrings.ankiRepairDeckCount(
-                              report!.ankiDb.sourceCount,
-                            )
-                          : null,
-                    ),
-                    const Divider(height: 12),
-                    _StatusRow(
-                      icon: Icons.folder_open_outlined,
-                      title: AppStrings.databaseDoctorStorageTitle,
-                      status: orphansError != null
-                          ? AppStrings.ankiRepairDbAbnormal
-                          : (orphans.isEmpty
-                              ? AppStrings.databaseDoctorStorageNoOrphans
-                              : AppStrings.ankiRepairOrphanCount(
-                                  orphans.length,
-                                )),
-                      statusColor: orphansError != null
-                          ? TurnaTheme.error
-                          : (orphans.isEmpty
-                              ? TurnaTheme.achievementEmerald
-                              : TurnaTheme.warning),
-                      detail: orphansError == null && orphans.isNotEmpty
-                          ? formatRepairBytes(
-                              orphans.fold<int>(
-                                0,
-                                (sum, a) => sum + a.physicalBytes,
+                    if (report != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        isHealthy
+                            ? AppStrings.ankiRepairHealthyDetail
+                            : AppStrings.ankiRepairIssuesCount(
+                                report!.totalIssuesCount,
                               ),
-                            )
-                          : null,
-                    ),
+                        style: AppTextStyles.captionSm(context),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  key: const Key('repair-doctor-optimize'),
-                  onPressed: busy ? null : onOneClickOptimize,
-                  icon: const Icon(Icons.speed_rounded, size: 18),
-                  label: Text(AppStrings.databaseDoctorOneClickOptimize),
-                ),
-                if (!isHealthy && canRepairAll)
-                  FilledButton.tonalIcon(
-                    key: const Key('repair-doctor-fix-all'),
-                    onPressed: busy ? null : onOneClickRepair,
-                    icon: const Icon(Icons.build_circle_outlined, size: 18),
-                    label: Text(AppStrings.databaseDoctorOneClickRepair),
-                  ),
-              ],
+          ),
+          if (doctorError != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            RepairDiagnosticsErrorBanner(
+              message: doctorError!,
+              onRetry: onRetryDoctor,
             ),
           ],
-        ),
+          if (report != null || doctorError == null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: TurnaTheme.flatPaperDecoration(context),
+              child: Column(
+                children: [
+                  _StatusRow(
+                    icon: TurnaIconId.book,
+                    title: AppStrings.databaseDoctorCourseDbTitle,
+                    status: report?.courseDb.integrityOk == true
+                        ? AppStrings.databaseDoctorCourseDbOk
+                        : AppStrings.ankiRepairDbAbnormal,
+                    statusColor: report?.courseDb.integrityOk == true
+                        ? TurnaTheme.achievementEmerald
+                        : TurnaTheme.error,
+                    detail: report != null
+                        ? AppStrings.ankiRepairCourseDbDetail(
+                            report!.courseDb.lessonCount,
+                            report!.courseDb.wordCount,
+                            report!.courseDb.srsCount,
+                          )
+                        : null,
+                  ),
+                  const Divider(height: AppSpacing.md),
+                  _StatusRow(
+                    icon: TurnaIconId.cards,
+                    title: AppStrings.databaseDoctorAnkiDbTitle,
+                    status: report?.ankiDb.isConfigured == true
+                        ? (report!.ankiDb.failedJobsCount > 0
+                              ? AppStrings.ankiRepairHasFailedJobs
+                              : AppStrings.databaseDoctorAnkiDbOk)
+                        : AppStrings.databaseDoctorAnkiDbNotConfigured,
+                    statusColor: report?.ankiDb.isConfigured == true
+                        ? (report!.ankiDb.failedJobsCount > 0
+                              ? TurnaTheme.warning
+                              : TurnaTheme.achievementEmerald)
+                        : TurnaTheme.textSecondaryColor(context),
+                    detail: report?.ankiDb.isConfigured == true
+                        ? AppStrings.ankiRepairDeckCount(
+                            report!.ankiDb.sourceCount,
+                          )
+                        : null,
+                  ),
+                  const Divider(height: AppSpacing.md),
+                  _StatusRow(
+                    icon: TurnaIconId.folder,
+                    title: AppStrings.databaseDoctorStorageTitle,
+                    status: orphansError != null
+                        ? AppStrings.ankiRepairDbAbnormal
+                        : (orphans.isEmpty
+                              ? AppStrings.databaseDoctorStorageNoOrphans
+                              : AppStrings.ankiRepairOrphanCount(
+                                  orphans.length,
+                                )),
+                    statusColor: orphansError != null
+                        ? TurnaTheme.error
+                        : (orphans.isEmpty
+                              ? TurnaTheme.achievementEmerald
+                              : TurnaTheme.warning),
+                    detail: orphansError == null && orphans.isNotEmpty
+                        ? formatRepairBytes(
+                            orphans.fold<int>(
+                              0,
+                              (sum, a) => sum + a.physicalBytes,
+                            ),
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              FilledButton.icon(
+                key: const Key('repair-doctor-optimize'),
+                onPressed: busy ? null : onOneClickOptimize,
+                icon: const TurnaIcon(
+                  TurnaIconId.speed,
+                  size: 18,
+                  color: TurnaTheme.textOnPrimary,
+                ),
+                label: Text(AppStrings.databaseDoctorOneClickOptimize),
+              ),
+              if (!isHealthy && canRepairAll)
+                FilledButton.tonalIcon(
+                  key: const Key('repair-doctor-fix-all'),
+                  onPressed: busy ? null : onOneClickRepair,
+                  icon: const TurnaIcon(TurnaIconId.wrench, size: 18),
+                  label: Text(AppStrings.databaseDoctorOneClickRepair),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -310,7 +297,7 @@ class _StatusRow extends StatelessWidget {
     this.detail,
   });
 
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final String status;
   final Color statusColor;
@@ -320,22 +307,28 @@ class _StatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: TurnaTheme.textSecondaryColor(context)),
-        const SizedBox(width: 8),
+        TurnaIcon(
+          icon,
+          size: 16,
+          color: TurnaTheme.textSecondaryColor(context),
+        ),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: AppTextStyles.captionSm(context).copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: TurnaTheme.textPrimaryColor(context),
+                ),
               ),
               if (detail != null)
                 Text(
                   detail!,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.caption(context).copyWith(
+                    letterSpacing: 0,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
@@ -344,11 +337,8 @@ class _StatusRow extends StatelessWidget {
         ),
         Text(
           status,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: statusColor,
-          ),
+          style: AppTextStyles.captionSm(context)
+              .copyWith(fontWeight: FontWeight.w600, color: statusColor),
         ),
       ],
     );
@@ -357,11 +347,7 @@ class _StatusRow extends StatelessWidget {
 
 /// Section header row with optional trailing bulk action.
 class RepairSectionHeader extends StatelessWidget {
-  const RepairSectionHeader({
-    super.key,
-    required this.title,
-    this.trailing,
-  });
+  const RepairSectionHeader({super.key, required this.title, this.trailing});
 
   final String title;
   final Widget? trailing;
@@ -369,14 +355,11 @@ class RepairSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
+      padding: const EdgeInsets.fromLTRB(0, AppSpacing.lg, 0, AppSpacing.sm),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-          ),
+          Text(title, style: AppTextStyles.cardTitle(context)),
           if (trailing != null) trailing!,
         ],
       ),
@@ -384,7 +367,7 @@ class RepairSectionHeader extends StatelessWidget {
   }
 }
 
-/// Standard compact list tile with trailing action buttons.
+/// Structured 4px flat-paper row with trailing action buttons.
 class RepairActionTile extends StatelessWidget {
   const RepairActionTile({
     super.key,
@@ -399,13 +382,35 @@ class RepairActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: actions.isEmpty
-          ? null
-          : Row(mainAxisSize: MainAxisSize.min, children: actions),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.bodyText(context)
+                      .copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle, style: AppTextStyles.captionSm(context)),
+              ],
+            ),
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Row(mainAxisSize: MainAxisSize.min, children: actions),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -442,7 +447,7 @@ class RepairOrphansSection extends StatelessWidget {
           trailing: orphans.length > 1
               ? TextButton.icon(
                   onPressed: busy ? null : onCleanAllOrphans,
-                  icon: const Icon(Icons.delete_sweep_outlined, size: 16),
+                  icon: const TurnaIcon(TurnaIconId.deleteSweep, size: 16),
                   label: Text(AppStrings.databaseDoctorCleanAllOrphans),
                 )
               : null,
@@ -456,7 +461,8 @@ class RepairOrphansSection extends StatelessWidget {
           RepairActionTile(
             key: Key('repair-orphan-${orphan.ownerId}'),
             title: orphan.label,
-            subtitle: '${repairCategoryName(orphan.category)} · '
+            subtitle:
+                '${repairCategoryName(orphan.category)} · '
                 '${formatRepairBytes(orphan.physicalBytes)}',
             actions: [
               TextButton(
@@ -496,7 +502,7 @@ class RepairPendingImportsSection extends StatelessWidget {
             displayName: item.displayName,
             onDiscard: busy ? null : () => onDiscard(item.sourceId),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
         ],
       ],
     );
@@ -567,8 +573,9 @@ class RepairQuarantinedSection extends StatelessWidget {
             subtitle: AppStrings.ankiRepairSourceState(source.state),
             actions: [
               TextButton(
-                onPressed:
-                    busy ? null : () => onDeleteQuarantine(source.sourceId),
+                onPressed: busy
+                    ? null
+                    : () => onDeleteQuarantine(source.sourceId),
                 child: Text(AppStrings.ankiRepairDeleteQuarantine),
               ),
             ],
@@ -613,8 +620,9 @@ class RepairMaintenanceJobsSection extends StatelessWidget {
             subtitle: AppStrings.ankiRepairJobState('${job['state']}'),
             actions: [
               TextButton(
-                onPressed:
-                    busy ? null : () => onRetryJob(job['job_id'] as String),
+                onPressed: busy
+                    ? null
+                    : () => onRetryJob(job['job_id'] as String),
                 child: Text(AppStrings.ankiRepairJobRun),
               ),
             ],
@@ -663,13 +671,15 @@ class RepairFailedJobsSection extends StatelessWidget {
             ),
             actions: [
               TextButton(
-                onPressed:
-                    busy ? null : () => onRetryJob(job['job_id'] as String),
+                onPressed: busy
+                    ? null
+                    : () => onRetryJob(job['job_id'] as String),
                 child: Text(AppStrings.commonRetry),
               ),
               TextButton(
-                onPressed:
-                    busy ? null : () => onDeleteJob(job['job_id'] as String),
+                onPressed: busy
+                    ? null
+                    : () => onDeleteJob(job['job_id'] as String),
                 child: Text(AppStrings.ankiRepairJobClear),
               ),
             ],
@@ -705,29 +715,29 @@ class RepairAdvancedToolsSection extends StatelessWidget {
       children: [
         RepairSectionHeader(title: AppStrings.databaseDoctorAdvancedTools),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: [
             OutlinedButton.icon(
               onPressed: busy ? null : onCheckIntegrity,
-              icon: const Icon(Icons.check_circle_outline, size: 16),
+              icon: const TurnaIcon(TurnaIconId.checkCircle, size: 16),
               label: Text(AppStrings.databaseDoctorCheckIntegrity),
             ),
             OutlinedButton.icon(
               onPressed: busy ? null : onRebuildIndexes,
-              icon: const Icon(Icons.sync_alt_rounded, size: 16),
+              icon: const TurnaIcon(TurnaIconId.swapArrows, size: 16),
               label: Text(AppStrings.databaseDoctorRebuildIndexes),
             ),
             if (hasCatalog)
               OutlinedButton.icon(
                 onPressed: busy ? null : onCheckCollection,
-                icon: const Icon(Icons.health_and_safety_outlined, size: 16),
+                icon: const TurnaIcon(TurnaIconId.heartPulse, size: 16),
                 label: Text(AppStrings.databaseDoctorCheckCollection),
               ),
             OutlinedButton.icon(
               key: const Key('repair-export'),
               onPressed: busy ? null : onExport,
-              icon: const Icon(Icons.ios_share_outlined, size: 16),
+              icon: const TurnaIcon(TurnaIconId.share, size: 16),
               label: Text(AppStrings.ankiRepairExportDiagnostics),
             ),
           ],
@@ -771,22 +781,11 @@ Future<bool> confirmRepairAction(
   required String title,
   required String body,
 }) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showTurnaConfirmDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(body),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(AppStrings.commonCancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(AppStrings.commonOk),
-        ),
-      ],
-    ),
+    title: title,
+    message: body,
+    confirmLabel: AppStrings.commonOk,
   );
   return confirmed == true;
 }
@@ -799,21 +798,30 @@ Future<void> showRepairIntegrityDialog(
 }) {
   return showDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(AppStrings.ankiRepairIntegrityTitle),
-      content: Column(
+    builder: (ctx) => TurnaDialogPanel(
+      title: AppStrings.ankiRepairIntegrityTitle,
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppStrings.ankiRepairCourseDbResult(courseResult)),
-          const SizedBox(height: 8),
-          Text(AppStrings.ankiRepairAnkiDbResult(ankiResult)),
+          Text(
+            AppStrings.ankiRepairCourseDbResult(courseResult),
+            style: AppTextStyles.bodyText(ctx)
+                .copyWith(color: TurnaTheme.textSecondaryColor(ctx)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            AppStrings.ankiRepairAnkiDbResult(ankiResult),
+            style: AppTextStyles.bodyText(ctx)
+                .copyWith(color: TurnaTheme.textSecondaryColor(ctx)),
+          ),
         ],
       ),
       actions: [
-        FilledButton(
+        TurnaSheetAction(
+          label: AppStrings.commonGotIt,
+          primary: true,
           onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(AppStrings.commonGotIt),
         ),
       ],
     ),
@@ -826,8 +834,10 @@ String appendRepairRecentLogs(String payload, {int limit = 120}) {
     final entries = LogCapture.instance.entries.value;
     if (entries.isEmpty) return payload;
     final buffer = StringBuffer(payload)
-      ..write('\n--- recent file log (${entries.length} kept, '
-          'showing up to $limit, newest first) ---\n');
+      ..write(
+        '\n--- recent file log (${entries.length} kept, '
+        'showing up to $limit, newest first) ---\n',
+      );
     var shown = 0;
     for (final entry in entries) {
       if (shown >= limit) break;

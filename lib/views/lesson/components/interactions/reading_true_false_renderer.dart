@@ -7,11 +7,13 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Renderer for [Interaction.readingTrueFalse].
 ///
@@ -94,9 +96,9 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
       canSubmit: canSubmit,
       submit: canSubmit
           ? () => widget.onSubmit(
-                _selectedBool == widget.answer,
-                userAnswerText: _selectedBool! ? 'True' : 'False',
-              )
+              _selectedBool == widget.answer,
+              userAnswerText: _selectedBool! ? 'True' : 'False',
+            )
           : null,
     );
 
@@ -114,8 +116,8 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.fact_check_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.checkCircle,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -127,10 +129,7 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  widget.statement,
-                  style: AppTextStyles.promptMd(context),
-                ),
+                Text(widget.statement, style: AppTextStyles.promptMd(context)),
               ],
             ),
           ),
@@ -143,8 +142,9 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             isCorrect: submitted && widget.answer == true,
             isWrong: submitted && correct == false && _selectedBool == true,
             showDivider: true,
-            onTap:
-                submitted ? null : () => setState(() => _selectedBool = true),
+            onTap: submitted
+                ? null
+                : () => setState(() => _selectedBool = true),
           ),
           InteractionOptionTile(
             label: AppStrings.lessonFalse,
@@ -153,8 +153,9 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             isCorrect: submitted && widget.answer == false,
             isWrong: submitted && correct == false && _selectedBool == false,
             showDivider: false,
-            onTap:
-                submitted ? null : () => setState(() => _selectedBool = false),
+            onTap: submitted
+                ? null
+                : () => setState(() => _selectedBool = false),
           ),
           if (submitted) ...[
             const SizedBox(height: 16),
@@ -163,8 +164,8 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
               userAnswer: _selectedBool == null
                   ? null
                   : (_selectedBool!
-                      ? AppStrings.lessonTrue
-                      : AppStrings.lessonFalse),
+                        ? AppStrings.lessonTrue
+                        : AppStrings.lessonFalse),
               correctAnswer: widget.answer
                   ? AppStrings.lessonTrue
                   : AppStrings.lessonFalse,

@@ -18,9 +18,12 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/play/play_review_eligibility.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Tappable due chips: SRS review, mistakes, grammar; 记忆卡课程激活时
 /// 换成单枚记忆卡 chip（ADR 0037）。
@@ -50,12 +53,14 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
       context.select((CourseProvider p) => p.scope),
     );
     final srsDue = context.select((SrsProvider p) => p.dueCount);
-    final mistakesCount =
-        context.select((MistakeProvider p) => p.entries.length);
+    final mistakesCount = context.select(
+      (MistakeProvider p) => p.entries.length,
+    );
     final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
     final ankiDue = context.select(
-      (SrsProvider p) => OfficialFormalDueRepository.instance
-          .aggregatedAnkiDue(p.getDueAnkiWords()),
+      (SrsProvider p) => OfficialFormalDueRepository.instance.aggregatedAnkiDue(
+        p.getDueAnkiWords(),
+      ),
     );
 
     return Padding(
@@ -65,14 +70,16 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
         children: [
           Row(
             children: [
-              const Icon(Icons.bolt_rounded,
-                  color: TurnaTheme.brandTeal, size: 20),
+              const TurnaIcon(
+                TurnaIconId.bolt,
+                color: TurnaTheme.brandTeal,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileQuickActionsTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -82,7 +89,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
               if (!ankiCourse) ...[
                 Expanded(
                   child: _QuickChip(
-                    icon: Icons.error_outline_rounded,
+                    icon: TurnaIconId.error,
                     label: AppStrings.profileQuickMistakes,
                     count: mistakesCount,
                     accent: TurnaTheme.error,
@@ -93,7 +100,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _QuickChip(
-                    icon: Icons.repeat_rounded,
+                    icon: TurnaIconId.repeat,
                     label: AppStrings.profileQuickSrs,
                     count: srsDue,
                     accent: TurnaTheme.successDark,
@@ -103,7 +110,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _QuickChip(
-                    icon: Icons.menu_book_rounded,
+                    icon: TurnaIconId.book,
                     label: AppStrings.playGrammarReviewTitle,
                     count: grammarDue,
                     accent: TurnaTheme.brandTeal,
@@ -114,7 +121,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
               ] else
                 Expanded(
                   child: _QuickChip(
-                    icon: Icons.layers_rounded,
+                    icon: TurnaIconId.layers,
                     label: AppStrings.profileQuickAnki,
                     count: ankiDue,
                     accent: TurnaTheme.achievementAmethyst,
@@ -125,9 +132,12 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                           entry: FormalReviewEntryKind.statsContinue,
                           courseId: 'anki',
                           officialOwner: OfficialFormalDueRepository
-                              .instance.officialImportIds.isNotEmpty,
+                              .instance
+                              .officialImportIds
+                              .isNotEmpty,
                           schedulerRuntimeAvailable: OfficialAnkiFeatureFlags
-                              .current.allowsOfficialScheduler,
+                              .current
+                              .allowsOfficialScheduler,
                         ),
                       );
                     },
@@ -142,7 +152,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
 }
 
 class _QuickChip extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String label;
   final int count;
   final Color accent;
@@ -159,36 +169,39 @@ class _QuickChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasDue = count > 0;
-    final bg =
-        hasDue ? accent.withValues(alpha: 0.12) : TurnaTheme.cardBg(context);
+    final bg = hasDue
+        ? accent.withValues(alpha: 0.12)
+        : TurnaTheme.cardBg(context);
     final border = hasDue
         ? accent.withValues(alpha: 0.35)
         : TurnaTheme.statCardBorder(context);
 
     return Material(
       color: bg,
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(color: border),
           ),
           child: Column(
             children: [
-              Icon(icon,
-                  color: hasDue ? accent : TurnaTheme.textHint, size: 22),
+              TurnaIcon(
+                icon,
+                color: hasDue ? accent : TurnaTheme.textHint,
+                size: 22,
+              ),
               const SizedBox(height: 6),
               Text(
                 AppStrings.profileQuickDue(count),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color:
-                          hasDue ? accent : TurnaTheme.textHintColor(context),
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: hasDue ? accent : TurnaTheme.textHintColor(context),
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -196,11 +209,10 @@ class _QuickChip extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                style: AppTextStyles.caption(context).copyWith(
+                  letterSpacing: 0,
+                  color: TurnaTheme.textHintColor(context),
+                ),
               ),
             ],
           ),

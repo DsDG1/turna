@@ -97,8 +97,11 @@ class InfoStaggeredRow extends StatelessWidget {
     final start = (0.08 + index * 0.07).clamp(0.0, 0.72);
     final curved = CurvedAnimation(
       parent: progress,
-      curve: Interval(start, (start + 0.28).clamp(0.0, 1.0),
-          curve: Curves.easeOutCubic),
+      curve: Interval(
+        start,
+        (start + 0.28).clamp(0.0, 1.0),
+        curve: Curves.easeOutCubic,
+      ),
     );
 
     return AnimatedBuilder(
@@ -154,10 +157,12 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
   void initState() {
     super.initState();
     final a11y = widget.anchorContext.read<AccessibilityProvider>();
-    final reduceMotion = MediaQuery.disableAnimationsOf(widget.anchorContext) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(widget.anchorContext) ||
         a11y.reducedMotion;
-    final duration =
-        reduceMotion ? Duration.zero : const Duration(milliseconds: 300);
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 300);
 
     _controller = AnimationController(vsync: this, duration: duration)
       ..forward();
@@ -209,14 +214,18 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
     final placeBelow =
         belowSpace >= _preferBelowMinSpace || belowSpace >= aboveSpace;
 
-    final panelWidth =
-        _maxPanelWidth.clamp(0.0, overlaySize.width - _panelMargin * 2);
-    final left = (anchorRect.center.dx - panelWidth / 2)
-        .clamp(_panelMargin, overlaySize.width - panelWidth - _panelMargin);
+    final panelWidth = _maxPanelWidth.clamp(
+      0.0,
+      overlaySize.width - _panelMargin * 2,
+    );
+    final left = (anchorRect.center.dx - panelWidth / 2).clamp(
+      _panelMargin,
+      overlaySize.width - panelWidth - _panelMargin,
+    );
 
     final maxPanelHeight =
         (placeBelow ? belowSpace : aboveSpace).clamp(0.0, _maxPanelHeight) -
-            _panelMargin;
+        _panelMargin;
 
     final panel = _AnimatedPanel(
       controller: _controller,
@@ -224,8 +233,9 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
       semanticsLabel: widget.semanticsLabel,
       anchorCenterX: anchorRect.center.dx,
       top: placeBelow ? anchorRect.bottom + _anchorGap : null,
-      bottom:
-          placeBelow ? null : overlaySize.height - anchorRect.top + _anchorGap,
+      bottom: placeBelow
+          ? null
+          : overlaySize.height - anchorRect.top + _anchorGap,
       left: left,
       width: panelWidth,
       maxHeight: maxPanelHeight < 120 ? 120 : maxPanelHeight,
@@ -249,9 +259,7 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
               behavior: HitTestBehavior.opaque,
               child: FadeTransition(
                 opacity: _scrimCurve,
-                child: const ColoredBox(
-                  color: TurnaTheme.popupScrim,
-                ),
+                child: const ColoredBox(color: TurnaTheme.popupScrim),
               ),
             ),
           ),
@@ -322,33 +330,13 @@ class _AnimatedPanel extends StatelessWidget {
           explicitChildNodes: true,
           child: Container(
             constraints: BoxConstraints(maxHeight: maxHeight),
-            decoration: BoxDecoration(
-              // 浮窗面用 cardBg 而不是 surface：深色下 surface 与页面同值，
-              // 浮窗会失去"浮在内容之上"的层次。
-              color: TurnaTheme.cardBg(context),
-              borderRadius: const BorderRadius.all(
-                Radius.circular(TurnaTheme.radiusXLarge),
-              ),
-              border: Border.all(color: TurnaTheme.dividerBg(context)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? 0.5
-                        : 0.16,
-                  ),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
+            decoration: TurnaTheme.flatPaperDecoration(
+              context,
+              borderRadius: TurnaTheme.borderRadius,
+            ).copyWith(boxShadow: TurnaTheme.floatingBarShadow(context)),
             child: ClipRRect(
-              borderRadius: const BorderRadius.all(
-                Radius.circular(TurnaTheme.radiusXLarge),
-              ),
-              child: SingleChildScrollView(
-                child: child,
-              ),
+              borderRadius: TurnaTheme.borderRadius,
+              child: SingleChildScrollView(child: child),
             ),
           ),
         ),

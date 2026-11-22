@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/play/components/info_popup.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// Play Hub 队列数据快照：一次从 providers 读取，供浮窗面板纯展示。
 /// 全部字段同步可得（复习进度面板的 7 日数据除外，面板内自己 FutureBuilder）。
@@ -76,11 +80,11 @@ class PlayQueueSnapshot {
 // 浮窗外壳 + 通用构件
 // ────────────────────────────────────────────────────────────────────
 
-/// 浮窗统一外壳：accent 头部（icon chip + 标题）+ 内容 + 「进入」底栏。
+/// 浮窗统一外壳：accent 头部（4px 图标井 + 标题）+ 内容 + 「进入」底栏。
 /// `onEnter` 由调用方负责「先关浮窗再导航」。
 class InfoPanelShell extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final TurnaIconId icon;
   final Color accentColor;
   final Widget child;
   final VoidCallback? onEnter;
@@ -99,7 +103,10 @@ class InfoPanelShell extends StatelessWidget {
     final accent = TurnaTheme.accentOnCard(context, accentColor);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md + 2,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,24 +115,31 @@ class InfoPanelShell extends StatelessWidget {
             index: 0,
             child: Row(
               children: [
-                AccentIconChip(icon: icon, color: accent, size: 20, padding: 8),
-                const SizedBox(width: 10),
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.softTint(context, accent, alpha: 0.12),
+                    borderRadius: TurnaTheme.borderRadius,
+                  ),
+                  child: TurnaIcon(icon, color: accent, size: 18),
+                ),
+                const SizedBox(width: AppSpacing.sm + 2),
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
+                    style: AppTextStyles.cardTitle(context)
+                        .copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           child,
           if (onEnter != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm + 2),
             InfoStaggeredRow(
               index: 9,
               child: _EnterButton(accentColor: accentColor, onTap: onEnter!),
@@ -149,26 +163,26 @@ class _EnterButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
         child: Ink(
           decoration: TurnaTheme.primaryCtaDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: TurnaTheme.borderRadius,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm + 2,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   AppStrings.playPopupEnter,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: TurnaTheme.textOnPrimary,
-                      ),
+                  style: AppTextStyles.buttonLabel,
                 ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.arrow_forward_rounded,
+                const SizedBox(width: AppSpacing.xs),
+                const TurnaIcon(
+                  TurnaIconId.arrowForward,
                   color: TurnaTheme.textOnPrimary,
                   size: 16,
                 ),
@@ -197,32 +211,30 @@ class InfoStatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs - 2,
+        vertical: AppSpacing.sm - 1,
+      ),
       child: Row(
         children: [
           if (dotColor != null) ...[
             Container(
               width: 8,
               height: 8,
-              decoration:
-                  BoxDecoration(color: dotColor, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
           ],
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-            ),
-          ),
+          Expanded(child: Text(label, style: AppTextStyles.captionSm(context))),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
+            style: AppTextStyles.cardTitle(context).copyWith(
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
       ),
@@ -239,15 +251,8 @@ class InfoGroupLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 2),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: TurnaTheme.textHintColor(context),
-              letterSpacing: 0.4,
-            ),
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.sm + 2, bottom: 2),
+      child: Text(text, style: AppTextStyles.caption(context)),
     );
   }
 }
@@ -284,11 +289,12 @@ class TodayOverviewPanelBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 同步失败时显示「—」，与记忆卡行的计数口径一致。
-    final ankiValue =
-        snapshot.ankiUnavailable ? '—' : '${snapshot.ankiDueCount}';
+    final ankiValue = snapshot.ankiUnavailable
+        ? '—'
+        : '${snapshot.ankiDueCount}';
     return InfoPanelShell(
       title: AppStrings.playTodayHeroTitle,
-      icon: Icons.play_circle_fill_rounded,
+      icon: TurnaIconId.play,
       accentColor: TurnaTheme.brandTeal,
       onEnter: onEnter,
       child: Column(
@@ -356,7 +362,7 @@ class MistakePanelBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoPanelShell(
       title: AppStrings.playMistakeReviewTitle,
-      icon: Icons.priority_high_rounded,
+      icon: TurnaIconId.warning,
       accentColor: TurnaTheme.errorLight,
       onEnter: onEnter,
       child: Column(
@@ -405,10 +411,14 @@ class _MistakePreviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final answer =
-        entry.correctAnswer.trim().isEmpty ? '—' : entry.correctAnswer.trim();
+    final answer = entry.correctAnswer.trim().isEmpty
+        ? '—'
+        : entry.correctAnswer.trim();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs - 2,
+        vertical: AppSpacing.sm - 2,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -416,18 +426,15 @@ class _MistakePreviewTile extends StatelessWidget {
               answer,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
+              style: AppTextStyles.bodyText(context)
+                  .copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             _relativeDayLabel(entry.timestamp),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ),
@@ -447,7 +454,7 @@ class SrsPanelBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoPanelShell(
       title: AppStrings.playReviewTitle,
-      icon: Icons.repeat_rounded,
+      icon: TurnaIconId.repeat,
       accentColor: TurnaTheme.success,
       onEnter: onEnter,
       child: Column(
@@ -507,7 +514,7 @@ class GrammarPanelBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoPanelShell(
       title: AppStrings.playGrammarReviewTitle,
-      icon: Icons.menu_book_rounded,
+      icon: TurnaIconId.book,
       accentColor: TurnaTheme.brandTeal,
       onEnter: onEnter,
       child: Column(
@@ -541,7 +548,7 @@ class GrammarPanelBody extends StatelessWidget {
   }
 }
 
-/// Anki 复习长按：导入牌组 + Official 牌组拆分。
+/// 记忆卡复习长按：导入牌组 + 正式牌组拆分。
 class AnkiPanelBody extends StatelessWidget {
   final VoidCallback? onEnter;
 
@@ -553,7 +560,7 @@ class AnkiPanelBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoPanelShell(
       title: AppStrings.playAnkiReviewTitle,
-      icon: Icons.style_rounded,
+      icon: TurnaIconId.cards,
       accentColor: TurnaTheme.brandSky,
       onEnter: onEnter,
       child: Column(
@@ -563,22 +570,22 @@ class AnkiPanelBody extends StatelessWidget {
             InfoStaggeredRow(
               index: 1,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.cloud_off_outlined,
+                    const TurnaIcon(
+                      TurnaIconId.cloudOff,
                       size: 16,
                       color: TurnaTheme.warning,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         AppStrings.playPopupAnkiUnavailable,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.warning,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: AppTextStyles.captionSm(context).copyWith(
+                          color: TurnaTheme.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -631,7 +638,7 @@ class WeakWordsPanelBody extends StatelessWidget {
 
     return InfoPanelShell(
       title: AppStrings.playWeakWordsTitle,
-      icon: Icons.fitness_center_rounded,
+      icon: TurnaIconId.target,
       accentColor: TurnaTheme.anatolianClay,
       onEnter: onEnter,
       child: Column(
@@ -667,7 +674,10 @@ class _WeakWordPreviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs - 2,
+        vertical: AppSpacing.sm - 2,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -678,10 +688,8 @@ class _WeakWordPreviewTile extends StatelessWidget {
                   word.displayText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
+                  style: AppTextStyles.bodyText(context)
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (word.translation != null &&
                     word.translation!.trim().isNotEmpty)
@@ -689,17 +697,29 @@ class _WeakWordPreviewTile extends StatelessWidget {
                     word.translation!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
+                    style: AppTextStyles.captionSm(context),
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          CountBadge(
-            label: AppStrings.playPopupWeakTimes(word.mistakeCount),
-            color: TurnaTheme.anatolianClay,
+          const SizedBox(width: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: const BoxDecoration(
+              color: TurnaTheme.anatolianClay,
+              borderRadius: TurnaTheme.borderRadius,
+            ),
+            child: Text(
+              AppStrings.playPopupWeakTimes(word.mistakeCount),
+              style: AppTextStyles.caption(context).copyWith(
+                color: TurnaTheme.textOnPrimary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+              ),
+            ),
           ),
         ],
       ),
@@ -720,7 +740,7 @@ class ReviewProgressPanelBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoPanelShell(
       title: AppStrings.playReviewProgressTitle,
-      icon: Icons.show_chart_rounded,
+      icon: TurnaIconId.insights,
       accentColor: TurnaTheme.brandTeal,
       onEnter: onEnter,
       child: FutureBuilder<List<Object>>(
@@ -732,15 +752,9 @@ class ReviewProgressPanelBody extends StatelessWidget {
         builder: (context, snapshot) {
           final data = snapshot.data;
           if (data == null) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
-                ),
-              ),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Center(child: TurnaLoader.inline()),
             );
           }
           final days = data[0] as List<DailyStudyStats>;
@@ -751,12 +765,11 @@ class ReviewProgressPanelBody extends StatelessWidget {
 
           if (!hasData) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md + 2),
               child: Text(
                 AppStrings.playPopupNoStatsYet,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             );
           }
@@ -765,10 +778,7 @@ class ReviewProgressPanelBody extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               InfoGroupLabel(AppStrings.playPopupRecent7Days),
-              InfoStaggeredRow(
-                index: 1,
-                child: _WeeklyBars(days: days),
-              ),
+              InfoStaggeredRow(index: 1, child: _WeeklyBars(days: days)),
               InfoStaggeredRow(
                 index: 2,
                 child: InfoStatRow(
@@ -804,27 +814,29 @@ class _WeeklyBars extends StatelessWidget {
     const barHeight = 64.0;
 
     return SizedBox(
-      height: barHeight + 22,
+      height: barHeight + 28,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           for (final day in days)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
                       '${day.reviewCount}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: day.reviewCount == peak && peak > 0
-                                ? TurnaTheme.brandTeal
-                                : TurnaTheme.textHintColor(context),
-                          ),
+                      style: AppTextStyles.caption(context).copyWith(
+                        letterSpacing: 0,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: day.reviewCount == peak && peak > 0
+                            ? TurnaTheme.brandTeal
+                            : TurnaTheme.textHintColor(context),
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Container(
                       height: peak == 0
                           ? 4.0
@@ -833,17 +845,14 @@ class _WeeklyBars extends StatelessWidget {
                         color: day.reviewCount > 0
                             ? TurnaTheme.brandTeal
                             : TurnaTheme.dividerBg(context),
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(3),
-                        ),
+                        borderRadius: TurnaTheme.borderRadius,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${day.date.month}/${day.date.day}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                      style: AppTextStyles.caption(context)
+                          .copyWith(letterSpacing: 0),
                     ),
                   ],
                 ),
@@ -869,7 +878,7 @@ class AiPanelBody extends StatelessWidget {
 
     return InfoPanelShell(
       title: AppStrings.playSmartPracticeTitle,
-      icon: Icons.auto_awesome_rounded,
+      icon: TurnaIconId.spark,
       accentColor: TurnaTheme.brandTeal,
       onEnter: onEnter,
       child: Column(
@@ -903,12 +912,10 @@ class AiPanelBody extends StatelessWidget {
             InfoStaggeredRow(
               index: 4,
               child: Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: AppSpacing.sm - 2),
                 child: Text(
                   AppStrings.playPopupAiNotReadyHint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
+                  style: AppTextStyles.captionSm(context),
                 ),
               ),
             ),

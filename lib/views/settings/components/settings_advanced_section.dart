@@ -12,12 +12,14 @@ import 'package:turna/application/ai/engine/ai_usage_meter.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/settings/components/settings_sound_section.dart'
     show SettingsToggleTile;
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// "高级" category (Plan 2 §6): a stable cross-feature hub with four
@@ -64,9 +66,9 @@ class _AdvancedHubBody extends StatelessWidget {
           child: Text(
             AppStrings.settingsAdvancedIntroBanner,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                  height: 1.4,
-                ),
+              color: TurnaTheme.textHintColor(context),
+              height: 1.4,
+            ),
           ),
         ),
         SettingsCard(
@@ -75,7 +77,7 @@ class _AdvancedHubBody extends StatelessWidget {
             // 「AI 连接」入口与其分隔线一并省略。
             if (!isDegraded(OhosDegradation.aiGeneration)) ...[
               SettingsNavigationTile(
-                icon: Icons.hub_rounded,
+                iconId: TurnaIconId.spark,
                 title: AppStrings.settingsAdvancedAiConnectionTitle,
                 subtitle: AppStrings.settingsAdvancedAiConnectionSubtitle,
                 onTap: (ctx) => ctx.router.push(const AiApiConfigRoute()),
@@ -83,21 +85,21 @@ class _AdvancedHubBody extends StatelessWidget {
               settingsTileDivider(context),
             ],
             SettingsNavigationTile(
-              icon: Icons.sd_storage_outlined,
+              iconId: TurnaIconId.storage,
               title: AppStrings.settingsAdvancedStorageTitle,
               subtitle: AppStrings.settingsAdvancedStorageSubtitle,
               onTap: (ctx) => ctx.router.push(StorageDiagnosticsRoute()),
             ),
             settingsTileDivider(context),
             SettingsNavigationTile(
-              icon: Icons.monitor_heart_outlined,
+              iconId: TurnaIconId.heartPulse,
               title: AppStrings.settingsAdvancedSystemHealthTitle,
               subtitle: AppStrings.settingsAdvancedSystemHealthSubtitle,
               onTap: (ctx) => ctx.router.push(const SystemHealthRoute()),
             ),
             settingsTileDivider(context),
             SettingsNavigationTile(
-              icon: Icons.history_rounded,
+              iconId: TurnaIconId.timer,
               title: AppStrings.settingsAdvancedLegacyTitle,
               subtitle: AppStrings.settingsAdvancedLegacySubtitle,
               onTap: (_) => onOpenLegacy?.call(),
@@ -122,14 +124,14 @@ class _LegacyCompatibilityBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionTitle(
-          icon: Icons.smart_display_rounded,
+          iconId: TurnaIconId.play,
           title: AppStrings.settingsLegacySectionDisplayTitle,
         ),
         const SizedBox(height: 8),
         SettingsCard(
           children: [
             SettingsToggleTile(
-              icon: Icons.lock_rounded,
+              iconId: TurnaIconId.lock,
               title: AppStrings.settingsLegacyForceDisableJsTitle,
               subtitle: AppStrings.settingsLegacyForceDisableJsSubtitle,
               valueSelector: (p) => p.ankiForceDisableJs,
@@ -142,7 +144,7 @@ class _LegacyCompatibilityBody extends StatelessWidget {
         // （ADR 0056），整节省略，不留空标题。
         if (!isDegraded(OhosDegradation.aiGeneration)) ...[
           SettingsSectionTitle(
-            icon: Icons.science_rounded,
+            iconId: TurnaIconId.wrench,
             title: AppStrings.settingsExperimentalSection,
           ),
           const SizedBox(height: 8),
@@ -150,14 +152,14 @@ class _LegacyCompatibilityBody extends StatelessWidget {
           const SizedBox(height: 20),
         ],
         SettingsSectionTitle(
-          icon: Icons.restart_alt_rounded,
+          iconId: TurnaIconId.restart,
           title: AppStrings.settingsLegacyResetDefaultsTitle,
         ),
         const SizedBox(height: 8),
         SettingsCard(
           children: [
             SettingsActionTile(
-              icon: Icons.restore_rounded,
+              iconId: TurnaIconId.restore,
               title: AppStrings.settingsLegacyResetDefaultsTitle,
               subtitle: AppStrings.settingsLegacyResetDefaultsSubtitle,
               onTap: (context) => _confirmResetDefaults(context),
@@ -170,13 +172,11 @@ class _LegacyCompatibilityBody extends StatelessWidget {
   }
 
   Future<void> _confirmResetDefaults(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsLegacyResetDefaultsTitle,
-        message: AppStrings.settingsLegacyResetDefaultsSubtitle,
-        confirmText: AppStrings.settingsLegacyResetDefaultsConfirm,
-      ),
+      title: AppStrings.settingsLegacyResetDefaultsTitle,
+      message: AppStrings.settingsLegacyResetDefaultsSubtitle,
+      confirmLabel: AppStrings.settingsLegacyResetDefaultsConfirm,
     );
     if (confirmed != true || !context.mounted) return;
     await context.read<SettingsProvider>().resetLegacyCompatibilityDefaults();
@@ -209,8 +209,9 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
     final next = readOptionalProvider<AiEngineConfigHolder>(context);
     if (!identical(next, _holder)) {
       _holder = next;
-      _listenables =
-          next == null ? null : Listenable.merge([next, AiUsageMeter.instance]);
+      _listenables = next == null
+          ? null
+          : Listenable.merge([next, AiUsageMeter.instance]);
     }
   }
 
@@ -231,22 +232,22 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
         return SettingsCard(
           children: [
             SettingsTile(
-              icon: Icons.cached_rounded,
+              iconId: TurnaIconId.refresh,
               title: AppStrings.aiCacheEnabledTitle,
               subtitle: AppStrings.aiCacheEnabledSubtitle,
               trailing: settingsAdaptiveSwitch(
                 value: config.cacheEnabled,
-                onChanged: (v) => holder.updateConfig(
-                  config.copyWith(cacheEnabled: v),
-                ),
+                onChanged: (v) =>
+                    holder.updateConfig(config.copyWith(cacheEnabled: v)),
               ),
             ),
             settingsTileDivider(context),
             SettingsActionTile(
-              icon: Icons.verified_outlined,
+              iconId: TurnaIconId.verified,
               title: AppStrings.aiStrictSchemaTitle,
-              subtitle:
-                  AppStrings.aiStrictSchemaSubtitle(config.strictSchema.name),
+              subtitle: AppStrings.aiStrictSchemaSubtitle(
+                config.strictSchema.name,
+              ),
               onTap: (context) {
                 final next = switch (config.strictSchema) {
                   StrictSchemaMode.auto => StrictSchemaMode.on,
@@ -261,7 +262,7 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
             // block but nothing surfaced it, so a learner had no way to see how
             // much of their quota a session consumed.
             SettingsTile(
-              icon: Icons.speed_rounded,
+              iconId: TurnaIconId.speed,
               title: AppStrings.aiUsageTitle,
               subtitle: AppStrings.aiUsageSubtitle(
                 requests: usage.requests,

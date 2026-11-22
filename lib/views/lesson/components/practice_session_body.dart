@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/motion.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
@@ -48,7 +50,7 @@ class PracticeSessionBody extends StatefulWidget {
   final Widget child;
   final String? stageName;
   final Color? stageAccent;
-  final IconData? stageIcon;
+  final TurnaIconId? stageIcon;
   final Widget? header;
   final ScrollController? scrollController;
   final double maxWidth;
@@ -82,7 +84,8 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
     super.didUpdateWidget(oldWidget);
     // 换题信号: 题目标识变了, 或者刚提交完又被重置 (没有 interactionKey 的
     // 调用方靠这一步复位, 否则上一题的"可提交"会留在下一题).
-    final newItem = oldWidget.interactionKey != widget.interactionKey ||
+    final newItem =
+        oldWidget.interactionKey != widget.interactionKey ||
         (_wasSubmitted && !widget.submitted);
     if (newItem) _draft = LessonActionDraft();
     _wasSubmitted = widget.submitted;
@@ -95,18 +98,26 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
     final Widget scrollChild = widget.interactionKey == null
         ? widget.child
         : _EnterTransition(key: widget.interactionKey, child: widget.child);
+    final Widget scrollContent = widget.header == null
+        ? scrollChild
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [widget.header!, scrollChild],
+          );
     Widget scrollerFor(double? minContentHeight) => SingleChildScrollView(
-          controller: widget.scrollController,
-          // 底部留白由 [InteractionBody] 的 24 承担, 这里只留 8 的呼吸位,
-          // 两处都写 32 会让最后一行和操作栏之间凭空多出半屏空白.
-          padding: const EdgeInsets.only(top: 8, bottom: 8),
-          child: minContentHeight == null
-              ? scrollChild
-              : ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: minContentHeight),
-                  child: Center(child: scrollChild),
-                ),
-        );
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      // 底部留白由 [InteractionBody] 的 24 承担, 这里只留 8 的呼吸位,
+      // 两处都写 32 会让最后一行和操作栏之间凭空多出半屏空白.
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: minContentHeight == null
+          ? scrollContent
+          : ConstrainedBox(
+              constraints: BoxConstraints(minHeight: minContentHeight),
+              child: Center(child: scrollContent),
+            ),
+    );
 
     // 读卡类（无底栏）把内容在画布里垂直居中。
     //
@@ -136,9 +147,10 @@ class _PracticeSessionBodyState extends State<PracticeSessionBody> {
             accent: widget.stageAccent ?? TurnaTheme.brandTeal,
             icon: widget.stageIcon,
           ),
-        if (widget.header != null) widget.header!,
         // 草稿契约在 scroller 之上注入, renderer 子树里任何 State 都能查到.
-        Expanded(child: LessonActionScope(draft: _draft, child: scroller)),
+        Expanded(
+          child: LessonActionScope(draft: _draft, child: scroller),
+        ),
         if (!widget.autoAdvance)
           _ActionBar(
             draft: _draft,
@@ -168,7 +180,8 @@ class _EnterTransition extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         accessibilityOf(context).reduceMotion;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -254,15 +267,24 @@ class _ActionBarState extends State<_ActionBar> {
 
     final submitted = widget.submitted;
 
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     // 「湿地雾光」R04：纸面动作带（顶部发丝线 + 底部安全区）+ 52 高 teal
     // 主键。位置跨题型恒定（P1），文案随作答阶段换（核对/题型自定 → 继续）。
     return SessionActionBand(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        keyboardOpen ? AppSpacing.md : AppSpacing.lg,
+        AppSpacing.pageMargin,
+        keyboardOpen ? AppSpacing.md : AppSpacing.xl,
+      ),
       child: SessionPrimaryAction(
         label: submitted
             ? (widget.continueLabel ?? AppStrings.lessonContinueUpper)
             : (widget.draft.label ?? AppStrings.lessonCheck),
-        onPressed:
-            (submitted || widget.draft.canSubmit) ? _handlePrimary : null,
+        onPressed: (submitted || widget.draft.canSubmit)
+            ? _handlePrimary
+            : null,
       ),
     );
   }

@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
+import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/content_authoring_moved_page.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 内容创作退场 tombstone（Plan 3 §19.4）。
 ///
@@ -19,7 +21,12 @@ class TextbookImportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppStrings.settingsImportTextbookTitle)),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(
+        title: AppStrings.settingsImportTextbookTitle,
+        centerTitle: true,
+        showDivider: true,
+      ),
       body: const ContentAuthoringMovedBody(),
     );
   }

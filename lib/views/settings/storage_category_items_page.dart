@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// One user-facing row on the storage category drill-down (official source
@@ -82,9 +87,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
       setState(() {
         _items = items;
         _loading = false;
-        _selected.removeWhere(
-          (id) => items.every((item) => item.id != id),
-        );
+        _selected.removeWhere((id) => items.every((item) => item.id != id));
       });
     } catch (e) {
       if (!mounted) return;
@@ -98,23 +101,12 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
   Future<void> _forcePurge() async {
     final purge = widget.onForcePurge;
     if (purge == null || _busy) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.storageForcePurgeOfficialConfirmTitle),
-        content: Text(AppStrings.storageForcePurgeOfficialConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.storageForcePurgeOfficial),
-          ),
-        ],
-      ),
+      title: AppStrings.storageForcePurgeOfficialConfirmTitle,
+      message: AppStrings.storageForcePurgeOfficialConfirmBody,
+      confirmLabel: AppStrings.storageForcePurgeOfficial,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
@@ -133,9 +125,9 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     final message = result.ok
         ? AppStrings.storageForcePurgeOfficialDone
         : (result.errorCode == 'sources_present' ||
-                result.errorCode == 'import_in_progress')
-            ? AppStrings.storageForcePurgeOfficialBlocked
-            : AppStrings.storageForcePurgeOfficialFailed;
+              result.errorCode == 'import_in_progress')
+        ? AppStrings.storageForcePurgeOfficialBlocked
+        : AppStrings.storageForcePurgeOfficialFailed;
     TurnaSnackBar.show(context, message);
     await _reload();
   }
@@ -152,35 +144,18 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     }
     final retiring = chosen.where((item) => item.alreadyRetiring).toList();
     final actionable = chosen.where((item) => !item.alreadyRetiring).toList();
-    final confirmed = await showDialog<bool>(
+    final names = chosen
+        .map((item) => '${item.displayName}\n${_shortId(item.id)}')
+        .join('\n\n');
+    final extra = widget.selectionWarning == null
+        ? ''
+        : '\n\n${widget.selectionWarning}';
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) {
-        final names = chosen
-            .map((item) => '${item.displayName}\n${_shortId(item.id)}')
-            .join('\n\n');
-        final extra = widget.selectionWarning == null
-            ? ''
-            : '\n\n${widget.selectionWarning}';
-        return AlertDialog(
-          title: Text(AppStrings.ankiUninstallConfirmTitle),
-          content: Text(
-            '$names\n\n${AppStrings.ankiUninstallConfirmBody}$extra',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(AppStrings.commonCancel),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: TurnaTheme.error,
-              ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(AppStrings.ankiUninstallDeck),
-            ),
-          ],
-        );
-      },
+      title: AppStrings.ankiUninstallConfirmTitle,
+      message: '$names\n\n${AppStrings.ankiUninstallConfirmBody}$extra',
+      confirmLabel: AppStrings.ankiUninstallDeck,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     if (actionable.isEmpty) {
@@ -209,8 +184,8 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     setState(() => _busy = false);
     final message = failed > 0
         ? (completed > 0
-            ? AppStrings.ankiDeckRemovalPartial(completed, failed)
-            : AppStrings.ankiDeckRemovalFailed)
+              ? AppStrings.ankiDeckRemovalPartial(completed, failed)
+              : AppStrings.ankiDeckRemovalFailed)
         : AppStrings.ankiDeckRemoved;
     TurnaSnackBar.show(
       context,
@@ -229,16 +204,13 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
         if (didPop) return;
         Navigator.of(context).pop(_didChange);
       },
-      child: SettingsScaffold(
-        title: widget.title,
-        body: _buildBody(context),
-      ),
+      child: SettingsScaffold(title: widget.title, body: _buildBody(context)),
     );
   }
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _items == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const TurnaLoader.page();
     }
     if (_error != null && _items == null) {
       return Center(
@@ -249,7 +221,8 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
             children: [
               Text(
                 '$_error',
-                style: const TextStyle(color: TurnaTheme.error),
+                style: AppTextStyles.bodyText(context)
+                    .copyWith(color: TurnaTheme.error),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
@@ -273,10 +246,8 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
             alignment: Alignment.centerLeft,
             child: Text(
               widget.totalBytesLabel,
-              style: TextStyle(
-                fontSize: 13,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+              style: AppTextStyles.bodySm(context)
+                  .copyWith(color: TurnaTheme.textSecondaryColor(context)),
             ),
           ),
         ),
@@ -285,10 +256,8 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text(
               widget.selectionWarning!,
-              style: TextStyle(
-                fontSize: 12,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+              style: AppTextStyles.caption(context)
+                  .copyWith(color: TurnaTheme.textSecondaryColor(context)),
             ),
           ),
         Expanded(
@@ -301,9 +270,9 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
                           ? AppStrings.storageForcePurgeOfficialHint
                           : widget.emptyMessage,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
+                      style: AppTextStyles.bodyText(
+                        context,
+                      ).copyWith(color: TurnaTheme.textSecondaryColor(context)),
                     ),
                   ),
                 )
@@ -347,9 +316,10 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
                   width: double.infinity,
                   child: FilledButton.icon(
                     key: const Key('storage-delete-selected'),
-                    onPressed:
-                        (_busy || items.isEmpty) ? null : _deleteSelected,
-                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: (_busy || items.isEmpty)
+                        ? null
+                        : _deleteSelected,
+                    icon: const TurnaIcon(TurnaIconId.delete, size: 18),
                     style: FilledButton.styleFrom(
                       backgroundColor: TurnaTheme.error,
                     ),
@@ -361,7 +331,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
                   OutlinedButton.icon(
                     key: const Key('storage-force-purge'),
                     onPressed: _busy ? null : _forcePurge,
-                    icon: const Icon(Icons.delete_forever_outlined, size: 18),
+                    icon: const TurnaIcon(TurnaIconId.deleteSweep, size: 18),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: TurnaTheme.error,
                       side: BorderSide(

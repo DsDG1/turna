@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Global learning style preset modes for imported Anki decks.
 enum StudyPresetMode {
@@ -33,23 +37,20 @@ class StudyPresetSelector extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(
-              Icons.tune_rounded,
+            const TurnaIcon(
+              TurnaIconId.filter,
               size: 18,
               color: TurnaTheme.brandTeal,
             ),
             const SizedBox(width: 6),
             Text(
               AppStrings.studyPresetTitle,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: AppTextStyles.cardTitle(context),
             ),
             const Spacer(),
             Text(
               AppStrings.studyPresetChangeHint,
-              style: TextStyle(
-                fontSize: 11,
-                color: TurnaTheme.textHintColor(context),
-              ),
+              style: AppTextStyles.caption(context).copyWith(letterSpacing: 0),
             ),
           ],
         ),
@@ -57,24 +58,24 @@ class StudyPresetSelector extends StatelessWidget {
         _buildModeCard(
           context,
           mode: StudyPresetMode.interactive,
-          icon: Icons.psychology_rounded,
+          icon: TurnaIconId.brain,
           title: AppStrings.studyPresetInteractiveTitle,
           badgeText: AppStrings.studyPresetRecommended,
           description: AppStrings.studyPresetInteractiveDesc,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _buildModeCard(
           context,
           mode: StudyPresetMode.classicFlip,
-          icon: Icons.flip_to_back_rounded,
+          icon: TurnaIconId.cards,
           title: AppStrings.studyPresetClassicFlipTitle,
           description: AppStrings.studyPresetClassicFlipDesc,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _buildModeCard(
           context,
           mode: StudyPresetMode.fidelity,
-          icon: Icons.web_asset_rounded,
+          icon: TurnaIconId.code,
           title: AppStrings.studyPresetFidelityTitle,
           description: AppStrings.studyPresetFidelityDesc,
         ),
@@ -85,7 +86,7 @@ class StudyPresetSelector extends StatelessWidget {
   Widget _buildModeCard(
     BuildContext context, {
     required StudyPresetMode mode,
-    required IconData icon,
+    required TurnaIconId icon,
     required String title,
     required String description,
     String? badgeText,
@@ -95,14 +96,14 @@ class StudyPresetSelector extends StatelessWidget {
 
     return Material(
       color: TurnaTheme.cardBg(context),
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
         onTap: () => onSelectMode(mode),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(
               color: isSelected
                   ? activeColor
@@ -116,14 +117,14 @@ class StudyPresetSelector extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
+              TurnaIcon(
                 isSelected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
+                    ? TurnaIconId.radioChecked
+                    : TurnaIconId.radioUnchecked,
                 color: isSelected
                     ? activeColor
                     : TurnaTheme.textHintColor(context),
-                size: 20,
+                size: 18,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -132,14 +133,14 @@ class StudyPresetSelector extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(icon, size: 16, color: activeColor),
+                        TurnaIcon(icon, size: 16, color: activeColor),
                         const SizedBox(width: 6),
                         Text(
                           title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight:
-                                isSelected ? FontWeight.w700 : FontWeight.w600,
+                          style: AppTextStyles.captionSm(context).copyWith(
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
                             color: isSelected
                                 ? activeColor
                                 : TurnaTheme.textPrimaryColor(context),
@@ -152,30 +153,27 @@ class StudyPresetSelector extends StatelessWidget {
                               horizontal: 6,
                               vertical: 1.5,
                             ),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: TurnaTheme.anatolianClay,
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: TurnaTheme.borderRadius,
                             ),
                             child: Text(
                               badgeText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                              style: AppTextStyles.caption(context).copyWith(
+                                color: TurnaTheme.textOnPrimary,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0,
                               ),
                             ),
                           ),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TurnaTheme.textSecondaryColor(context),
-                        height: 1.35,
-                      ),
+                      style: AppTextStyles.captionSm(context)
+                          .copyWith(height: 1.35),
                     ),
                   ],
                 ),

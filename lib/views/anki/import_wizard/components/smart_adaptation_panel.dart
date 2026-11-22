@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/adaptation/adaptation_plan_validator.dart';
 import 'package:turna/application/anki_import/adaptation/ai_card_adaptation_service.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/anki/adaptation/card_adaptation_plan.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// 导入预览里的「智能适配」区（ADR 0057 §7，plan §13.1）。
 ///
@@ -26,11 +31,12 @@ class SmartAdaptationPanel extends StatefulWidget {
   final bool aiConfigured;
   final bool Function(int notetypeId) hasPlan;
   final Future<CardAdaptationResult> Function(OfficialAnkiProjectionSchema)
-      onGenerate;
+  onGenerate;
   final Future<bool> Function(
     OfficialAnkiProjectionSchema schema,
     CardAdaptationPlan plan,
-  ) onApply;
+  )
+  onApply;
   final void Function(OfficialAnkiProjectionSchema schema) onRestore;
 
   @override
@@ -80,48 +86,40 @@ class _SmartAdaptationPanelState extends State<SmartAdaptationPanel> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: TurnaTheme.brandTeal.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
-        ),
+        borderRadius: TurnaTheme.borderRadius,
+        border: Border.all(color: TurnaTheme.brandTeal.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_rounded,
-                  size: 18, color: TurnaTheme.brandTeal),
-              const SizedBox(width: 8),
+              const TurnaIcon(
+                TurnaIconId.spark,
+                size: 18,
+                color: TurnaTheme.brandTeal,
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 AppStrings.ankiAdaptationTitle,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
+                style: AppTextStyles.cardTitle(context),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             AppStrings.ankiAdaptationHint,
-            style: TextStyle(
-              fontSize: 12,
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
+            style: AppTextStyles.captionSm(context),
           ),
           if (!widget.aiConfigured)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 AppStrings.ankiAdaptationNotConfigured,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+                style: AppTextStyles.captionSm(context),
               ),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           for (final schema in widget.schemas)
             _SchemaRow(
               key: ValueKey('smart-adaptation-${schema.notetypeId}'),
@@ -168,16 +166,15 @@ class _SchemaRow extends StatelessWidget {
         ? result as CardAdaptationAccepted
         : null;
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 8,
-        runSpacing: 4,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
         children: [
           Text(
             schema.name.isEmpty ? '${schema.notetypeId}' : schema.name,
-            style: TextStyle(
-              fontSize: 13,
+            style: AppTextStyles.captionSm(context).copyWith(
               fontWeight: FontWeight.w600,
               color: TurnaTheme.textPrimaryColor(context),
             ),
@@ -185,9 +182,9 @@ class _SchemaRow extends StatelessWidget {
           if (staged)
             Text(
               AppStrings.ankiAdaptationStaged,
-              style: const TextStyle(
-                fontSize: 12,
-                color: TurnaTheme.success,
+              style: AppTextStyles.captionSm(context).copyWith(
+                color: TurnaTheme.brandTeal,
+                fontWeight: FontWeight.w600,
               ),
             ),
           if (result == null && !staged)
@@ -195,11 +192,7 @@ class _SchemaRow extends StatelessWidget {
               key: ValueKey('adaptation-generate-${schema.notetypeId}'),
               onPressed: enabled && !busy ? onGenerate : null,
               child: busy
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? TurnaLoader.inline(size: 14)
                   : Text(AppStrings.ankiAdaptationGenerate),
             ),
           if (result != null) ..._resultWidgets(context, accepted),
@@ -226,10 +219,7 @@ class _SchemaRow extends StatelessWidget {
             accepted.plan.planId,
             accepted.plan.revision,
           ),
-          style: TextStyle(
-            fontSize: 12,
-            color: TurnaTheme.textSecondaryColor(context),
-          ),
+          style: AppTextStyles.captionSm(context),
         ),
         TextButton(
           key: ValueKey('adaptation-apply-${schema.notetypeId}'),
@@ -244,7 +234,8 @@ class _SchemaRow extends StatelessWidget {
           result.reason == 'transport'
               ? AppStrings.ankiAdaptationTransport
               : AppStrings.ankiAdaptationUnavailable,
-          style: const TextStyle(fontSize: 12, color: TurnaTheme.textHint),
+          style: AppTextStyles.captionSm(context)
+              .copyWith(color: TurnaTheme.textHintColor(context)),
         ),
       ];
     }
@@ -260,16 +251,11 @@ class _SchemaRow extends StatelessWidget {
       return <Widget>[
         Text(
           message,
-          style: const TextStyle(fontSize: 12, color: TurnaTheme.error),
+          style: AppTextStyles.captionSm(context)
+              .copyWith(color: TurnaTheme.error),
         ),
         if (details.isNotEmpty)
-          Text(
-            details.join('；'),
-            style: TextStyle(
-              fontSize: 12,
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
-          ),
+          Text(details.join('；'), style: AppTextStyles.captionSm(context)),
       ];
     }
     return const <Widget>[];

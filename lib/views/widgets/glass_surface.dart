@@ -78,7 +78,7 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final r = radius ?? BorderRadius.circular(TurnaTheme.cardRadius);
+    final r = radius ?? TurnaTheme.borderRadius;
     final interactive = onTap != null || onLongPress != null;
     final glassOn = TurnaTheme.glassEnabled(context);
     // 高对比下模糊会自动关掉：视线要的是轮廓与对比，不是材质。
@@ -115,8 +115,9 @@ class GlassSurface extends StatelessWidget {
         ? TurnaTheme.glassShadow(context, accent, level: effectiveLevel)
         : const <BoxShadow>[];
 
-    Widget content =
-        padding == null ? child : Padding(padding: padding!, child: child);
+    Widget content = padding == null
+        ? child
+        : Padding(padding: padding!, child: child);
 
     if (interactive) {
       content = Material(

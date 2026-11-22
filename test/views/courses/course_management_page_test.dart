@@ -14,8 +14,10 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/courses/course_management_page.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/courses/course_management_page.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Only what the management page reads: the catalog and the active wire.
 class _FakeCourseProvider extends CourseProvider {
@@ -80,10 +82,11 @@ void main() {
   });
 
   Future<void> pumpPage(WidgetTester tester) {
-    final courses = _FakeCourseProvider(
-      [builtinEntry, secondBuiltinEntry, officialAnkiEntry],
-      builtinEntry.wireKey,
-    );
+    final courses = _FakeCourseProvider([
+      builtinEntry,
+      secondBuiltinEntry,
+      officialAnkiEntry,
+    ], builtinEntry.wireKey);
     return tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -98,17 +101,19 @@ void main() {
     );
   }
 
-  testWidgets('add-course cards survive 200% text scale on a narrow phone',
-      (tester) async {
+  testWidgets('add-course cards survive 200% text scale on a narrow phone', (
+    tester,
+  ) async {
     // 真机收据（2026-10-20）：字体放大后导入卡标题行曾报
     // `RIGHT OVERFLOWED BY 3 PIXELS` —— 文字列原先没有宽度约束。
     await tester.binding.setSurfaceSize(const Size(360, 780));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final courses = _FakeCourseProvider(
-      [builtinEntry, secondBuiltinEntry, officialAnkiEntry],
-      builtinEntry.wireKey,
-    );
+    final courses = _FakeCourseProvider([
+      builtinEntry,
+      secondBuiltinEntry,
+      officialAnkiEntry,
+    ], builtinEntry.wireKey);
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -118,9 +123,8 @@ void main() {
         child: MaterialApp(
           theme: TurnaTheme.lightTheme,
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: const TextScaler.linear(2),
-            ),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2)),
             child: child!,
           ),
           home: const CourseManagementPage(),
@@ -137,17 +141,21 @@ void main() {
     );
   });
 
-  testWidgets('renders catalog with meta info and the import entry card',
-      (tester) async {
+  testWidgets('renders catalog with meta info and the import entry card', (
+    tester,
+  ) async {
     await pumpPage(tester);
 
-    expect(find.text('Builtin Turkish'), findsOneWidget);
+    // Active course renders in both ActiveCourseSummaryCard and its shelf row.
+    expect(find.text('Builtin Turkish'), findsNWidgets(2));
     expect(find.text('Builtin Japanese'), findsOneWidget);
     // 记忆卡牌组与内置课程并列（ADR 0067：记忆卡回归课程域）。
     expect(find.text('记忆卡牌组 A'), findsOneWidget);
-    // 内置语言卡副题是「内置课程」；卡数文案只在非内置（导入包）卡上出现。
-    expect(find.text(AppStrings.courseManagementBuiltinSubtitle),
-        findsNWidgets(2));
+    // 内置语言卡副题是「内置课程」（顶部当前课程卡 + 两张内置行）；卡数文案只在非内置（导入包）卡上出现。
+    expect(
+      find.text(AppStrings.courseManagementBuiltinSubtitle),
+      findsNWidgets(3),
+    );
     expect(find.text(AppStrings.courseManagementMyCourses), findsOneWidget);
     expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
     expect(
@@ -156,20 +164,36 @@ void main() {
     );
   });
 
-  testWidgets('memory-card import lives in course management (ADR 0067)',
-      (tester) async {
+  testWidgets('memory-card import lives in course management (ADR 0067)', (
+    tester,
+  ) async {
     // 记忆卡回归课程域：导入入口与牌组条目都在课程管理，练习台不再有
     // 记忆卡入口。ADR 0050 §6 step 4 的口径不变：任何构建档都不禁用
     // 导入卡，重新出现禁用态说明降级又爬回来了。
     await pumpPage(tester);
 
     expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
-    expect(find.byIcon(Icons.add_circle_outline_rounded), findsNWidgets(2));
-    expect(find.byIcon(Icons.block_outlined), findsNothing);
+    expect(
+      find.byWidgetPredicate((w) => w is TurnaIcon && w.id == TurnaIconId.add),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TurnaIcon && w.id == TurnaIconId.upload,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TurnaIcon && w.id == TurnaIconId.cancel,
+      ),
+      findsNothing,
+    );
   });
 
-  testWidgets('read-aloud entries appear on a build that has TTS',
-      (tester) async {
+  testWidgets('read-aloud entries appear on a build that has TTS', (
+    tester,
+  ) async {
     await pumpPage(tester);
     await settings.setTtsFeatureEnabled(true);
     await tester.pumpAndSettle();
@@ -178,8 +202,7 @@ void main() {
     expect(find.byType(PopupMenuButton<String>), findsNWidgets(3));
   });
 
-  testWidgets(
-      'read-aloud off (default): only removable courses carry a menu, '
+  testWidgets('read-aloud off (default): only removable courses carry a menu, '
       'and it has no TTS item', (tester) async {
     await pumpPage(tester);
 
@@ -193,8 +216,7 @@ void main() {
     expect(find.text(AppStrings.courseManagementRemoveCourse), findsOneWidget);
   });
 
-  testWidgets(
-      'read-aloud on: every card menu offers TTS settings; the '
+  testWidgets('read-aloud on: every card menu offers TTS settings; the '
       'sheet opens from it', (tester) async {
     await pumpPage(tester);
     await settings.setTtsFeatureEnabled(true);
@@ -214,8 +236,9 @@ void main() {
     expect(find.text(AppStrings.courseTtsAutoReadTitle), findsOneWidget);
   });
 
-  testWidgets('remove from the menu opens the exact-source confirmation',
-      (tester) async {
+  testWidgets('remove from the menu opens the exact-source confirmation', (
+    tester,
+  ) async {
     await pumpPage(tester);
 
     await tester.tap(find.byType(PopupMenuButton<String>).first);
@@ -230,9 +253,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  test(
-      'the course-pack import failure branches dismiss with pop(), not maybePop()',
-      () {
+  test('the course-pack import failure branches dismiss with pop(), not maybePop()', () {
     // The progress dialog is pushed with an un-awaited `showDialog` and, when
     // the import throws before the next frame, the dismissal lands while that
     // dialog route has not been installed yet. `maybePop` asks the topmost route
@@ -250,7 +271,8 @@ void main() {
     expect(
       RegExp(r'rootNavigator:\s*true\)\.maybePop\(\)').hasMatch(source),
       isFalse,
-      reason: 'a self-dismissed progress dialog must use pop(); '
+      reason:
+          'a self-dismissed progress dialog must use pop(); '
           'maybePop() asserts on a route whose scope is not installed yet',
     );
     // Guard against the guard going stale: the branches really are there.

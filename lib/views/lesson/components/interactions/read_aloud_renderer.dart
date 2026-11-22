@@ -14,6 +14,7 @@ import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/read_aloud_scoring.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -23,6 +24,7 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/widgets/optional_provider.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 跟读 (read-aloud) card, ADR 0061: show the sentence, speak it as the
 /// model, then recognize the learner's utterance and submit a binary verdict
@@ -240,26 +242,23 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
   }
 
   String _failureText(ReadAloudFailure reason) => switch (reason) {
-        ReadAloudFailure.permissionDenied =>
-          AppStrings.readAloudPermissionDenied,
-        ReadAloudFailure.serviceUnavailable =>
-          AppStrings.readAloudServiceUnavailable,
-        ReadAloudFailure.languageUnsupported =>
-          AppStrings.readAloudLanguageUnsupported,
-        ReadAloudFailure.networkUnavailable =>
-          AppStrings.readAloudNetworkUnavailable,
-        ReadAloudFailure.recognitionFailed => AppStrings.readAloudNoMatch,
-      };
+    ReadAloudFailure.permissionDenied => AppStrings.readAloudPermissionDenied,
+    ReadAloudFailure.serviceUnavailable =>
+      AppStrings.readAloudServiceUnavailable,
+    ReadAloudFailure.languageUnsupported =>
+      AppStrings.readAloudLanguageUnsupported,
+    ReadAloudFailure.networkUnavailable =>
+      AppStrings.readAloudNetworkUnavailable,
+    ReadAloudFailure.recognitionFailed => AppStrings.readAloudNoMatch,
+  };
 
   static bool _isUnrecoverable(ReadAloudFailure reason) => switch (reason) {
-        ReadAloudFailure.permissionDenied ||
-        ReadAloudFailure.serviceUnavailable ||
-        ReadAloudFailure.languageUnsupported =>
-          true,
-        ReadAloudFailure.networkUnavailable ||
-        ReadAloudFailure.recognitionFailed =>
-          false,
-      };
+    ReadAloudFailure.permissionDenied ||
+    ReadAloudFailure.serviceUnavailable ||
+    ReadAloudFailure.languageUnsupported => true,
+    ReadAloudFailure.networkUnavailable ||
+    ReadAloudFailure.recognitionFailed => false,
+  };
 
   void _onError(ReadAloudFailure reason) {
     if (!mounted || widget.state.submitted || _skipped) return;
@@ -294,7 +293,8 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
     // Restored after re-entry: the score is a pure function of the target and
     // the recorded transcript, so it is recomputed rather than persisted.
     // Sentinel answers carry no transcript to score.
-    final score = _score ??
+    final score =
+        _score ??
         (submitted &&
                 widget.state.userAnswerText != null &&
                 widget.state.userAnswerText != _degradedAnswer &&
@@ -311,10 +311,10 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
         note: wasSkipped
             ? AppStrings.readAloudSkippedHint
             : _gaveUpMic && _trouble != null
-                ? _trouble!
-                : !micAvailable
-                    ? AppStrings.readAloudDegradedHint
-                    : AppStrings.readAloudEnableHint,
+            ? _trouble!
+            : !micAvailable
+            ? AppStrings.readAloudDegradedHint
+            : AppStrings.readAloudEnableHint,
         enableOffered: !gateOn && micAvailable && !wasSkipped && !submitted,
         submitted: submitted || _skipped,
         onEnable: _enableAndStay,
@@ -352,17 +352,18 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
           Center(child: SpeakerButton(onPressed: _speak)),
           if (!isAnswered) ...[
             const SizedBox(height: 20),
-            Center(child: _MicButton(listening: _listening, onTap: _onMicTap)),
+            Center(
+              child: _MicButton(listening: _listening, onTap: _onMicTap),
+            ),
             const SizedBox(height: 12),
             Text(
               _stalled
                   ? AppStrings.readAloudStalledHint
                   : _listening
-                      ? AppStrings.readAloudListening
-                      : AppStrings.readAloudMicHint,
-              style: AppTextStyles.captionSm(context).copyWith(
-                color: TurnaTheme.textHintColor(context),
-              ),
+                  ? AppStrings.readAloudListening
+                  : AppStrings.readAloudMicHint,
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textHintColor(context)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -389,9 +390,8 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
             const SizedBox(height: 12),
             Text(
               _trouble!,
-              style: AppTextStyles.captionSm(context).copyWith(
-                color: TurnaTheme.error,
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.error),
               textAlign: TextAlign.center,
             ),
           ],
@@ -399,9 +399,8 @@ class _ReadAloudBodyState extends State<_ReadAloudBody> {
             const SizedBox(height: 16),
             Text(
               '${AppStrings.readAloudHeardPrefix}${widget.state.userAnswerText ?? ''}',
-              style: AppTextStyles.captionSm(context).copyWith(
-                color: TurnaTheme.textHintColor(context),
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textHintColor(context)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -438,8 +437,8 @@ class _TargetWords extends StatelessWidget {
         targetText,
         key: const ValueKey('read-aloud-target'),
         textAlign: TextAlign.center,
-        style:
-            AppTextStyles.termHero(context).copyWith(fontSize: 24, height: 1.4),
+        style: AppTextStyles.promptLg(context)
+            .copyWith(fontWeight: FontWeight.w700, height: 1.4),
       );
     }
     return Wrap(
@@ -454,7 +453,7 @@ class _TargetWords extends StatelessWidget {
             decoration: BoxDecoration(
               color: (word.matched ? TurnaTheme.success : TurnaTheme.error)
                   .withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+              borderRadius: TurnaTheme.borderRadius,
               border: Border.all(
                 color: (word.matched ? TurnaTheme.success : TurnaTheme.error)
                     .withValues(alpha: 0.4),
@@ -462,8 +461,7 @@ class _TargetWords extends StatelessWidget {
             ),
             child: Text(
               word.word,
-              style: TextStyle(
-                fontSize: 20,
+              style: AppTextStyles.promptMd(context).copyWith(
                 fontWeight: FontWeight.w700,
                 color: word.matched ? TurnaTheme.successDark : TurnaTheme.error,
               ),
@@ -496,8 +494,8 @@ class _MicButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Icon(
-            listening ? Icons.stop_rounded : Icons.mic_rounded,
+          child: TurnaIcon(
+            listening ? TurnaIconId.stop : TurnaIconId.mic,
             color: TurnaTheme.textOnPrimary,
             size: 36,
           ),
@@ -518,8 +516,9 @@ class _MicButton extends StatelessWidget {
       button: true,
       label: listening ? AppStrings.readAloudStop : AppStrings.readAloudMicHint,
       child: Tooltip(
-        message:
-            listening ? AppStrings.readAloudStop : AppStrings.readAloudMicHint,
+        message: listening
+            ? AppStrings.readAloudStop
+            : AppStrings.readAloudMicHint,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
@@ -598,7 +597,8 @@ class _DegradedBody extends StatelessWidget {
                 Text(
                   targetText,
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.termHero(context).copyWith(fontSize: 24),
+                  style: AppTextStyles.promptLg(context)
+                      .copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 24),
                 SpeakerHero(onPressed: onSpeak),
@@ -608,9 +608,8 @@ class _DegradedBody extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             note,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
             textAlign: TextAlign.center,
           ),
           if (enableOffered) ...[
@@ -618,7 +617,7 @@ class _DegradedBody extends StatelessWidget {
             Center(
               child: OutlinedButton.icon(
                 onPressed: onEnable,
-                icon: const Icon(Icons.mic_rounded),
+                icon: const TurnaIcon(TurnaIconId.mic, size: 18),
                 label: Text(AppStrings.readAloudEnableAction),
               ),
             ),

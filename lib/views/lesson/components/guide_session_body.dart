@@ -13,6 +13,7 @@ import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/guide_page.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -20,6 +21,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/guide_block_view.dart';
 import 'package:turna/views/lesson/components/lesson_presentation.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
 class GuideSessionBody extends StatelessWidget {
@@ -40,10 +42,8 @@ class GuideSessionBody extends StatelessWidget {
         SessionSourceLine(icon: profile.icon, label: lesson.name),
         Expanded(
           child: Selector<LessonViewModel, ({int index, bool complete})>(
-            selector: (_, vm) => (
-              index: vm.guidePageIndex,
-              complete: vm.isComplete,
-            ),
+            selector: (_, vm) =>
+                (index: vm.guidePageIndex, complete: vm.isComplete),
             builder: (context, selected, _) {
               final vm = context.read<LessonViewModel>();
               final page = vm.currentGuidePage;
@@ -52,6 +52,8 @@ class GuideSessionBody extends StatelessWidget {
               }
               return SingleChildScrollView(
                 controller: scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.only(bottom: AppSpacing.xl),
                 child: TurnaPageContent(
                   maxWidth: profile.maxWidth,
@@ -67,10 +69,8 @@ class GuideSessionBody extends StatelessWidget {
           ),
         ),
         Selector<LessonViewModel, ({int index, bool complete})>(
-          selector: (_, vm) => (
-            index: vm.guidePageIndex,
-            complete: vm.isComplete,
-          ),
+          selector: (_, vm) =>
+              (index: vm.guidePageIndex, complete: vm.isComplete),
           builder: (context, selected, _) {
             final vm = context.read<LessonViewModel>();
             return SessionActionBand(
@@ -102,9 +102,8 @@ class _GuidePageView extends StatelessWidget {
         if (page.kicker.isNotEmpty) ...[
           Text(
             page.kicker,
-            style: AppTextStyles.caption(context).copyWith(
-              color: TurnaTheme.brandTeal,
-            ),
+            style: AppTextStyles.caption(context)
+                .copyWith(color: TurnaTheme.brandTeal),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -114,7 +113,6 @@ class _GuidePageView extends StatelessWidget {
           Text(
             page.intro,
             style: AppTextStyles.bodyText(context).copyWith(
-              fontSize: 18,
               height: 1.6,
               color: TurnaTheme.textSecondaryColor(context),
             ),
@@ -142,16 +140,16 @@ class _GuidePageActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SessionPrimaryAction(
-          label:
-              isLast ? AppStrings.guideFinishReading : AppStrings.guideNextPage,
-          trailingIcon:
-              isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
+          label: isLast
+              ? AppStrings.guideFinishReading
+              : AppStrings.guideNextPage,
+          trailingIcon: isLast ? TurnaIconId.check : TurnaIconId.arrowForward,
           onPressed: vm.nextGuidePage,
         ),
         if (pageIndex > 0)
           TextButton.icon(
             onPressed: vm.previousGuidePage,
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: const TurnaIcon(TurnaIconId.arrowBack, size: 18),
             label: Text(AppStrings.guidePreviousPage),
           ),
       ],
@@ -176,10 +174,12 @@ class _GuideCompletion extends StatelessWidget {
               shape: BoxShape.circle,
               color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
             ),
-            child: const Icon(
-              Icons.explore_rounded,
-              size: 48,
-              color: TurnaTheme.brandTeal,
+            child: const Center(
+              child: TurnaIcon(
+                TurnaIconId.explore,
+                size: 48,
+                color: TurnaTheme.brandTeal,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -193,7 +193,6 @@ class _GuideCompletion extends StatelessWidget {
             AppStrings.guideCompleteBody,
             textAlign: TextAlign.center,
             style: AppTextStyles.bodyText(context).copyWith(
-              fontSize: 18,
               height: 1.6,
               color: TurnaTheme.textSecondaryColor(context),
             ),
@@ -219,7 +218,7 @@ class _GuideCompletionActions extends StatelessWidget {
           label: nextLessonId == null
               ? AppStrings.lessonBackToCourses
               : (page!.nextLabel ?? AppStrings.guideDefaultNext),
-          trailingIcon: Icons.arrow_forward_rounded,
+          trailingIcon: TurnaIconId.arrowForward,
           onPressed: () => _goNext(context),
         ),
         Wrap(
@@ -227,7 +226,7 @@ class _GuideCompletionActions extends StatelessWidget {
           children: [
             TextButton.icon(
               onPressed: context.read<LessonViewModel>().restartGuide,
-              icon: const Icon(Icons.restart_alt_rounded),
+              icon: const TurnaIcon(TurnaIconId.restart, size: 18),
               label: Text(AppStrings.guideReadAgain),
             ),
             if (nextLessonId != null)

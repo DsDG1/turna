@@ -7,10 +7,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/settings/components/settings_reminder_section.dart';
-import 'package:turna/core/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +43,7 @@ void main() {
               children: const [
                 SettingsSectionTitle(
                   title: 'Learning',
-                  icon: Icons.menu_book_rounded,
+                  iconId: TurnaIconId.book,
                 ),
                 SettingsCard(children: [SettingsDailyReminderTile()]),
               ],

@@ -59,22 +59,24 @@ void main() {
       final dec = TurnaTheme.primaryCtaDecoration(vertical: true);
       expect(dec.gradient, TurnaTheme.buttonGradientVertical);
       expect(
-        (dec.gradient as LinearGradient)
-            .colors
-            .contains(TurnaTheme.anatolianClay),
+        (dec.gradient as LinearGradient).colors.contains(
+          TurnaTheme.anatolianClay,
+        ),
         isFalse,
       );
     });
   });
 
   group('ColorScheme secondary / primary roles', () {
-    test('light theme: primary teal, secondary clay, secondaryContainer sand',
-        () {
-      final cs = TurnaTheme.lightTheme.colorScheme;
-      expect(cs.primary, TurnaTheme.brandTeal);
-      expect(cs.secondary, TurnaTheme.anatolianClay);
-      expect(cs.secondaryContainer, TurnaTheme.warmSand);
-    });
+    test(
+      'light theme: primary teal, secondary clay, secondaryContainer sand',
+      () {
+        final cs = TurnaTheme.lightTheme.colorScheme;
+        expect(cs.primary, TurnaTheme.brandTeal);
+        expect(cs.secondary, TurnaTheme.anatolianClay);
+        expect(cs.secondaryContainer, TurnaTheme.warmSand);
+      },
+    );
 
     test('dark theme: primary teal, secondary clay', () {
       final cs = TurnaTheme.darkTheme.colorScheme;
@@ -84,7 +86,10 @@ void main() {
 
     test('elevated button theme stays teal primary (not clay)', () {
       final bg = TurnaTheme
-          .lightTheme.elevatedButtonTheme.style?.backgroundColor
+          .lightTheme
+          .elevatedButtonTheme
+          .style
+          ?.backgroundColor
           ?.resolve({});
       expect(bg, TurnaTheme.brandTeal);
       expect(bg, isNot(TurnaTheme.anatolianClay));
@@ -115,9 +120,7 @@ void main() {
   group('System UI overlay (status / nav bar)', () {
     // 手势区四套一律透明：悬浮胶囊下方若还是实色条，会读出一条白/黑缝。
     test('light overlay: white status chrome + transparent nav bar', () {
-      final style = TurnaTheme.systemUiOverlayFor(
-        brightness: Brightness.light,
-      );
+      final style = TurnaTheme.systemUiOverlayFor(brightness: Brightness.light);
       expect(style.statusBarColor, Colors.white);
       expect(style.statusBarIconBrightness, Brightness.dark);
       expect(style.systemNavigationBarColor, Colors.transparent);
@@ -129,9 +132,7 @@ void main() {
     });
 
     test('dark overlay: darkAppBar status chrome + transparent nav bar', () {
-      final style = TurnaTheme.systemUiOverlayFor(
-        brightness: Brightness.dark,
-      );
+      final style = TurnaTheme.systemUiOverlayFor(brightness: Brightness.dark);
       expect(style.statusBarColor, TurnaTheme.darkAppBar);
       expect(style.statusBarIconBrightness, Brightness.light);
       expect(style.systemNavigationBarColor, Colors.transparent);
@@ -167,7 +168,11 @@ void main() {
     test('light theme ships expressive chip and segmented themes', () {
       final chips = TurnaTheme.lightTheme.chipTheme;
       expect(chips.selectedColor, isNotNull);
-      expect(chips.shape, isA<StadiumBorder>());
+      expect(chips.shape, isA<RoundedRectangleBorder>());
+      expect(
+        (chips.shape! as RoundedRectangleBorder).borderRadius,
+        TurnaTheme.borderRadius,
+      );
       expect(TurnaTheme.lightTheme.segmentedButtonTheme.style, isNotNull);
     });
 
@@ -184,8 +189,8 @@ void main() {
     });
 
     test('Android colors.xml matches Flutter surface tokens', () {
-      final colors =
-          File('android/app/src/main/res/values/colors.xml').readAsStringSync();
+      final colors = File('android/app/src/main/res/values/colors.xml')
+          .readAsStringSync();
       expect(colors.contains('turna_scaffold_light">#FFFFFF'), isTrue);
       expect(colors.contains('turna_appbar_light">#FFFFFF'), isTrue);
       expect(colors.contains('turna_scaffold_dark">#000000'), isTrue);
@@ -193,8 +198,8 @@ void main() {
     });
 
     test('Android light styles wire statusBar to turna_appbar_light', () {
-      final styles =
-          File('android/app/src/main/res/values/styles.xml').readAsStringSync();
+      final styles = File('android/app/src/main/res/values/styles.xml')
+          .readAsStringSync();
       expect(styles.contains('@color/turna_appbar_light'), isTrue);
       expect(styles.contains('windowLightStatusBar">true'), isTrue);
     });
@@ -229,17 +234,18 @@ void main() {
       final dec = TurnaTheme.primaryCtaDecoration();
       expect(dec.gradient, TurnaTheme.buttonGradient);
       expect(
-        (dec.gradient as LinearGradient)
-            .colors
-            .contains(TurnaTheme.anatolianClay),
+        (dec.gradient as LinearGradient).colors.contains(
+          TurnaTheme.anatolianClay,
+        ),
         isFalse,
       );
     });
   });
 
   group('Clay helpers', () {
-    testWidgets('clayAccent and claySoftTint use anatolianClay',
-        (tester) async {
+    testWidgets('clayAccent and claySoftTint use anatolianClay', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: TurnaTheme.lightTheme,
@@ -251,7 +257,9 @@ void main() {
                 TurnaTheme.softTint(context, TurnaTheme.anatolianClay),
               );
               expect(
-                  TurnaTheme.clayOnSandText(context), TurnaTheme.anatolianClay);
+                TurnaTheme.clayOnSandText(context),
+                TurnaTheme.anatolianClay,
+              );
               return const SizedBox.shrink();
             },
           ),
@@ -269,8 +277,11 @@ void main() {
       final alias = RegExp(
         r'\bpeacock(Deep|Teal|Cyan|Turquoise|Mint|Gradient)\b',
       );
-      expect(alias.hasMatch(src), isFalse,
-          reason: 'peacock* aliases must be deleted (ADR 0033)');
+      expect(
+        alias.hasMatch(src),
+        isFalse,
+        reason: 'peacock* aliases must be deleted (ADR 0033)',
+      );
     });
   });
 
@@ -279,13 +290,13 @@ void main() {
       // 「湿地雾光」重设计后 clay 的职责从「课程树完美角标」（已随
       // lesson_tile/unit_card 退役）转为：任务台的优先队列标记与统计
       // 强调。课程树完成态按定稿用 teal 环/实心，不再用 clay。
-      final playHubSrc =
-          File('lib/views/play/play_hub_page.dart').readAsStringSync();
+      final playHubSrc = File('lib/views/play/play_hub_page.dart')
+          .readAsStringSync();
       expect(playHubSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(playHubSrc.contains('DirectoryTaskRow'), isTrue);
 
-      final statsSrc =
-          File('lib/views/widgets/learning_stats.dart').readAsStringSync();
+      final statsSrc = File('lib/views/widgets/learning_stats.dart')
+          .readAsStringSync();
       expect(statsSrc.contains('TurnaTheme.anatolianClay'), isTrue);
     });
 
@@ -293,8 +304,8 @@ void main() {
     // 上一条统一覆盖，不再单列。
 
     test('about brand header strip uses clay and sand', () {
-      final src =
-          File('lib/views/settings/about_turna_page.dart').readAsStringSync();
+      final src = File('lib/views/settings/about_turna_page.dart')
+          .readAsStringSync();
       expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(src.contains('TurnaTheme.warmSand'), isTrue);
     });
@@ -311,8 +322,8 @@ void main() {
       ).readAsStringSync();
       expect(overviewSrc.contains('TurnaTheme.anatolianClay'), isTrue);
 
-      final profileSrc =
-          File('lib/views/profile/profile_page.dart').readAsStringSync();
+      final profileSrc = File('lib/views/profile/profile_page.dart')
+          .readAsStringSync();
       expect(profileSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(profileSrc.contains('profileAchievementsTitle'), isTrue);
     });
@@ -320,9 +331,7 @@ void main() {
     test('key CTAs use primaryCtaDecoration (gradient teal)', () {
       // 主 CTA 的渐变随 P2 收进 SessionPrimaryAction（各页经它消费）；
       // 判定源头而不是每个调用页。
-      for (final path in [
-        'lib/views/widgets/session_shell.dart',
-      ]) {
+      for (final path in ['lib/views/widgets/session_shell.dart']) {
         final src = File(path).readAsStringSync();
         expect(
           src.contains('primaryCtaDecoration'),

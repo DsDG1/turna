@@ -6,13 +6,15 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 void main() {
-  testWidgets('reduce motion renders equipped completion effect statically',
-      (tester) async {
+  testWidgets('reduce motion renders equipped completion effect statically', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = AppPrefs(await StreamingSharedPreferences.instance);
     final gems = GemsProvider(prefs);
@@ -38,7 +40,7 @@ void main() {
         child: const MaterialApp(
           home: Scaffold(
             body: CosmeticCompletionBadge(
-              fallbackIcon: Icons.check,
+              fallbackIcon: TurnaIconId.check,
               fallbackColor: Colors.green,
             ),
           ),

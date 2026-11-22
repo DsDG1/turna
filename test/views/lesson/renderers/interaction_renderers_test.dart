@@ -30,14 +30,19 @@ import 'package:turna/views/lesson/components/interactions/type_the_word_rendere
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/read_aloud_backend.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
 import 'fake_audio_controller.dart';
 import 'fake_read_aloud_backend.dart';
 import 'renderer_test_helper.dart';
+
+Finder findTurnaIcon(TurnaIconId id) =>
+    find.byWidgetPredicate((w) => w is TurnaIcon && w.id == id);
 
 void main() {
   final harness = RendererTestHarness();
@@ -112,30 +117,32 @@ void main() {
     });
 
     testWidgets(
-        'typing enables CHECK via ValueListenableBuilder (no parent setState)',
-        (tester) async {
-      final renderer = FillBlankRenderer();
-      const interaction = Interaction.fillBlank(
-        id: 'fb-vlb',
-        sentence: 'My name _____ John.',
-        answer: 'is',
-      );
+      'typing enables CHECK via ValueListenableBuilder (no parent setState)',
+      (tester) async {
+        final renderer = FillBlankRenderer();
+        const interaction = Interaction.fillBlank(
+          id: 'fb-vlb',
+          sentence: 'My name _____ John.',
+          answer: 'is',
+        );
 
-      await tester.pumpWidget(harness.build(renderer, interaction));
+        await tester.pumpWidget(harness.build(renderer, interaction));
 
-      // Empty input → CHECK disabled (InkWell.onTap null).
-      expect(isCheckEnabled(tester), isFalse);
+        // Empty input → CHECK disabled (InkWell.onTap null).
+        expect(isCheckEnabled(tester), isFalse);
 
-      await tester.enterText(find.byType(TextField), 'is');
-      // Single pump is enough for ValueListenableBuilder — full setState would
-      // also work, but we assert the button flips without pumpAndSettle.
-      await tester.pump();
+        await tester.enterText(find.byType(TextField), 'is');
+        // Single pump is enough for ValueListenableBuilder — full setState would
+        // also work, but we assert the button flips without pumpAndSettle.
+        await tester.pump();
 
-      expect(isCheckEnabled(tester), isTrue);
-    });
+        expect(isCheckEnabled(tester), isTrue);
+      },
+    );
 
-    testWidgets('choices mode: CHECK disabled until a chip is tapped',
-        (tester) async {
+    testWidgets('choices mode: CHECK disabled until a chip is tapped', (
+      tester,
+    ) async {
       final renderer = FillBlankRenderer();
       const interaction = Interaction.fillBlank(
         id: 'fb-choices-idle',
@@ -154,8 +161,9 @@ void main() {
       expect(isCheckEnabled(tester), isTrue);
     });
 
-    testWidgets('choices mode: restores the picked chip when submitted',
-        (tester) async {
+    testWidgets('choices mode: restores the picked chip when submitted', (
+      tester,
+    ) async {
       final renderer = FillBlankRenderer();
       const interaction = Interaction.fillBlank(
         id: 'fb-choices-submit',
@@ -294,8 +302,9 @@ void main() {
       expect(harness.submissions, [(false, '0,1')]);
     });
 
-    testWidgets('disables check until selection count is in range',
-        (tester) async {
+    testWidgets('disables check until selection count is in range', (
+      tester,
+    ) async {
       final renderer = MultiSelectRenderer();
       const interaction = Interaction.multiSelect(
         id: 'ms-3',
@@ -433,8 +442,9 @@ void main() {
       expect(harness.submissions, [(false, 'Green')]);
     });
 
-    testWidgets('typing enables CHECK via ValueListenableBuilder',
-        (tester) async {
+    testWidgets('typing enables CHECK via ValueListenableBuilder', (
+      tester,
+    ) async {
       final renderer = ReadingShortAnswerRenderer();
       const interaction = Interaction.readingShortAnswer(
         id: 'rsa-vlb',
@@ -550,8 +560,9 @@ void main() {
       expect(harness.submissions, [(true, 'world hello')]);
     });
 
-    testWidgets('renders the source prompt above the word bank',
-        (tester) async {
+    testWidgets('renders the source prompt above the word bank', (
+      tester,
+    ) async {
       final renderer = ReorderSentenceRenderer();
       const interaction = Interaction.reorderSentence(
         id: 'rs-prompt',
@@ -600,8 +611,9 @@ void main() {
       expect(harness.submissions, [(true, 'a b')]);
     });
 
-    testWidgets('tap answer chip returns it to the pool, then back in',
-        (tester) async {
+    testWidgets('tap answer chip returns it to the pool, then back in', (
+      tester,
+    ) async {
       final renderer = ReorderSentenceRenderer();
       const interaction = Interaction.reorderSentence(
         id: 'rs-return',
@@ -624,8 +636,9 @@ void main() {
       expect(harness.submissions, [(true, 'hello world')]);
     });
 
-    testWidgets('long-press drag reorders within the answer row',
-        (tester) async {
+    testWidgets('long-press drag reorders within the answer row', (
+      tester,
+    ) async {
       final renderer = ReorderSentenceRenderer();
       const interaction = Interaction.reorderSentence(
         id: 'rs-drag',
@@ -703,8 +716,9 @@ void main() {
       expect(harness.submissions, [(false, 'Goodbye')]);
     });
 
-    testWidgets('typing enables CHECK via ValueListenableBuilder',
-        (tester) async {
+    testWidgets('typing enables CHECK via ValueListenableBuilder', (
+      tester,
+    ) async {
       final renderer = TranslateSentenceRenderer();
       const interaction = Interaction.translateSentence(
         id: 'ts-vlb',
@@ -785,8 +799,9 @@ void main() {
       expect(harness.submissions, [(false, 'Asante')]);
     });
 
-    testWidgets('typing enables CHECK via ValueListenableBuilder',
-        (tester) async {
+    testWidgets('typing enables CHECK via ValueListenableBuilder', (
+      tester,
+    ) async {
       final renderer = TypeTheWordRenderer();
       const interaction = Interaction.typeTheWord(
         id: 'ttw-vlb',
@@ -873,8 +888,9 @@ void main() {
       expect(harness.submissions, isEmpty);
     });
 
-    testWidgets('renders long terms on narrow screens without overflow',
-        (tester) async {
+    testWidgets('renders long terms on narrow screens without overflow', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -901,8 +917,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('canonicalLink fail-closes without opening vocab or Legacy',
-        (tester) async {
+    testWidgets('canonicalLink fail-closes without opening vocab or Legacy', (
+      tester,
+    ) async {
       OfficialAnkiCourseEntry.resetHooks();
       addTearDown(OfficialAnkiCourseEntry.resetHooks);
       OfficialAnkiCourseEntry.flagsOf = () => const OfficialAnkiFeatureFlags();
@@ -913,26 +930,31 @@ void main() {
         context: 'official-canonical-link:src1:1',
       );
       await tester.pumpWidget(harness.build(renderer, interaction));
-      expect(find.byKey(const Key('official-canonical-fail-closed')),
-          findsOneWidget);
       expect(
-          find.byKey(const Key('official-canonical-continue')), findsNothing);
+        find.byKey(const Key('official-canonical-fail-closed')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('official-canonical-continue')),
+        findsNothing,
+      );
       expect(find.text('Habari'), findsNothing);
       expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
     });
 
-    testWidgets('canonicalLink renders inline without a route push',
-        (tester) async {
+    testWidgets('canonicalLink renders inline without a route push', (
+      tester,
+    ) async {
       ensurePathProviderMockForTest();
       OfficialAnkiCourseEntry.resetHooks();
       addTearDown(OfficialAnkiCourseEntry.resetHooks);
       OfficialAnkiCourseEntry.flagsOf = () => const OfficialAnkiFeatureFlags(
-            engine: true,
-            catalogReady: true,
-            runtimeCapable: true,
-            platformReady: true,
-            renderer: true,
-          );
+        engine: true,
+        catalogReady: true,
+        runtimeCapable: true,
+        platformReady: true,
+        renderer: true,
+      );
       final renderer = ShowWordRenderer(FakeAudioController());
       final interaction = Interaction.showWord(
         id: 'sw-link',
@@ -946,8 +968,10 @@ void main() {
 
       // No route push ever happens: the card itself is the surface.
       expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
-      expect(find.byKey(const Key('official-canonical-boot-failed')),
-          findsOneWidget);
+      expect(
+        find.byKey(const Key('official-canonical-boot-failed')),
+        findsOneWidget,
+      );
       // A failed card must not complete the lesson or introduce unseen cards.
       final button = tester.widget<FilledButton>(
         find.byKey(const Key('official-canonical-continue')),
@@ -975,8 +999,7 @@ void main() {
 
     tearDown(getIt.reset);
 
-    testWidgets(
-        'gate off degrades to a listen-only card with an in-card '
+    testWidgets('gate off degrades to a listen-only card with an in-card '
         'enable offer', (tester) async {
       final renderer = ReadAloudRenderer(FakeReadAloudBackend());
       const interaction = Interaction.readAloud(
@@ -987,18 +1010,17 @@ void main() {
       await tester.pumpWidget(harness.build(renderer, interaction));
 
       // Enable offer is visible because the backend itself is capable.
-      expect(
-        find.widgetWithText(OutlinedButton, '开启跟读练习'),
-        findsOneWidget,
-      );
+      expect(find.widgetWithText(OutlinedButton, '开启跟读练习'), findsOneWidget);
       await tapContinue(tester);
       expect(harness.submissions, [(true, 'read-aloud-degraded')]);
     });
 
-    testWidgets('unsupported builds degrade without an enable offer',
-        (tester) async {
-      final renderer =
-          ReadAloudRenderer(FakeReadAloudBackend(supported: false));
+    testWidgets('unsupported builds degrade without an enable offer', (
+      tester,
+    ) async {
+      final renderer = ReadAloudRenderer(
+        FakeReadAloudBackend(supported: false),
+      );
       const interaction = Interaction.readAloud(
         id: 'ra-unsupported',
         targetText: 'Merhaba!',
@@ -1007,13 +1029,14 @@ void main() {
       await tester.pumpWidget(harness.build(renderer, interaction));
 
       expect(find.widgetWithText(OutlinedButton, '开启跟读练习'), findsNothing);
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
       await tapContinue(tester);
       expect(harness.submissions, [(true, 'read-aloud-degraded')]);
     });
 
-    testWidgets('mic flow: final transcript scores and submits pass',
-        (tester) async {
+    testWidgets('mic flow: final transcript scores and submits pass', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1023,7 +1046,7 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
 
       expect(backend.startLocales, ['tr-TR']);
@@ -1034,31 +1057,30 @@ void main() {
 
       expect(harness.submissions, [(true, 'merhaba')]);
       // Word-level feedback replaces the plain sentence.
-      expect(
-        find.byKey(const ValueKey('read-aloud-words')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('read-aloud-words')), findsOneWidget);
     });
 
     testWidgets(
-        'active readAloud card displays speaker button to model pronunciation',
-        (tester) async {
-      await settings.setReadAloudExercisesEnabled(true);
-      final backend = FakeReadAloudBackend();
-      final renderer = ReadAloudRenderer(backend);
-      const interaction = Interaction.readAloud(
-        id: 'ra-speaker',
-        targetText: 'Merhaba!',
-      );
+      'active readAloud card displays speaker button to model pronunciation',
+      (tester) async {
+        await settings.setReadAloudExercisesEnabled(true);
+        final backend = FakeReadAloudBackend();
+        final renderer = ReadAloudRenderer(backend);
+        const interaction = Interaction.readAloud(
+          id: 'ra-speaker',
+          targetText: 'Merhaba!',
+        );
 
-      await tester.pumpWidget(harness.build(renderer, interaction));
-      expect(find.byType(SpeakerButton), findsOneWidget);
-      await tester.tap(find.byType(SpeakerButton));
-      await tester.pumpAndSettle();
-    });
+        await tester.pumpWidget(harness.build(renderer, interaction));
+        expect(find.byType(SpeakerButton), findsOneWidget);
+        await tester.tap(find.byType(SpeakerButton));
+        await tester.pumpAndSettle();
+      },
+    );
 
-    testWidgets('a weak transcript fails without blocking progression',
-        (tester) async {
+    testWidgets('a weak transcript fails without blocking progression', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1068,7 +1090,7 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
       backend.emitFinal('bir');
       await tester.pumpAndSettle();
@@ -1077,8 +1099,9 @@ void main() {
       expect(harness.submissions, [(false, 'bir')]);
     });
 
-    testWidgets('an empty final transcript is a retry, not a submission',
-        (tester) async {
+    testWidgets('an empty final transcript is a retry, not a submission', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1088,7 +1111,7 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
       backend.emitFinal('  ');
       await tester.pumpAndSettle();
@@ -1097,8 +1120,9 @@ void main() {
       expect(find.text('没听清，再点麦克风试一次'), findsOneWidget);
     });
 
-    testWidgets('permission refusal degrades the card for this item',
-        (tester) async {
+    testWidgets('permission refusal degrades the card for this item', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend(ready: false);
       final renderer = ReadAloudRenderer(backend);
@@ -1108,15 +1132,16 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
       expect(find.text('麦克风权限被拒绝——请在系统设置中允许后重试'), findsOneWidget);
     });
 
-    testWidgets('missing recognition service degrades with service guidance',
-        (tester) async {
+    testWidgets('missing recognition service degrades with service guidance', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend(
         ready: false,
@@ -1129,70 +1154,72 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
-      expect(
-        find.text('系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试'),
-        findsOneWidget,
-      );
+      expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
+      expect(find.text('系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试'), findsOneWidget);
     });
 
     testWidgets(
-        'languageUnsupported session error degrades to listen-only card with '
-        'language guidance', (tester) async {
-      await settings.setReadAloudExercisesEnabled(true);
-      final backend = FakeReadAloudBackend();
-      final renderer = ReadAloudRenderer(backend);
-      const interaction = Interaction.readAloud(
-        id: 'ra-lang-unsupported',
-        targetText: 'Merhaba!',
-      );
+      'languageUnsupported session error degrades to listen-only card with '
+      'language guidance',
+      (tester) async {
+        await settings.setReadAloudExercisesEnabled(true);
+        final backend = FakeReadAloudBackend();
+        final renderer = ReadAloudRenderer(backend);
+        const interaction = Interaction.readAloud(
+          id: 'ra-lang-unsupported',
+          targetText: 'Merhaba!',
+        );
 
-      await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
-      await tester.pumpAndSettle();
-      backend.emitError(ReadAloudFailure.languageUnsupported);
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(harness.build(renderer, interaction));
+        await tester.tap(findTurnaIcon(TurnaIconId.mic));
+        await tester.pumpAndSettle();
+        backend.emitError(ReadAloudFailure.languageUnsupported);
+        await tester.pumpAndSettle();
 
-      expect(harness.submissions, isEmpty);
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
-      expect(find.byType(SpeakerHero), findsOneWidget);
-      expect(
-        find.text('当前默认语音识别服务不支持该语言——请在系统设置中切换为 Google 语音服务'),
-        findsOneWidget,
-      );
-    });
+        expect(harness.submissions, isEmpty);
+        expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
+        expect(find.byType(SpeakerHero), findsOneWidget);
+        expect(
+          find.text('当前默认语音识别服务不支持该语言——请在系统设置中切换为 Google 语音服务'),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets(
-        'serviceUnavailable session error degrades to listen-only card with '
-        'service guidance', (tester) async {
-      await settings.setReadAloudExercisesEnabled(true);
-      final backend = FakeReadAloudBackend();
-      final renderer = ReadAloudRenderer(backend);
-      const interaction = Interaction.readAloud(
-        id: 'ra-service-session',
-        targetText: 'Merhaba!',
-      );
+      'serviceUnavailable session error degrades to listen-only card with '
+      'service guidance',
+      (tester) async {
+        await settings.setReadAloudExercisesEnabled(true);
+        final backend = FakeReadAloudBackend();
+        final renderer = ReadAloudRenderer(backend);
+        const interaction = Interaction.readAloud(
+          id: 'ra-service-session',
+          targetText: 'Merhaba!',
+        );
 
-      await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
-      await tester.pumpAndSettle();
-      backend.emitError(ReadAloudFailure.serviceUnavailable);
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(harness.build(renderer, interaction));
+        await tester.tap(findTurnaIcon(TurnaIconId.mic));
+        await tester.pumpAndSettle();
+        backend.emitError(ReadAloudFailure.serviceUnavailable);
+        await tester.pumpAndSettle();
 
-      expect(harness.submissions, isEmpty);
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
-      expect(find.byType(SpeakerHero), findsOneWidget);
-      expect(
-        find.text('系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试'),
-        findsOneWidget,
-      );
-    });
+        expect(harness.submissions, isEmpty);
+        expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
+        expect(find.byType(SpeakerHero), findsOneWidget);
+        expect(
+          find.text('系统没有可用的语音识别服务——请安装或启用 Google 语音服务后重试'),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('network failure stays retryable and explains the real cause',
-        (tester) async {
+    testWidgets('network failure stays retryable and explains the real cause', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1202,21 +1229,17 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
       backend.emitError(ReadAloudFailure.networkUnavailable);
       await tester.pumpAndSettle();
 
       expect(harness.submissions, isEmpty);
-      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
-      expect(
-        find.text('识别服务连接失败，请检查网络或下载该语言的离线识别资源后重试'),
-        findsOneWidget,
-      );
+      expect(findTurnaIcon(TurnaIconId.mic), findsOneWidget);
+      expect(find.text('识别服务连接失败，请检查网络或下载该语言的离线识别资源后重试'), findsOneWidget);
     });
 
-    testWidgets(
-        'skip button is available before opening mic and switches to '
+    testWidgets('skip button is available before opening mic and switches to '
         'listen-only card', (tester) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
@@ -1235,45 +1258,47 @@ void main() {
 
       expect(harness.submissions, [(true, 'read-aloud-skipped')]);
       expect(backend.cancelCount, 1);
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
       expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
       expect(find.byType(SpeakerHero), findsOneWidget);
       expect(find.text('已跳过跟读：先听示范，再自己读一遍'), findsOneWidget);
     });
 
     testWidgets(
-        '10s of silence shows the stall hint and a skip that switches to '
-        'listen-only card', (tester) async {
-      await settings.setReadAloudExercisesEnabled(true);
-      final backend = FakeReadAloudBackend();
-      final renderer = ReadAloudRenderer(backend);
-      const interaction = Interaction.readAloud(
-        id: 'ra-stall',
-        targetText: 'Merhaba!',
-      );
+      '10s of silence shows the stall hint and a skip that switches to '
+      'listen-only card',
+      (tester) async {
+        await settings.setReadAloudExercisesEnabled(true);
+        final backend = FakeReadAloudBackend();
+        final renderer = ReadAloudRenderer(backend);
+        const interaction = Interaction.readAloud(
+          id: 'ra-stall',
+          targetText: 'Merhaba!',
+        );
 
-      await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(harness.build(renderer, interaction));
+        await tester.tap(findTurnaIcon(TurnaIconId.mic));
+        await tester.pumpAndSettle();
 
-      await tester.pump(const Duration(seconds: 10));
+        await tester.pump(const Duration(seconds: 10));
 
-      expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsOneWidget);
-      final skip = find.widgetWithText(OutlinedButton, '跳过这句');
-      expect(skip, findsOneWidget);
+        expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsOneWidget);
+        final skip = find.widgetWithText(OutlinedButton, '跳过这句');
+        expect(skip, findsOneWidget);
 
-      await tester.tap(skip);
-      await tester.pumpAndSettle();
+        await tester.tap(skip);
+        await tester.pumpAndSettle();
 
-      // A technical stall is not an answer: always-correct sentinel, nothing
-      // in the wrong book, and the mic session is cancelled immediately.
-      expect(harness.submissions, [(true, 'read-aloud-skipped')]);
-      expect(backend.cancelCount, 1);
-      expect(find.byIcon(Icons.mic_rounded), findsNothing);
-      expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
-      expect(find.byType(SpeakerHero), findsOneWidget);
-      expect(find.text('已跳过跟读：先听示范，再自己读一遍'), findsOneWidget);
-    });
+        // A technical stall is not an answer: always-correct sentinel, nothing
+        // in the wrong book, and the mic session is cancelled immediately.
+        expect(harness.submissions, [(true, 'read-aloud-skipped')]);
+        expect(backend.cancelCount, 1);
+        expect(findTurnaIcon(TurnaIconId.mic), findsNothing);
+        expect(find.widgetWithText(OutlinedButton, '跳过这句'), findsNothing);
+        expect(find.byType(SpeakerHero), findsOneWidget);
+        expect(find.text('已跳过跟读：先听示范，再自己读一遍'), findsOneWidget);
+      },
+    );
 
     testWidgets('ongoing speech pushes the stall hint back', (tester) async {
       await settings.setReadAloudExercisesEnabled(true);
@@ -1285,7 +1310,7 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
 
       await tester.pump(const Duration(seconds: 9));
@@ -1299,8 +1324,9 @@ void main() {
       expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsOneWidget);
     });
 
-    testWidgets('a final transcript arriving after the stall still scores',
-        (tester) async {
+    testWidgets('a final transcript arriving after the stall still scores', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1310,7 +1336,7 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
 
       await tester.pump(const Duration(seconds: 10));
@@ -1324,8 +1350,9 @@ void main() {
       expect(find.text('还没听到你的声音——可以再试一次，或先跳过这句'), findsNothing);
     });
 
-    testWidgets('a late final transcript after skipping is ignored',
-        (tester) async {
+    testWidgets('a late final transcript after skipping is ignored', (
+      tester,
+    ) async {
       await settings.setReadAloudExercisesEnabled(true);
       final backend = FakeReadAloudBackend();
       final renderer = ReadAloudRenderer(backend);
@@ -1335,7 +1362,7 @@ void main() {
       );
 
       await tester.pumpWidget(harness.build(renderer, interaction));
-      await tester.tap(find.byIcon(Icons.mic_rounded));
+      await tester.tap(findTurnaIcon(TurnaIconId.mic));
       await tester.pumpAndSettle();
 
       await tester.pump(const Duration(seconds: 10));
@@ -1349,38 +1376,40 @@ void main() {
     });
 
     testWidgets(
-        'degraded card renders inline continue outside LessonActionScope',
-        (tester) async {
-      final renderer =
-          ReadAloudRenderer(FakeReadAloudBackend(supported: false));
-      const interaction = Interaction.readAloud(
-        id: 'ra-no-scope',
-        targetText: 'Merhaba!',
-      );
+      'degraded card renders inline continue outside LessonActionScope',
+      (tester) async {
+        final renderer = ReadAloudRenderer(
+          FakeReadAloudBackend(supported: false),
+        );
+        const interaction = Interaction.readAloud(
+          id: 'ra-no-scope',
+          targetText: 'Merhaba!',
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: renderer.build(
-                interaction,
-                InteractionState.idle,
-                (correct, {userAnswerText, reviewQuality}) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: renderer.build(interaction, InteractionState.idle, (
+                  correct, {
+                  userAnswerText,
+                  reviewQuality,
+                }) {
                   harness.submissions.add((correct, userAnswerText));
-                },
+                }),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      final continueButton = find.widgetWithText(LessonCheckButton, '继续');
-      expect(continueButton, findsOneWidget);
+        final continueButton = find.widgetWithText(LessonCheckButton, '继续');
+        expect(continueButton, findsOneWidget);
 
-      await tester.tap(continueButton);
-      await tester.pumpAndSettle();
+        await tester.tap(continueButton);
+        await tester.pumpAndSettle();
 
-      expect(harness.submissions, [(true, 'read-aloud-degraded')]);
-    });
+        expect(harness.submissions, [(true, 'read-aloud-degraded')]);
+      },
+    );
   });
 }

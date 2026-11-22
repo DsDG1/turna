@@ -2,11 +2,13 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/achievements/achievement_definition.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Visual badge states rendered by [AchievementBadgeCard].
 enum AchievementBadgeStatus { locked, inProgress, unlocked, maxed }
@@ -51,14 +53,14 @@ class AchievementBadgeCard extends StatelessWidget {
           TurnaTheme.glassAchievement,
           level: GlassLevel.l1,
         ),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+          borderRadius: TurnaTheme.borderRadius,
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+              borderRadius: TurnaTheme.borderRadius,
               border: Border.all(
                 color: TurnaTheme.glassStroke(
                   context,
@@ -86,9 +88,8 @@ class AchievementBadgeCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   AchievementUiCatalog.titleFor(series.titleKey),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -96,10 +97,8 @@ class AchievementBadgeCard extends StatelessWidget {
                 if (status == AchievementBadgeStatus.maxed)
                   Text(
                     AppStrings.achievementsStateMaxed,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: accent,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: accent, fontWeight: FontWeight.w600),
                   )
                 else if (nextTier != null) ...[
                   _ProgressLine(
@@ -114,9 +113,8 @@ class AchievementBadgeCard extends StatelessWidget {
                       progress.completedTierCount,
                       progress.totalTierCount,
                     ),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: TurnaTheme.textHintColor(context)),
                   ),
                 ],
               ],
@@ -141,21 +139,18 @@ class AchievementBadgeCard extends StatelessWidget {
     };
     final next = nextTier == null
         ? ''
-        : ', ${AppStrings.achievementsTierProgress(
-            progress.currentProgress,
-            nextTier.target,
-          )}${AchievementUiCatalog.unitFor(series.metric)}';
+        : ', ${AppStrings.achievementsTierProgress(progress.currentProgress, nextTier.target)}${AchievementUiCatalog.unitFor(series.metric)}';
     return '$title, $statusLabel$next';
   }
 }
 
-/// Single badge visual: series icon on a rarity-material base. Locked badges
-/// use outline + lock (not alpha-faded color, plan §8.2).
+/// Single badge visual: series icon on a 4px rarity-material Bauhaus block.
+/// Locked badges use outline + lock (not alpha-faded color, plan §8.2).
 class AchievementBadge extends StatelessWidget {
   final String iconKey;
   final String seriesId;
 
-  /// Rarity of the tier currently being pursued — drives the ring material
+  /// Rarity of the tier currently being pursued — drives the block material
   /// so the card shows "what you can earn next".
   final AchievementRarity? nextRarity;
   final int completedTiers;
@@ -177,22 +172,24 @@ class AchievementBadge extends StatelessWidget {
     final rarityColor = AchievementUiCatalog.rarityColor(
       nextRarity ?? AchievementRarity.sprout,
     );
-    final isUnlocked = status == AchievementBadgeStatus.unlocked ||
+    final isUnlocked =
+        status == AchievementBadgeStatus.unlocked ||
         status == AchievementBadgeStatus.maxed;
 
     if (!isUnlocked) {
       return Container(
         width: size,
         height: size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          borderRadius: TurnaTheme.borderRadius,
           border: Border.all(
             color: TurnaTheme.textHintColor(context).withValues(alpha: 0.5),
             width: 1.5,
           ),
         ),
-        child: Icon(
-          Icons.lock_outline_rounded,
+        child: TurnaIcon(
+          TurnaIconId.lock,
           size: size * 0.36,
           color: TurnaTheme.textHintColor(context),
         ),
@@ -202,15 +199,15 @@ class AchievementBadge extends StatelessWidget {
     return Container(
       width: size,
       height: size,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: SweepGradient(
-          startAngle: 0,
-          endAngle: 3.14 * 2,
+        borderRadius: TurnaTheme.borderRadius,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            rarityColor.withValues(alpha: 0.85),
-            rarityColor.withValues(alpha: 0.45),
-            rarityColor.withValues(alpha: 0.85),
+            rarityColor.withValues(alpha: 0.92),
+            rarityColor.withValues(alpha: 0.65),
           ],
         ),
         border: Border.all(
@@ -220,10 +217,10 @@ class AchievementBadge extends StatelessWidget {
           width: 2,
         ),
       ),
-      child: Icon(
+      child: TurnaIcon(
         AchievementUiCatalog.iconFor(iconKey),
         size: size * 0.46,
-        color: Colors.white,
+        color: TurnaTheme.textOnPrimary,
       ),
     );
   }
@@ -240,15 +237,15 @@ class _NewTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Text(
         AppStrings.achievementsNewBadgeTag,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: accent,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
+          color: accent,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -274,7 +271,7 @@ class _ProgressLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          borderRadius: TurnaTheme.borderRadius,
           child: LinearProgressIndicator(
             value: ratio,
             minHeight: 6,
@@ -286,9 +283,9 @@ class _ProgressLine extends StatelessWidget {
         Text(
           '${AppStrings.achievementsTierProgress(current, target)} $unit',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-                fontWeight: FontWeight.w600,
-              ),
+            color: TurnaTheme.textSecondaryColor(context),
+            fontWeight: FontWeight.w600,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

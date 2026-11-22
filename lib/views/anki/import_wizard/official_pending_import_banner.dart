@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
-import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// Interrupted staging-first import (doc 42 P3). Continue is not offered:
 /// resume never received the unfinished source id, so the button was a no-op.
@@ -36,23 +41,12 @@ class _OfficialPendingImportBannerState
   }
 
   Future<void> _discard(OfficialAnkiPendingImport item) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.ankiRepairDiscardConfirmTitle),
-        content: Text(AppStrings.ankiRepairDiscardConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(AppStrings.ankiPendingDiscard),
-          ),
-        ],
-      ),
+      title: AppStrings.ankiRepairDiscardConfirmTitle,
+      message: AppStrings.ankiRepairDiscardConfirmBody,
+      confirmLabel: AppStrings.ankiPendingDiscard,
+      destructive: true,
     );
     if (confirmed != true) return;
     final discarded = await const OfficialAnkiCatalogService()
@@ -74,14 +68,14 @@ class _OfficialPendingImportBannerState
             continueLabel: item.stagingIntact
                 ? AppStrings.ankiPendingContinue
                 : (item.packagePath == null
-                    ? null
-                    : AppStrings.ankiPendingReparse),
+                      ? null
+                      : AppStrings.ankiPendingReparse),
             onContinue: widget.onContinue == null
                 ? null
                 : () => widget.onContinue!(item),
             onDiscard: () => _discard(item),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
         ],
       ],
     );
@@ -110,11 +104,16 @@ class OfficialInterruptedImportCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: danger.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: danger.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          14,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -124,36 +123,35 @@ class OfficialInterruptedImportCard extends StatelessWidget {
                 Container(
                   width: 44,
                   height: 44,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: danger.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: TurnaTheme.borderRadius,
                   ),
-                  child: const Icon(
-                    Icons.error_outline_rounded,
+                  child: const TurnaIcon(
+                    TurnaIconId.error,
                     color: TurnaTheme.errorDark,
-                    size: 24,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         AppStrings.ankiPendingImportTitle,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: TurnaTheme.errorDark,
-                                ),
+                        style: AppTextStyles.cardTitle(context).copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: TurnaTheme.errorDark,
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         displayName,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: AppTextStyles.captionSm(context).copyWith(
                           fontWeight: FontWeight.w600,
                           color: TurnaTheme.errorDark,
                         ),
@@ -166,19 +164,16 @@ class OfficialInterruptedImportCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               AppStrings.ankiImportSystemError,
-              style: const TextStyle(
-                fontSize: 14,
+              style: AppTextStyles.captionSm(context).copyWith(
                 fontWeight: FontWeight.w800,
                 color: TurnaTheme.errorDark,
               ),
             ),
             if (onContinue == null || continueLabel == null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 AppStrings.ankiPendingMustDiscardBeforeNew,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
+                style: AppTextStyles.captionSm(context).copyWith(
                   fontWeight: FontWeight.w700,
                   color: TurnaTheme.errorDark,
                 ),
@@ -187,11 +182,7 @@ class OfficialInterruptedImportCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               AppStrings.ankiPendingImportBody(displayName),
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+              style: AppTextStyles.captionSm(context),
             ),
             const SizedBox(height: 14),
             if (onContinue != null && continueLabel != null) ...[
@@ -199,25 +190,32 @@ class OfficialInterruptedImportCard extends StatelessWidget {
                 onPressed: onContinue,
                 style: FilledButton.styleFrom(
                   backgroundColor: TurnaTheme.brandTeal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: TurnaTheme.textOnPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  shape: TurnaTheme.shape,
                 ),
-                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                icon: const TurnaIcon(
+                  TurnaIconId.play,
+                  size: 18,
+                  color: TurnaTheme.textOnPrimary,
+                ),
                 label: Text(continueLabel!),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
             ],
             FilledButton.icon(
               onPressed: onDiscard,
               style: FilledButton.styleFrom(
                 backgroundColor: TurnaTheme.errorDark,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
+                foregroundColor: TurnaTheme.textOnPrimary,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                shape: TurnaTheme.shape,
               ),
-              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              icon: const TurnaIcon(
+                TurnaIconId.delete,
+                size: 18,
+                color: TurnaTheme.textOnPrimary,
+              ),
               label: Text(AppStrings.ankiPendingDiscard),
             ),
           ],

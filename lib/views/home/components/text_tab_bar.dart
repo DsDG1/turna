@@ -21,6 +21,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 
 /// 一个文字导航目的地。
@@ -53,7 +54,7 @@ class TextTabBar extends StatelessWidget {
   static const double sideInset = 16;
   static const double bottomGap = 8;
   static const double topShadowPad = 8;
-  static const double capsuleRadius = TurnaTheme.radiusXLarge;
+  static const double capsuleRadius = TurnaTheme.radius;
 
   /// body 避让高度：胶囊相对系统手势区额外占用的高度。
   ///
@@ -79,12 +80,13 @@ class TextTabBar extends StatelessWidget {
         .clamp(minScaleFactor: 1.0, maxScaleFactor: 1.4);
     // 可空 read：widget 预览与单测里没挂 Provider，不能抛。
     final a11y = context.read<AccessibilityProvider?>();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         (a11y?.reducedMotion ?? false);
     final solidGlass =
         (a11y?.highContrast ?? false) || (a11y?.focusMode ?? false);
 
-    final radius = BorderRadius.circular(capsuleRadius);
+    const radius = TurnaTheme.borderRadius;
     final fill = solidGlass
         ? TurnaTheme.bottomNavBg(context)
         : TurnaTheme.floatingBarFill(context);
@@ -185,9 +187,9 @@ class _TextTabButton extends StatelessWidget {
             Container(
               width: 16,
               height: 4,
-              decoration: ShapeDecoration(
+              decoration: BoxDecoration(
                 color: selected ? TurnaTheme.brandReed : Colors.transparent,
-                shape: const StadiumBorder(),
+                borderRadius: TurnaTheme.borderRadius,
               ),
             ),
             const SizedBox(height: 5),
@@ -196,8 +198,7 @@ class _TextTabButton extends StatelessWidget {
               textScaler: textScaler,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTextStyles.captionSm(context).copyWith(
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 color: selected
                     ? TurnaTheme.brandTeal
@@ -213,25 +214,26 @@ class _TextTabButton extends StatelessWidget {
 
 @Preview(name: 'Text tab bar · light', group: 'Wetland mist')
 @Preview(
-    name: 'Text tab bar · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Text tab bar · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget textTabBarPreview() => const Scaffold(
-      body: Column(
-        children: [
-          Expanded(child: SizedBox()),
-          TextTabBar(
-            items: [
-              TextTabItem(label: '学习'),
-              TextTabItem(label: '练习'),
-              TextTabItem(label: '我的'),
-              TextTabItem(label: '设置'),
-            ],
-            selectedIndex: 1,
-            onTap: _noop,
-          ),
+  body: Column(
+    children: [
+      Expanded(child: SizedBox()),
+      TextTabBar(
+        items: [
+          TextTabItem(label: '学习'),
+          TextTabItem(label: '练习'),
+          TextTabItem(label: '我的'),
+          TextTabItem(label: '设置'),
         ],
+        selectedIndex: 1,
+        onTap: _noop,
       ),
-    );
+    ],
+  ),
+);
 
 void _noop(int index) {}

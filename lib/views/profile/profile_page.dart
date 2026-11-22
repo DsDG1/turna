@@ -14,6 +14,7 @@ import 'package:turna/application/gems_provider.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -114,14 +115,12 @@ class _AccumulationSectionState extends State<_AccumulationSection> {
     final gems = context.read<GemsProvider>();
     // read（非 watch）：Provider 重建不该重建订阅；流自身带初值。
     _scoreSub ??= game.getUserScoreStream().listen(
-          (v) => setState(() => _score = v),
-        );
-    _gemsSub ??= gems.getGemsStream().listen(
-          (v) => setState(() => _gems = v),
-        );
+      (v) => setState(() => _score = v),
+    );
+    _gemsSub ??= gems.getGemsStream().listen((v) => setState(() => _gems = v));
     _streakSub ??= game.getUserStreakStream().listen(
-          (v) => setState(() => _streak = v),
-        );
+      (v) => setState(() => _streak = v),
+    );
   }
 
   @override
@@ -134,8 +133,10 @@ class _AccumulationSectionState extends State<_AccumulationSection> {
 
   @override
   Widget build(BuildContext context) {
-    final lessonsCompleted =
-        context.read<GameProvider>().currentUserGameState.lessonsCompleted;
+    final lessonsCompleted = context
+        .read<GameProvider>()
+        .currentUserGameState
+        .lessonsCompleted;
 
     return Padding(
       padding: AppSpacing.pageGutterMist,
@@ -198,13 +199,17 @@ class _RecordEntries extends StatelessWidget {
     final unlocked = achievements.unlockedBadgeCount;
     final nearComplete = achievements
         .progressViews()
-        .where((v) =>
-            !v.isSeriesComplete && v.nextTier != null && v.currentProgress > 0)
+        .where(
+          (v) =>
+              !v.isSeriesComplete &&
+              v.nextTier != null &&
+              v.currentProgress > 0,
+        )
         .length;
 
     final badgeSummary = nearComplete > 0
         ? '${AppStrings.profileAchievementsBadgeCount(unlocked, total)} · '
-            '${AppStrings.profileAchievementsNearComplete(nearComplete)}'
+              '${AppStrings.profileAchievementsNearComplete(nearComplete)}'
         : AppStrings.profileAchievementsBadgeCount(unlocked, total);
 
     return Padding(
@@ -213,7 +218,7 @@ class _RecordEntries extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DirectoryLinkRow(
-            icon: Icons.insights_rounded,
+            icon: TurnaIconId.insights,
             iconTone: TurnaTheme.brandTeal,
             title: AppStrings.profileLearningStatsTitle,
             description: AppStrings.profileStatsEntrySubtitle,
@@ -221,7 +226,7 @@ class _RecordEntries extends StatelessWidget {
           ),
           DirectoryLinkRow(
             // Achievement section uses secondary brand clay (ADR 0033).
-            icon: Icons.military_tech_rounded,
+            icon: TurnaIconId.trophy,
             iconTone: TurnaTheme.anatolianClay,
             title: AppStrings.profileAchievementsTitle,
             description: badgeSummary,

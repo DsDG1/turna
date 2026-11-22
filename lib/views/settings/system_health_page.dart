@@ -20,6 +20,7 @@ import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/performance_trace.dart';
 import 'package:turna/core/system_health_modules.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -53,28 +54,21 @@ class SystemHealthPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(0, 16, 0, 24),
         children: [
           if (monitor.hasDataIntegrityBlock) ...[
-            _DataIntegrityBanner(
-              reason: monitor.dataIntegrityReason,
-            ),
+            _DataIntegrityBanner(reason: monitor.dataIntegrityReason),
             const SizedBox(height: 12),
           ] else if (monitor.hasUnacknowledgedAlert) ...[
-            _UnacknowledgedBanner(
-              monitor: monitor,
-              score: monitor.score,
-            ),
+            _UnacknowledgedBanner(monitor: monitor, score: monitor.score),
             const SizedBox(height: 12),
           ],
           _HealthSummary(monitor: monitor),
           const SizedBox(height: 20),
           SettingsSectionTitle(
-            icon: Icons.list_alt_rounded,
+            iconId: TurnaIconId.list,
             title: AppStrings.systemHealthTopIssues,
           ),
           const SizedBox(height: 8),
           if (event.topGroups.isEmpty)
-            SettingsEmptyCard(
-              message: AppStrings.systemHealthAllClear,
-            )
+            SettingsEmptyCard(message: AppStrings.systemHealthAllClear)
           else
             SettingsCard(
               children: [
@@ -86,14 +80,14 @@ class SystemHealthPage extends StatelessWidget {
             ),
           const SizedBox(height: 20),
           SettingsSectionTitle(
-            icon: Icons.handyman_outlined,
+            iconId: TurnaIconId.wrench,
             title: AppStrings.systemHealthActions,
           ),
           const SizedBox(height: 8),
           SettingsCard(
             children: [
               SettingsActionTile(
-                icon: Icons.refresh_rounded,
+                iconId: TurnaIconId.refresh,
                 title: AppStrings.systemHealthRunSelfCheck,
                 subtitle: monitor.resolved
                     ? AppStrings.systemHealthRunSelfCheckDoneSubtitle
@@ -103,7 +97,7 @@ class SystemHealthPage extends StatelessWidget {
               settingsTileDivider(context),
               if (monitor.hasUnacknowledgedAlert) ...[
                 SettingsActionTile(
-                  icon: Icons.visibility_outlined,
+                  iconId: TurnaIconId.eye,
                   title: AppStrings.systemHealthAcknowledge,
                   subtitle: AppStrings.systemHealthAcknowledgeSubtitle,
                   onTap: (context) => monitor.acknowledge(),
@@ -111,28 +105,28 @@ class SystemHealthPage extends StatelessWidget {
                 settingsTileDivider(context),
               ],
               SettingsActionTile(
-                icon: Icons.health_and_safety_outlined,
+                iconId: TurnaIconId.heartPulse,
                 title: AppStrings.systemHealthAdviceTitle,
                 subtitle: AppStrings.systemHealthAdviceSubtitle,
                 onTap: (context) => _showAdvice(context, event),
               ),
               settingsTileDivider(context),
               SettingsActionTile(
-                icon: Icons.ios_share_rounded,
+                iconId: TurnaIconId.share,
                 title: AppStrings.systemHealthExportReport,
                 subtitle: AppStrings.systemHealthExportReportSubtitle,
                 onTap: (context) => _previewReport(context, monitor),
               ),
               settingsTileDivider(context),
               SettingsActionTile(
-                icon: Icons.copy_all_rounded,
+                iconId: TurnaIconId.copy,
                 title: AppStrings.systemHealthCopySummary,
                 subtitle: AppStrings.systemHealthCopySummarySubtitle,
                 onTap: (context) => _copyReport(context, monitor),
               ),
               settingsTileDivider(context),
               SettingsSwitchTile(
-                icon: Icons.shield_outlined,
+                iconId: TurnaIconId.shield,
                 title: AppStrings.systemHealthSafeMode,
                 subtitle: AppStrings.systemHealthSafeModeSubtitle,
                 value: monitor.safeMode,
@@ -140,7 +134,7 @@ class SystemHealthPage extends StatelessWidget {
               ),
               settingsTileDivider(context),
               SettingsActionTile(
-                icon: Icons.article_outlined,
+                iconId: TurnaIconId.article,
                 title: AppStrings.systemHealthViewRawLogs,
                 subtitle: AppStrings.systemHealthViewRawLogsSubtitle,
                 onTap: (context) =>
@@ -148,7 +142,7 @@ class SystemHealthPage extends StatelessWidget {
               ),
               settingsTileDivider(context),
               SettingsActionTile(
-                icon: Icons.delete_sweep_outlined,
+                iconId: TurnaIconId.deleteSweep,
                 title: AppStrings.systemHealthClearLogs,
                 subtitle: AppStrings.systemHealthClearLogsSubtitle,
                 onTap: (context) => _clearLogs(context),
@@ -164,11 +158,9 @@ class SystemHealthPage extends StatelessWidget {
     BuildContext context,
     SystemHealthMonitor monitor,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     final passed = await monitor.runSelfCheck();
     if (!context.mounted) return;
-    TurnaSnackBar.showVia(
-      messenger,
+    TurnaSnackBar.maybeShow(
       context,
       passed
           ? AppStrings.systemHealthSelfCheckPassed
@@ -204,12 +196,10 @@ class SystemHealthPage extends StatelessWidget {
         AppStrings.systemHealthAdviceCourse,
       if (modules.isEmpty) AppStrings.systemHealthAdviceNone,
     ];
-    showDialog<void>(
+    showTurnaInfoDialog(
       context: context,
-      builder: (context) => SettingsInfoDialog(
-        title: AppStrings.systemHealthAdviceDialogTitle,
-        message: advice.join('\n\n'),
-      ),
+      title: AppStrings.systemHealthAdviceDialogTitle,
+      message: advice.join('\n\n'),
     );
   }
 
@@ -241,16 +231,13 @@ class SystemHealthPage extends StatelessWidget {
       ],
     );
     if (export != true) return;
-    await Share.shareXFiles(
-      [
-        XFile.fromData(
-          utf8.encode(report),
-          mimeType: 'text/plain',
-          name: 'turna_diagnostic_report.txt',
-        ),
-      ],
-      subject: AppStrings.systemHealthReportTitle,
-    );
+    await Share.shareXFiles([
+      XFile.fromData(
+        utf8.encode(report),
+        mimeType: 'text/plain',
+        name: 'turna_diagnostic_report.txt',
+      ),
+    ], subject: AppStrings.systemHealthReportTitle);
   }
 
   Future<void> _copyReport(
@@ -271,7 +258,7 @@ class SystemHealthPage extends StatelessWidget {
     final settings = context.read<SettingsProvider>();
     final lang =
         readOptionalProvider<LanguageProvider>(context)?.ttsLanguageCode ??
-            LanguageCodes.turkish;
+        LanguageCodes.turkish;
     final event = monitor.event;
     final schemaVersion = const DatabaseDoctorService().courseSchemaVersion();
     var ttsStatus = AppStrings.systemHealthReportTtsUnchecked;
@@ -340,7 +327,7 @@ class _UnacknowledgedBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SettingsInfoCard(
-        icon: Icons.notification_important_rounded,
+        iconId: TurnaIconId.warning,
         tone: score >= SystemHealthMonitor.alertThreshold
             ? SettingsInfoTone.danger
             : SettingsInfoTone.warning,
@@ -363,7 +350,7 @@ class _DataIntegrityBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SettingsInfoCard(
-        icon: Icons.report_rounded,
+        iconId: TurnaIconId.error,
         tone: SettingsInfoTone.danger,
         text: AppStrings.systemHealthIntegrityBanner(reason),
       ),
@@ -382,19 +369,19 @@ class _HealthSummary extends StatelessWidget {
     final event = monitor.event;
     final (color, label) = switch (monitor.level) {
       SystemHealthLevel.normal => (
-          TurnaTheme.success,
-          monitor.resolved
-              ? AppStrings.systemHealthLevelNormalChecked
-              : AppStrings.systemHealthLevelNormal
-        ),
+        TurnaTheme.success,
+        monitor.resolved
+            ? AppStrings.systemHealthLevelNormalChecked
+            : AppStrings.systemHealthLevelNormal,
+      ),
       SystemHealthLevel.attention => (
-          TurnaTheme.warning,
-          AppStrings.systemHealthLevelAttention
-        ),
+        TurnaTheme.warning,
+        AppStrings.systemHealthLevelAttention,
+      ),
       SystemHealthLevel.critical => (
-          TurnaTheme.error,
-          AppStrings.systemHealthLevelCritical
-        ),
+        TurnaTheme.error,
+        AppStrings.systemHealthLevelCritical,
+      ),
     };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -424,9 +411,9 @@ class _HealthGroupTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isError = group.level == 'fatal' || group.level == 'error';
     final color = isError ? TurnaTheme.error : TurnaTheme.warning;
-    final icon = isError ? Icons.error_outline : Icons.warning_amber_rounded;
+    final iconId = isError ? TurnaIconId.error : TurnaIconId.warning;
     return SettingsTile(
-      icon: icon,
+      iconId: iconId,
       iconColor: color,
       iconBackground: color.withValues(alpha: 0.10),
       title: '${group.module} · ${group.level}',

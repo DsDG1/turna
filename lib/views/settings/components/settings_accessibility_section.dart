@@ -6,14 +6,17 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
-import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// A switch tile bound to [AccessibilityProvider], mirroring
 /// [SettingsToggleTile] (which is bound to [SettingsProvider]).
 class AccessibilityToggleTile extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final TurnaIconId? iconId;
   final String title;
   final String subtitle;
   final bool Function(AccessibilityProvider) valueSelector;
@@ -21,17 +24,19 @@ class AccessibilityToggleTile extends StatelessWidget {
 
   const AccessibilityToggleTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconId,
     required this.title,
     required this.subtitle,
     required this.valueSelector,
     required this.onChanged,
-  });
+  }) : assert(icon != null || iconId != null);
 
   @override
   Widget build(BuildContext context) {
     return ProviderBoundToggleTile<AccessibilityProvider>(
       icon: icon,
+      iconId: iconId,
       title: title,
       subtitle: subtitle,
       valueSelector: valueSelector,
@@ -47,13 +52,13 @@ class SettingsTextScaleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _AccessibilityScaleTile(
-        icon: Icons.format_size_rounded,
-        title: AppStrings.settingsTextSizeTitle,
-        subtitle: AppStrings.settingsTextSizeSubtitle,
-        valueSelector: (p) => p.textScale,
-        onPreview: (p, v) => p.previewTextScale(v),
-        onCommit: (p, v) => p.setTextScale(v),
-      );
+    icon: TurnaIconId.textSize,
+    title: AppStrings.settingsTextSizeTitle,
+    subtitle: AppStrings.settingsTextSizeSubtitle,
+    valueSelector: (p) => p.textScale,
+    onPreview: (p, v) => p.previewTextScale(v),
+    onCommit: (p, v) => p.setTextScale(v),
+  );
 }
 
 /// Slider tile (100%–200%, 10 steps) controlling
@@ -64,13 +69,13 @@ class SettingsCardTextScaleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _AccessibilityScaleTile(
-        icon: Icons.aspect_ratio_rounded,
-        title: AppStrings.settingsCardTextSizeTitle,
-        subtitle: AppStrings.settingsCardTextSizeSubtitle,
-        valueSelector: (p) => p.cardTextScale,
-        onPreview: (p, v) => p.previewCardTextScale(v),
-        onCommit: (p, v) => p.setCardTextScale(v),
-      );
+    icon: TurnaIconId.cards,
+    title: AppStrings.settingsCardTextSizeTitle,
+    subtitle: AppStrings.settingsCardTextSizeSubtitle,
+    valueSelector: (p) => p.cardTextScale,
+    onPreview: (p, v) => p.previewCardTextScale(v),
+    onCommit: (p, v) => p.setCardTextScale(v),
+  );
 }
 
 /// Shared slider implementation for percentage-based text-scale settings.
@@ -80,7 +85,7 @@ class SettingsCardTextScaleTile extends StatelessWidget {
 /// without touching prefs); [onCommit] persists once the drag ends. Local
 /// drag state keeps the knob and label tracking the gesture between snaps.
 class _AccessibilityScaleTile extends StatefulWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final String subtitle;
   final int Function(AccessibilityProvider) valueSelector;
@@ -106,8 +111,9 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
 
   @override
   Widget build(BuildContext context) {
-    final persisted =
-        context.select<AccessibilityProvider, int>(widget.valueSelector);
+    final persisted = context.select<AccessibilityProvider, int>(
+      widget.valueSelector,
+    );
     final value = _dragValue ?? persisted;
 
     return Padding(
@@ -120,11 +126,12 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
               Container(
                 width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: Icon(
+                child: TurnaIcon(
                   widget.icon,
                   color: TurnaTheme.brandTeal,
                   size: 20,
@@ -137,15 +144,13 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
                   children: [
                     Text(
                       widget.title,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     Text(
                       widget.subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: TurnaTheme.textHintColor(context)),
                     ),
                   ],
                 ),
@@ -153,9 +158,9 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
               Text(
                 '$value%',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.brandTeal,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: TurnaTheme.brandTeal,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -172,11 +177,15 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
               onChanged: (v) {
                 setState(() => _dragValue = v.round());
                 widget.onPreview(
-                    context.read<AccessibilityProvider>(), v.round());
+                  context.read<AccessibilityProvider>(),
+                  v.round(),
+                );
               },
               onChangeEnd: (v) async {
                 await widget.onCommit(
-                    context.read<AccessibilityProvider>(), v.round());
+                  context.read<AccessibilityProvider>(),
+                  v.round(),
+                );
                 if (mounted) setState(() => _dragValue = null);
               },
             ),
@@ -192,12 +201,12 @@ class SettingsReducedMotionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
-        icon: Icons.animation_rounded,
-        title: AppStrings.settingsReduceMotionTitle,
-        subtitle: AppStrings.settingsReduceMotionSubtitle,
-        valueSelector: (p) => p.reducedMotion,
-        onChanged: (p, v) => p.setReducedMotion(v),
-      );
+    iconId: TurnaIconId.spark,
+    title: AppStrings.settingsReduceMotionTitle,
+    subtitle: AppStrings.settingsReduceMotionSubtitle,
+    valueSelector: (p) => p.reducedMotion,
+    onChanged: (p, v) => p.setReducedMotion(v),
+  );
 }
 
 class SettingsHighContrastTile extends StatelessWidget {
@@ -205,12 +214,12 @@ class SettingsHighContrastTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
-        icon: Icons.contrast_rounded,
-        title: AppStrings.settingsHighContrastTitle,
-        subtitle: AppStrings.settingsHighContrastSubtitle,
-        valueSelector: (p) => p.highContrast,
-        onChanged: (p, v) => p.setHighContrast(v),
-      );
+    iconId: TurnaIconId.palette,
+    title: AppStrings.settingsHighContrastTitle,
+    subtitle: AppStrings.settingsHighContrastSubtitle,
+    valueSelector: (p) => p.highContrast,
+    onChanged: (p, v) => p.setHighContrast(v),
+  );
 }
 
 class SettingsSensoryReduceTile extends StatelessWidget {
@@ -218,12 +227,12 @@ class SettingsSensoryReduceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
-        icon: Icons.graphic_eq_rounded,
-        title: AppStrings.settingsSensoryReduceTitle,
-        subtitle: AppStrings.settingsSensoryReduceSubtitle,
-        valueSelector: (p) => p.sensoryReduce,
-        onChanged: (p, v) => p.setSensoryReduce(v),
-      );
+    iconId: TurnaIconId.waveform,
+    title: AppStrings.settingsSensoryReduceTitle,
+    subtitle: AppStrings.settingsSensoryReduceSubtitle,
+    valueSelector: (p) => p.sensoryReduce,
+    onChanged: (p, v) => p.setSensoryReduce(v),
+  );
 }
 
 class SettingsFocusModeTile extends StatelessWidget {
@@ -231,10 +240,10 @@ class SettingsFocusModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
-        icon: Icons.center_focus_strong_rounded,
-        title: AppStrings.settingsFocusModeTitle,
-        subtitle: AppStrings.settingsFocusModeSubtitle,
-        valueSelector: (p) => p.focusMode,
-        onChanged: (p, v) => p.setFocusMode(v),
-      );
+    iconId: TurnaIconId.target,
+    title: AppStrings.settingsFocusModeTitle,
+    subtitle: AppStrings.settingsFocusModeSubtitle,
+    valueSelector: (p) => p.focusMode,
+    onChanged: (p, v) => p.setFocusMode(v),
+  );
 }

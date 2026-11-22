@@ -6,11 +6,12 @@ import 'package:auto_route/auto_route.dart';
 
 // Project imports:
 import 'package:turna/application/settings/settings_destination.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/components/settings_appearance_section.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/settings/components/settings_sound_section.dart';
+import 'package:turna/views/settings/pages/settings_category_body.dart';
 
 /// Appearance & sound category page (formal route:
 /// `/settings/appearance-sound`).
@@ -28,7 +29,7 @@ class AppearanceSoundSettingsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SettingsSectionTitle(
-              icon: Icons.palette_rounded,
+              iconId: TurnaIconId.palette,
               title: AppStrings.settingsAppearanceSectionTitle,
             ),
             const SizedBox(height: 8),
@@ -37,7 +38,7 @@ class AppearanceSoundSettingsPage extends StatelessWidget {
             SettingsCard(
               children: [
                 SettingsToggleTile(
-                  icon: Icons.screen_rotation_rounded,
+                  iconId: TurnaIconId.refresh,
                   title: AppStrings.settingsAutoRotateTitle,
                   subtitle: AppStrings.settingsAutoRotateSubtitle,
                   valueSelector: (p) => p.autoRotateEnabled,
@@ -47,14 +48,14 @@ class AppearanceSoundSettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             SettingsSectionTitle(
-              icon: Icons.volume_up_rounded,
+              iconId: TurnaIconId.speaker,
               title: AppStrings.settingsAudioSectionTitle,
             ),
             const SizedBox(height: 8),
             SettingsCard(
               children: [
                 SettingsToggleTile(
-                  icon: Icons.music_note_rounded,
+                  iconId: TurnaIconId.headphones,
                   title: AppStrings.settingsSoundEffectsTitle,
                   subtitle: AppStrings.settingsSoundEffectsSubtitle,
                   valueSelector: (p) => p.soundEffectsEnabled,
@@ -62,7 +63,7 @@ class AppearanceSoundSettingsPage extends StatelessWidget {
                 ),
                 settingsTileDivider(context),
                 SettingsToggleTile(
-                  icon: Icons.vibration_rounded,
+                  iconId: TurnaIconId.waveform,
                   title: AppStrings.settingsHapticFeedbackTitle,
                   subtitle: AppStrings.settingsHapticFeedbackSubtitle,
                   valueSelector: (p) => p.hapticFeedbackEnabled,

@@ -7,20 +7,25 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 
-/// Bottom sheet that pops up when the learner taps the AI button on a
+/// Bottom sheet body that pops up when the learner taps the AI button on a
 /// lesson question. Shows the AI's explanation of the current question and
 /// offers an entry point into a follow-up chat page.
 ///
-/// The caller is expected to have already triggered
-/// `AiHintProvider.explainQuestion` (so the sheet can render the loading
-/// state immediately), and passes [onEnterChat] which pushes the chat route.
+/// The caller is expected to wrap this in [showTurnaSheet] and have already
+/// triggered `AiHintProvider.explainQuestion` (so the sheet can render the
+/// loading state immediately), and passes [onEnterChat] which pushes the chat
+/// route.
 class AiHintSheet extends StatelessWidget {
   final VoidCallback onEnterChat;
 
@@ -28,53 +33,28 @@ class AiHintSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ctx = context.read<AiHintProvider>().context;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _header(context, ctx),
-            const SizedBox(height: 12),
-            Flexible(
-              fit: FlexFit.loose,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 360),
-                child: _body(context),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _actions(context),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
       ),
-    );
-  }
-
-  Widget _header(BuildContext context, AiQuestionContext? ctx) {
-    return Row(
-      children: [
-        const Icon(Icons.auto_awesome_rounded,
-            color: TurnaTheme.brandTeal, size: 22),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            ctx == null
-                ? AppStrings.aiHintTitle
-                : AppStrings.aiHintTitleWithType(ctx.typeLabel),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Flexible(
+            fit: FlexFit.loose,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: _body(context),
+            ),
           ),
-        ),
-        IconButton(
-          tooltip: AppStrings.commonClose,
-          icon: const Icon(Icons.close, size: 22),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.md),
+          _actions(context),
+        ],
+      ),
     );
   }
 
@@ -106,13 +86,8 @@ class AiHintSheet extends StatelessWidget {
 
   Widget _loading(BuildContext context) {
     return AiSurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: CircularProgressIndicator(
-          color: TurnaTheme.brandTeal,
-          strokeWidth: 3,
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+      child: Center(child: TurnaLoader.inline()),
     );
   }
 
@@ -134,9 +109,9 @@ class AiHintSheet extends StatelessWidget {
       onRetry: ctx == null
           ? null
           : () => provider.explainQuestion(
-                config: context.read<AiEngineConfigHolder>().config,
-                ctx: ctx,
-              ),
+              config: context.read<AiEngineConfigHolder>().config,
+              ctx: ctx,
+            ),
     );
   }
 
@@ -146,17 +121,17 @@ class AiHintSheet extends StatelessWidget {
         Expanded(
           child: OutlinedButton.icon(
             style: aiSheetSecondaryButtonStyle(),
-            onPressed: () => showTurnaSheet(
+            onPressed: () => showTurnaSheet<void>(
               context: context,
               title: AppStrings.aiDepthTutorTitle,
               subtitle: AppStrings.aiDepthTutorSubtitle,
               body: const AiDepthTutorSheet(),
             ),
-            icon: const Icon(Icons.auto_awesome_outlined),
+            icon: const TurnaIcon(TurnaIconId.spark, size: 18),
             label: Text(AppStrings.aiDepthTutorTitle),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: FilledButton.icon(
             style: aiSheetPrimaryButtonStyle(),
@@ -164,7 +139,7 @@ class AiHintSheet extends StatelessWidget {
               Navigator.of(context).maybePop();
               onEnterChat();
             },
-            icon: const Icon(Icons.chat_outlined),
+            icon: const TurnaIcon(TurnaIconId.chat, size: 18),
             label: Text(AppStrings.aiHintOpenChat),
           ),
         ),

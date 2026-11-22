@@ -14,16 +14,19 @@ import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 String _tutorModeLabel(String modeName) {
   return switch (modeName) {
@@ -65,7 +68,9 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
     AiExplainPrefsStore? prefs;
     try {
       prefs = context.read<AiExplainPrefsStore>();
-    } catch (_) {/* prefs provider optional — fall back to defaults */}
+    } catch (_) {
+      /* prefs provider optional — fall back to defaults */
+    }
     _provider = AiTutorChatProvider(prefs: prefs);
     final restored = _provider.restorePersisted();
     if (!restored) {
@@ -147,7 +152,7 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
                     },
                     trailing: IconButton(
                       tooltip: AppStrings.aiTutorDeleteSession,
-                      icon: const Icon(Icons.delete_outline),
+                      icon: const TurnaIcon(TurnaIconId.delete, size: 20),
                       onPressed: () async {
                         await _provider.deleteSavedSession(session.id);
                         if (context.mounted) Navigator.of(context).pop();
@@ -179,23 +184,19 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
       value: _provider,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          title: Text(
-            AppStrings.aiTutorChatTitle,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
+        appBar: TurnaTopBar(
+          title: AppStrings.aiTutorChatTitle,
           backgroundColor: TurnaTheme.bottomNavBg(context),
+          showDivider: true,
           actions: [
             IconButton(
               tooltip: AppStrings.aiTutorSessionList,
-              icon: const Icon(Icons.history_rounded),
+              icon: const TurnaIcon(TurnaIconId.list, size: 20),
               onPressed: () => _openSessionList(context),
             ),
             IconButton(
               tooltip: AppStrings.aiTutorNewSession,
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const TurnaIcon(TurnaIconId.refresh, size: 20),
               onPressed: _provider.startNewSession,
             ),
           ],
@@ -212,8 +213,11 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
                 children: [
                   const _ModeSection(),
                   Expanded(
-                      child: _MessageList(
-                          scrollCtrl: _scrollCtrl, autoScroll: _autoScroll)),
+                    child: _MessageList(
+                      scrollCtrl: _scrollCtrl,
+                      autoScroll: _autoScroll,
+                    ),
+                  ),
                   // 底部独立输入区（R14）：错误重试、进度、输入行与免责声明
                   // 收进同一条动作带，位置跨聊天页稳定。
                   SessionActionBand(
@@ -235,10 +239,10 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
                           child: Text(
                             AppStrings.aiDisclaimer,
                             textAlign: TextAlign.center,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: TurnaTheme.textHintColor(context),
-                                    ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: TurnaTheme.textHintColor(context),
+                                ),
                           ),
                         ),
                       ],
@@ -275,17 +279,17 @@ class _ModeSection extends StatelessWidget {
                   ButtonSegment(
                     value: AiTutorChatMode.qa,
                     label: Text(AppStrings.aiTutorChatModeQa),
-                    icon: const Icon(Icons.help_outline, size: 16),
+                    icon: const TurnaIcon(TurnaIconId.help, size: 16),
                   ),
                   ButtonSegment(
                     value: AiTutorChatMode.sentenceCheck,
                     label: Text(AppStrings.aiTutorChatModeSentence),
-                    icon: const Icon(Icons.spellcheck, size: 16),
+                    icon: const TurnaIcon(TurnaIconId.edit, size: 16),
                   ),
                   ButtonSegment(
                     value: AiTutorChatMode.roleplay,
                     label: Text(AppStrings.aiTutorChatModeRoleplay),
-                    icon: const Icon(Icons.theater_comedy_outlined, size: 16),
+                    icon: const TurnaIcon(TurnaIconId.chat, size: 16),
                   ),
                 ],
               ),
@@ -327,9 +331,9 @@ class _RoleplayChips extends StatelessWidget {
                     onPressed: busy
                         ? null
                         : () => provider.startRoleplayScene(
-                              config: config,
-                              sceneLabel: s,
-                            ),
+                            config: config,
+                            sceneLabel: s,
+                          ),
                   ),
                 ),
             ],
@@ -403,8 +407,10 @@ class _MessageList extends StatelessWidget {
                 return Selector<AiTutorChatProvider, int>(
                   selector: (_, p) => p.streamingRevision,
                   builder: (context, _, __) {
-                    final content =
-                        context.read<AiTutorChatProvider>().messages[i].content;
+                    final content = context
+                        .read<AiTutorChatProvider>()
+                        .messages[i]
+                        .content;
                     return ChatBubble(role: 'assistant', content: content);
                   },
                 );
@@ -478,13 +484,21 @@ class _Composer extends StatelessWidget {
             if (busy)
               IconButton.filled(
                 onPressed: context.read<AiTutorChatProvider>().cancel,
-                icon: const Icon(Icons.stop_rounded),
+                icon: const TurnaIcon(
+                  TurnaIconId.stop,
+                  size: 18,
+                  color: TurnaTheme.textOnPrimary,
+                ),
                 tooltip: AppStrings.aiStopGenerating,
               )
             else
               IconButton.filled(
                 onPressed: onSend,
-                icon: const Icon(Icons.send_rounded),
+                icon: const TurnaIcon(
+                  TurnaIconId.send,
+                  size: 18,
+                  color: TurnaTheme.textOnPrimary,
+                ),
                 tooltip: AppStrings.commonSend,
               ),
           ],

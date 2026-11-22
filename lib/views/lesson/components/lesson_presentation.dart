@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/listening_phase.dart';
 import 'package:turna/domain/course/stage.dart';
@@ -13,7 +13,7 @@ class LessonPresentationProfile {
     required this.maxWidth,
   });
 
-  final IconData icon;
+  final TurnaIconId icon;
   final String label;
   final SessionProgressStyle progressStyle;
   final double maxWidth;
@@ -22,59 +22,59 @@ class LessonPresentationProfile {
 LessonPresentationProfile lessonPresentationProfile(LessonTemplate template) {
   return switch (template) {
     LessonTemplate.guide => LessonPresentationProfile(
-        icon: Icons.explore_rounded,
-        label: AppStrings.lessonTemplateGuide,
-        progressStyle: SessionProgressStyle.dots,
-        maxWidth: 760,
-      ),
+      icon: TurnaIconId.explore,
+      label: AppStrings.lessonTemplateGuide,
+      progressStyle: SessionProgressStyle.dots,
+      maxWidth: 760,
+    ),
     LessonTemplate.intro => LessonPresentationProfile(
-        icon: Icons.school_rounded,
-        label: AppStrings.lessonTemplateIntro,
-        progressStyle: SessionProgressStyle.dots,
-        maxWidth: 720,
-      ),
+      icon: TurnaIconId.school,
+      label: AppStrings.lessonTemplateIntro,
+      progressStyle: SessionProgressStyle.dots,
+      maxWidth: 720,
+    ),
     LessonTemplate.practice => LessonPresentationProfile(
-        icon: Icons.edit_note_rounded,
-        label: AppStrings.lessonTemplatePractice,
-        progressStyle: SessionProgressStyle.dots,
-        maxWidth: 720,
-      ),
+      icon: TurnaIconId.edit,
+      label: AppStrings.lessonTemplatePractice,
+      progressStyle: SessionProgressStyle.dots,
+      maxWidth: 720,
+    ),
     LessonTemplate.listening => LessonPresentationProfile(
-        icon: Icons.headphones_rounded,
-        label: AppStrings.lessonTemplateListening,
-        progressStyle: SessionProgressStyle.dots,
-        maxWidth: 720,
-      ),
+      icon: TurnaIconId.headphones,
+      label: AppStrings.lessonTemplateListening,
+      progressStyle: SessionProgressStyle.dots,
+      maxWidth: 720,
+    ),
     LessonTemplate.dialogue => LessonPresentationProfile(
-        icon: Icons.forum_rounded,
-        label: AppStrings.lessonTemplateDialogue,
-        progressStyle: SessionProgressStyle.bar,
-        maxWidth: 760,
-      ),
+      icon: TurnaIconId.chat,
+      label: AppStrings.lessonTemplateDialogue,
+      progressStyle: SessionProgressStyle.bar,
+      maxWidth: 760,
+    ),
     LessonTemplate.reading => LessonPresentationProfile(
-        icon: Icons.menu_book_rounded,
-        label: AppStrings.lessonTemplateReading,
-        progressStyle: SessionProgressStyle.dots,
-        maxWidth: 880,
-      ),
+      icon: TurnaIconId.book,
+      label: AppStrings.lessonTemplateReading,
+      progressStyle: SessionProgressStyle.dots,
+      maxWidth: 880,
+    ),
     LessonTemplate.review => LessonPresentationProfile(
-        icon: Icons.refresh_rounded,
-        label: AppStrings.lessonTemplateReview,
-        progressStyle: SessionProgressStyle.bar,
-        maxWidth: 720,
-      ),
+      icon: TurnaIconId.refresh,
+      label: AppStrings.lessonTemplateReview,
+      progressStyle: SessionProgressStyle.bar,
+      maxWidth: 720,
+    ),
     LessonTemplate.mastery => LessonPresentationProfile(
-        icon: Icons.flag_rounded,
-        label: AppStrings.lessonTemplateMastery,
-        progressStyle: SessionProgressStyle.bar,
-        maxWidth: 720,
-      ),
+      icon: TurnaIconId.flag,
+      label: AppStrings.lessonTemplateMastery,
+      progressStyle: SessionProgressStyle.bar,
+      maxWidth: 720,
+    ),
     LessonTemplate.legacy => LessonPresentationProfile(
-        icon: Icons.widgets_rounded,
-        label: AppStrings.lessonTemplateLegacy,
-        progressStyle: SessionProgressStyle.dots,
-        maxWidth: 720,
-      ),
+      icon: TurnaIconId.layers,
+      label: AppStrings.lessonTemplateLegacy,
+      progressStyle: SessionProgressStyle.dots,
+      maxWidth: 720,
+    ),
   };
 }
 

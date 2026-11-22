@@ -41,8 +41,13 @@ import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/views/widgets/ambient_backdrop.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 @RoutePage()
 class NewLessonPage extends StatefulWidget {
@@ -167,6 +172,7 @@ class _NewLessonPageState extends State<NewLessonPage>
             child: Scaffold(
               // 画布比白卡低一档: 页面与卡面都是纯白时, 阴影是唯一分离线索.
               backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: true,
               appBar: _LessonTopBand(
                 vm: _vm,
                 onClose: () => _onClosePressed(context),
@@ -205,22 +211,12 @@ class _NewLessonPageState extends State<NewLessonPage>
       Navigator.of(context).pop();
       return;
     }
-    final go = await showDialog<bool>(
+    final go = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.lessonExitConfirmTitle),
-        content: Text(AppStrings.lessonExitConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(AppStrings.lessonExitAnyway),
-          ),
-        ],
-      ),
+      title: AppStrings.lessonExitConfirmTitle,
+      message: AppStrings.lessonExitConfirmBody,
+      confirmLabel: AppStrings.lessonExitAnyway,
+      cancelLabel: AppStrings.commonCancel,
     );
     if (go == true && context.mounted) {
       Navigator.of(context).pop();
@@ -247,9 +243,8 @@ class _NewLessonPageState extends State<NewLessonPage>
       // Overlay first: an imported course's display name lives in the
       // `importedLang:` meta, not the packed registry (which would
       // synthesize the raw code).
-      language: ImportedLanguageRegistry.instance.displayNameOrNull(
-            languageCode,
-          ) ??
+      language:
+          ImportedLanguageRegistry.instance.displayNameOrNull(languageCode) ??
           LanguageRegistry.instance.displayName(languageCode),
       typeLabel: interactionTypeLabel(interaction),
       promptLabel: interactionPromptLabel(interaction),
@@ -278,16 +273,11 @@ class _NewLessonPageState extends State<NewLessonPage>
     if (!context.mounted) return;
     unawaited(hintProvider.explainQuestion(config: config, ctx: ctx));
 
-    await showModalBottomSheet<void>(
+    await showTurnaSheet<void>(
       context: context,
+      title: AppStrings.aiHintTitleWithType(ctx.typeLabel),
       isScrollControlled: true,
-      backgroundColor: TurnaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(TurnaTheme.radiusXLarge),
-        ),
-      ),
-      builder: (_) => AiHintSheet(
+      body: AiHintSheet(
         onEnterChat: () {
           context.router.push(AiHintChatRoute(context: ctx));
         },
@@ -303,22 +293,12 @@ class _NewLessonPageState extends State<NewLessonPage>
   /// above Home in the root stack, so the tab change stayed invisible and the
   /// CTA looked like a dead end on the Settings landing page.
   Future<void> _showAiConfigPrompt(BuildContext context) async {
-    final goToSettings = await showDialog<bool>(
+    final goToSettings = await showTurnaConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.aiNotConfiguredTitle),
-        content: Text(AppStrings.aiNotConfiguredMessageLesson),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(AppStrings.commonLater),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(AppStrings.aiGoToSettings),
-          ),
-        ],
-      ),
+      title: AppStrings.aiNotConfiguredTitle,
+      message: AppStrings.aiNotConfiguredMessageLesson,
+      confirmLabel: AppStrings.aiGoToSettings,
+      cancelLabel: AppStrings.commonLater,
     );
     if (goToSettings != true || !context.mounted) return;
     await openSettings(
@@ -472,8 +452,10 @@ class _LessonTopBand extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<LessonViewModel,
-        ({bool aiEligible, int question, int total, LessonTemplate template})>(
+    return Selector<
+      LessonViewModel,
+      ({bool aiEligible, int question, int total, LessonTemplate template})
+    >(
       selector: (context, vm) => (
         aiEligible: _aiEligible(vm),
         question: vm.isGuide ? vm.guidePageIndex + 1 : vm.currentQuestionNumber,
@@ -490,8 +472,9 @@ class _LessonTopBand extends StatelessWidget implements PreferredSizeWidget {
           if (s.aiEligible)
             IconButton(
               tooltip: AppStrings.lessonAiHintTooltip,
-              icon: Icon(
-                Icons.lightbulb_rounded,
+              icon: TurnaIcon(
+                TurnaIconId.lightbulb,
+                size: 20,
                 color: TurnaTheme.textPrimaryColor(context),
               ),
               onPressed: onAiHint,
@@ -550,10 +533,7 @@ class _LessonBody extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              Text(
-                lessonId,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(lessonId, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: onRetry,
@@ -569,12 +549,7 @@ class _LessonBody extends StatelessWidget {
       selector: (context, vm) => vm.lesson,
       builder: (context, lesson, _) {
         if (lesson == null) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: TurnaTheme.brandTeal,
-              strokeWidth: 3,
-            ),
-          );
+          return Center(child: TurnaLoader.page());
         }
         return _buildContent(context, lesson);
       },
@@ -615,30 +590,31 @@ class _LessonBody extends StatelessWidget {
         final Widget? header = readingPassage != null
             ? LessonReadingPassageCard(passage: readingPassage)
             : legacyPassage.isNotEmpty
-                ? LessonLegacyReadingPassage(text: legacyPassage)
-                : dialogueScene != null
-                    ? DialogueSceneHeader(
-                        scene: dialogueScene,
-                        interactions: [
-                          for (final s in lesson.flattenedStages) ...s.items,
-                        ],
-                        currentInteractionId: interaction.id,
-                        currentSubmitted: interactionState.submitted,
-                      )
-                    : listeningPhase != null &&
-                            listeningPhase.type == ListeningPhaseType.dialogue
-                        ? ListeningPhaseHeader(
-                            key: ValueKey('listening-${listeningPhase.id}'),
-                            phase: listeningPhase,
-                          )
-                        : null;
+            ? LessonLegacyReadingPassage(text: legacyPassage)
+            : dialogueScene != null
+            ? DialogueSceneHeader(
+                scene: dialogueScene,
+                interactions: [
+                  for (final s in lesson.flattenedStages) ...s.items,
+                ],
+                currentInteractionId: interaction.id,
+                currentSubmitted: interactionState.submitted,
+              )
+            : listeningPhase != null &&
+                  listeningPhase.type == ListeningPhaseType.dialogue
+            ? ListeningPhaseHeader(
+                key: ValueKey('listening-${listeningPhase.id}'),
+                phase: listeningPhase,
+              )
+            : null;
 
         return Column(
           children: [
             Expanded(
               child: PracticeSessionBody(
-                stageName:
-                    stage == null ? profile.label : '${profile.label} · $stage',
+                stageName: stage == null
+                    ? profile.label
+                    : '${profile.label} · $stage',
                 stageAccent: TurnaTheme.brandTeal,
                 stageIcon: profile.icon,
                 maxWidth: profile.maxWidth,
@@ -652,11 +628,7 @@ class _LessonBody extends StatelessWidget {
                     ? AppStrings.lessonContinueUpper
                     : AppStrings.lessonGotItUpper,
                 onAdvance: onAdvance,
-                child: renderer.build(
-                  interaction,
-                  interactionState,
-                  onSubmit,
-                ),
+                child: renderer.build(interaction, interactionState, onSubmit),
               ),
             ),
           ],
@@ -672,10 +644,8 @@ class _LessonBody extends StatelessWidget {
         children: [
           Text(
             AppStrings.lessonNoContent,
-            style: const TextStyle(
-              fontSize: 16,
-              color: TurnaTheme.textHint,
-            ),
+            style: AppTextStyles.bodyText(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ),

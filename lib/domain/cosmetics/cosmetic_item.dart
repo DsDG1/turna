@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show immutable;
+import 'package:flutter/painting.dart' show Color;
+import 'package:turna/core/turna_icon_id.dart';
 
 /// One equipped item per slot. Streak vouchers are consumables and therefore
 /// deliberately do not appear here.
@@ -12,12 +14,7 @@ enum CosmeticSlot {
 }
 
 /// Surfaces on which a catalog item is actually rendered.
-enum CosmeticSurface {
-  settings,
-  profile,
-  lessonComplete,
-  reviewComplete,
-}
+enum CosmeticSurface { settings, profile, lessonComplete, reviewComplete }
 
 enum CosmeticAccessibilityVariant { standard, staticAlternative }
 
@@ -32,7 +29,7 @@ class CosmeticItem {
     this.accessibilityVariant = CosmeticAccessibilityVariant.standard,
     this.accentColor,
     this.secondaryColor,
-    this.icon = Icons.auto_awesome_rounded,
+    this.icon = TurnaIconId.spark,
   });
 
   final String id;
@@ -46,7 +43,7 @@ class CosmeticItem {
   /// without changing entitlement or surface contracts.
   final Color? accentColor;
   final Color? secondaryColor;
-  final IconData icon;
+  final TurnaIconId icon;
 
   bool get isFree => price <= 0;
 }

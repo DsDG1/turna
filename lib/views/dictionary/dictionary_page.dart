@@ -21,6 +21,7 @@ import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
@@ -29,8 +30,13 @@ import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/search_field.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 词典 ——「湿地雾光」词条阅读目录（R11）。
 ///
@@ -49,6 +55,8 @@ class DictionaryPage extends StatefulWidget {
 }
 
 class _DictionaryPageState extends State<DictionaryPage> {
+  static const double _wideMaxWidth = 1080;
+
   String _query = '';
   bool _searching = false;
   List<DictionaryHit> _hits = const [];
@@ -101,21 +109,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        backgroundColor: TurnaTheme.surfaceColor(context),
-        elevation: 0,
-        title: Text(
-          AppStrings.dictionaryTitle,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: TurnaTheme.textPrimaryColor(context),
-          ),
-        ),
+      appBar: TurnaTopBar(
+        title: AppStrings.dictionaryTitle,
         centerTitle: true,
+        showDivider: true,
       ),
       body: TurnaPageContent(
-        maxWidth: AppSpacing.formColumnMaxWidth,
+        maxWidth: _wideMaxWidth,
         child: Column(
           children: [
             Padding(
@@ -140,6 +140,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                   final directory = _EntryDirectory(
                     hits: _hits,
                     browsing: _query.trim().isEmpty,
+                    selectedId: wide ? _selected?.id : null,
                     onTap: (hit) => setState(() => _selected = hit),
                   );
                   if (!wide) {
@@ -192,6 +193,7 @@ class _EntryDirectory extends StatelessWidget {
     required this.hits,
     required this.browsing,
     required this.onTap,
+    this.selectedId,
   });
 
   final List<DictionaryHit> hits;
@@ -199,6 +201,7 @@ class _EntryDirectory extends StatelessWidget {
   /// 无搜索时的浏览态：展示全部词条目录并带节头；搜索态直接是命中列表。
   final bool browsing;
 
+  final String? selectedId;
   final ValueChanged<DictionaryHit> onTap;
 
   @override
@@ -247,10 +250,19 @@ class _EntryDirectory extends StatelessWidget {
         }
         final index = browsing ? itemIndex - 1 : itemIndex;
         final hit = hits[index];
-        return DictionaryHitRow(
-          hit: hit,
-          onTap: () => onTap(hit),
-          showDivider: index < hits.length - 1,
+        final isSelected = selectedId != null && selectedId == hit.id;
+        return DecoratedBox(
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
+                  borderRadius: TurnaTheme.borderRadius,
+                )
+              : const BoxDecoration(),
+          child: DictionaryHitRow(
+            hit: hit,
+            onTap: () => onTap(hit),
+            showDivider: index < hits.length - 1,
+          ),
         );
       },
     );
@@ -315,8 +327,9 @@ class DictionaryHitRow extends StatelessWidget {
               tooltip: AppStrings.aiDictEnrich,
               visualDensity: VisualDensity.compact,
               onPressed: () => _openAiEnrich(context, hit),
-              icon: const Icon(
-                Icons.auto_awesome_rounded,
+              icon: const TurnaIcon(
+                TurnaIconId.spark,
+                size: 20,
                 color: TurnaTheme.amethystLeague,
               ),
             ),
@@ -324,32 +337,24 @@ class DictionaryHitRow extends StatelessWidget {
   }
 
   void _openAiEnrich(BuildContext context, DictionaryHit hit) {
-    showModalBottomSheet<void>(
+    AiExplainPrefsStore? prefs;
+    try {
+      prefs = context.read<AiExplainPrefsStore>();
+    } catch (_) {
+      // Optional dependency: AI explain sheet runs without saved prefs.
+    }
+    showTurnaSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: TurnaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(TurnaTheme.radiusXLarge),
-        ),
+      title: '${AppStrings.aiDictEnrich} · ${hit.title}',
+      body: ChangeNotifierProvider(
+        create: (_) => DictionaryAiProvider(prefs: prefs),
+        child: _DictionaryAiSheet(hit: hit),
       ),
-      builder: (sheetCtx) {
-        AiExplainPrefsStore? prefs;
-        try {
-          prefs = context.read<AiExplainPrefsStore>();
-        } catch (_) {
-          // Optional dependency: AI explain sheet runs without saved prefs.
-        }
-        return ChangeNotifierProvider(
-          create: (_) => DictionaryAiProvider(prefs: prefs),
-          child: _DictionaryAiSheet(hit: hit),
-        );
-      },
     );
   }
 }
 
-/// 词条正文：主词（大字）+ 发音 + 点读键（44 圆形 teal 描边）居上，
+/// 词条正文：主词（大字）+ 发音 + 点读键（44×44 4px 描边）居上，
 /// 释义与例句连续分段阅读（bodyText 16 / 行高 1.5）。
 class DictionaryEntryDetail extends StatelessWidget {
   const DictionaryEntryDetail({
@@ -389,7 +394,7 @@ class DictionaryEntryDetail extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                icon: const TurnaIcon(TurnaIconId.arrowBack, size: 18),
                 label: Text(AppStrings.dictionaryBackToList),
               ),
             ),
@@ -405,10 +410,8 @@ class DictionaryEntryDetail extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         pronunciation,
-                        style: AppTextStyles.captionSm(context).copyWith(
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        style: AppTextStyles.captionSm(context)
+                            .copyWith(fontStyle: FontStyle.italic),
                       ),
                     ],
                   ],
@@ -420,12 +423,15 @@ class DictionaryEntryDetail extends StatelessWidget {
                 onPressed: onSpeak,
                 style: IconButton.styleFrom(
                   fixedSize: const Size(44, 44),
-                  side:
-                      const BorderSide(color: TurnaTheme.brandTeal, width: 1.5),
-                  shape: const CircleBorder(),
+                  side: const BorderSide(
+                    color: TurnaTheme.brandTeal,
+                    width: 1.5,
+                  ),
+                  shape: TurnaTheme.shape,
                 ),
-                icon: const Icon(
-                  Icons.volume_up_rounded,
+                icon: const TurnaIcon(
+                  TurnaIconId.speaker,
+                  size: 20,
                   color: TurnaTheme.brandTeal,
                 ),
               ),
@@ -433,23 +439,7 @@ class DictionaryEntryDetail extends StatelessWidget {
           ),
           if (pos != null && pos.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm + 2,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: TurnaTheme.softTint(context, TurnaTheme.brandTeal,
-                    alpha: 0.12),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-              ),
-              child: Text(
-                pos,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  color: TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal),
-                ),
-              ),
-            ),
+            TurnaReadingBadge(label: pos, color: TurnaTheme.brandTeal),
           ],
           const SizedBox(height: AppSpacing.lg),
           for (final paragraph in paragraphs) ...[
@@ -503,70 +493,68 @@ class _DictionaryAiSheetState extends State<_DictionaryAiSheet> {
     final config = context.read<AiEngineConfigHolder>().config;
     if (!config.isComplete) return;
     await context.read<DictionaryAiProvider>().enrich(
-          config: config,
-          language: context.read<LanguageProvider>().displayName,
-          term: widget.hit.title,
-          translation: widget.hit.subtitle,
-        );
+      config: config,
+      language: context.read<LanguageProvider>().displayName,
+      term: widget.hit.title,
+      translation: widget.hit.subtitle,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final config = context.watch<AiEngineConfigHolder>().config;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              '${AppStrings.aiDictEnrich} · ${widget.hit.title}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.xs,
+        AppSpacing.pageMargin,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!config.isComplete)
+            const AiNotConfiguredPanel(compact: true)
+          else
+            Consumer<DictionaryAiProvider>(
+              builder: (context, p, _) {
+                if (p.state == DictionaryAiState.loading) {
+                  return Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TurnaLoader.page(label: AppStrings.aiDictEnriching),
+                        const SizedBox(height: AppSpacing.md),
+                        TextButton(
+                          onPressed: () => p.cancel(),
+                          child: Text(AppStrings.aiStopGenerating),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                if (p.errorMapping != null) {
+                  return AiErrorBanner(
+                    mapping: p.errorMapping!,
+                    onRetry: () {
+                      _started = false;
+                      _run();
+                    },
+                  );
+                }
+                final e = p.enrichment;
+                if (e == null) {
+                  return Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Center(child: TurnaLoader.inline()),
+                  );
+                }
+                return _enrichmentBody(e);
+              },
             ),
-            const SizedBox(height: 12),
-            if (!config.isComplete)
-              const AiNotConfiguredPanel(compact: true)
-            else
-              Consumer<DictionaryAiProvider>(
-                builder: (context, p, _) {
-                  if (p.state == DictionaryAiState.loading) {
-                    return Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          const CircularProgressIndicator(
-                              color: TurnaTheme.brandTeal),
-                          const SizedBox(height: 12),
-                          Text(AppStrings.aiDictEnriching),
-                          TextButton(
-                            onPressed: () => p.cancel(),
-                            child: Text(AppStrings.aiStopGenerating),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  if (p.errorMapping != null) {
-                    return AiErrorBanner(
-                      mapping: p.errorMapping!,
-                      onRetry: () {
-                        _started = false;
-                        _run();
-                      },
-                    );
-                  }
-                  final e = p.enrichment;
-                  if (e == null) {
-                    return Text(AppStrings.aiDictEnriching);
-                  }
-                  return _enrichmentBody(e);
-                },
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -574,78 +562,87 @@ class _DictionaryAiSheetState extends State<_DictionaryAiSheet> {
   Widget _enrichmentBody(DictionaryEnrichment e) {
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.5,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.5,
       ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (e.expandedGloss.isNotEmpty) ...[
-              Text(e.expandedGloss),
-              const SizedBox(height: 12),
+              Text(e.expandedGloss, style: AppTextStyles.bodyText(context)),
+              const SizedBox(height: AppSpacing.md),
             ],
             if (e.examples.isNotEmpty) ...[
               Text(
                 AppStrings.aiDictExamples,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: AppTextStyles.cardTitle(context),
               ),
-              for (final x in e.examples) Text('· $x'),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.xs),
+              for (final x in e.examples)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: Text('· $x', style: AppTextStyles.bodyText(context)),
+                ),
+              const SizedBox(height: AppSpacing.md),
             ],
             if (e.mnemonic.isNotEmpty) ...[
               Text(
                 AppStrings.aiDictMnemonic,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: AppTextStyles.cardTitle(context),
               ),
-              Text(e.mnemonic),
+              const SizedBox(height: AppSpacing.xs),
+              Text(e.mnemonic, style: AppTextStyles.bodyText(context)),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 TextButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(
-                      text: [
-                        e.expandedGloss,
-                        ...e.examples,
-                        e.mnemonic,
-                      ].where((s) => s.isNotEmpty).join('\n'),
-                    ));
+                    Clipboard.setData(
+                      ClipboardData(
+                        text: [
+                          e.expandedGloss,
+                          ...e.examples,
+                          e.mnemonic,
+                        ].where((s) => s.isNotEmpty).join('\n'),
+                      ),
+                    );
                     TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
                   },
-                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  icon: const TurnaIcon(TurnaIconId.copy, size: 18),
                   label: Text(AppStrings.aiDepthCopy),
                 ),
                 TextButton.icon(
                   onPressed: () async {
                     final store = context.read<AiSavedExplanationsStore>();
-                    await store.save(SavedExplanation(
-                      id: AiSavedExplanationsStore.newId(),
-                      title: widget.hit.title,
-                      body: [
-                        e.expandedGloss,
-                        ...e.examples,
-                        e.mnemonic,
-                      ].where((s) => s.isNotEmpty).join('\n'),
-                      source: 'dictionary',
-                      createdAt: DateTime.now(),
-                    ));
+                    await store.save(
+                      SavedExplanation(
+                        id: AiSavedExplanationsStore.newId(),
+                        title: widget.hit.title,
+                        body: [
+                          e.expandedGloss,
+                          ...e.examples,
+                          e.mnemonic,
+                        ].where((s) => s.isNotEmpty).join('\n'),
+                        source: 'dictionary',
+                        createdAt: DateTime.now(),
+                      ),
+                    );
                     if (!mounted) return;
                     TurnaSnackBar.maybeShow(
                       context,
                       AppStrings.aiExplanationSaved,
                     );
                   },
-                  icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                  icon: const TurnaIcon(TurnaIconId.bookmark, size: 18),
                   label: Text(AppStrings.aiSaveExplanation),
                 ),
               ],
             ),
             Text(
               AppStrings.aiDisclaimer,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textHintColor(context)),
             ),
           ],
         ),

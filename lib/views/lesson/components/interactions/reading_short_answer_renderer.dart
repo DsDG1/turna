@@ -8,11 +8,13 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/core/course_answer.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Renderer for [Interaction.readingShortAnswer].
 ///
@@ -68,10 +70,8 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
   void _syncDraft(BuildContext context) {
     final canSubmit =
         !widget.state.submitted && _controller.text.trim().isNotEmpty;
-    LessonActionScope.maybeOf(context)?.report(
-      canSubmit: canSubmit,
-      submit: canSubmit ? _trySubmit : null,
-    );
+    LessonActionScope.maybeOf(context)
+        ?.report(canSubmit: canSubmit, submit: canSubmit ? _trySubmit : null);
   }
 
   void _onTextChanged() {
@@ -95,11 +95,8 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
     super.dispose();
   }
 
-  bool _matches(String input) => matchesCourseAnswer(
-        input,
-        widget.expectedAnswer,
-        widget.acceptedAnswers,
-      );
+  bool _matches(String input) =>
+      matchesCourseAnswer(input, widget.expectedAnswer, widget.acceptedAnswers);
 
   void _trySubmit() {
     final text = _controller.text;
@@ -129,8 +126,8 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.edit_note_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.edit,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -142,18 +139,17 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  widget.prompt,
-                  style: AppTextStyles.promptMd(context),
-                ),
+                Text(widget.prompt, style: AppTextStyles.promptMd(context)),
               ],
             ),
           ),
           const SizedBox(height: 24),
           InteractionTextField(
             controller: _controller,
-            verdict:
-                interactionVerdictOf(submitted: submitted, correct: correct),
+            verdict: interactionVerdictOf(
+              submitted: submitted,
+              correct: correct,
+            ),
             enabled: !submitted,
             autofocus: !submitted,
             hintText: AppStrings.lessonTypeYourAnswer,

@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/content_ota/course_ota_service.dart';
 import 'package:turna/views/settings/components/primitives/settings_section.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 typedef CourseUrlUpdate = Future<CourseOtaResult> Function(
@@ -55,11 +59,11 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
 
   @override
   Widget build(BuildContext context) => SettingsActionTile(
-        icon: Icons.cloud_download_outlined,
-        title: AppStrings.settingsCourseUpdateTitle,
-        subtitle: AppStrings.settingsCourseUpdateSubtitle,
-        onTap: (_) => _showUpdateDialog(),
-      );
+    iconId: TurnaIconId.download,
+    title: AppStrings.settingsCourseUpdateTitle,
+    subtitle: AppStrings.settingsCourseUpdateSubtitle,
+    onTap: (_) => _showUpdateDialog(),
+  );
 
   Future<void> _showUpdateDialog() async {
     var busy = false;
@@ -70,10 +74,12 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
     String? errorMessage;
     CourseOtaResult? pendingResult;
 
-    await showDialog<void>(
+    await showTurnaFormDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
+      title: AppStrings.settingsCourseUpdateDialogTitle,
+      actions: const [],
+      body: StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           void update(VoidCallback change) {
             if (dialogContext.mounted) setDialogState(change);
           }
@@ -82,8 +88,9 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
             var installed = pendingResult;
             final rawUrl = _urlController.text.trim();
             if (installed == null && rawUrl.isEmpty) {
-              update(() =>
-                  errorMessage = AppStrings.settingsCourseUpdateUrlRequired);
+              update(
+                () => errorMessage = AppStrings.settingsCourseUpdateUrlRequired,
+              );
               return;
             }
             update(() {
@@ -94,12 +101,14 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
               total = 0;
               phase = CourseOtaPhase.checking;
             });
-            final refresh = widget.refreshContent ??
-                this.context.read<CourseProvider>().refreshBuiltinContent;
+            final refresh =
+                widget.refreshContent ??
+                context.read<CourseProvider>().refreshBuiltinContent;
             try {
               if (installed == null) {
-                final code = widget.languageCode ??
-                    this.context.read<LanguageProvider>().selectedLanguageCode;
+                final code =
+                    widget.languageCode ??
+                    context.read<LanguageProvider>().selectedLanguageCode;
                 installed = await _update(
                   rawUrl,
                   languageCode: code,
@@ -117,7 +126,7 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
               _urlController.clear();
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               TurnaSnackBar.show(
-                this.context,
+                context,
                 changed
                     ? AppStrings.settingsCourseUpdateSuccess(
                         installed.version.index,
@@ -141,81 +150,88 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
             }
           }
 
-          return AlertDialog(
-            title: Text(AppStrings.settingsCourseUpdateDialogTitle),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _urlController,
-                  enabled: !busy,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  decoration: InputDecoration(
-                    labelText: AppStrings.settingsCourseUpdateUrlLabel,
-                    hintText: AppStrings.settingsCourseUpdateUrlHint,
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _urlController,
+                enabled: !busy,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                decoration: InputDecoration(
+                  labelText: AppStrings.settingsCourseUpdateUrlLabel,
+                  hintText: AppStrings.settingsCourseUpdateUrlHint,
+                  border: OutlineInputBorder(
+                    borderRadius: TurnaTheme.borderRadius,
                   ),
-                  onChanged: (_) {
-                    if (pendingResult == null && errorMessage == null) return;
-                    update(() {
-                      pendingResult = null;
-                      errorMessage = null;
-                    });
-                  },
                 ),
-                if (busy) ...[
-                  const SizedBox(height: 20),
-                  LinearProgressIndicator(
-                    value: !applying &&
-                            phase == CourseOtaPhase.downloadingPackage &&
-                            total > 0
-                        ? (received / total).clamp(0.0, 1.0)
-                        : null,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    applying
-                        ? AppStrings.settingsCourseUpdateApplying
-                        : _phaseLabel(phase),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  if (!applying &&
-                      phase == CourseOtaPhase.downloadingPackage &&
-                      total > 0)
-                    Text(
-                      AppStrings.settingsCourseUpdateByteProgress(
-                        received,
-                        total,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                ],
-                if (errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    errorMessage!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: busy ? null : () => Navigator.pop(dialogContext),
-                child: Text(AppStrings.commonCancel),
+                onChanged: (_) {
+                  if (pendingResult == null && errorMessage == null) return;
+                  update(() {
+                    pendingResult = null;
+                    errorMessage = null;
+                  });
+                },
               ),
-              FilledButton(
-                onPressed: busy ? null : submit,
-                child: Text(
-                  pendingResult != null
-                      ? AppStrings.settingsCourseUpdateRetryApply
-                      : busy
+              if (busy) ...[
+                const SizedBox(height: 20),
+                LinearProgressIndicator(
+                  value:
+                      !applying &&
+                          phase == CourseOtaPhase.downloadingPackage &&
+                          total > 0
+                      ? (received / total).clamp(0.0, 1.0)
+                      : null,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  applying
+                      ? AppStrings.settingsCourseUpdateApplying
+                      : _phaseLabel(phase),
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+                if (!applying &&
+                    phase == CourseOtaPhase.downloadingPackage &&
+                    total > 0)
+                  Text(
+                    AppStrings.settingsCourseUpdateByteProgress(
+                      received,
+                      total,
+                    ),
+                    style: Theme.of(dialogContext).textTheme.bodySmall,
+                  ),
+              ],
+              if (errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  errorMessage!,
+                  style: TextStyle(
+                    color: Theme.of(dialogContext).colorScheme.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                    child: Text(AppStrings.commonCancel),
+                  ),
+                  FilledButton(
+                    onPressed: busy ? null : submit,
+                    child: Text(
+                      pendingResult != null
+                          ? AppStrings.settingsCourseUpdateRetryApply
+                          : busy
                           ? AppStrings.settingsCourseUpdateWorking
                           : AppStrings.settingsCourseUpdateAction,
-                ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: AppSpacing.sm),
             ],
           );
         },
@@ -224,13 +240,13 @@ class _SettingsCourseUpdateTileState extends State<SettingsCourseUpdateTile> {
   }
 
   static String _phaseLabel(CourseOtaPhase phase) => switch (phase) {
-        CourseOtaPhase.checking => AppStrings.settingsCourseUpdateChecking,
-        CourseOtaPhase.downloadingFeed => AppStrings.settingsCourseUpdateFeed,
-        CourseOtaPhase.downloadingPackage =>
-          AppStrings.settingsCourseUpdateDownloading,
-        CourseOtaPhase.validating => AppStrings.settingsCourseUpdateValidating,
-        CourseOtaPhase.installing => AppStrings.settingsCourseUpdateInstalling,
-      };
+    CourseOtaPhase.checking => AppStrings.settingsCourseUpdateChecking,
+    CourseOtaPhase.downloadingFeed => AppStrings.settingsCourseUpdateFeed,
+    CourseOtaPhase.downloadingPackage =>
+      AppStrings.settingsCourseUpdateDownloading,
+    CourseOtaPhase.validating => AppStrings.settingsCourseUpdateValidating,
+    CourseOtaPhase.installing => AppStrings.settingsCourseUpdateInstalling,
+  };
 
   static String _errorText(Object error) =>
       error is CourseOtaException ? error.message : error.toString();

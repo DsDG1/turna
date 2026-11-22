@@ -8,10 +8,12 @@ import 'package:package_info_plus/package_info_plus.dart';
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 import 'package:turna/application/settings/app_build_info.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Cached once per process — About footer and license page share this.
 Future<PackageInfo>? _packageInfoFuture;
@@ -34,21 +36,21 @@ class SettingsAboutSection extends StatelessWidget {
     return SettingsCard(
       children: [
         SettingsNavigationTile(
-          icon: Icons.school_rounded,
+          iconId: TurnaIconId.school,
           title: AppStrings.settingsAboutTurna,
           subtitle: AppStrings.settingsAboutTileSubtitle,
           onTap: (context) => context.router.push(AboutTurnaRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
-          icon: Icons.shield_outlined,
+          iconId: TurnaIconId.shield,
           title: AppStrings.privacyDetailsEntry,
           subtitle: AppStrings.privacyDetailsEntrySubtitle,
           onTap: (context) => context.router.push(const PrivacyDetailsRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
-          icon: Icons.code_rounded,
+          iconId: TurnaIconId.code,
           title: AppStrings.settingsOpenSourceLicenses,
           onTap: (context) async {
             final info = await _loadPackageInfo();
@@ -78,9 +80,11 @@ class SettingsVersionFooter extends StatelessWidget {
         final label = info == null
             ? AppStrings.settingsVersionFooter(AppBuildInfo.unknownVersion)
             : (info.buildNumber.isEmpty
-                ? AppStrings.settingsVersionFooter(info.versionName)
-                : AppStrings.settingsVersionFooterWithBuild(
-                    info.versionName, info.buildNumber));
+                  ? AppStrings.settingsVersionFooter(info.versionName)
+                  : AppStrings.settingsVersionFooterWithBuild(
+                      info.versionName,
+                      info.buildNumber,
+                    ));
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
@@ -88,12 +92,13 @@ class SettingsVersionFooter extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: const Icon(
-                  Icons.info_outline,
+                child: const TurnaIcon(
+                  TurnaIconId.info,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
@@ -102,9 +107,8 @@ class SettingsVersionFooter extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: TurnaTheme.textHintColor(context)),
                 ),
               ),
             ],

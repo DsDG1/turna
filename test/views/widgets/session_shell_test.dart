@@ -4,11 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 会话骨架（P2 组件）的行为契约：进度表达的分界、评分带回调与
 /// 主操作禁用态。视觉规格由 @Preview 承担，这里只断言行为。
 void main() {
+  Finder findCloseIcon() => find.byWidgetPredicate(
+    (w) => w is TurnaIcon && w.id == TurnaIconId.close,
+  );
+
   group('SessionProgressBand', () {
     testWidgets('渲染计数与退出键', (tester) async {
       await tester.pumpWidget(
@@ -20,7 +26,7 @@ void main() {
         ),
       );
       expect(find.text('8 / 13'), findsOneWidget);
-      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      expect(findCloseIcon(), findsOneWidget);
     });
 
     testWidgets('题目数超过 16 时圆点落回细进度条', (tester) async {
@@ -50,7 +56,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.tap(findCloseIcon());
       expect(exited, isTrue);
     });
   });
@@ -62,7 +68,10 @@ void main() {
           home: Scaffold(
             body: Center(
               child: SessionSegmentedDots(
-                  done: 2, isCurrentReached: true, total: 5),
+                done: 2,
+                isCurrentReached: true,
+                total: 5,
+              ),
             ),
           ),
         ),
@@ -140,16 +149,13 @@ void main() {
     testWidgets('点击触发回调；禁用时不触发', (tester) async {
       var pressed = 0;
       Widget build({VoidCallback? onPressed}) => MaterialApp(
-            theme: TurnaTheme.lightTheme,
-            home: Scaffold(
-              body: Center(
-                child: SessionPrimaryAction(
-                  label: '核对',
-                  onPressed: onPressed,
-                ),
-              ),
-            ),
-          );
+        theme: TurnaTheme.lightTheme,
+        home: Scaffold(
+          body: Center(
+            child: SessionPrimaryAction(label: '核对', onPressed: onPressed),
+          ),
+        ),
+      );
 
       await tester.pumpWidget(build(onPressed: () => pressed++));
       await tester.tap(find.text('核对'));
@@ -169,9 +175,7 @@ void main() {
           home: const Scaffold(
             body: Column(
               children: [
-                Expanded(
-                  child: SessionRecallCanvas(child: Text('döner')),
-                ),
+                Expanded(child: SessionRecallCanvas(child: Text('döner'))),
                 SessionActionBand(child: Text('动作带内容')),
               ],
             ),

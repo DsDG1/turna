@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/v2/official_anki_adaptation_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 来源级的「显示方式」入口（ADR 0057 §6 / plan §12.4）。
@@ -21,10 +25,12 @@ Future<void> showAdaptationRestoreSheet(
   }
   final store = OfficialAnkiAdaptationStore(engine);
   var changed = false;
-  await showModalBottomSheet<void>(
+  await showTurnaSheet<void>(
     context: context,
-    showDragHandle: true,
-    builder: (_) => AdaptationRestoreSheet(
+    title: AppStrings.ankiAdaptationRestoreTitle,
+    subtitle: AppStrings.ankiAdaptationRestoreHint,
+    body: AdaptationRestoreSheet(
+      showHeader: false,
       loadManifest: () => store.readManifest(sourceId),
       restoreScope: (scopeKey) async {
         final ok = await store.deactivate(
@@ -57,11 +63,13 @@ class AdaptationRestoreSheet extends StatefulWidget {
     required this.loadManifest,
     required this.restoreScope,
     required this.restoreAll,
+    this.showHeader = true,
   });
 
   final Future<AdaptationManifest> Function() loadManifest;
   final Future<bool> Function(String scopeKey) restoreScope;
   final Future<bool> Function() restoreAll;
+  final bool showHeader;
 
   @override
   State<AdaptationRestoreSheet> createState() => _AdaptationRestoreSheetState();
@@ -113,90 +121,79 @@ class _AdaptationRestoreSheetState extends State<AdaptationRestoreSheet> {
   @override
   Widget build(BuildContext context) {
     final manifest = _manifest;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.xs,
+        AppSpacing.pageMargin,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.showHeader) ...[
             Text(
               AppStrings.ankiAdaptationRestoreTitle,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
+              style: AppTextStyles.sectionTitle(context),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               AppStrings.ankiAdaptationRestoreHint,
-              style: TextStyle(
-                fontSize: 12,
-                color: TurnaTheme.textSecondaryColor(context),
+              style: AppTextStyles.captionSm(context),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          if (manifest == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Center(child: TurnaLoader.inline()),
+            )
+          else if (manifest.entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text(
+                AppStrings.ankiAdaptationRestoreEmpty,
+                key: const ValueKey('adaptation-restore-empty'),
+                style: AppTextStyles.captionSm(context),
+              ),
+            )
+          else ...[
+            for (final entry in manifest.entries.keys)
+              Row(
+                key: ValueKey('adaptation-scope-$entry'),
+                children: [
+                  Expanded(
+                    child: Text(
+                      adaptationScopeLabel(
+                        entry,
+                        (id, template) =>
+                            AppStrings.ankiAdaptationScopeLabel(id, template),
+                      ),
+                      style: AppTextStyles.captionSm(
+                        context,
+                      ).copyWith(color: TurnaTheme.textPrimaryColor(context)),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _busy.contains(entry)
+                        ? null
+                        : () => _restoreScope(entry),
+                    child: Text(AppStrings.ankiAdaptationRestoreOne),
+                  ),
+                ],
+              ),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                key: const ValueKey('adaptation-restore-all'),
+                onPressed: _restoreAll,
+                child: Text(AppStrings.ankiAdaptationRestoreAll),
               ),
             ),
-            const SizedBox(height: 12),
-            if (manifest == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              )
-            else if (manifest.entries.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  AppStrings.ankiAdaptationRestoreEmpty,
-                  key: const ValueKey('adaptation-restore-empty'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-              )
-            else ...[
-              for (final entry in manifest.entries.keys)
-                Row(
-                  key: ValueKey('adaptation-scope-$entry'),
-                  children: [
-                    Expanded(
-                      child: Text(
-                        adaptationScopeLabel(
-                            entry,
-                            (id, template) =>
-                                AppStrings.ankiAdaptationScopeLabel(
-                                    id, template)),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _busy.contains(entry)
-                          ? null
-                          : () => _restoreScope(entry),
-                      child: Text(AppStrings.ankiAdaptationRestoreOne),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  key: const ValueKey('adaptation-restore-all'),
-                  onPressed: _restoreAll,
-                  child: Text(AppStrings.ankiAdaptationRestoreAll),
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }

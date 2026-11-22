@@ -1,8 +1,8 @@
-// Flutter imports:
-import 'package:flutter/material.dart';
+// Package imports:
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
 
 void main() {
@@ -22,26 +22,20 @@ void main() {
       final icons = ids.map(SectionVisuals.iconFor).toList();
 
       for (final icon in icons) {
-        expect(icon, isNot(Icons.menu_book_rounded));
+        expect(icon, isNot(TurnaIconId.book));
       }
       expect(icons.toSet(), hasLength(ids.length));
     });
 
     test('returns the book fallback for unknown ids', () {
-      expect(
-        SectionVisuals.iconFor('section99'),
-        Icons.menu_book_rounded,
-      );
-      expect(
-        SectionVisuals.iconFor(''),
-        Icons.menu_book_rounded,
-      );
+      expect(SectionVisuals.iconFor('section99'), TurnaIconId.book);
+      expect(SectionVisuals.iconFor(''), TurnaIconId.book);
     });
 
     test('uses the expected thematic icons for section1–3', () {
-      expect(SectionVisuals.iconFor('section1'), Icons.waving_hand_rounded);
-      expect(SectionVisuals.iconFor('section2'), Icons.pets_rounded);
-      expect(SectionVisuals.iconFor('section3'), Icons.mood_rounded);
+      expect(SectionVisuals.iconFor('section1'), TurnaIconId.sunrise);
+      expect(SectionVisuals.iconFor('section2'), TurnaIconId.leaf);
+      expect(SectionVisuals.iconFor('section3'), TurnaIconId.sun);
     });
   });
 

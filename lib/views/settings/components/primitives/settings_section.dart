@@ -4,31 +4,35 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_controls.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 Widget settingsTileDivider(BuildContext context) => Divider(
-      height: 1,
-      indent: 56,
-      endIndent: 16,
-      color: TurnaTheme.dividerBg(context),
-    );
+  height: 1,
+  indent: 56,
+  endIndent: 16,
+  color: TurnaTheme.dividerBg(context),
+);
 
-/// Settings switch with a rectangular track and square thumb.
+/// Settings switch with a 4px geometric track and thumb.
 Widget settingsAdaptiveSwitch({
   required bool value,
   required ValueChanged<bool>? onChanged,
 }) {
-  return SettingsSquareSwitch(value: value, onChanged: onChanged);
+  return TurnaSwitch(value: value, onChanged: onChanged);
 }
 
 class SettingsSectionTitle extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final TurnaIconId? iconId;
+  final IconData? icon;
 
   const SettingsSectionTitle({
     super.key,
     required this.title,
-    required this.icon,
+    this.iconId,
+    this.icon,
   });
 
   @override
@@ -39,13 +43,15 @@ class SettingsSectionTitle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: TurnaTheme.brandTeal, size: 20),
-          const SizedBox(width: 8),
+          if (iconId != null) ...[
+            TurnaIcon(iconId!, color: TurnaTheme.brandTeal, size: 20),
+            const SizedBox(width: 8),
+          ] else if (icon != null) ...[
+            Icon(icon, color: TurnaTheme.brandTeal, size: 20),
+            const SizedBox(width: 8),
+          ],
           Expanded(
-            child: Text(
-              title,
-              style: AppTextStyles.sectionTitle(context),
-            ),
+            child: Text(title, style: AppTextStyles.sectionTitle(context)),
           ),
         ],
       ),
@@ -73,35 +79,30 @@ class SettingsCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: TurnaTheme.flatPaperDecoration(context),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: children,
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }
 
 class SettingsTile extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId? iconId;
+  final IconData? icon;
   final String title;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
 
-  /// Optional override for the 40×40 icon container's icon color. Defaults
-  /// to [TurnaTheme.brandTeal]. Used by diagnostic / status rows that need
-  /// severity colors (success / warning / error) without rebuilding the
-  /// whole container.
+  /// Optional override for the 38×38 icon container's icon color. Defaults
+  /// to [TurnaTheme.brandTeal].
   final Color? iconColor;
 
-  /// Optional override for the 40×40 icon container's tint color. Defaults
-  /// to brandTeal @ 0.08 alpha. Same purpose as [iconColor] — lets status
-  /// rows surface their severity while keeping the same shape.
+  /// Optional override for the 38×38 icon container's tint color.
   final Color? iconBackground;
 
   const SettingsTile({
     super.key,
-    required this.icon,
+    this.iconId,
+    this.icon,
     required this.title,
     this.subtitle,
     this.trailing,
@@ -113,9 +114,8 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = iconColor ?? TurnaTheme.brandTeal;
-    // R16 深页行族：图标井 38×38 淡彩井（与 DirectoryLinkRow 同构），
-    // 标题 cardTitle、副题 captionSm。
     final bg = iconBackground ?? TurnaTheme.softTint(context, fg, alpha: 0.10);
+    final resolvedIconColor = TurnaTheme.accentOnCard(context, fg);
     final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -123,31 +123,23 @@ class SettingsTile extends StatelessWidget {
           Container(
             width: 38,
             height: 38,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+              borderRadius: TurnaTheme.borderRadius,
             ),
-            child: Icon(
-              icon,
-              color: TurnaTheme.accentOnCard(context, fg),
-              size: 19,
-            ),
+            child: iconId != null
+                ? TurnaIcon(iconId!, color: resolvedIconColor, size: 19)
+                : Icon(icon, color: resolvedIconColor, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: AppTextStyles.cardTitle(context),
-                ),
+                Text(title, style: AppTextStyles.cardTitle(context)),
                 if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: AppTextStyles.captionSm(context)
-                        .copyWith(fontSize: 12.5),
-                  ),
+                  Text(subtitle!, style: AppTextStyles.captionSm(context)),
               ],
             ),
           ),
@@ -159,9 +151,9 @@ class SettingsTile extends StatelessWidget {
     if (onTap == null) return content;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         onTap: onTap,
         child: content,
       ),
@@ -170,7 +162,8 @@ class SettingsTile extends StatelessWidget {
 }
 
 class SettingsActionTile extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId? iconId;
+  final IconData? icon;
   final String title;
   final String subtitle;
   final void Function(BuildContext) onTap;
@@ -180,7 +173,8 @@ class SettingsActionTile extends StatelessWidget {
 
   const SettingsActionTile({
     super.key,
-    required this.icon,
+    this.iconId,
+    this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -192,14 +186,16 @@ class SettingsActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsTile(
+      iconId: iconId,
       icon: icon,
       title: title,
       subtitle: subtitle,
       iconColor: iconColor,
       iconBackground: iconBackground,
       onTap: enabled ? () => onTap(context) : null,
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
+      trailing: const TurnaIcon(
+        TurnaIconId.chevronRight,
+        size: 18,
         color: TurnaTheme.textHint,
       ),
     );
@@ -207,7 +203,8 @@ class SettingsActionTile extends StatelessWidget {
 }
 
 class SettingsNavigationTile extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId? iconId;
+  final IconData? icon;
   final String title;
   final String? subtitle;
   final void Function(BuildContext) onTap;
@@ -216,7 +213,8 @@ class SettingsNavigationTile extends StatelessWidget {
 
   const SettingsNavigationTile({
     super.key,
-    required this.icon,
+    this.iconId,
+    this.icon,
     required this.title,
     this.subtitle,
     required this.onTap,
@@ -227,14 +225,16 @@ class SettingsNavigationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsTile(
+      iconId: iconId,
       icon: icon,
       title: title,
       subtitle: subtitle,
       iconColor: iconColor,
       iconBackground: iconBackground,
       onTap: () => onTap(context),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
+      trailing: const TurnaIcon(
+        TurnaIconId.chevronRight,
+        size: 18,
         color: TurnaTheme.textHint,
       ),
     );

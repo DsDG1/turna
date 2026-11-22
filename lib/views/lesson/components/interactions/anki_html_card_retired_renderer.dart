@@ -10,7 +10,9 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 /// Placeholder for [AnkiHtmlCard] items persisted by retired Legacy imports
 /// (doc 35 L2 deleted the NoteStore fidelity renderer). Official review
@@ -57,8 +59,8 @@ class _RetiredAnkiHtmlCardBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.style_outlined,
+            TurnaIcon(
+              TurnaIconId.cards,
               size: 40,
               color: TurnaTheme.brandTeal.withValues(alpha: 0.7),
             ),

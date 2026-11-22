@@ -13,6 +13,8 @@ import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Renders imported media (`turnapack://<code>/<file>` or bare Official Anki v2
@@ -91,9 +93,10 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     final audios = <({String ref, bool available})>[];
     for (final asset in widget.audioAssets) {
       if (!AnkiMediaStrip.isResolvableMedia(asset)) continue;
-      audios.add(
-        (ref: asset, available: await _resolveSafely(resolve, asset) != null),
-      );
+      audios.add((
+        ref: asset,
+        available: await _resolveSafely(resolve, asset) != null,
+      ));
     }
     if (!mounted || generation != _resolveGeneration) return;
     setState(() {
@@ -192,7 +195,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
                         shape: const CircleBorder(),
                         backgroundColor: Colors.transparent,
                       ),
-                      icon: const Icon(Icons.volume_up_rounded),
+                      icon: const TurnaIcon(TurnaIconId.speaker, size: 22),
                     ),
                   ),
               ],
@@ -202,18 +205,19 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+              borderRadius: TurnaTheme.borderRadius,
               // Decode cap (same formula as CachedAssetImage): deck media is
               // routinely multi-megapixel; without it a 160-logical-px
               // thumbnail decodes at full resolution into memory.
               child: Image.file(
                 File(path),
                 height: 160,
-                cacheHeight:
-                    (160 * MediaQuery.devicePixelRatioOf(context)).round(),
-                cacheWidth: (MediaQuery.sizeOf(context).width.clamp(0, 600) *
-                        MediaQuery.devicePixelRatioOf(context))
+                cacheHeight: (160 * MediaQuery.devicePixelRatioOf(context))
                     .round(),
+                cacheWidth:
+                    (MediaQuery.sizeOf(context).width.clamp(0, 600) *
+                            MediaQuery.devicePixelRatioOf(context))
+                        .round(),
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),

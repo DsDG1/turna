@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/widgets/session_shell.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Done step (maintainability plan §10.5), 步骤流程版式：中央
 /// 摘要（统一 [AnkiImportSummary] 的分组明细），底部固定动作带。
@@ -44,11 +46,20 @@ class AnkiImportDoneStep extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(
-                  child: Icon(
-                    Icons.check_circle_outline,
-                    size: 64,
-                    color: TurnaTheme.success,
+                Center(
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
+                      borderRadius: TurnaTheme.borderRadius,
+                    ),
+                    child: const TurnaIcon(
+                      TurnaIconId.checkCircle,
+                      size: 36,
+                      color: TurnaTheme.brandTeal,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -93,9 +104,7 @@ class AnkiImportDoneStep extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                   DoneGroup(
                     title: AppStrings.ankiDoneGroupVocab,
-                    rows: [
-                      AppStrings.ankiVocabAdded(summary.wordEntryCount),
-                    ],
+                    rows: [AppStrings.ankiVocabAdded(summary.wordEntryCount)],
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
@@ -106,13 +115,16 @@ class AnkiImportDoneStep extends StatelessWidget {
                       AppStrings.ankiDoneNewNotes(summary.newNoteCount),
                     if (summary.updatedNoteCount > 0)
                       AppStrings.ankiImportUpdatedNotes(
-                          summary.updatedNoteCount),
+                        summary.updatedNoteCount,
+                      ),
                     if (summary.duplicateNoteCount > 0)
                       AppStrings.ankiDoneDuplicateNotes(
-                          summary.duplicateNoteCount),
+                        summary.duplicateNoteCount,
+                      ),
                     if (summary.conflictingNoteCount > 0)
                       AppStrings.ankiImportConflictingNotes(
-                          summary.conflictingNoteCount),
+                        summary.conflictingNoteCount,
+                      ),
                     if (summary.partCount > 0)
                       AppStrings.ankiDoneParts(summary.partCount)
                     else if (summary.sectionCount > 1)
@@ -139,7 +151,7 @@ class AnkiImportDoneStep extends StatelessWidget {
             children: [
               SessionPrimaryAction(
                 label: AppStrings.ankiStartLearning,
-                trailingIcon: Icons.play_arrow_rounded,
+                trailingIcon: TurnaIconId.play,
                 onPressed: onStartLearningNow,
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -150,15 +162,12 @@ class AnkiImportDoneStep extends StatelessWidget {
                 height: 48,
                 child: OutlinedButton.icon(
                   onPressed: onViewDecks,
-                  icon: const Icon(Icons.style_outlined, size: 18),
+                  icon: const TurnaIcon(TurnaIconId.cards, size: 18),
                   label: Text(AppStrings.ankiDoneViewDecks),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs + 2),
-              TextButton(
-                onPressed: onDone,
-                child: Text(AppStrings.commonDone),
-              ),
+              TextButton(onPressed: onDone, child: Text(AppStrings.commonDone)),
             ],
           ),
         ),

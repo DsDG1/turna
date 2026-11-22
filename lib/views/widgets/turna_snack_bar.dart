@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 
 /// Material 3 风格的高斯模糊磨砂玻璃悬浮气泡 SnackBar。
@@ -36,29 +38,23 @@ class TurnaSnackBar {
     Duration duration = const Duration(seconds: 3),
   }) {
     final a11y = context.read<AccessibilityProvider?>();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         (a11y?.reducedMotion ?? false);
     final solidGlass =
         (a11y?.highContrast ?? false) || (a11y?.focusMode ?? false);
 
-    final radius = BorderRadius.circular(TurnaTheme.radiusXLarge);
+    final radius = TurnaTheme.borderRadius;
     final fill = solidGlass
         ? TurnaTheme.bottomNavBg(context)
         : TurnaTheme.floatingBarFill(context);
 
-    final textStyle = TextStyle(
-      color: TurnaTheme.textPrimaryColor(context),
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      height: 1.35,
-    );
+    final textStyle = AppTextStyles.bodyText(context)
+        .copyWith(fontWeight: FontWeight.w500);
 
     final cardContent = Row(
       children: [
-        if (icon != null) ...[
-          icon,
-          const SizedBox(width: 12),
-        ],
+        if (icon != null) ...[icon, const SizedBox(width: AppSpacing.md)],
         Expanded(
           child: Text(
             message,
@@ -68,20 +64,22 @@ class TurnaSnackBar {
           ),
         ),
         if (action != null) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           TextButton(
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
               minimumSize: const Size(48, 48),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             onPressed: action.onPressed,
             child: Text(
               action.label,
-              style: TextStyle(
+              style: AppTextStyles.captionSm(context).copyWith(
                 color: action.textColor ?? TurnaTheme.brandTeal,
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
               ),
             ),
           ),
@@ -90,7 +88,10 @@ class TurnaSnackBar {
     );
 
     final bubbleSurface = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: fill,
         borderRadius: radius,
@@ -110,10 +111,7 @@ class TurnaSnackBar {
       child: solidGlass || reduceMotion
           ? bubbleSurface
           : BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: frostSigma,
-                sigmaY: frostSigma,
-              ),
+              filter: ImageFilter.blur(sigmaX: frostSigma, sigmaY: frostSigma),
               child: bubbleSurface,
             ),
     );
@@ -123,10 +121,14 @@ class TurnaSnackBar {
       elevation: 0,
       backgroundColor: Colors.transparent,
       padding: EdgeInsets.zero,
-      // Scaffold 已按 bottomNavigationBar 的完整高度把 floating SnackBar
-      // 抬到底栏上方；这里只留视觉间距，不要按 TextTabBar.overlayExtent
-      // 叠加，否则无底栏的二级页气泡会飘得过高。
-      margin: margin ?? const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      margin:
+          margin ??
+          const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
       duration: duration,
       content: bubble,
     );

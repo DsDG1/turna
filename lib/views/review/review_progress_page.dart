@@ -13,11 +13,15 @@ import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Review-overview home (Plan 3 §15.1) ——「湿地雾光」R10 学习报告构图.
 ///
@@ -64,31 +68,36 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
     setState(() {
       _load = repo.loadDashboard(forceRefresh: forceRefresh);
     });
-    _load!.then((snap) {
-      if (!mounted) return;
-      setState(() {
-        _snapshot = snap;
-        _error = null;
-      });
-    }).catchError((Object error) {
-      if (!mounted) return;
-      setState(() => _error = error);
-    });
+    _load!
+        .then((snap) {
+          if (!mounted) return;
+          setState(() {
+            _snapshot = snap;
+            _error = null;
+          });
+        })
+        .catchError((Object error) {
+          if (!mounted) return;
+          setState(() => _error = error);
+        });
   }
 
   /// The Future the RefreshIndicator awaits: the actual repository load, so
   /// the spinner only dismisses when data has really arrived (Plan 3 §14.7).
   Future<void> _refresh() {
     final repo = context.read<ReviewDashboardRepository>();
-    return repo.loadDashboard(forceRefresh: true).then((snap) {
-      if (!mounted) return;
-      setState(() {
-        _snapshot = snap;
-        _error = null;
-      });
-    }).catchError((Object error) {
-      if (mounted) setState(() => _error = error);
-    });
+    return repo
+        .loadDashboard(forceRefresh: true)
+        .then((snap) {
+          if (!mounted) return;
+          setState(() {
+            _snapshot = snap;
+            _error = null;
+          });
+        })
+        .catchError((Object error) {
+          if (mounted) setState(() => _error = error);
+        });
   }
 
   @override
@@ -97,77 +106,77 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
     final focusMode = accessibilityOf(context).focusMode;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.reviewDashboardTitle),
-        backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(
+        title: AppStrings.reviewDashboardTitle,
         actions: [
           IconButton(
             tooltip: AppStrings.reviewInsightsTitle,
-            icon: const Icon(Icons.insights_rounded),
+            icon: const TurnaIcon(TurnaIconId.insights, size: 20),
             onPressed: () => context.router.push(const LearningInsightsRoute()),
           ),
         ],
       ),
       body: TurnaPageContent(
-        maxWidth: 840,
+        maxWidth: AppSpacing.formColumnMaxWidth,
         child: _error != null && snap == null
             ? _ErrorState(
-                message: '$_error', onRetry: () => _reload(forceRefresh: true))
+                message: '$_error',
+                onRetry: () => _reload(forceRefresh: true),
+              )
             : snap == null
-                ? const _DashboardSkeleton()
-                : RefreshIndicator(
-                    color: TurnaTheme.brandTeal,
-                    onRefresh: _refresh,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.pageMargin,
-                        AppSpacing.md,
-                        AppSpacing.pageMargin,
-                        AppSpacing.xxl,
-                      ),
-                      children: [
-                        if (_error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _InlineErrorBanner(
-                              onRetry: () => _reload(forceRefresh: true),
-                            ),
-                          ),
-                        _MetricOpening(snapshot: snap),
-                        const SizedBox(height: AppSpacing.xl),
-                        SessionPrimaryAction(
-                          label: snap.due.actionableTotal > 0
-                              ? AppStrings.reviewContinueCta
-                              : AppStrings.reviewTodayDoneCta,
-                          onPressed: snap.due.actionableTotal > 0
-                              ? () =>
-                                  context.router.push(const SrsReviewRoute())
-                              : null,
-                          trailingIcon: Icons.play_arrow_rounded,
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        _DueDefinitionList(snapshot: snap),
-                        if (!focusMode) ...[
-                          const SizedBox(height: AppSpacing.xl),
-                          _WeeklyChartSection(snapshot: snap),
-                          const SizedBox(height: AppSpacing.xl),
-                          _TodayQualitySection(snapshot: snap),
-                          const SizedBox(height: AppSpacing.xl),
-                          _SourceList(snapshot: snap),
-                          const SizedBox(height: AppSpacing.lg),
-                          OutlinedButton.icon(
-                            onPressed: () => context.router
-                                .push(const LearningInsightsRoute()),
-                            icon: const Icon(Icons.insights_rounded, size: 18),
-                            label: Text(AppStrings.reviewOpenInsights),
-                          ),
-                        ],
-                      ],
-                    ),
+            ? const _DashboardSkeleton()
+            : RefreshIndicator(
+                color: TurnaTheme.brandTeal,
+                onRefresh: _refresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pageMargin,
+                    AppSpacing.md,
+                    AppSpacing.pageMargin,
+                    AppSpacing.xxl,
+                  ),
+                  children: [
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: _InlineErrorBanner(
+                          onRetry: () => _reload(forceRefresh: true),
+                        ),
+                      ),
+                    _MetricOpening(snapshot: snap),
+                    const SizedBox(height: AppSpacing.xl),
+                    SessionPrimaryAction(
+                      label: snap.due.actionableTotal > 0
+                          ? AppStrings.reviewContinueCta
+                          : AppStrings.reviewTodayDoneCta,
+                      onPressed: snap.due.actionableTotal > 0
+                          ? () => context.router.push(const SrsReviewRoute())
+                          : null,
+                      trailingIcon: TurnaIconId.play,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _DueDefinitionList(snapshot: snap),
+                    if (!focusMode) ...[
+                      const SizedBox(height: AppSpacing.xl),
+                      _WeeklyChartSection(snapshot: snap),
+                      const SizedBox(height: AppSpacing.xl),
+                      _TodayQualitySection(snapshot: snap),
+                      const SizedBox(height: AppSpacing.xl),
+                      _SourceList(snapshot: snap),
+                      const SizedBox(height: AppSpacing.lg),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            context.router.push(const LearningInsightsRoute()),
+                        icon: const TurnaIcon(TurnaIconId.insights, size: 18),
+                        label: Text(AppStrings.reviewOpenInsights),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -254,26 +263,21 @@ class _WeeklyChartSection extends StatelessWidget {
               ? Tooltip(
                   message: AppStrings.reviewProtectedTooltip,
                   child: Chip(
-                    avatar: const Icon(Icons.shield_rounded, size: 15),
+                    avatar: const TurnaIcon(TurnaIconId.shield, size: 15),
                     label: Text(AppStrings.reviewProtectedChip),
                     visualDensity: VisualDensity.compact,
                   ),
                 )
               : Text(
                   AppStrings.reviewThisWeek(streak.activeDaysThisWeek),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+                  style: AppTextStyles.captionSm(context),
                 ),
         ),
         if (total == 0)
           Text(
             AppStrings.reviewNoDataYet,
-            style: TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           )
         else ...[
           ReportBarChart(
@@ -292,10 +296,8 @@ class _WeeklyChartSection extends StatelessWidget {
           // 文本语义摘要（无障碍：图表不只用颜色表达，§17.2）。
           Text(
             _summaryText(),
-            style: TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ],
@@ -304,8 +306,10 @@ class _WeeklyChartSection extends StatelessWidget {
 
   String _summaryText() {
     final active = snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
-    final total =
-        snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
+    final total = snapshot.last7Days.fold<int>(
+      0,
+      (a, b) => a + b.reviewedCount,
+    );
     return AppStrings.reviewSevenDaySummary(active, total);
   }
 }
@@ -356,13 +360,11 @@ class _SourceList extends StatelessWidget {
         ReportSectionHeading(title: AppStrings.reviewSourcesTitle),
         if (sources.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Text(
               AppStrings.reviewEmptyHint,
-              style: TextStyle(
-                fontSize: 14,
-                color: TurnaTheme.textHintColor(context),
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textHintColor(context)),
             ),
           )
         else
@@ -380,15 +382,15 @@ class _SourceRow extends StatelessWidget {
 
   final ReviewSourceSummary row;
 
-  IconData get _icon {
+  TurnaIconId get _icon {
     switch (row.source.kind) {
       case LearningSourceKind.course:
-        return Icons.school_rounded;
+        return TurnaIconId.school;
       case LearningSourceKind.grammar:
-        return Icons.menu_book_rounded;
+        return TurnaIconId.book;
       case LearningSourceKind.ankiLegacy:
       case LearningSourceKind.ankiOfficial:
-        return Icons.style_rounded;
+        return TurnaIconId.cards;
     }
   }
 
@@ -410,8 +412,9 @@ class _SourceRow extends StatelessWidget {
       icon: _icon,
       accent: _accent,
       title: row.source.displayName,
-      countLabel:
-          row.dueToday > 0 ? AppStrings.reviewSourceDue(row.dueToday) : null,
+      countLabel: row.dueToday > 0
+          ? AppStrings.reviewSourceDue(row.dueToday)
+          : null,
       onTap: () => context.router.push(
         ReviewSourceDetailRoute(source: reviewSourceFor(row.source)),
       ),
@@ -465,16 +468,21 @@ class _DashboardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget block({double height = 80}) => Container(
-          height: height,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: TurnaTheme.flatPaperDecoration(
-            context,
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-          ),
-        );
+      height: height,
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      decoration: TurnaTheme.flatPaperDecoration(
+        context,
+        borderRadius: TurnaTheme.borderRadius,
+      ),
+    );
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.xxl,
+      ),
       children: [
         block(height: 120),
         block(height: 84),
@@ -495,18 +503,24 @@ class _InlineErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: TurnaTheme.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 16, color: TurnaTheme.error),
-            const SizedBox(width: 8),
+            const TurnaIcon(
+              TurnaIconId.cloudOff,
+              size: 16,
+              color: TurnaTheme.error,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 AppStrings.reviewRefreshFailedKeptOld,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: AppTextStyles.captionSm(context),
               ),
             ),
             TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
@@ -527,14 +541,16 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             FilledButton(
-                onPressed: onRetry, child: Text(AppStrings.commonRetry)),
+              onPressed: onRetry,
+              child: Text(AppStrings.commonRetry),
+            ),
           ],
         ),
       ),

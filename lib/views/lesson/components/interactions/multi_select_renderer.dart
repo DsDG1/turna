@@ -8,12 +8,14 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Pick one or more options out of N.
 ///
@@ -150,9 +152,9 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
       canSubmit: _canSubmit,
       submit: _canSubmit
           ? () => widget.onSubmit(
-                _isCorrect(),
-                userAnswerText: (_picked.toList()..sort()).join(','),
-              )
+              _isCorrect(),
+              userAnswerText: (_picked.toList()..sort()).join(','),
+            )
           : null,
     );
 
@@ -170,8 +172,8 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.checklist_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.checkboxChecked,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -187,9 +189,8 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
                 const SizedBox(height: 16),
                 Text(
                   widget.prompt,
-                  style: AppTextStyles.promptLg(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyles.promptLg(context)
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (widget.imageAsset != null) ...[
                   const SizedBox(height: 16),
@@ -200,10 +201,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ),
           const SizedBox(height: AppSpacing.lg),
           // 操作提示行（§7.1「多选显示操作提示」）: 紧贴选项区而不是挤在题面里。
-          Text(
-            _selectionSummary(),
-            style: AppTextStyles.captionSm(context),
-          ),
+          Text(_selectionSummary(), style: AppTextStyles.captionSm(context)),
           const SizedBox(height: AppSpacing.sm),
           ..._buildOptions(submitted, correct),
           if (submitted) ...[
@@ -228,18 +226,21 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
     final widgets = <Widget>[];
     for (var idx = 0; idx < widget.options.length; idx++) {
       final isSelected = _picked.contains(idx);
-      widgets.add(InteractionOptionTile(
-        label: widget.options[idx],
-        index: idx + 1,
-        isSelected: isSelected,
-        isCorrect: submitted && correctSet.contains(idx),
-        isWrong: submitted &&
-            correct == false &&
-            isSelected &&
-            !correctSet.contains(idx),
-        showDivider: idx < widget.options.length - 1,
-        onTap: submitted ? null : () => _toggle(idx),
-      ));
+      widgets.add(
+        InteractionOptionTile(
+          label: widget.options[idx],
+          index: idx + 1,
+          isSelected: isSelected,
+          isCorrect: submitted && correctSet.contains(idx),
+          isWrong:
+              submitted &&
+              correct == false &&
+              isSelected &&
+              !correctSet.contains(idx),
+          showDivider: idx < widget.options.length - 1,
+          onTap: submitted ? null : () => _toggle(idx),
+        ),
+      );
     }
     return widgets;
   }

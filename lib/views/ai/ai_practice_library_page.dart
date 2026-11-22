@@ -14,6 +14,7 @@ import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -21,7 +22,9 @@ import 'package:turna/views/ai/components/ai_practice_actions.dart';
 import 'package:turna/views/ai/components/ai_practice_card.dart';
 import 'package:turna/views/ai/components/ai_practice_generate_sheet.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Full AI course library, grouped the way the content actually behaves
 /// （R14 目录化：区块标题 + 行，发丝线分组）:
@@ -54,10 +57,7 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
       // the next cold start.
       final removed = await queue.sweepExpired();
       if (!mounted || removed <= 0) return;
-      TurnaSnackBar.show(
-        context,
-        AppStrings.aiPracticeSweptOnOpen(removed),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiPracticeSweptOnOpen(removed));
     });
   }
 
@@ -76,12 +76,10 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
 
     return Scaffold(
       backgroundColor: TurnaTheme.surfaceColor(context),
-      appBar: AppBar(
+      appBar: TurnaTopBar(
         centerTitle: true,
-        title: Text(
-          AppStrings.aiPracticeSectionTitle,
-          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 17),
-        ),
+        showDivider: true,
+        title: AppStrings.aiPracticeSectionTitle,
         actions: [
           if (items.isNotEmpty)
             TextButton(
@@ -155,14 +153,13 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
                     ? SessionPrimaryAction(
                         label: AppStrings.aiPracticeGenerateTitle,
                         onPressed: () => showAiPracticeGenerateSheet(context),
-                        trailingIcon: Icons.add_rounded,
+                        trailingIcon: TurnaIconId.add,
                       )
                     : SessionPrimaryAction(
                         label: AppStrings.aiHubConnectCta,
-                        onPressed: () => context.router.push(
-                          const AiApiConfigRoute(),
-                        ),
-                        trailingIcon: Icons.arrow_forward_rounded,
+                        onPressed: () =>
+                            context.router.push(const AiApiConfigRoute()),
+                        trailingIcon: TurnaIconId.arrowForward,
                       ),
               ),
           ],
@@ -189,10 +186,7 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                title,
-                style: AppTextStyles.sectionTitle(context),
-              ),
+              child: Text(title, style: AppTextStyles.sectionTitle(context)),
             ),
             Text(
               AppStrings.aiPracticeGroupCount(items.length),
@@ -214,10 +208,9 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
           ),
           child: Text(
             footnote,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-              height: 1.4,
-            ),
+            style: AppTextStyles.captionSm(
+              context,
+            ).copyWith(color: TurnaTheme.textHintColor(context), height: 1.4),
           ),
         ),
       for (var i = 0; i < items.length; i++)
@@ -259,21 +252,17 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
               ? AppStrings.aiPracticeSectionEmpty
               : AppStrings.aiPracticeLibraryNotConfiguredHint,
           textAlign: TextAlign.center,
-          style: AppTextStyles.bodyText(context).copyWith(
-            color: TurnaTheme.textSecondaryColor(context),
-            fontSize: 15,
-            height: 1.5,
-          ),
+          style: AppTextStyles.bodyText(context)
+              .copyWith(color: TurnaTheme.textSecondaryColor(context)),
         ),
         if (complete) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
             AppStrings.aiPracticeExpiryHint,
             textAlign: TextAlign.center,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-              height: 1.5,
-            ),
+            style: AppTextStyles.captionSm(
+              context,
+            ).copyWith(color: TurnaTheme.textHintColor(context), height: 1.5),
           ),
         ],
       ],
@@ -281,8 +270,9 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
   }
 
   Widget _selectionBar(BuildContext context, List<AiCourse> items) {
-    final selectedItems =
-        items.where((item) => _selected.contains(item.id)).toList();
+    final selectedItems = items
+        .where((item) => _selected.contains(item.id))
+        .toList();
     final allSelected = selectedItems.length == items.length;
     return SessionActionBand(
       padding: const EdgeInsets.symmetric(
@@ -310,18 +300,23 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
             onPressed: selectedItems.isEmpty
                 ? null
                 : () => _pinSelected(selectedItems),
-            icon: const Icon(Icons.star_border_rounded, size: 18),
+            icon: const TurnaIcon(TurnaIconId.star, size: 18),
             label: Text(AppStrings.aiPracticeFavorite),
           ),
           const SizedBox(width: AppSpacing.xs),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: TurnaTheme.error,
+              foregroundColor: TurnaTheme.textOnPrimary,
             ),
             onPressed: selectedItems.isEmpty
                 ? null
                 : () => _deleteSelected(selectedItems),
-            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            icon: const TurnaIcon(
+              TurnaIconId.delete,
+              size: 18,
+              color: TurnaTheme.textOnPrimary,
+            ),
             label: Text(AppStrings.aiPracticeDelete),
           ),
         ],
@@ -351,9 +346,10 @@ class _AiPracticeLibraryPageState extends State<AiPracticeLibraryPage> {
 
   Future<void> _pinSelected(List<AiCourse> items) async {
     final allPinned = items.every((item) => item.pinned);
-    await context
-        .read<AiPracticeJobQueue>()
-        .setPinned(items.map((item) => item.id), pinned: !allPinned);
+    await context.read<AiPracticeJobQueue>().setPinned(
+      items.map((item) => item.id),
+      pinned: !allPinned,
+    );
     if (!mounted) return;
     TurnaSnackBar.show(
       context,

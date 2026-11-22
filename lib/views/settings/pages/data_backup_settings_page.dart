@@ -17,15 +17,21 @@ import 'package:turna/application/settings/commands/reset_account_command.dart';
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/migration/turna_migration_import.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
+import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
 import 'package:turna/utils/validated_file_picker.dart';
-import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/core/ohos_target.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/settings/pages/settings_category_body.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Data & backup category page (formal route: `/settings/data-backup`).
@@ -48,21 +54,21 @@ class DataBackupSettingsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SettingsSectionTitle(
-              icon: Icons.storage_rounded,
+              iconId: TurnaIconId.storage,
               title: AppStrings.settingsDataSectionTitle,
             ),
             const SizedBox(height: 8),
             SettingsCard(
               children: [
                 SettingsActionTile(
-                  icon: Icons.ios_share_rounded,
+                  iconId: TurnaIconId.share,
                   title: AppStrings.settingsExportDataTitle,
                   subtitle: AppStrings.settingsExportDataSubtitle,
                   onTap: (context) => _openExportSheet(context),
                 ),
                 settingsTileDivider(context),
                 SettingsActionTile(
-                  icon: Icons.file_upload_outlined,
+                  iconId: TurnaIconId.upload,
                   title: AppStrings.settingsImportDataTitle,
                   subtitle: AppStrings.settingsImportDataSubtitle,
                   onTap: (context) => _importData(context),
@@ -72,7 +78,7 @@ class DataBackupSettingsPage extends StatelessWidget {
                 // 入口 tile 一并隐藏，页面内的「平台不支持」卡片只是兜底。
                 if (!isDegraded(OhosDegradation.remoteBackup)) ...[
                   SettingsActionTile(
-                    icon: Icons.cloud_upload_outlined,
+                    iconId: TurnaIconId.upload,
                     title: AppStrings.settingsRemoteBackupTitle,
                     subtitle: AppStrings.settingsRemoteBackupSubtitle,
                     onTap: (context) =>
@@ -86,7 +92,7 @@ class DataBackupSettingsPage extends StatelessWidget {
                 // import above. Legacy Anki rows land as pending
                 // migration and never activate the old scheduler.
                 SettingsActionTile(
-                  icon: Icons.move_down_rounded,
+                  iconId: TurnaIconId.download,
                   title: AppStrings.settingsMigrationPackTileTitle,
                   subtitle: AppStrings.settingsMigrationPackTileSubtitle,
                   onTap: (context) => _importMigrationPackage(context),
@@ -95,33 +101,34 @@ class DataBackupSettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             SettingsSectionTitle(
-              icon: Icons.history_rounded,
+              iconId: TurnaIconId.timer,
               title: AppStrings.settingsLearningRecordsTitle,
             ),
             const SizedBox(height: 8),
             SettingsCard(
               children: [
                 SettingsActionTile(
-                  icon: Icons.delete_sweep_rounded,
+                  iconId: TurnaIconId.deleteSweep,
                   title: AppStrings.settingsClearMistakeLogTitle,
                   subtitle: AppStrings.settingsClearMistakeLogSubtitle,
                   iconColor: TurnaTheme.anatolianClay,
-                  iconBackground:
-                      TurnaTheme.anatolianClay.withValues(alpha: 0.10),
+                  iconBackground: TurnaTheme.anatolianClay.withValues(
+                    alpha: 0.10,
+                  ),
                   onTap: (context) => _confirmClearMistakes(context),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             SettingsSectionTitle(
-              icon: Icons.warning_amber_rounded,
+              iconId: TurnaIconId.warning,
               title: AppStrings.settingsDangerZoneTitle,
             ),
             const SizedBox(height: 8),
             SettingsCard(
               children: [
                 SettingsActionTile(
-                  icon: Icons.restart_alt_rounded,
+                  iconId: TurnaIconId.restart,
                   title: AppStrings.settingsResetProgressTitle,
                   subtitle: AppStrings.settingsResetProgressSubtitle,
                   iconColor: TurnaTheme.error,
@@ -130,7 +137,7 @@ class DataBackupSettingsPage extends StatelessWidget {
                 ),
                 settingsTileDivider(context),
                 SettingsActionTile(
-                  icon: Icons.delete_forever_rounded,
+                  iconId: TurnaIconId.delete,
                   title: AppStrings.accountResetTitle,
                   subtitle: AppStrings.accountResetSubtitle,
                   iconColor: TurnaTheme.error,
@@ -148,13 +155,12 @@ class DataBackupSettingsPage extends StatelessWidget {
 
   Future<void> _confirmClearMistakes(BuildContext context) async {
     final mistakeProvider = context.read<MistakeProvider>();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsClearMistakeDialogTitle,
-        message: AppStrings.settingsClearMistakeDialogMessage,
-        confirmText: AppStrings.settingsClearMistakeConfirm,
-      ),
+      title: AppStrings.settingsClearMistakeDialogTitle,
+      message: AppStrings.settingsClearMistakeDialogMessage,
+      confirmLabel: AppStrings.settingsClearMistakeConfirm,
+      destructive: true,
     );
     if (confirmed == true) {
       await mistakeProvider.clear();
@@ -166,13 +172,12 @@ class DataBackupSettingsPage extends StatelessWidget {
 
   Future<void> _confirmResetProgress(BuildContext context) async {
     final gameProvider = context.read<GameProvider>();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsResetProgressDialogTitle,
-        message: AppStrings.settingsResetProgressDialogMessage,
-        confirmText: AppStrings.settingsResetProgressConfirm,
-      ),
+      title: AppStrings.settingsResetProgressDialogTitle,
+      message: AppStrings.settingsResetProgressDialogMessage,
+      confirmLabel: AppStrings.settingsResetProgressConfirm,
+      destructive: true,
     );
     if (confirmed == true) {
       await gameProvider.resetLessonProgress();
@@ -183,32 +188,38 @@ class DataBackupSettingsPage extends StatelessWidget {
   }
 
   Future<void> _confirmResetAccount(BuildContext context) async {
-    final choice = await showDialog<String>(
+    final choice = await showTurnaFormDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        ),
-        title: Text(AppStrings.accountResetDialogTitle),
-        content: Text(AppStrings.accountResetDialogMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppStrings.commonCancel),
+      title: AppStrings.accountResetDialogTitle,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            AppStrings.accountResetDialogMessage,
+            style: AppTextStyles.bodyText(context)
+                .copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
-          TextButton(
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
             onPressed: () => Navigator.of(context).pop('export'),
-            child: Text(AppStrings.accountResetExportFirst),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('reset'),
-            child: Text(
-              AppStrings.accountResetConfirm,
-              style: const TextStyle(color: TurnaTheme.error),
-            ),
+            icon: const TurnaIcon(TurnaIconId.share, size: 16),
+            label: Text(AppStrings.accountResetExportFirst),
           ),
         ],
       ),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.commonCancel,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        TurnaSheetAction(
+          label: AppStrings.accountResetConfirm,
+          primary: true,
+          destructive: true,
+          onPressed: () => Navigator.of(context).pop('reset'),
+        ),
+      ],
     );
     if (!context.mounted) return;
     if (choice == 'export') {
@@ -217,14 +228,21 @@ class DataBackupSettingsPage extends StatelessWidget {
     }
     if (choice != 'reset') return;
 
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: const Center(child: CircularProgressIndicator()),
+    unawaited(
+      showTurnaFormDialog<void>(
+        context: context,
+        title: AppStrings.accountResetTitle,
+        barrierDismissible: false,
+        body: const PopScope(
+          canPop: false,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(child: TurnaLoader.inline()),
+          ),
+        ),
+        actions: const [],
       ),
-    ));
+    );
 
     final result = await getIt<ResetAccountCommand>().execute();
     if (!context.mounted) return;
@@ -242,14 +260,11 @@ class DataBackupSettingsPage extends StatelessWidget {
   }
 
   Future<void> _openExportSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
+    await showTurnaSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: TurnaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => const _ExportSheet(),
+      title: AppStrings.settingsExportSheetTitle,
+      subtitle: AppStrings.settingsExportSubtitle,
+      body: const _ExportSheet(),
     );
   }
 
@@ -260,10 +275,7 @@ class DataBackupSettingsPage extends StatelessWidget {
     try {
       pickedPath = (await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['zip'],
-      ))
-          ?.files
-          .single
-          .path;
+      ))?.files.single.path;
     } on ValidatedFilePickerInvalidExtension {
       if (context.mounted) {
         _showSnack(context, AppStrings.settingsMigrationPackZipOnly);
@@ -272,13 +284,11 @@ class DataBackupSettingsPage extends StatelessWidget {
     }
     if (pickedPath == null || !context.mounted) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsMigrationPackDialogTitle,
-        message: AppStrings.settingsMigrationPackDialogMessage,
-        confirmText: AppStrings.settingsMigrationPackConfirm,
-      ),
+      title: AppStrings.settingsMigrationPackDialogTitle,
+      message: AppStrings.settingsMigrationPackDialogMessage,
+      confirmLabel: AppStrings.settingsMigrationPackConfirm,
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -290,7 +300,8 @@ class DataBackupSettingsPage extends StatelessWidget {
         final ignored = result.legacyIgnoredImports.isEmpty
             ? ''
             : AppStrings.settingsMigrationPackIgnoredLegacy(
-                result.legacyIgnoredImports.length);
+                result.legacyIgnoredImports.length,
+              );
         _showSnack(
           context,
           AppStrings.settingsMigrationPackDone(
@@ -345,10 +356,7 @@ class DataBackupSettingsPage extends StatelessWidget {
     try {
       pickedPath = (await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['json'],
-      ))
-          ?.files
-          .single
-          .path;
+      ))?.files.single.path;
     } on ValidatedFilePickerInvalidExtension {
       // Non-JSON selection is a user error worth explaining, not a silent
       // return that looks like the import did nothing.
@@ -360,25 +368,30 @@ class DataBackupSettingsPage extends StatelessWidget {
     if (pickedPath == null) return; // user cancelled
     if (!context.mounted) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsImportDataDialogTitle,
-        message: AppStrings.settingsImportDataDialogMessage,
-        confirmText: AppStrings.settingsImportDataConfirm,
-      ),
+      title: AppStrings.settingsImportDataDialogTitle,
+      message: AppStrings.settingsImportDataDialogMessage,
+      confirmLabel: AppStrings.settingsImportDataConfirm,
     );
     if (confirmed != true) return;
     if (!context.mounted) return;
 
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: const Center(child: CircularProgressIndicator()),
+    unawaited(
+      showTurnaFormDialog<void>(
+        context: context,
+        title: AppStrings.settingsImportDataTitle,
+        barrierDismissible: false,
+        body: const PopScope(
+          canPop: false,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(child: TurnaLoader.inline()),
+          ),
+        ),
+        actions: const [],
       ),
-    ));
+    );
 
     try {
       final outcome = await getIt<ExportService>().importFromFile(pickedPath);
@@ -417,11 +430,10 @@ class DataBackupSettingsPage extends StatelessWidget {
   }
 }
 
-/// Export bottom sheet. The legacy "include course content" option is gone —
-/// it only ever exported copies of bundled course assets (no user data) and
-/// the import path could never honestly apply them. The sheet is wrapped in
-/// SafeArea + SingleChildScrollView so it remains usable at 200% text scale
-/// and in landscape with the keyboard open.
+/// Export bottom sheet body rendered inside [showTurnaSheet]. The legacy
+/// "include course content" option is gone — it only ever exported copies of
+/// bundled course assets (no user data) and the import path could never
+/// honestly apply them.
 class _ExportSheet extends StatefulWidget {
   const _ExportSheet();
 
@@ -450,71 +462,42 @@ class _ExportSheetState extends State<_ExportSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    AppStrings.settingsExportSheetTitle,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 22),
-                  tooltip: AppStrings.commonClose,
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              AppStrings.settingsExportSubtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppStrings.settingsExportIncludes,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _exporting ? null : _export,
-                icon: _exporting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: TurnaTheme.textOnPrimary,
-                        ),
-                      )
-                    : const Icon(Icons.ios_share_rounded),
-                label: Text(_exporting
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.xs,
+        AppSpacing.pageMargin,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.settingsExportIncludes,
+            style: AppTextStyles.caption(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _exporting ? null : _export,
+              icon: _exporting
+                  ? const TurnaLoader.button(color: TurnaTheme.textOnPrimary)
+                  : const TurnaIcon(
+                      TurnaIconId.share,
+                      size: 18,
+                      color: TurnaTheme.textOnPrimary,
+                    ),
+              label: Text(
+                _exporting
                     ? AppStrings.settingsExporting
-                    : AppStrings.settingsExportButton),
+                    : AppStrings.settingsExportButton,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

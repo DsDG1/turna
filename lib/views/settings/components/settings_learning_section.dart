@@ -18,13 +18,15 @@ import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Learning-language picker. Switches the *course scope* (the same action
@@ -70,7 +72,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
                 ),
             ],
       child: SettingsTile(
-        icon: Icons.language_rounded,
+        iconId: TurnaIconId.translate,
         title: AppStrings.settingsLearningLanguageTitle,
         subtitle: AppStrings.settingsLearningLanguageSubtitle,
         trailing: Row(
@@ -79,13 +81,13 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
             Text(
               languageProvider.displayName,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.brandTeal,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: TurnaTheme.brandTeal,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right_rounded,
+            const TurnaIcon(
+              TurnaIconId.chevronRight,
               color: TurnaTheme.textHint,
             ),
           ],
@@ -99,8 +101,8 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
         value: code,
         child: Row(
           children: [
-            Icon(
-              Icons.language_rounded,
+            TurnaIcon(
+              TurnaIconId.translate,
               size: 18,
               color: selected ? TurnaTheme.brandTeal : TurnaTheme.textHint,
             ),
@@ -132,12 +134,14 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
     );
     try {
       await context.read<CourseProvider>().setScope(
-            BuiltinCourseScope(LanguageCodes.canonicalize(code)),
-          );
+        BuiltinCourseScope(LanguageCodes.canonicalize(code)),
+      );
     } catch (error) {
       if (context.mounted) {
         TurnaSnackBar.show(
-            context, AppStrings.settingsLanguageSwitchFailed(error));
+          context,
+          AppStrings.settingsLanguageSwitchFailed(error),
+        );
       }
     }
   }
@@ -157,7 +161,7 @@ class _SettingsStreakVoucherAutoUseTileState
   Widget build(BuildContext context) {
     final streak = readOptionalProvider<StreakProvider>(context);
     return SettingsTile(
-      icon: Icons.shield_outlined,
+      iconId: TurnaIconId.shield,
       title: AppStrings.settingsStreakVoucherAutoUseTitle,
       subtitle: AppStrings.settingsStreakVoucherAutoUseSubtitle,
       trailing: settingsAdaptiveSwitch(
@@ -187,8 +191,9 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
 
   @override
   Widget build(BuildContext context) {
-    final persisted =
-        context.select<SettingsProvider, double>((p) => p.ttsSpeed);
+    final persisted = context.select<SettingsProvider, double>(
+      (p) => p.ttsSpeed,
+    );
     final value = _dragValue ?? persisted;
 
     return Padding(
@@ -201,12 +206,13 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
               Container(
                 width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: const Icon(
-                  Icons.record_voice_over_rounded,
+                child: const TurnaIcon(
+                  TurnaIconId.speakVoice,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
@@ -218,15 +224,13 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
                   children: [
                     Text(
                       AppStrings.settingsTtsSpeedTitle,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     Text(
                       AppStrings.settingsTtsSpeedSubtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: TurnaTheme.textHintColor(context)),
                     ),
                   ],
                 ),
@@ -234,9 +238,9 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
               Text(
                 AppStrings.settingsTtsSpeedValue(value.toStringAsFixed(1)),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.brandTeal,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: TurnaTheme.brandTeal,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -296,12 +300,13 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
               Container(
                 width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: const Icon(
-                  Icons.auto_graph_rounded,
+                child: const TurnaIcon(
+                  TurnaIconId.insights,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
@@ -313,15 +318,13 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                   children: [
                     Text(
                       AppStrings.settingsSrsWeightsTitle,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: TurnaTheme.textHintColor(context)),
                     ),
                   ],
                 ),
@@ -333,9 +336,8 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
             padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
             child: Text(
               AppStrings.settingsSrsOptimizeHint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: TurnaTheme.textHintColor(context)),
             ),
           ),
           Row(
@@ -357,8 +359,10 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                       ? null
                       : () async {
                           final result =
-                              await getIt<ApplyFsrsParametersCommand>()
-                                  .execute(null, reviewCount: 0);
+                              await getIt<ApplyFsrsParametersCommand>().execute(
+                                null,
+                                reviewCount: 0,
+                              );
                           if (!context.mounted) return;
                           if (result case SettingsOperationFailure failure) {
                             TurnaSnackBar.show(context, failure.userMessage);
@@ -376,24 +380,29 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
 
   Future<void> _optimize(BuildContext context) async {
     setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
     // The CPU-heavy fit runs on a background isolate inside the command;
     // this widget only reports the structured outcome.
-    final outcome =
-        await getIt<ApplyFsrsParametersCommand>().optimizeInBackground();
+    final outcome = await getIt<ApplyFsrsParametersCommand>()
+        .optimizeInBackground();
     if (!context.mounted) return;
     switch (outcome) {
       case FsrsOptimizeNeedMoreReviews():
-        TurnaSnackBar.showVia(
-            messenger, context, AppStrings.settingsSrsOptimizeNeedMore);
+        TurnaSnackBar.maybeShow(
+          context,
+          AppStrings.settingsSrsOptimizeNeedMore,
+        );
       case FsrsOptimizeAccepted():
-        TurnaSnackBar.showVia(
-            messenger, context, AppStrings.settingsSrsOptimizeAccepted);
+        TurnaSnackBar.maybeShow(
+          context,
+          AppStrings.settingsSrsOptimizeAccepted,
+        );
       case FsrsOptimizeRejected():
-        TurnaSnackBar.showVia(
-            messenger, context, AppStrings.settingsSrsOptimizeRejected);
+        TurnaSnackBar.maybeShow(
+          context,
+          AppStrings.settingsSrsOptimizeRejected,
+        );
       case FsrsOptimizeFailed(:final userMessage):
-        TurnaSnackBar.showVia(messenger, context, userMessage);
+        TurnaSnackBar.maybeShow(context, userMessage);
     }
     setState(() => _busy = false);
   }
@@ -429,12 +438,13 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               Container(
                 width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: const Icon(
-                  Icons.psychology_rounded,
+                child: const TurnaIcon(
+                  TurnaIconId.brain,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
@@ -443,17 +453,16 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               Expanded(
                 child: Text(
                   AppStrings.settingsSrsRetentionTitle,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               Text(
                 AppStrings.settingsSrsRetentionValue(percent),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.brandTeal,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: TurnaTheme.brandTeal,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -469,9 +478,9 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) => setState(() => _dragValue = v),
               onChangeEnd: (v) async {
-                await context
-                    .read<SettingsProvider>()
-                    .setSrsDesiredRetention(v);
+                await context.read<SettingsProvider>().setSrsDesiredRetention(
+                  v,
+                );
                 if (mounted) setState(() => _dragValue = null);
               },
             ),
@@ -491,7 +500,7 @@ class SettingsReviewBatchTile extends StatelessWidget {
       (p) => p.reviewBatchSize,
     );
     return SettingsTile(
-      icon: Icons.layers_rounded,
+      iconId: TurnaIconId.layers,
       title: AppStrings.settingsReviewBatchTitle,
       subtitle: AppStrings.settingsReviewBatchSubtitle,
       trailing: DropdownButton<int>(

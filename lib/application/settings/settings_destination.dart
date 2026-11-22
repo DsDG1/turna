@@ -1,10 +1,8 @@
-// Flutter imports:
-import 'package:flutter/material.dart';
-
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -34,11 +32,7 @@ enum SettingsAdvancedAnchor {
   legacyCompatibility,
 }
 
-/// Display + navigation metadata for one [SettingsDestination]. A single
-/// descriptor per destination replaces the parallel title/icon/subtitle
-/// switch statements the landing page used to carry; the exhaustive `for`
-/// over [SettingsDestination.values] in tests fails to compile when a new
-/// destination lacks a descriptor.
+/// Display + navigation metadata for one [SettingsDestination].
 extension SettingsDestinationDescriptor on SettingsDestination {
   String get title {
     switch (this) {
@@ -78,22 +72,22 @@ extension SettingsDestinationDescriptor on SettingsDestination {
     }
   }
 
-  IconData get icon {
+  TurnaIconId get icon {
     switch (this) {
       case SettingsDestination.account:
-        return Icons.person_rounded;
+        return TurnaIconId.person;
       case SettingsDestination.learning:
-        return Icons.menu_book_rounded;
+        return TurnaIconId.book;
       case SettingsDestination.appearanceAndSound:
-        return Icons.palette_rounded;
+        return TurnaIconId.palette;
       case SettingsDestination.accessibility:
-        return Icons.accessibility_new_rounded;
+        return TurnaIconId.accessibility;
       case SettingsDestination.dataAndBackup:
-        return Icons.storage_rounded;
+        return TurnaIconId.storage;
       case SettingsDestination.advanced:
-        return Icons.build_rounded;
+        return TurnaIconId.wrench;
       case SettingsDestination.about:
-        return Icons.info_rounded;
+        return TurnaIconId.info;
     }
   }
 
@@ -148,7 +142,7 @@ Future<void> openSettings(
   final target = anchor == null
       ? destination.route
       : (destination == SettingsDestination.advanced
-          ? routeForAdvancedAnchor(anchor)
-          : destination.route);
+            ? routeForAdvancedAnchor(anchor)
+            : destination.route);
   await context.router.push(target);
 }

@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/content_ota/course_ota_service.dart';
-import 'package:turna/views/settings/components/feedback/settings_feedback.dart';
 import 'package:turna/views/settings/components/primitives/settings_section.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 typedef CourseContentClear = Future<bool> Function(String languageCode);
@@ -53,29 +54,31 @@ class _SettingsCourseRestoreTileState extends State<SettingsCourseRestoreTile> {
 
   @override
   Widget build(BuildContext context) => SettingsActionTile(
-        icon: Icons.settings_backup_restore_rounded,
-        title: AppStrings.settingsCourseRestoreTitle,
-        subtitle: AppStrings.settingsCourseRestoreSubtitle,
-        enabled: !_busy,
-        onTap: (_) => _confirmRestore(),
-      );
+    iconId: TurnaIconId.restore,
+    title: AppStrings.settingsCourseRestoreTitle,
+    subtitle: AppStrings.settingsCourseRestoreSubtitle,
+    enabled: !_busy,
+    onTap: (_) => _confirmRestore(),
+  );
 
   Future<void> _confirmRestore() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.settingsCourseRestoreDialogTitle,
-        message: AppStrings.settingsCourseRestoreDialogMessage,
-        confirmText: AppStrings.settingsCourseRestoreConfirm,
-      ),
+      title: AppStrings.settingsCourseRestoreDialogTitle,
+      message: AppStrings.settingsCourseRestoreDialogMessage,
+      confirmLabel: AppStrings.settingsCourseRestoreConfirm,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
 
-    final refresh = widget.refreshContent ??
+    final refresh =
+        widget.refreshContent ??
         context.read<CourseProvider>().refreshBuiltinContent;
-    final acknowledge = widget.acknowledgeContentVersion ??
+    final acknowledge =
+        widget.acknowledgeContentVersion ??
         context.read<CourseProvider>().acknowledgeContentVersion;
-    final code = widget.languageCode ??
+    final code =
+        widget.languageCode ??
         context.read<LanguageProvider>().selectedLanguageCode;
 
     setState(() => _busy = true);

@@ -184,12 +184,12 @@ class TurnaTheme {
 
   static LinearGradient courseTreeGradientFor(BuildContext context) =>
       _isDark(context)
-          ? const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [darkScaffold, darkScaffold],
-            )
-          : courseTreeGradient;
+      ? const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [darkScaffold, darkScaffold],
+        )
+      : courseTreeGradient;
 
   /// L0 环境光斑：白纸上"光从哪来"的方位感（ADR 0068）。
   ///
@@ -288,14 +288,14 @@ class TurnaTheme {
     bool elevated = true,
     bool vertical = false,
   }) {
-    final radius = borderRadius ?? BorderRadius.circular(radiusMedium);
+    final resolvedRadius = borderRadius ?? TurnaTheme.borderRadius;
     return BoxDecoration(
       gradient: vertical ? buttonGradientVertical : buttonGradient,
-      borderRadius: radius,
+      borderRadius: resolvedRadius,
       boxShadow: elevated
           ? (vertical
-              ? [...buttonShadow, ...stateGlow(brandTeal)]
-              : buttonShadow)
+                ? [...buttonShadow, ...stateGlow(brandTeal)]
+                : buttonShadow)
           : null,
     );
   }
@@ -330,24 +330,24 @@ class TurnaTheme {
   /// High-contrast light: pure white status chrome, dark icons.
   static const SystemUiOverlayStyle highContrastLightSystemUiOverlay =
       SystemUiOverlayStyle(
-    statusBarColor: Colors.white,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.dark,
-    systemNavigationBarContrastEnforced: false,
-  );
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      );
 
   /// High-contrast dark: pure black status chrome, light icons.
   static const SystemUiOverlayStyle highContrastDarkSystemUiOverlay =
       SystemUiOverlayStyle(
-    statusBarColor: Colors.black,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.light,
-    systemNavigationBarContrastEnforced: false,
-  );
+        statusBarColor: Colors.black,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      );
 
   /// Status/nav bar style for the active [brightness] and high-contrast flag.
   ///
@@ -394,20 +394,20 @@ class TurnaTheme {
   // SHADOWS
 
   static List<BoxShadow> get cardShadow => [
-        BoxShadow(
-          color: brandNavy.withValues(alpha: 0.045),
-          blurRadius: 12,
-          offset: const Offset(0, 3),
-        ),
-      ];
+    BoxShadow(
+      color: brandNavy.withValues(alpha: 0.045),
+      blurRadius: 12,
+      offset: const Offset(0, 3),
+    ),
+  ];
 
   static List<BoxShadow> get buttonShadow => [
-        BoxShadow(
-          color: brandNavy.withValues(alpha: 0.22),
-          blurRadius: 8,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: brandNavy.withValues(alpha: 0.22),
+      blurRadius: 8,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   // ---------------------------------------------------------------------------
   // ELEVATION TIERS — 做题页的三层语义高度
@@ -422,12 +422,12 @@ class TurnaTheme {
 
   /// L3 状态外发光: 选中 / 正确 / 错误. accent 由调用方给.
   static List<BoxShadow> stateGlow(Color accent) => [
-        BoxShadow(
-          color: accent.withValues(alpha: 0.20),
-          blurRadius: 14,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: accent.withValues(alpha: 0.20),
+      blurRadius: 14,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   /// 做题页画布底色.
   ///
@@ -436,21 +436,23 @@ class TurnaTheme {
   static Color lessonCanvasBg(BuildContext context) =>
       _isDark(context) ? darkScaffold : const Color(0xFFF5F8F7);
 
-  /// 选项条圆角 — 做题页选项条专用，与卡片几何（cardRadius）分属两套，勿混用.
-  static const double radiusOption = 14.0;
+  // UNIFORM 4px GEOMETRY TOKENS (ADR 0075)
+  /// 全 App 唯一矩形圆角真源：卡片、按钮、输入框、选项、词块、弹层与浮层统一 4px。
+  /// 真圆形元素（头像、播放/录音主控、完成标记、计数圆点）改用 BoxShape.circle。
+  static const double radius = 4.0;
+  static const BorderRadius borderRadius = BorderRadius.all(
+    Radius.circular(radius),
+  );
+  static const BorderRadius sheetTopBorderRadius = BorderRadius.vertical(
+    top: Radius.circular(radius),
+  );
+  static const RoundedRectangleBorder shape = RoundedRectangleBorder(
+    borderRadius: borderRadius,
+  );
 
-  // BORDER RADIUS
-  static const double radiusSmall = 8.0;
-  static const double radiusMedium = 12.0;
-  static const double radiusLarge = 16.0;
-  static const double radiusXLarge = 24.0;
-  static const double radiusRound = 100.0;
-
-  /// 卡片几何真源：卡片 / 卡片容器统一走近直角（r=4）。
-  /// 不要改用 radiusLarge —— 它同时服务 Dialog / 输入框 / SnackBar 等非卡片元素。
-  static const double cardRadius = 4.0;
-  static const BorderRadius cardBorderRadius =
-      BorderRadius.all(Radius.circular(cardRadius));
+  /// 卡片几何兼容别名（指向 [radius] / [borderRadius]）。
+  static const double cardRadius = radius;
+  static const BorderRadius cardBorderRadius = borderRadius;
 
   // CHROME
   /// Height of the four root-tab app bars (Learn / Play / Profile / Settings).
@@ -581,8 +583,9 @@ class TurnaTheme {
   }) {
     final spec = glassSpec(GlassLevel.l2Frost);
     final isDark = _isDark(context);
-    final base =
-        (isDark ? spec.darkBase : Colors.white).withValues(alpha: opacity);
+    final base = (isDark ? spec.darkBase : Colors.white).withValues(
+      alpha: opacity,
+    );
     final tintStart = isDark ? spec.darkTintStart : spec.tintStart;
     final tintEnd = isDark ? spec.darkTintEnd : spec.tintEnd;
     final sheen = isDark ? spec.darkSheen : spec.sheen;
@@ -761,7 +764,8 @@ class TurnaTheme {
     return BoxDecoration(
       gradient: brandHeroGradient,
       borderRadius: borderRadius ?? cardBorderRadius,
-      boxShadow: boxShadow ??
+      boxShadow:
+          boxShadow ??
           <BoxShadow>[
             BoxShadow(
               color: brandTeal.withValues(alpha: 0.25),
@@ -782,12 +786,7 @@ class TurnaTheme {
 
   /// 把淡彩罩到不透明基面上，再叠白高光。**不接受半透明白做底** —— 深色下
   /// 会在纯黑画布上糊成灰雾（见文件头「Dark mode is neutral black」）。
-  static Color _glassMix(
-    Color accent,
-    double alpha,
-    double sheen,
-    Color base,
-  ) {
+  static Color _glassMix(Color accent, double alpha, double sheen, Color base) {
     final tinted = Color.alphaBlend(
       _glassCalm(accent).withValues(alpha: alpha.clamp(0.0, 1.0)),
       base,
@@ -803,133 +802,133 @@ class TurnaTheme {
   /// 能直接断言「哪一档削了什么」——这类约定一旦只存在于渲染结果里，就
   /// 只能靠肉眼比对，守不住。
   static GlassSpec glassSpec(GlassLevel level) => switch (level) {
-        GlassLevel.l1 => const GlassSpec(
-            tintStart: 0.09,
-            tintEnd: 0.16,
-            sheen: 0.34,
-            sheenStop: 0.40,
-            stroke: 0.26,
-            nearAlpha: 0.08,
-            nearBlur: 10,
-            nearY: 4,
-            farAlpha: 0.055,
-            farBlur: 28,
-            farY: 11,
-            darkBase: Color(0xFF161616),
-            darkTintStart: 0.10,
-            darkTintEnd: 0.17,
-            darkSheen: 0.06,
-            darkNearAlpha: 0.18,
-            darkFarAlpha: 0.30,
-          ),
-        GlassLevel.l1Subtle => const GlassSpec(
-            // 表单卡用中性灰 accent，灰的彩度天然低 —— 浓度必须比彩色的 L1
-            // 更饱和一档才立得起来。0.05/0.09 实测在白底上等于消失。
-            tintStart: 0.07,
-            tintEnd: 0.13,
-            sheen: 0.34,
-            sheenStop: 0.40,
-            stroke: 0.24,
-            nearAlpha: 0.07,
-            nearBlur: 9,
-            nearY: 4,
-            farAlpha: 0.045,
-            farBlur: 26,
-            farY: 10,
-            darkBase: Color(0xFF141414),
-            darkTintStart: 0.08,
-            darkTintEnd: 0.14,
-            darkSheen: 0.05,
-            darkNearAlpha: 0.18,
-            darkFarAlpha: 0.30,
-          ),
-        GlassLevel.l1Quiet => const GlassSpec(
-            // 设置域深层页（ADR 0063）：淡彩与 l1Subtle 同档 —— 浓度一降，
-            // 中性灰在白底上就消失（见 l1Subtle 的注释），卡片会失去边界。
-            // 这里只削「玻璃感」的两件东西：顶部白高光带与双层浮起投影。
-            // 玻璃留白 → 卡面退成纸面，让位给表单控件。
-            tintStart: 0.07,
-            tintEnd: 0.13,
-            sheen: 0.08,
-            sheenStop: 0.40,
-            stroke: 0.20,
-            nearAlpha: 0.04,
-            nearBlur: 6,
-            nearY: 2,
-            farAlpha: 0.02,
-            farBlur: 18,
-            farY: 7,
-            darkBase: Color(0xFF141414),
-            darkTintStart: 0.08,
-            darkTintEnd: 0.14,
-            darkSheen: 0.02,
-            darkNearAlpha: 0.07,
-            darkFarAlpha: 0.12,
-          ),
-        GlassLevel.l2 => const GlassSpec(
-            tintStart: 0.11,
-            tintEnd: 0.19,
-            sheen: 0.40,
-            sheenStop: 0.42,
-            stroke: 0.40,
-            nearAlpha: 0.09,
-            nearBlur: 10,
-            nearY: 4,
-            farAlpha: 0.06,
-            farBlur: 22,
-            farY: 9,
-            darkBase: Color(0xFF1C1C1C),
-            darkTintStart: 0.12,
-            darkTintEnd: 0.21,
-            darkSheen: 0.08,
-            darkNearAlpha: 0.18,
-            darkFarAlpha: 0.30,
-          ),
-        // 真毛玻璃（ADR 0068）：本档不靠"更浓"立起来，靠**半透明填充 + 实时
-        // 模糊**。它消费的是 L0 环境光斑 —— 没有光斑就没有可糊的内容，所以
-        // 只在 `ambientLights` 非空（玻璃开启）时才有意义。
-        //
-        // 浓度比 l2 只高一档，描边与投影略收：卡面已经透出背景，再加浓会
-        // 读成"糊了一块彩纸"而不是玻璃。
-        GlassLevel.l2Frost => const GlassSpec(
-            tintStart: 0.13,
-            tintEnd: 0.20,
-            sheen: 0.42,
-            sheenStop: 0.44,
-            stroke: 0.34,
-            nearAlpha: 0.09,
-            nearBlur: 14,
-            nearY: 6,
-            farAlpha: 0.06,
-            farBlur: 34,
-            farY: 16,
-            darkBase: Color(0xFF1D1D1D),
-            darkTintStart: 0.14,
-            darkTintEnd: 0.22,
-            darkSheen: 0.10,
-            darkNearAlpha: 0.20,
-            darkFarAlpha: 0.34,
-          ),
-        GlassLevel.badge => const GlassSpec(
-            tintStart: 0.13,
-            tintEnd: 0.13,
-            sheen: 0,
-            sheenStop: 1.0,
-            stroke: 0,
-            nearAlpha: 0,
-            nearBlur: 0,
-            nearY: 0,
-            farAlpha: 0,
-            farBlur: 0,
-            farY: 0,
-            darkBase: Color(0xFF141414),
-            darkTintStart: 0.20,
-            darkTintEnd: 0.20,
-            darkSheen: 0,
-            darkNearAlpha: 0,
-            darkFarAlpha: 0,
-          ),
-      };
+    GlassLevel.l1 => const GlassSpec(
+      tintStart: 0.09,
+      tintEnd: 0.16,
+      sheen: 0.34,
+      sheenStop: 0.40,
+      stroke: 0.26,
+      nearAlpha: 0.08,
+      nearBlur: 10,
+      nearY: 4,
+      farAlpha: 0.055,
+      farBlur: 28,
+      farY: 11,
+      darkBase: Color(0xFF161616),
+      darkTintStart: 0.10,
+      darkTintEnd: 0.17,
+      darkSheen: 0.06,
+      darkNearAlpha: 0.18,
+      darkFarAlpha: 0.30,
+    ),
+    GlassLevel.l1Subtle => const GlassSpec(
+      // 表单卡用中性灰 accent，灰的彩度天然低 —— 浓度必须比彩色的 L1
+      // 更饱和一档才立得起来。0.05/0.09 实测在白底上等于消失。
+      tintStart: 0.07,
+      tintEnd: 0.13,
+      sheen: 0.34,
+      sheenStop: 0.40,
+      stroke: 0.24,
+      nearAlpha: 0.07,
+      nearBlur: 9,
+      nearY: 4,
+      farAlpha: 0.045,
+      farBlur: 26,
+      farY: 10,
+      darkBase: Color(0xFF141414),
+      darkTintStart: 0.08,
+      darkTintEnd: 0.14,
+      darkSheen: 0.05,
+      darkNearAlpha: 0.18,
+      darkFarAlpha: 0.30,
+    ),
+    GlassLevel.l1Quiet => const GlassSpec(
+      // 设置域深层页（ADR 0063）：淡彩与 l1Subtle 同档 —— 浓度一降，
+      // 中性灰在白底上就消失（见 l1Subtle 的注释），卡片会失去边界。
+      // 这里只削「玻璃感」的两件东西：顶部白高光带与双层浮起投影。
+      // 玻璃留白 → 卡面退成纸面，让位给表单控件。
+      tintStart: 0.07,
+      tintEnd: 0.13,
+      sheen: 0.08,
+      sheenStop: 0.40,
+      stroke: 0.20,
+      nearAlpha: 0.04,
+      nearBlur: 6,
+      nearY: 2,
+      farAlpha: 0.02,
+      farBlur: 18,
+      farY: 7,
+      darkBase: Color(0xFF141414),
+      darkTintStart: 0.08,
+      darkTintEnd: 0.14,
+      darkSheen: 0.02,
+      darkNearAlpha: 0.07,
+      darkFarAlpha: 0.12,
+    ),
+    GlassLevel.l2 => const GlassSpec(
+      tintStart: 0.11,
+      tintEnd: 0.19,
+      sheen: 0.40,
+      sheenStop: 0.42,
+      stroke: 0.40,
+      nearAlpha: 0.09,
+      nearBlur: 10,
+      nearY: 4,
+      farAlpha: 0.06,
+      farBlur: 22,
+      farY: 9,
+      darkBase: Color(0xFF1C1C1C),
+      darkTintStart: 0.12,
+      darkTintEnd: 0.21,
+      darkSheen: 0.08,
+      darkNearAlpha: 0.18,
+      darkFarAlpha: 0.30,
+    ),
+    // 真毛玻璃（ADR 0068）：本档不靠"更浓"立起来，靠**半透明填充 + 实时
+    // 模糊**。它消费的是 L0 环境光斑 —— 没有光斑就没有可糊的内容，所以
+    // 只在 `ambientLights` 非空（玻璃开启）时才有意义。
+    //
+    // 浓度比 l2 只高一档，描边与投影略收：卡面已经透出背景，再加浓会
+    // 读成"糊了一块彩纸"而不是玻璃。
+    GlassLevel.l2Frost => const GlassSpec(
+      tintStart: 0.13,
+      tintEnd: 0.20,
+      sheen: 0.42,
+      sheenStop: 0.44,
+      stroke: 0.34,
+      nearAlpha: 0.09,
+      nearBlur: 14,
+      nearY: 6,
+      farAlpha: 0.06,
+      farBlur: 34,
+      farY: 16,
+      darkBase: Color(0xFF1D1D1D),
+      darkTintStart: 0.14,
+      darkTintEnd: 0.22,
+      darkSheen: 0.10,
+      darkNearAlpha: 0.20,
+      darkFarAlpha: 0.34,
+    ),
+    GlassLevel.badge => const GlassSpec(
+      tintStart: 0.13,
+      tintEnd: 0.13,
+      sheen: 0,
+      sheenStop: 1.0,
+      stroke: 0,
+      nearAlpha: 0,
+      nearBlur: 0,
+      nearY: 0,
+      farAlpha: 0,
+      farBlur: 0,
+      farY: 0,
+      darkBase: Color(0xFF141414),
+      darkTintStart: 0.20,
+      darkTintEnd: 0.20,
+      darkSheen: 0,
+      darkNearAlpha: 0,
+      darkFarAlpha: 0,
+    ),
+  };
 
   // SOFT TINTED TOKENS
   // 「轻量着色卡」所需的主题感知 helper：底色 + 内侧晕染 + 文字提亮。
@@ -946,16 +945,12 @@ class TurnaTheme {
     BuildContext context,
     Color accent, {
     double alpha = 0.10,
-  }) =>
-      _isDark(context)
-          ? Color.alphaBlend(
-              accent.withValues(alpha: alpha),
-              const Color(0xFF141414),
-            )
-          : Color.alphaBlend(
-              accent.withValues(alpha: alpha),
-              Colors.white,
-            );
+  }) => _isDark(context)
+      ? Color.alphaBlend(
+          accent.withValues(alpha: alpha),
+          const Color(0xFF141414),
+        )
+      : Color.alphaBlend(accent.withValues(alpha: alpha), Colors.white);
 
   /// 着色卡上的 accent 文字/图标色：浅色直接用 accent；深色向白色提亮
   /// 35%，保证 teal/cyan 这类深 accent 在暗底上可读。
@@ -1019,18 +1014,20 @@ class TurnaTheme {
   /// Single-layer drop under the floating tab capsule. 保持单层 —— 双层彩影
   /// 会把胶囊下方的 home indicator 染上一圈色，那个区域归系统。
   static List<BoxShadow> floatingBarShadow(BuildContext context) => [
-        BoxShadow(
-          color: _isDark(context)
-              ? Colors.black.withValues(alpha: 0.28)
-              : Color.lerp(glassFocus, brandNavy, glassShadowCooling)!
-                  .withValues(alpha: 0.16),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: _isDark(context)
+          ? Colors.black.withValues(alpha: 0.28)
+          : Color.lerp(
+              glassFocus,
+              brandNavy,
+              glassShadowCooling,
+            )!.withValues(alpha: 0.16),
+      blurRadius: 10,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
-  /// Stadium chips with a soft selected fill — a light M3 Expressive nudge
-  /// without swapping in connected button-group widgets.
+  /// 4px geometric chips with a soft selected fill (ADR 0075).
   static ChipThemeData expressiveChipTheme({
     required Color background,
     required Color selectedFill,
@@ -1058,12 +1055,12 @@ class TurnaTheme {
         color: selectedLabel,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      shape: StadiumBorder(side: side),
+      shape: RoundedRectangleBorder(borderRadius: borderRadius, side: side),
       side: side,
     );
   }
 
-  /// Rounder segmented control; selected segment uses a teal wash.
+  /// 4px geometric segmented control; selected segment uses a teal wash (ADR 0075).
   static SegmentedButtonThemeData expressiveSegmentedTheme({
     required Color selectedFill,
     required Color selectedForeground,
@@ -1087,11 +1084,7 @@ class TurnaTheme {
           }
           return foreground;
         }),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusRound),
-          ),
-        ),
+        shape: const WidgetStatePropertyAll<OutlinedBorder>(shape),
       ),
     );
   }
@@ -1113,54 +1106,44 @@ class TurnaTheme {
         iconColor: icon,
       );
 
-  /// 按钮族：四套主题共用一份定义。
-  ///
-  /// 抽出来的原因是**高对比曾漏覆盖**：`_buildHighContrastLight` 是
-  /// `lightTheme.copyWith(...)`，改了 `colorScheme.primary` 却没换按钮 ——
-  /// 于是 HC 的按钮继续用亮 teal，比它自己的 primary 浅一档；HC dark 更糟，
-  /// primary 已经是 brandReed，按钮却还是暗青。
+  /// 按钮族：四套主题共用一份定义，统一 4px 几何矩形（ADR 0075）。
   ///
   /// [fill] 实心按钮底色 / [onFill] 其文字色 / [line] 文字与描边按钮色。
   static ElevatedButtonThemeData elevatedButtonTheme({
     required Color fill,
     required Color onFill,
-  }) =>
-      ElevatedButtonThemeData(
-        // styleFrom 把 elevation 当基准（按下 +6）；copyWith 压平所有状态。
-        style: ElevatedButton.styleFrom(
-          backgroundColor: fill,
-          foregroundColor: onFill,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-          ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-      );
+  }) => ElevatedButtonThemeData(
+    // styleFrom 把 elevation 当基准（按下 +6）；copyWith 压平所有状态。
+    style: ElevatedButton.styleFrom(
+      backgroundColor: fill,
+      foregroundColor: onFill,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      minimumSize: const Size(48, 48),
+      shape: shape,
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+  );
 
   static FilledButtonThemeData filledButtonTheme({
     required Color fill,
     required Color onFill,
-  }) =>
-      FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: fill,
-          foregroundColor: onFill,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-          ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      );
+  }) => FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      backgroundColor: fill,
+      foregroundColor: onFill,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      minimumSize: const Size(48, 48),
+      shape: shape,
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    ),
+  );
 
   static TextButtonThemeData textButtonTheme({required Color line}) =>
       TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: line,
           minimumSize: const Size(48, 48),
+          shape: shape,
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       );
@@ -1172,21 +1155,22 @@ class TurnaTheme {
           side: BorderSide(color: line, width: 2),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-          ),
+          shape: shape,
         ),
       );
+
+  static IconButtonThemeData iconButtonTheme() =>
+      IconButtonThemeData(style: IconButton.styleFrom(shape: shape));
 
   static FloatingActionButtonThemeData floatingActionButtonTheme({
     required Color fill,
     required Color onFill,
-  }) =>
-      FloatingActionButtonThemeData(
-        backgroundColor: fill,
-        foregroundColor: onFill,
-        elevation: 4,
-      );
+  }) => FloatingActionButtonThemeData(
+    backgroundColor: fill,
+    foregroundColor: onFill,
+    elevation: 4,
+    shape: shape,
+  );
 
   static Color streakChipBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
@@ -1244,348 +1228,338 @@ class TurnaTheme {
   static final ThemeData lightTheme = _buildLightTheme();
 
   static ThemeData _buildLightTheme() => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        extensions: const <ThemeExtension<dynamic>>[GlassMode.on],
-        primaryColor: primary,
-        scaffoldBackgroundColor: scaffoldBackground,
-        colorScheme: const ColorScheme.light(
-          primary: primary,
-          primaryContainer: primaryLight,
-          secondary: secondary,
-          secondaryContainer: secondaryLight,
-          surface: surface,
-          error: error,
-          onPrimary: textOnPrimary,
-          onSecondary: textOnSecondary,
-          onSurface: textPrimary,
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          foregroundColor: textPrimary,
-          surfaceTintColor: Colors.transparent,
-          systemOverlayStyle: lightSystemUiOverlay,
-          titleTextStyle: TextStyle(
-            color: textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-          ),
-          iconTheme: IconThemeData(color: brandTeal),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          color: cardBackground,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(cardRadius),
-          ),
-        ),
-        elevatedButtonTheme: elevatedButtonTheme(
-          fill: primary,
-          onFill: textOnPrimary,
-        ),
-        filledButtonTheme: filledButtonTheme(
-          fill: primary,
-          onFill: textOnPrimary,
-        ),
-        textButtonTheme: textButtonTheme(line: primary),
-        outlinedButtonTheme: outlinedButtonTheme(line: primary),
-        dialogTheme: DialogThemeData(
-          backgroundColor: cardBackground,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
-          ),
-        ),
-        bottomSheetTheme: BottomSheetThemeData(
-          backgroundColor: cardBackground,
-          surfaceTintColor: Colors.transparent,
-          constraints: const BoxConstraints(maxWidth: 720),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFFF5F6F5),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: primary, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: error, width: 2),
-          ),
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.transparent,
-          selectedItemColor: brandTeal,
-          unselectedItemColor: textHint,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-        ),
-        listTileTheme: listTileTheme(icon: textSecondary),
-        chipTheme: expressiveChipTheme(
-          background: const Color(0xFFF5F6F5),
-          selectedFill: brandTeal.withValues(alpha: 0.16),
-          label: textSecondary,
-          selectedLabel: brandTeal,
-          outline: divider,
-        ),
-        segmentedButtonTheme: expressiveSegmentedTheme(
-          selectedFill: brandTeal.withValues(alpha: 0.16),
-          selectedForeground: brandTeal,
-          foreground: textSecondary,
-          outline: divider,
-        ),
-        progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: brandTeal,
-          linearTrackColor: Color(0xFFE0E0E0),
-        ),
-        floatingActionButtonTheme: floatingActionButtonTheme(
-          fill: primary,
-          onFill: textOnPrimary,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusXLarge),
-            side: const BorderSide(color: Color(0x1F1F727E), width: 1),
-          ),
-          backgroundColor: const Color(0xF2FFFFFF),
-          contentTextStyle: const TextStyle(
-            color: textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          elevation: 4,
-          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-        dividerTheme: const DividerThemeData(
-          color: divider,
-          thickness: 1,
-        ),
-        textTheme: const TextTheme(
-          displayLarge:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-          displayMedium:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-          displaySmall:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-          headlineLarge:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
-          headlineMedium:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
-          headlineSmall:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-          titleLarge:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-          titleMedium:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
-          titleSmall:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
-          bodyLarge: TextStyle(color: textPrimary),
-          bodyMedium: TextStyle(color: textSecondary),
-          bodySmall: TextStyle(color: textHint),
-          labelLarge:
-              TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-          labelMedium: TextStyle(color: textSecondary),
-          labelSmall: TextStyle(color: textHint),
-        ),
-      );
+    useMaterial3: true,
+    brightness: Brightness.light,
+    extensions: const <ThemeExtension<dynamic>>[GlassMode.on],
+    primaryColor: primary,
+    scaffoldBackgroundColor: scaffoldBackground,
+    colorScheme: const ColorScheme.light(
+      primary: primary,
+      primaryContainer: primaryLight,
+      secondary: secondary,
+      secondaryContainer: secondaryLight,
+      surface: surface,
+      error: error,
+      onPrimary: textOnPrimary,
+      onSecondary: textOnSecondary,
+      onSurface: textPrimary,
+      onError: Colors.white,
+    ),
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      backgroundColor: Colors.white,
+      foregroundColor: textPrimary,
+      surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: lightSystemUiOverlay,
+      titleTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
+      iconTheme: IconThemeData(color: brandTeal),
+    ),
+    cardTheme: const CardThemeData(
+      elevation: 0,
+      color: cardBackground,
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+    ),
+    elevatedButtonTheme: elevatedButtonTheme(
+      fill: primary,
+      onFill: textOnPrimary,
+    ),
+    filledButtonTheme: filledButtonTheme(fill: primary, onFill: textOnPrimary),
+    textButtonTheme: textButtonTheme(line: primary),
+    outlinedButtonTheme: outlinedButtonTheme(line: primary),
+    iconButtonTheme: iconButtonTheme(),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: cardBackground,
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: cardBackground,
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: cardBackground,
+      surfaceTintColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: 720),
+      shape: RoundedRectangleBorder(borderRadius: sheetTopBorderRadius),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: Color(0xFFF5F6F5),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: error, width: 2),
+      ),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.transparent,
+      selectedItemColor: brandTeal,
+      unselectedItemColor: textHint,
+      showSelectedLabels: true,
+      showUnselectedLabels: true,
+      type: BottomNavigationBarType.fixed,
+      elevation: 0,
+    ),
+    listTileTheme: listTileTheme(icon: textSecondary),
+    chipTheme: expressiveChipTheme(
+      background: const Color(0xFFF5F6F5),
+      selectedFill: brandTeal.withValues(alpha: 0.16),
+      label: textSecondary,
+      selectedLabel: brandTeal,
+      outline: divider,
+    ),
+    segmentedButtonTheme: expressiveSegmentedTheme(
+      selectedFill: brandTeal.withValues(alpha: 0.16),
+      selectedForeground: brandTeal,
+      foreground: textSecondary,
+      outline: divider,
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: brandTeal,
+      linearTrackColor: Color(0xFFE0E0E0),
+    ),
+    floatingActionButtonTheme: floatingActionButtonTheme(
+      fill: primary,
+      onFill: textOnPrimary,
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Color(0x1F1F727E), width: 1),
+      ),
+      backgroundColor: Color(0xF2FFFFFF),
+      contentTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+      elevation: 4,
+      insetPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+    ),
+    dividerTheme: const DividerThemeData(color: divider, thickness: 1),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      displayMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      displaySmall: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
+      headlineMedium: TextStyle(
+        color: textPrimary,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
+      titleSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
+      bodyLarge: TextStyle(color: textPrimary),
+      bodyMedium: TextStyle(color: textSecondary),
+      bodySmall: TextStyle(color: textHint),
+      labelLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      labelMedium: TextStyle(color: textSecondary),
+      labelSmall: TextStyle(color: textHint),
+    ),
+  );
 
   static final ThemeData darkTheme = _buildDarkTheme();
 
   static ThemeData _buildDarkTheme() => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        extensions: const <ThemeExtension<dynamic>>[GlassMode.on],
-        primaryColor: primary,
-        scaffoldBackgroundColor: darkScaffold,
-        colorScheme: const ColorScheme.dark(
-          primary: primary,
-          primaryContainer: primaryLight,
-          secondary: secondary,
-          // 深色下 secondaryContainer 不能沿用 warmSand —— 配 onSecondary
-          // 的白色是「白字压米黄」≈1.3:1，任何 M3 组件用到都不可读。
-          // 换成一块中性深面，语义（次级容器）保留，可读性问题消失。
-          secondaryContainer: Color(0xFF22302F),
-          // surface 必须与 scaffoldBackgroundColor 同值：surfaceColor()
-          // 直接返回 colorScheme.surface，两处不一致会让 Settings/AI 页
-          // （#0F0F0F）和 Home/Play（#000000）之间出现一道灰阶跳变。
-          surface: darkScaffold,
-          error: error,
-          onPrimary: textOnPrimary,
-          onSecondary: textOnSecondary,
-          onSurface: Colors.white,
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          backgroundColor: darkAppBar,
-          foregroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          systemOverlayStyle: darkSystemUiOverlay,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-          ),
-          iconTheme: IconThemeData(color: brandReed),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          color: darkCardBackground,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(cardRadius),
-          ),
-        ),
-        elevatedButtonTheme: elevatedButtonTheme(
-          fill: primary,
-          onFill: textOnPrimary,
-        ),
-        filledButtonTheme: filledButtonTheme(
-          fill: primary,
-          onFill: textOnPrimary,
-        ),
-        textButtonTheme: textButtonTheme(line: primary),
-        outlinedButtonTheme: outlinedButtonTheme(line: primary),
-        dialogTheme: DialogThemeData(
-          backgroundColor: const Color(0xFF141414),
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
-          ),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: Color(0xFF141414),
-          surfaceTintColor: Colors.transparent,
-          constraints: BoxConstraints(maxWidth: 720),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF121212),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: primary, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: error, width: 2),
-          ),
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.transparent,
-          selectedItemColor: brandReed,
-          unselectedItemColor: darkTextHint,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-        ),
-        listTileTheme: listTileTheme(icon: darkTextSecondary),
-        chipTheme: expressiveChipTheme(
-          background: const Color(0xFF121212),
-          selectedFill: brandTeal.withValues(alpha: 0.28),
-          label: darkTextSecondary,
-          selectedLabel: brandReed,
-          outline: const Color(0xFF2A2A2A),
-        ),
-        segmentedButtonTheme: expressiveSegmentedTheme(
-          selectedFill: brandTeal.withValues(alpha: 0.28),
-          selectedForeground: brandReed,
-          foreground: darkTextSecondary,
-          outline: const Color(0xFF2A2A2A),
-        ),
-        progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: brandTealLight,
-          linearTrackColor: Color(0xFF2A2A2A),
-        ),
-        floatingActionButtonTheme: floatingActionButtonTheme(
-          fill: primary,
-          onFill: textOnPrimary,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusXLarge),
-            side: const BorderSide(color: Color(0x3D78C7B8), width: 1),
-          ),
-          backgroundColor: const Color(0xF2141414),
-          contentTextStyle: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          elevation: 4,
-          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-        dividerTheme: const DividerThemeData(
-          color: Color(0xFF2A2A2A),
-          thickness: 1,
-        ),
-        textTheme: const TextTheme(
-          displayLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          displayMedium:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          displaySmall:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          headlineLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          headlineMedium:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          headlineSmall:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          titleLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          titleMedium:
-              TextStyle(color: darkTextSecondary, fontWeight: FontWeight.w500),
-          titleSmall:
-              TextStyle(color: darkTextSecondary, fontWeight: FontWeight.w500),
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: darkTextSecondary),
-          bodySmall: TextStyle(color: darkTextHint),
-          labelLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          labelMedium: TextStyle(color: darkTextSecondary),
-          labelSmall: TextStyle(color: darkTextHint),
-        ),
-      );
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    extensions: const <ThemeExtension<dynamic>>[GlassMode.on],
+    primaryColor: primary,
+    scaffoldBackgroundColor: darkScaffold,
+    colorScheme: const ColorScheme.dark(
+      primary: primary,
+      primaryContainer: primaryLight,
+      secondary: secondary,
+      // 深色下 secondaryContainer 不能沿用 warmSand —— 配 onSecondary
+      // 的白色是「白字压米黄」≈1.3:1，任何 M3 组件用到都不可读。
+      // 换成一块中性深面，语义（次级容器）保留，可读性问题消失。
+      secondaryContainer: Color(0xFF22302F),
+      // surface 必须与 scaffoldBackgroundColor 同值：surfaceColor()
+      // 直接返回 colorScheme.surface，两处不一致会让 Settings/AI 页
+      // （#0F0F0F）和 Home/Play（#000000）之间出现一道灰阶跳变。
+      surface: darkScaffold,
+      error: error,
+      onPrimary: textOnPrimary,
+      onSecondary: textOnSecondary,
+      onSurface: Colors.white,
+      onError: Colors.white,
+    ),
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      backgroundColor: darkAppBar,
+      foregroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: darkSystemUiOverlay,
+      titleTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
+      iconTheme: IconThemeData(color: brandReed),
+    ),
+    cardTheme: const CardThemeData(
+      elevation: 0,
+      color: darkCardBackground,
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+    ),
+    elevatedButtonTheme: elevatedButtonTheme(
+      fill: primary,
+      onFill: textOnPrimary,
+    ),
+    filledButtonTheme: filledButtonTheme(fill: primary, onFill: textOnPrimary),
+    textButtonTheme: textButtonTheme(line: primary),
+    outlinedButtonTheme: outlinedButtonTheme(line: primary),
+    iconButtonTheme: iconButtonTheme(),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: Color(0xFF141414),
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Color(0xFF141414),
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Color(0xFF141414),
+      surfaceTintColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: 720),
+      shape: RoundedRectangleBorder(borderRadius: sheetTopBorderRadius),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: Color(0xFF121212),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: error, width: 2),
+      ),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.transparent,
+      selectedItemColor: brandReed,
+      unselectedItemColor: darkTextHint,
+      showSelectedLabels: true,
+      showUnselectedLabels: true,
+      type: BottomNavigationBarType.fixed,
+      elevation: 0,
+    ),
+    listTileTheme: listTileTheme(icon: darkTextSecondary),
+    chipTheme: expressiveChipTheme(
+      background: const Color(0xFF121212),
+      selectedFill: brandTeal.withValues(alpha: 0.28),
+      label: darkTextSecondary,
+      selectedLabel: brandReed,
+      outline: const Color(0xFF2A2A2A),
+    ),
+    segmentedButtonTheme: expressiveSegmentedTheme(
+      selectedFill: brandTeal.withValues(alpha: 0.28),
+      selectedForeground: brandReed,
+      foreground: darkTextSecondary,
+      outline: const Color(0xFF2A2A2A),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: brandTealLight,
+      linearTrackColor: Color(0xFF2A2A2A),
+    ),
+    floatingActionButtonTheme: floatingActionButtonTheme(
+      fill: primary,
+      onFill: textOnPrimary,
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Color(0x3D78C7B8), width: 1),
+      ),
+      backgroundColor: Color(0xF2141414),
+      contentTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+      elevation: 4,
+      insetPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+    ),
+    dividerTheme: const DividerThemeData(
+      color: Color(0xFF2A2A2A),
+      thickness: 1,
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      displayMedium: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+      ),
+      displaySmall: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineMedium: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
+      titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(
+        color: darkTextSecondary,
+        fontWeight: FontWeight.w500,
+      ),
+      titleSmall: TextStyle(
+        color: darkTextSecondary,
+        fontWeight: FontWeight.w500,
+      ),
+      bodyLarge: TextStyle(color: Colors.white),
+      bodyMedium: TextStyle(color: darkTextSecondary),
+      bodySmall: TextStyle(color: darkTextHint),
+      labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      labelMedium: TextStyle(color: darkTextSecondary),
+      labelSmall: TextStyle(color: darkTextHint),
+    ),
+  );
 
   /// High-contrast variant of [lightTheme] for low-vision / sensory needs.
   ///
@@ -1595,163 +1569,169 @@ class TurnaTheme {
   static final ThemeData highContrastLightTheme = _buildHighContrastLight();
 
   static ThemeData _buildHighContrastLight() => lightTheme.copyWith(
-        extensions: const <ThemeExtension<dynamic>>[GlassMode.off],
-        scaffoldBackgroundColor: Colors.white,
-        colorScheme: const ColorScheme.light(
-          primary: primaryDark,
-          primaryContainer: primary,
-          secondary: primaryDark,
-          secondaryContainer: primary,
-          surface: Colors.white,
-          error: errorDark,
-          onPrimary: Colors.white,
-          onSecondary: Colors.white,
-          onSurface: Colors.black,
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          surfaceTintColor: Colors.transparent,
-          systemOverlayStyle: highContrastLightSystemUiOverlay,
-          titleTextStyle: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-          iconTheme: IconThemeData(color: primaryDark),
-        ),
-        // 按钮族必须显式补：copyWith 只改了 colorScheme.primary，不换
-        // 按钮的话会继续用亮 teal，比 HC 自己的 primary 浅一档。
-        elevatedButtonTheme: elevatedButtonTheme(
-          fill: primaryDark,
-          onFill: Colors.white,
-        ),
-        filledButtonTheme: filledButtonTheme(
-          fill: primaryDark,
-          onFill: Colors.white,
-        ),
-        textButtonTheme: textButtonTheme(line: primaryDark),
-        outlinedButtonTheme: outlinedButtonTheme(line: primaryDark),
-        floatingActionButtonTheme: floatingActionButtonTheme(
-          fill: primaryDark,
-          onFill: Colors.white,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          color: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(cardRadius),
-            side: const BorderSide(color: Colors.black, width: 1.5),
-          ),
-        ),
-        dialogTheme: DialogThemeData(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
-            side: const BorderSide(color: Colors.black, width: 1.5),
-          ),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          constraints: BoxConstraints(maxWidth: 720),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            side: BorderSide(color: Colors.black, width: 1.5),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: Colors.black, width: 1.5),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: Colors.black, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: primaryDark, width: 2.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: errorDark, width: 2),
-          ),
-        ),
-        listTileTheme: listTileTheme(icon: Colors.black),
-        chipTheme: expressiveChipTheme(
-          background: Colors.white,
-          selectedFill: primaryDark.withValues(alpha: 0.18),
-          label: Colors.black,
-          selectedLabel: primaryDark,
-          outline: Colors.black,
-          highContrast: true,
-        ),
-        segmentedButtonTheme: expressiveSegmentedTheme(
-          selectedFill: primaryDark.withValues(alpha: 0.18),
-          selectedForeground: primaryDark,
-          foreground: Colors.black,
-          outline: Colors.black,
-          highContrast: true,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusXLarge),
-            side: const BorderSide(color: Colors.black, width: 2),
-          ),
-          backgroundColor: Colors.white,
-          contentTextStyle: const TextStyle(
-            color: Colors.black,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-          elevation: 6,
-          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-        dividerTheme: const DividerThemeData(
-          color: Colors.black54,
-          thickness: 1,
-        ),
-        textTheme: const TextTheme(
-          displayLarge:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-          displayMedium:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-          displaySmall:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-          headlineLarge:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-          headlineMedium:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-          headlineSmall:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-          titleLarge:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-          titleMedium:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-          titleSmall:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-          bodyLarge: TextStyle(color: Colors.black),
-          bodyMedium: TextStyle(color: Color(0xFF1A1A2E)),
-          bodySmall: TextStyle(color: Color(0xFF2D2D44)),
-          labelLarge:
-              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-          labelMedium: TextStyle(color: Color(0xFF1A1A2E)),
-          labelSmall: TextStyle(color: Color(0xFF2D2D44)),
-        ),
-      );
+    extensions: const <ThemeExtension<dynamic>>[GlassMode.off],
+    scaffoldBackgroundColor: Colors.white,
+    colorScheme: const ColorScheme.light(
+      primary: primaryDark,
+      primaryContainer: primary,
+      secondary: primaryDark,
+      secondaryContainer: primary,
+      surface: Colors.white,
+      error: errorDark,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.black,
+      onError: Colors.white,
+    ),
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: highContrastLightSystemUiOverlay,
+      titleTextStyle: TextStyle(
+        color: Colors.black,
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.3,
+      ),
+      iconTheme: IconThemeData(color: primaryDark),
+    ),
+    // 按钮族必须显式补：copyWith 只改了 colorScheme.primary，不换
+    // 按钮的话会继续用亮 teal，比 HC 自己的 primary 浅一档。
+    elevatedButtonTheme: elevatedButtonTheme(
+      fill: primaryDark,
+      onFill: Colors.white,
+    ),
+    filledButtonTheme: filledButtonTheme(
+      fill: primaryDark,
+      onFill: Colors.white,
+    ),
+    textButtonTheme: textButtonTheme(line: primaryDark),
+    outlinedButtonTheme: outlinedButtonTheme(line: primaryDark),
+    floatingActionButtonTheme: floatingActionButtonTheme(
+      fill: primaryDark,
+      onFill: Colors.white,
+    ),
+    cardTheme: const CardThemeData(
+      elevation: 0,
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.black, width: 1.5),
+      ),
+    ),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.black, width: 1.5),
+      ),
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.black, width: 1.5),
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: 720),
+      shape: RoundedRectangleBorder(
+        borderRadius: sheetTopBorderRadius,
+        side: BorderSide(color: Colors.black, width: 1.5),
+      ),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: Colors.black, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: Colors.black, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: primaryDark, width: 2.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: errorDark, width: 2),
+      ),
+    ),
+    listTileTheme: listTileTheme(icon: Colors.black),
+    chipTheme: expressiveChipTheme(
+      background: Colors.white,
+      selectedFill: primaryDark.withValues(alpha: 0.18),
+      label: Colors.black,
+      selectedLabel: primaryDark,
+      outline: Colors.black,
+      highContrast: true,
+    ),
+    segmentedButtonTheme: expressiveSegmentedTheme(
+      selectedFill: primaryDark.withValues(alpha: 0.18),
+      selectedForeground: primaryDark,
+      foreground: Colors.black,
+      outline: Colors.black,
+      highContrast: true,
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.black, width: 2),
+      ),
+      backgroundColor: Colors.white,
+      contentTextStyle: TextStyle(
+        color: Colors.black,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+      elevation: 6,
+      insetPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+    ),
+    dividerTheme: const DividerThemeData(color: Colors.black54, thickness: 1),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+      displayMedium: TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.bold,
+      ),
+      displaySmall: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineMedium: TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
+      titleLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+      titleMedium: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+      bodyLarge: TextStyle(color: Colors.black),
+      bodyMedium: TextStyle(color: Color(0xFF1A1A2E)),
+      bodySmall: TextStyle(color: Color(0xFF2D2D44)),
+      labelLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+      labelMedium: TextStyle(color: Color(0xFF1A1A2E)),
+      labelSmall: TextStyle(color: Color(0xFF2D2D44)),
+    ),
+  );
 
   /// High-contrast variant of [darkTheme] for low-vision / sensory needs.
   ///
@@ -1760,163 +1740,166 @@ class TurnaTheme {
   static final ThemeData highContrastDarkTheme = _buildHighContrastDark();
 
   static ThemeData _buildHighContrastDark() => darkTheme.copyWith(
-        extensions: const <ThemeExtension<dynamic>>[GlassMode.off],
-        scaffoldBackgroundColor: Colors.black,
-        colorScheme: const ColorScheme.dark(
-          primary: brandReed,
-          primaryContainer: brandTealLight,
-          secondary: brandReed,
-          secondaryContainer: brandTealLight,
-          surface: Colors.black,
-          error: errorLight,
-          onPrimary: Colors.black,
-          onSecondary: Colors.black,
-          onSurface: Colors.white,
-          onError: Colors.black,
-        ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          systemOverlayStyle: highContrastDarkSystemUiOverlay,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-          iconTheme: IconThemeData(color: brandReed),
-        ),
-        // 同 HC light：不补就会继续用暗青，在纯黑底上对比不足。
-        // brandReed 是亮青绿，所以填的是黑字而不是白字。
-        elevatedButtonTheme: elevatedButtonTheme(
-          fill: brandReed,
-          onFill: Colors.black,
-        ),
-        filledButtonTheme: filledButtonTheme(
-          fill: brandReed,
-          onFill: Colors.black,
-        ),
-        textButtonTheme: textButtonTheme(line: brandReed),
-        outlinedButtonTheme: outlinedButtonTheme(line: brandReed),
-        floatingActionButtonTheme: floatingActionButtonTheme(
-          fill: brandReed,
-          onFill: Colors.black,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          color: Colors.black,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(cardRadius),
-            side: const BorderSide(color: Colors.white, width: 1.5),
-          ),
-        ),
-        dialogTheme: DialogThemeData(
-          backgroundColor: Colors.black,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLarge),
-            side: const BorderSide(color: Colors.white, width: 1.5),
-          ),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: Colors.black,
-          surfaceTintColor: Colors.transparent,
-          constraints: BoxConstraints(maxWidth: 720),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            side: BorderSide(color: Colors.white, width: 1.5),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.black,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: Colors.white, width: 1.5),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: Colors.white, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: brandReed, width: 2.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: errorLight, width: 2),
-          ),
-        ),
-        listTileTheme: listTileTheme(icon: Colors.white),
-        chipTheme: expressiveChipTheme(
-          background: Colors.black,
-          selectedFill: brandReed.withValues(alpha: 0.28),
-          label: Colors.white,
-          selectedLabel: brandReed,
-          outline: Colors.white,
-          highContrast: true,
-        ),
-        segmentedButtonTheme: expressiveSegmentedTheme(
-          selectedFill: brandReed.withValues(alpha: 0.28),
-          selectedForeground: brandReed,
-          foreground: Colors.white,
-          outline: Colors.white,
-          highContrast: true,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusXLarge),
-            side: const BorderSide(color: Colors.white, width: 2),
-          ),
-          backgroundColor: Colors.black,
-          contentTextStyle: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-          elevation: 6,
-          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-        dividerTheme: const DividerThemeData(
-          color: Colors.white54,
-          thickness: 1,
-        ),
-        textTheme: const TextTheme(
-          displayLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          displayMedium:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          displaySmall:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          headlineLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          headlineMedium:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          headlineSmall:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          titleLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          titleMedium:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          titleSmall:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Color(0xFFE8E8F0)),
-          bodySmall: TextStyle(color: Color(0xFFCCCCCC)),
-          labelLarge:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          labelMedium: TextStyle(color: Color(0xFFE8E8F0)),
-          labelSmall: TextStyle(color: Color(0xFFCCCCCC)),
-        ),
-      );
+    extensions: const <ThemeExtension<dynamic>>[GlassMode.off],
+    scaffoldBackgroundColor: Colors.black,
+    colorScheme: const ColorScheme.dark(
+      primary: brandReed,
+      primaryContainer: brandTealLight,
+      secondary: brandReed,
+      secondaryContainer: brandTealLight,
+      surface: Colors.black,
+      error: errorLight,
+      onPrimary: Colors.black,
+      onSecondary: Colors.black,
+      onSurface: Colors.white,
+      onError: Colors.black,
+    ),
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      backgroundColor: Colors.black,
+      foregroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: highContrastDarkSystemUiOverlay,
+      titleTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.3,
+      ),
+      iconTheme: IconThemeData(color: brandReed),
+    ),
+    // 同 HC light：不补就会继续用暗青，在纯黑底上对比不足。
+    // brandReed 是亮青绿，所以填的是黑字而不是白字。
+    elevatedButtonTheme: elevatedButtonTheme(
+      fill: brandReed,
+      onFill: Colors.black,
+    ),
+    filledButtonTheme: filledButtonTheme(fill: brandReed, onFill: Colors.black),
+    textButtonTheme: textButtonTheme(line: brandReed),
+    outlinedButtonTheme: outlinedButtonTheme(line: brandReed),
+    floatingActionButtonTheme: floatingActionButtonTheme(
+      fill: brandReed,
+      onFill: Colors.black,
+    ),
+    cardTheme: const CardThemeData(
+      elevation: 0,
+      color: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.white, width: 1.5),
+      ),
+    ),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.white, width: 1.5),
+      ),
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.white, width: 1.5),
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: 720),
+      shape: RoundedRectangleBorder(
+        borderRadius: sheetTopBorderRadius,
+        side: BorderSide(color: Colors.white, width: 1.5),
+      ),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.black,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: Colors.white, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: Colors.white, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: brandReed, width: 2.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: errorLight, width: 2),
+      ),
+    ),
+    listTileTheme: listTileTheme(icon: Colors.white),
+    chipTheme: expressiveChipTheme(
+      background: Colors.black,
+      selectedFill: brandReed.withValues(alpha: 0.28),
+      label: Colors.white,
+      selectedLabel: brandReed,
+      outline: Colors.white,
+      highContrast: true,
+    ),
+    segmentedButtonTheme: expressiveSegmentedTheme(
+      selectedFill: brandReed.withValues(alpha: 0.28),
+      selectedForeground: brandReed,
+      foreground: Colors.white,
+      outline: Colors.white,
+      highContrast: true,
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: BorderSide(color: Colors.white, width: 2),
+      ),
+      backgroundColor: Colors.black,
+      contentTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+      elevation: 6,
+      insetPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+    ),
+    dividerTheme: const DividerThemeData(color: Colors.white54, thickness: 1),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      displayMedium: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+      ),
+      displaySmall: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineMedium: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+      titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      bodyLarge: TextStyle(color: Colors.white),
+      bodyMedium: TextStyle(color: Color(0xFFE8E8F0)),
+      bodySmall: TextStyle(color: Color(0xFFCCCCCC)),
+      labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      labelMedium: TextStyle(color: Color(0xFFE8E8F0)),
+      labelSmall: TextStyle(color: Color(0xFFCCCCCC)),
+    ),
+  );
 }
 
 /// 彩色玻璃材质的五个层级。

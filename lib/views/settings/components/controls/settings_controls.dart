@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/views/settings/components/primitives/settings_section.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/settings/components/primitives/settings_section.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Generic version of [SettingsToggleTile] for sources other than
 /// [SettingsProvider] (e.g. [SystemHealthMonitor.safeMode]). Same visual
@@ -15,15 +17,17 @@ import 'package:turna/core/theme.dart';
 class SettingsSwitchTile extends StatelessWidget {
   const SettingsSwitchTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconId,
     required this.title,
     required this.subtitle,
     required this.value,
     required this.onChanged,
     this.enabled = true,
-  });
+  }) : assert(icon != null || iconId != null);
 
-  final IconData icon;
+  final IconData? icon;
+  final TurnaIconId? iconId;
   final String title;
   final String subtitle;
   final bool value;
@@ -34,6 +38,7 @@ class SettingsSwitchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsTile(
       icon: icon,
+      iconId: iconId,
       title: title,
       subtitle: subtitle,
       trailing: settingsAdaptiveSwitch(
@@ -44,11 +49,7 @@ class SettingsSwitchTile extends StatelessWidget {
   }
 }
 
-/// Non-destructive info / result dialog used in place of the bare
-/// `AlertDialog(actions: [TextButton(知道了)])` pattern. Same shape as
-/// [SettingsConfirmDialog] so the dialog family reads consistently.
-
-/// Compact form-row used inside [SettingsFormDialog] and inline list
+/// Compact form-row used inside dialog and inline list
 /// editors. Renders a label on the left and a trailing widget (Switch,
 /// Dropdown, Slider value, etc.) on the right. Vertical padding matches
 /// the main settings list so form-in-dialog feels native.
@@ -76,16 +77,14 @@ class SettingsFormRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: TurnaTheme.textHintColor(context)),
                   ),
               ],
             ),
@@ -97,10 +96,6 @@ class SettingsFormRow extends StatelessWidget {
     );
   }
 }
-
-/// Reusable info-row used in dialog content. Renders a [label] on the left
-/// and a [value] on the right, both bodyMedium, with a thin top divider
-/// so consecutive rows stack into a clean key/value list.
 
 /// Reusable info-row used in dialog content. Renders a [label] on the left
 /// and a [value] on the right, both bodyMedium, with a thin top divider
@@ -121,9 +116,8 @@ class SettingsInfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
             ),
           ),
           const SizedBox(width: 12),
@@ -132,9 +126,9 @@ class SettingsInfoRow extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textPrimaryColor(context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: TurnaTheme.textPrimaryColor(context),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -143,9 +137,7 @@ class SettingsInfoRow extends StatelessWidget {
   }
 }
 
-/// Single segment in [SettingsSegmentedBar].
-
-/// Turna-styled form dropdown with a square border and subtle background.
+/// Turna-styled form dropdown with a 4px border and subtle background.
 class SettingsFormDropdown<T> extends StatelessWidget {
   const SettingsFormDropdown({
     super.key,
@@ -168,7 +160,7 @@ class SettingsFormDropdown<T> extends StatelessWidget {
         color: enabled
             ? TurnaTheme.brandTeal.withValues(alpha: 0.05)
             : TurnaTheme.dividerBg(context).withValues(alpha: 0.3),
-        borderRadius: BorderRadius.zero,
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(
           color: enabled
               ? TurnaTheme.brandTeal.withValues(alpha: 0.25)
@@ -179,20 +171,20 @@ class SettingsFormDropdown<T> extends StatelessWidget {
         child: DropdownButton<T>(
           value: value,
           isDense: true,
-          borderRadius: BorderRadius.zero,
-          icon: Icon(
-            Icons.expand_more_rounded,
+          borderRadius: TurnaTheme.borderRadius,
+          icon: TurnaIcon(
+            TurnaIconId.chevronDown,
             color: enabled
                 ? TurnaTheme.brandTeal
                 : TurnaTheme.textHintColor(context),
             size: 18,
           ),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: enabled
-                    ? TurnaTheme.textPrimaryColor(context)
-                    : TurnaTheme.textHintColor(context),
-              ),
+            fontWeight: FontWeight.w600,
+            color: enabled
+                ? TurnaTheme.textPrimaryColor(context)
+                : TurnaTheme.textHintColor(context),
+          ),
           items: items,
           onChanged: enabled ? onChanged : null,
         ),
@@ -210,15 +202,17 @@ class ProviderBoundToggleTile<T extends ChangeNotifier>
     extends StatelessWidget {
   const ProviderBoundToggleTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconId,
     required this.title,
     required this.subtitle,
     required this.valueSelector,
     required this.onChanged,
     this.enabled = true,
-  });
+  }) : assert(icon != null || iconId != null);
 
-  final IconData icon;
+  final IconData? icon;
+  final TurnaIconId? iconId;
   final String title;
   final String subtitle;
   final bool Function(T) valueSelector;
@@ -234,6 +228,7 @@ class ProviderBoundToggleTile<T extends ChangeNotifier>
     final value = context.select<T, bool>(valueSelector);
     return SettingsTile(
       icon: icon,
+      iconId: iconId,
       title: title,
       subtitle: subtitle,
       trailing: settingsAdaptiveSwitch(

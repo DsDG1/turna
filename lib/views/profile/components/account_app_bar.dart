@@ -11,7 +11,10 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/profile_prefs_facade.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
@@ -20,6 +23,8 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/components/avatar_picker_sheet.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// Hero-style profile header: avatar, name, one-line bio, edit + share.
 ///
@@ -76,29 +81,26 @@ class AccountWidget extends StatelessWidget {
     final avatar = AvatarCatalog.resolve(user.avatarId);
 
     // 滚动头卡使用静态淡彩玻璃，不做实时背景采样，避免合成层在滚动时闪烁。
-    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
     final fill = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: profileTheme != null
           ? [
-              profileTheme.accentColor!.withValues(
-                alpha: isDark ? 0.42 : 0.18,
-              ),
+              profileTheme.accentColor!.withValues(alpha: isDark ? 0.42 : 0.18),
               (profileTheme.secondaryColor ?? profileTheme.accentColor!)
                   .withValues(alpha: isDark ? 0.3 : 0.22),
             ]
           : isDark
-              ? [
-                  TurnaTheme.brandTeal.withValues(alpha: 0.35),
-                  TurnaTheme.brandNavy.withValues(alpha: 0.45),
-                ]
-              : [
-                  TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                  TurnaTheme.brandSky.withValues(alpha: 0.18),
-                ],
+          ? [
+              TurnaTheme.brandTeal.withValues(alpha: 0.35),
+              TurnaTheme.brandNavy.withValues(alpha: 0.45),
+            ]
+          : [
+              TurnaTheme.brandTeal.withValues(alpha: 0.12),
+              TurnaTheme.brandSky.withValues(alpha: 0.18),
+            ],
     );
-    // Clip + column so the clay→sand brand strip sits under rounded corners.
+    // Clip + column so the clay→sand brand strip sits under 4px corners.
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -132,7 +134,7 @@ class AccountWidget extends StatelessWidget {
                     backgroundColor: avatar.background.withValues(alpha: 0.15),
                     child: Text(
                       avatar.emoji,
-                      style: const TextStyle(fontSize: 30),
+                      style: AppTextStyles.pageTitle(context),
                     ),
                   ),
                 ),
@@ -146,19 +148,18 @@ class AccountWidget extends StatelessWidget {
                       displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     if (bio.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         bio,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textSecondaryColor(context),
-                            ),
+                          color: TurnaTheme.textSecondaryColor(context),
+                        ),
                       ),
                     ],
                   ],
@@ -167,14 +168,14 @@ class AccountWidget extends StatelessWidget {
               Column(
                 children: [
                   _HeroIconButton(
-                    icon: Icons.edit_rounded,
+                    icon: TurnaIconId.edit,
                     tooltip: AppStrings.accountEditName,
                     onTap: () => _showEditNameDialog(context, user, settings),
                   ),
                   if (onShare != null) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     _HeroIconButton(
-                      icon: Icons.share_rounded,
+                      icon: TurnaIconId.share,
                       tooltip: AppStrings.profileShare,
                       onTap: onShare!,
                     ),
@@ -188,11 +189,9 @@ class AccountWidget extends StatelessWidget {
     );
 
     final fillDecoration = BoxDecoration(
-      borderRadius: radius,
+      borderRadius: TurnaTheme.borderRadius,
       gradient: fill,
-      border: Border.all(
-        color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
-      ),
+      border: Border.all(color: TurnaTheme.brandTeal.withValues(alpha: 0.18)),
     );
     // 阴影沿用 `l2Frost` 档位的近/远两层参数；静态化只移除实时模糊，
     // 不改变卡片的色相、描边与投影层级。
@@ -219,26 +218,12 @@ class AccountWidget extends StatelessWidget {
     LocalUser user,
     SettingsProvider? settings,
   ) async {
-    // Use a modal bottom sheet instead of AlertDialog. AlertDialog wraps its
-    // content in an AnimatedPadding driven by MediaQuery.viewInsets (keyboard
-    // height) with a 100ms duration, so dismissing it while the keyboard is
-    // open leaves that animation mid-flight during route teardown. On Flutter
-    // 3.35's rewritten Overlay that trips `_overlayChildRenderBox == null`
-    // ("already occupied") and `InheritedElement._dependents.isEmpty`. The
-    // bottom-sheet route has no viewInsets-driven animation (the keyboard is
-    // absorbed by a static Padding in _EditNameSheet), so it dismisses
-    // cleanly. The TextEditingController is owned
-    // by _EditNameSheet's State and disposed with the sheet (after the exit
-    // animation), not from a finally here, which would run while the sheet is
-    // still mounted and rebuild the TextField against a disposed controller.
-    await showModalBottomSheet<void>(
+    // Bottom-sheet editor via showTurnaSheet: controller is owned by
+    // _EditNameSheet's State so it disposes cleanly after the exit animation.
+    await showTurnaSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: TurnaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _EditNameSheet(
+      title: AppStrings.accountEditNameTitle,
+      body: _EditNameSheet(
         initialName: user.displayName ?? '',
         onSave: (name) {
           if (name.isEmpty) return;
@@ -255,7 +240,7 @@ class AccountWidget extends StatelessWidget {
 }
 
 class _HeroIconButton extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String tooltip;
   final VoidCallback onTap;
 
@@ -271,13 +256,13 @@ class _HeroIconButton extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: TurnaTheme.cardBg(context).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        borderRadius: TurnaTheme.borderRadius,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          borderRadius: TurnaTheme.borderRadius,
           child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: 20, color: TurnaTheme.brandTeal),
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: TurnaIcon(icon, size: 20, color: TurnaTheme.brandTeal),
           ),
         ),
       ),
@@ -287,9 +272,7 @@ class _HeroIconButton extends StatelessWidget {
 
 /// Bottom-sheet editor for the profile display name. Owns its
 /// [TextEditingController] so the controller is disposed with the sheet (after
-/// the exit animation) rather than from the caller's `finally`, which would
-/// run while the sheet is still mounted and rebuild the field against a
-/// disposed controller. See [AccountWidget._showEditNameDialog].
+/// the exit animation) rather than from the caller's `finally`.
 class _EditNameSheet extends StatefulWidget {
   const _EditNameSheet({required this.initialName, required this.onSave});
 
@@ -327,36 +310,31 @@ class _EditNameSheetState extends State<_EditNameSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.sm,
+        AppSpacing.pageMargin,
+        AppSpacing.lg,
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              AppStrings.accountEditNameTitle,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 12),
             TextField(
               controller: _controller,
               autofocus: true,
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 hintText: AppStrings.accountEditNameHint,
-                border: const OutlineInputBorder(),
+                border: const OutlineInputBorder(
+                  borderRadius: TurnaTheme.borderRadius,
+                ),
                 isDense: true,
               ),
               onSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -364,7 +342,7 @@ class _EditNameSheetState extends State<_EditNameSheet> {
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(AppStrings.commonCancel),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: _submit,
                   child: Text(AppStrings.accountEditNameSave),

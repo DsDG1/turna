@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/core/simple_markdown.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
 
@@ -14,11 +16,7 @@ import 'package:turna/views/ai/components/ai_generated_notice.dart';
 /// reply goes through here, so keeping the badge at this layer is what makes
 /// the coverage complete — a new chat screen cannot forget it.
 class AiMarkdownBody extends StatelessWidget {
-  const AiMarkdownBody({
-    super.key,
-    required this.source,
-    required this.color,
-  });
+  const AiMarkdownBody({super.key, required this.source, required this.color});
 
   final String source;
   final Color color;
@@ -54,48 +52,47 @@ class AiMarkdownBody extends StatelessWidget {
       case MarkdownBlockKind.code:
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             color: TurnaTheme.scaffoldBg(context),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+            borderRadius: TurnaTheme.borderRadius,
           ),
           child: SelectableText(
             block.code,
-            style: base.copyWith(
-              color: color,
-              fontFamily: 'monospace',
-              fontSize: 13,
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: color, fontFamily: 'monospace'),
           ),
         );
       case MarkdownBlockKind.heading:
-        return SelectableText.rich(TextSpan(
-          children: _spans(
-            context,
-            block.spans,
-            base.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: block.level == 1 ? 18 : 16,
-            ),
-          ),
-        ));
+        final headingStyle =
+            (block.level == 1
+                    ? AppTextStyles.sectionTitle(context)
+                    : AppTextStyles.cardTitle(context))
+                .copyWith(color: color, fontWeight: FontWeight.w700);
+        return SelectableText.rich(
+          TextSpan(children: _spans(context, block.spans, headingStyle)),
+        );
       case MarkdownBlockKind.bullet:
       case MarkdownBlockKind.numbered:
-        final marker =
-            block.kind == MarkdownBlockKind.bullet ? '• ' : '${block.level}. ';
-        return SelectableText.rich(TextSpan(
-          style: base.copyWith(color: color),
-          children: [
-            TextSpan(text: marker),
-            ..._spans(context, block.spans, base.copyWith(color: color)),
-          ],
-        ));
+        final marker = block.kind == MarkdownBlockKind.bullet
+            ? '• '
+            : '${block.level}. ';
+        return SelectableText.rich(
+          TextSpan(
+            style: base.copyWith(color: color),
+            children: [
+              TextSpan(text: marker),
+              ..._spans(context, block.spans, base.copyWith(color: color)),
+            ],
+          ),
+        );
       case MarkdownBlockKind.paragraph:
-        return SelectableText.rich(TextSpan(
-          style: base.copyWith(color: color),
-          children: _spans(context, block.spans, base.copyWith(color: color)),
-        ));
+        return SelectableText.rich(
+          TextSpan(
+            style: base.copyWith(color: color),
+            children: _spans(context, block.spans, base.copyWith(color: color)),
+          ),
+        );
     }
   }
 

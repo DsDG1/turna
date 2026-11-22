@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/dialogue_scene.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 
 List<DialogueTurn> visibleDialogueTurns(
@@ -40,8 +42,9 @@ class DialogueSceneHeader extends StatelessWidget {
       for (final item in interactions) item.id: item,
     };
     final visible = visibleDialogueTurns(scene, currentInteractionId);
-    final recent =
-        visible.length <= 3 ? visible : visible.sublist(visible.length - 3);
+    final recent = visible.length <= 3
+        ? visible
+        : visible.sublist(visible.length - 3);
     final activeSpeakerId = scene.turns
         .where((turn) => turn.interactionId == currentInteractionId)
         .map((turn) => turn.speakerId)
@@ -52,7 +55,7 @@ class DialogueSceneHeader extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -63,19 +66,16 @@ class DialogueSceneHeader extends StatelessWidget {
                 child: Text(
                   scene.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: TurnaTheme.textPrimaryColor(context),
+                  ),
                 ),
               ),
               IconButton(
                 tooltip: AppStrings.lessonDialogueFullTranscript,
-                icon: const Icon(Icons.forum_outlined),
-                onPressed: () => _showTranscript(
-                  context,
-                  visible,
-                  interactionById,
-                ),
+                icon: const TurnaIcon(TurnaIconId.chat, size: 20),
+                onPressed: () =>
+                    _showTranscript(context, visible, interactionById),
               ),
             ],
           ),
@@ -96,7 +96,8 @@ class DialogueSceneHeader extends StatelessWidget {
               turn: turn,
               speakerName: _speakerName(turn.speakerId),
               text: _turnText(turn, interactionById),
-              obscure: turn.interactionId == currentInteractionId &&
+              obscure:
+                  turn.interactionId == currentInteractionId &&
                   !currentSubmitted,
               onSpeak: _speak,
             ),
@@ -149,7 +150,8 @@ class DialogueSceneHeader extends StatelessWidget {
               turn: turn,
               speakerName: _speakerName(turn.speakerId),
               text: _turnText(turn, interactionById),
-              obscure: turn.interactionId == currentInteractionId &&
+              obscure:
+                  turn.interactionId == currentInteractionId &&
                   !currentSubmitted,
               onSpeak: _speak,
             ),
@@ -168,8 +170,8 @@ class _CharacterBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatar = character.imageAsset == null
-        ? Icon(
-            Icons.face_rounded,
+        ? const TurnaIcon(
+            TurnaIconId.person,
             color: TurnaTheme.brandTeal,
             size: 26,
           )
@@ -199,7 +201,7 @@ class _CharacterBadge extends StatelessWidget {
             color: active ? TurnaTheme.brandTeal : Colors.transparent,
             width: active ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          borderRadius: TurnaTheme.borderRadius,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -215,7 +217,7 @@ class _CharacterBadge extends StatelessWidget {
             ),
             if (active) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.volume_up_rounded, size: 17),
+              const TurnaIcon(TurnaIconId.speaker, size: 17),
             ],
           ],
         ),
@@ -253,17 +255,17 @@ class _DialogueLine extends StatelessWidget {
                 Text(
                   speakerName,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: TurnaTheme.textSecondaryColor(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   text,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: TurnaTheme.textPrimaryColor(context),
-                        fontStyle: obscure ? FontStyle.italic : null,
-                      ),
+                    color: TurnaTheme.textPrimaryColor(context),
+                    fontStyle: obscure ? FontStyle.italic : null,
+                  ),
                 ),
               ],
             ),
@@ -271,7 +273,7 @@ class _DialogueLine extends StatelessWidget {
           if (!obscure && text.isNotEmpty)
             IconButton(
               tooltip: AppStrings.lessonDialogueSpeakLine(speakerName),
-              icon: const Icon(Icons.volume_up_outlined),
+              icon: const TurnaIcon(TurnaIconId.speaker, size: 20),
               onPressed: () => onSpeak(context, speakerName, text),
             ),
         ],

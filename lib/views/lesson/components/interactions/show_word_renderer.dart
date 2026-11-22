@@ -16,7 +16,9 @@ import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 /// Flashcard introducing a vocabulary word.
 ///
@@ -55,13 +57,16 @@ class ShowWordRenderer extends InteractionRenderer {
     final isUnknown =
         !hasInline && i.wordId.startsWith(unknownInteractionWordIdPrefix);
     final vocab = (hasInline || isUnknown) ? null : vocabById[i.wordId];
-    final term =
-        hasInline ? i.term! : (vocab?.term ?? (isUnknown ? '' : i.wordId));
-    final translation =
-        hasInline ? (i.translation ?? '') : (vocab?.translation ?? '');
+    final term = hasInline
+        ? i.term!
+        : (vocab?.term ?? (isUnknown ? '' : i.wordId));
+    final translation = hasInline
+        ? (i.translation ?? '')
+        : (vocab?.translation ?? '');
     final contextSentence = i.example ?? i.context;
-    final posLabel =
-        (hasInline || isUnknown) ? '' : posTagLabel(PosTag.parse(vocab?.pos));
+    final posLabel = (hasInline || isUnknown)
+        ? ''
+        : posTagLabel(PosTag.parse(vocab?.pos));
 
     return _ShowWordCard(
       wordId: i.wordId,
@@ -156,10 +161,12 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
                     final result = widget.speakVocab
-                        ? await widget.audioController
-                            .speakWordWithResult(widget.wordId)
-                        : await widget.audioController
-                            .speakWithResult(widget.term);
+                        ? await widget.audioController.speakWordWithResult(
+                            widget.wordId,
+                          )
+                        : await widget.audioController.speakWithResult(
+                            widget.term,
+                          );
                     if (context.mounted) {
                       showTtsFailureFeedback(context, result);
                     }
@@ -174,8 +181,8 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                           style: AppTextStyles.termHero(context),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(
-                          Icons.volume_up_rounded,
+                        const TurnaIcon(
+                          TurnaIconId.speaker,
                           color: TurnaTheme.brandTeal,
                           size: 28,
                         ),
@@ -198,8 +205,7 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                 Text(
                   widget.translation,
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyText(context).copyWith(
-                    fontSize: 18,
+                  style: AppTextStyles.sectionTitle(context).copyWith(
                     fontWeight: FontWeight.w500,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
@@ -216,24 +222,26 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                     onTap: () async {
                       final result = await widget.audioController
                           .speakWithResult(
-                              _targetPart(widget.contextSentence!));
+                            _targetPart(widget.contextSentence!),
+                          );
                       if (context.mounted) {
                         showTtsFailureFeedback(context, result);
                       }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-                        borderRadius:
-                            BorderRadius.circular(TurnaTheme.radiusMedium),
+                        borderRadius: TurnaTheme.borderRadius,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.volume_up_rounded,
+                          const TurnaIcon(
+                            TurnaIconId.speaker,
                             color: TurnaTheme.brandTeal,
                             size: 18,
                           ),
@@ -243,7 +251,6 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                               widget.contextSentence!,
                               textAlign: TextAlign.center,
                               style: AppTextStyles.bodyText(context).copyWith(
-                                fontSize: 15,
                                 color: TurnaTheme.textSecondaryColor(context),
                                 fontStyle: FontStyle.italic,
                               ),
@@ -259,8 +266,8 @@ class _ShowWordCardState extends State<_ShowWordCard> {
               Text(
                 AppStrings.lessonTapToContinue,
                 style: AppTextStyles.captionSm(context).copyWith(
-                  color:
-                      TurnaTheme.textHintColor(context).withValues(alpha: 0.8),
+                  color: TurnaTheme.textHintColor(context)
+                      .withValues(alpha: 0.8),
                   letterSpacing: 0.4,
                 ),
               ),
@@ -302,8 +309,8 @@ class _UnknownItemCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.help_outline_rounded,
+              TurnaIcon(
+                TurnaIconId.help,
                 size: 48,
                 color: TurnaTheme.textHintColor(context).withValues(alpha: 0.4),
               ),
@@ -311,16 +318,15 @@ class _UnknownItemCard extends StatelessWidget {
               Text(
                 AppStrings.lessonItemNotLoaded,
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodyText(context).copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+                style: AppTextStyles.bodyText(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
               const SizedBox(height: 24),
               Text(
                 AppStrings.lessonTapToContinue,
                 style: AppTextStyles.captionSm(context).copyWith(
-                  color:
-                      TurnaTheme.textHintColor(context).withValues(alpha: 0.8),
+                  color: TurnaTheme.textHintColor(context)
+                      .withValues(alpha: 0.8),
                   letterSpacing: 0.4,
                 ),
               ),
@@ -346,7 +352,7 @@ class _PaperTapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
+    const radius = TurnaTheme.borderRadius;
     return Material(
       type: MaterialType.transparency,
       child: Ink(

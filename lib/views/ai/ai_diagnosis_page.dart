@@ -18,6 +18,7 @@ import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_error_banner.dart';
@@ -27,6 +28,7 @@ import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 学习诊断 —— 纵向报告构图（R14）：**结论 → 依据 → 建议 → 行动**。
 ///
@@ -53,7 +55,9 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
     AiExplainPrefsStore? prefs;
     try {
       prefs = context.read<AiExplainPrefsStore>();
-    } catch (_) {/* prefs provider optional — fall back to defaults */}
+    } catch (_) {
+      /* prefs provider optional — fall back to defaults */
+    }
     _provider = AiDiagnosisProvider(prefs: prefs);
   }
 
@@ -70,10 +74,12 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
     try {
       final mp = context.read<MistakeProvider>();
       for (final e in mp.entries.take(12)) {
-        mistakes.add(LearnerAiContext.summarizeMistake(
-          prompt: e.interactionId.isNotEmpty ? e.interactionId : e.lessonId,
-          userAnswer: e.userAnswer,
-        ));
+        mistakes.add(
+          LearnerAiContext.summarizeMistake(
+            prompt: e.interactionId.isNotEmpty ? e.interactionId : e.lessonId,
+            userAnswer: e.userAnswer,
+          ),
+        );
       }
     } catch (_) {
       /* MistakeProvider optional — assemble without mistake summary */
@@ -86,7 +92,9 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
       for (final w in words) {
         weak.add(w.displayText);
       }
-    } catch (_) {/* StudyStatsProvider optional — skip weak-word section */}
+    } catch (_) {
+      /* StudyStatsProvider optional — skip weak-word section */
+    }
 
     return LearnerAiContext.assemble(
       languageName: language,
@@ -119,13 +127,9 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
       value: _provider,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          title: Text(
-            AppStrings.aiDiagnosisTitle,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
+        appBar: TurnaTopBar(
+          title: AppStrings.aiDiagnosisTitle,
+          showDivider: true,
         ),
         body: SafeArea(
           child: Consumer2<AiDiagnosisProvider, AiEngineConfigHolder>(
@@ -167,8 +171,8 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
                               ? p.cancel
                               : () => _generate(),
                           trailingIcon: p.state == AiDiagnosisState.loading
-                              ? Icons.stop_rounded
-                              : Icons.analytics_outlined,
+                              ? TurnaIconId.stop
+                              : TurnaIconId.insights,
                         ),
                       ],
                     ),
@@ -266,7 +270,7 @@ class _ReportBody extends StatelessWidget {
         if (report.exampleDrillIdeas.isNotEmpty) ...[
           Text(
             AppStrings.aiDiagnosisDrills,
-            style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
+            style: AppTextStyles.cardTitle(context),
           ),
           const SizedBox(height: AppSpacing.sm),
           _NumberedLines(lines: report.exampleDrillIdeas),
@@ -276,7 +280,7 @@ class _ReportBody extends StatelessWidget {
         // ── 行动：目录入口 ──
         ReportSectionHeading(title: AppStrings.aiDiagnosisSectionAction),
         DirectoryLinkRow(
-          icon: Icons.school_outlined,
+          icon: TurnaIconId.school,
           iconTone: TurnaTheme.brandTeal,
           title: AppStrings.aiDiagnosisSecondaryCta,
           onTap: () => showAiPracticeGenerateSheet(
@@ -285,25 +289,27 @@ class _ReportBody extends StatelessWidget {
           ),
         ),
         DirectoryLinkRow(
-          icon: Icons.bookmark_add_outlined,
+          icon: TurnaIconId.bookmark,
           iconTone: TurnaTheme.anatolianClay,
           title: AppStrings.aiSaveExplanation,
           onTap: () async {
             final store = context.read<AiSavedExplanationsStore>();
-            await store.save(SavedExplanation(
-              id: AiSavedExplanationsStore.newId(),
-              title: AppStrings.aiDiagnosisTitle,
-              body: report.toPlainText(),
-              source: 'diagnosis',
-              createdAt: DateTime.now(),
-            ));
+            await store.save(
+              SavedExplanation(
+                id: AiSavedExplanationsStore.newId(),
+                title: AppStrings.aiDiagnosisTitle,
+                body: report.toPlainText(),
+                source: 'diagnosis',
+                createdAt: DateTime.now(),
+              ),
+            );
             if (context.mounted) {
               TurnaSnackBar.maybeShow(context, AppStrings.aiExplanationSaved);
             }
           },
         ),
         DirectoryLinkRow(
-          icon: Icons.copy_rounded,
+          icon: TurnaIconId.copy,
           iconTone: TurnaTheme.brandSky,
           title: AppStrings.aiDepthCopy,
           showDivider: false,
@@ -318,17 +324,17 @@ class _ReportBody extends StatelessWidget {
   }
 
   static String _severityLabel(String severity) => switch (severity) {
-        'high' => AppStrings.aiDiagnosisSeverityHigh,
-        'medium' => AppStrings.aiDiagnosisSeverityMedium,
-        'low' => AppStrings.aiDiagnosisSeverityLow,
-        _ => severity,
-      };
+    'high' => AppStrings.aiDiagnosisSeverityHigh,
+    'medium' => AppStrings.aiDiagnosisSeverityMedium,
+    'low' => AppStrings.aiDiagnosisSeverityLow,
+    _ => severity,
+  };
 
   static Color? _severityColor(String severity) => switch (severity) {
-        'high' => TurnaTheme.error,
-        'medium' => TurnaTheme.warning,
-        _ => null,
-      };
+    'high' => TurnaTheme.error,
+    'medium' => TurnaTheme.warning,
+    _ => null,
+  };
 }
 
 /// 编号行：报告建议段的排版（序号淡色左、正文右，无卡无泡）。
@@ -360,11 +366,7 @@ class _NumberedLines extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: Text(
-                    lines[i],
-                    style: AppTextStyles.bodyText(context)
-                        .copyWith(fontSize: 15, height: 1.5),
-                  ),
+                  child: Text(lines[i], style: AppTextStyles.bodyText(context)),
                 ),
               ],
             ),

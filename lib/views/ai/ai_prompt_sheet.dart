@@ -13,7 +13,9 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -116,9 +118,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
   @override
   Widget build(BuildContext context) {
     final language = context.watch<LanguageProvider>().displayName;
-    final prefs = AiExplainPrefsStore.resolve(
-      allowEphemeral: true,
-    ).snapshot;
+    final prefs = AiExplainPrefsStore.resolve(allowEphemeral: true).snapshot;
     final prompt = AiPromptCatalog.preview(
       feature: _feature,
       language: language,
@@ -129,9 +129,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
     // 容器（TurnaSheetPanel）已给拖手、标题、一句说明与关闭键；这里只保留
     // 功能芯片、正文、编辑器与动作。
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.pageMargin,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
       child: SafeArea(
         top: false,
         child: Column(
@@ -151,7 +149,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: _resetAll,
-                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                  icon: const TurnaIcon(TurnaIconId.restart, size: 16),
                   label: Text(AppStrings.aiPromptResetAll),
                 ),
               ),
@@ -170,7 +168,6 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
                   Text(
                     AppStrings.aiPromptSheetFooter,
                     style: AppTextStyles.captionSm(context).copyWith(
-                      fontSize: 12,
                       color: TurnaTheme.textHintColor(context),
                       height: 1.4,
                     ),
@@ -186,8 +183,8 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
 
   Widget _featureChips(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
         for (final f in AiPromptFeature.values)
           _FeatureChip(
@@ -209,10 +206,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
             Expanded(
               child: Text(
                 AppStrings.aiPromptSheetEffective(_feature.usage),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                      height: 1.4,
-                    ),
+                style: AppTextStyles.captionSm(context).copyWith(height: 1.4),
               ),
             ),
             TextButton.icon(
@@ -220,7 +214,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
                 Clipboard.setData(ClipboardData(text: prompt));
                 TurnaSnackBar.maybeShow(context, AppStrings.aiPromptCopied);
               },
-              icon: const Icon(Icons.copy_rounded, size: 15),
+              icon: const TurnaIcon(TurnaIconId.copy, size: 15),
               label: Text(AppStrings.aiPromptCopy),
             ),
           ],
@@ -228,20 +222,20 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
         const SizedBox(height: 6),
         Container(
           constraints: const BoxConstraints(maxHeight: 240),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: TurnaTheme.tintLight,
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(color: TurnaTheme.dividerBg(context)),
           ),
           child: SingleChildScrollView(
             child: SelectableText(
               prompt,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                    height: 1.5,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
+              style: AppTextStyles.captionSm(context).copyWith(
+                fontFamily: 'monospace',
+                height: 1.5,
+                color: TurnaTheme.textPrimaryColor(context),
+              ),
             ),
           ),
         ),
@@ -256,20 +250,14 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
       children: [
         Text(
           AppStrings.aiPromptCustomTitle,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
+          style: AppTextStyles.cardTitle(context),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           AppStrings.aiPromptCustomHint,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-                height: 1.4,
-              ),
+          style: AppTextStyles.captionSm(context).copyWith(height: 1.4),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         TextField(
           controller: _overrideCtrl,
           minLines: 3,
@@ -280,17 +268,16 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
             hintText: AppStrings.aiPromptCustomPlaceholder,
             filled: true,
             fillColor: TurnaTheme.tintLight,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            border: const OutlineInputBorder(
+              borderRadius: TurnaTheme.borderRadius,
             ),
           ),
         ),
         if (text.isEmpty)
           Text(
             AppStrings.aiPromptUsingDefault,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
       ],
     );
@@ -308,12 +295,12 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
             child: Text(AppStrings.aiPromptSave),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         OutlinedButton(
           onPressed:
               _store.isOverridden(_feature) || _overrideCtrl.text.isNotEmpty
-                  ? _reset
-                  : null,
+              ? _reset
+              : null,
           child: Text(AppStrings.aiPromptResetDefault),
         ),
       ],
@@ -341,14 +328,17 @@ class _FeatureChip extends StatelessWidget {
       color: selected
           ? TurnaTheme.softTint(context, TurnaTheme.brandTeal)
           : TurnaTheme.tintLight,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        borderRadius: TurnaTheme.borderRadius,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 7,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(
               color: selected ? accent : TurnaTheme.dividerBg(context),
               width: selected ? 1.6 : 1,
@@ -359,12 +349,12 @@ class _FeatureChip extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: selected
-                          ? accent
-                          : TurnaTheme.textSecondaryColor(context),
-                    ),
+                style: AppTextStyles.captionSm(context).copyWith(
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  color: selected
+                      ? accent
+                      : TurnaTheme.textSecondaryColor(context),
+                ),
               ),
               // 已自定义打点：用户切走再回来能看出哪个功能被改过。
               if (customised) ...[
@@ -372,7 +362,7 @@ class _FeatureChip extends StatelessWidget {
                 Container(
                   width: 6,
                   height: 6,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: TurnaTheme.anatolianClay,
                     shape: BoxShape.circle,
                   ),

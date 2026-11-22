@@ -18,11 +18,7 @@ class ChatBubble extends StatelessWidget {
   final String role;
   final String content;
 
-  const ChatBubble({
-    super.key,
-    required this.role,
-    required this.content,
-  });
+  const ChatBubble({super.key, required this.role, required this.content});
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +36,7 @@ class ChatBubble extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: isUser ? TurnaTheme.primaryLight : TurnaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+          borderRadius: TurnaTheme.borderRadius,
           border: Border.all(
             color: isUser
                 ? TurnaTheme.brandTeal.withValues(alpha: 0.30)

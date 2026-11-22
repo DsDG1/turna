@@ -11,7 +11,9 @@ import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -19,10 +21,14 @@ import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 class SettingsToggleTile extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final TurnaIconId? iconId;
   final String title;
   final String subtitle;
   final bool Function(SettingsProvider) valueSelector;
@@ -30,13 +36,14 @@ class SettingsToggleTile extends StatelessWidget {
 
   const SettingsToggleTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconId,
     required this.title,
     required this.subtitle,
     required this.valueSelector,
     required this.onChanged,
     this.enabled = true,
-  });
+  }) : assert(icon != null || iconId != null);
 
   /// See [ProviderBoundToggleTile.enabled].
   final bool enabled;
@@ -45,6 +52,7 @@ class SettingsToggleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProviderBoundToggleTile<SettingsProvider>(
       icon: icon,
+      iconId: iconId,
       title: title,
       subtitle: subtitle,
       valueSelector: valueSelector,
@@ -102,7 +110,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
     final checker = getIt<TtsAvailabilityChecker>();
     final lang =
         readOptionalProvider<LanguageProvider>(context)?.ttsLanguageCode ??
-            LanguageCodes.turkish;
+        LanguageCodes.turkish;
     final diag = await checker.diagnose(lang);
     // Fetched after `diagnose` so the voice list can never delay the
     // diagnostics themselves, and fetched even when `diag` threw nothing —
@@ -130,15 +138,13 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
       final voices = AppStrings.voiceListLabel(_deviceVoices);
       return switch (d.preferredStatus) {
         TtsPreferredStatus.ready => AppStrings.settingsOhosTtsReady(
-            d.resolvedLocale ?? langCode,
-          ),
+          d.resolvedLocale ?? langCode,
+        ),
         TtsPreferredStatus.voiceMissing =>
-          AppStrings.settingsOhosTtsVoiceMissing(
-            langName,
-            voices,
-          ),
-        TtsPreferredStatus.googleMissing =>
-          AppStrings.settingsOhosTtsNoVoice(voices),
+          AppStrings.settingsOhosTtsVoiceMissing(langName, voices),
+        TtsPreferredStatus.googleMissing => AppStrings.settingsOhosTtsNoVoice(
+          voices,
+        ),
       };
     }
     switch (d.preferredStatus) {
@@ -159,31 +165,24 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
   @override
   Widget build(BuildContext context) {
     return SettingsTile(
-      icon: Icons.record_voice_over_rounded,
+      iconId: TurnaIconId.speakVoice,
       title: AppStrings.settingsVoiceSourceTitle,
       subtitle: _subtitle(context),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_previewing)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+            const TurnaLoader.button()
           else
             Text(
               AppStrings.settingsSystemTts,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.brandTeal,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: TurnaTheme.brandTeal,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           const SizedBox(width: 4),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: TurnaTheme.textHint,
-          ),
+          const TurnaIcon(TurnaIconId.chevronRight, color: TurnaTheme.textHint),
         ],
       ),
       onTap: _previewing ? null : () => _showTtsMenu(),
@@ -191,40 +190,58 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
   }
 
   Future<void> _showTtsMenu() async {
-    final selected = await showDialog<Object>(
+    final selected = await showTurnaSheet<Object>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(AppStrings.settingsVoiceSourceDialogTitle),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(context).pop('preview'),
-            child: Text(AppStrings.settingsPlaySample),
-          ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final opened =
-                  await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
-              if (!opened) await _refreshDiagnostics();
-            },
-            child: Text(AppStrings.settingsOpenSystemTts),
-          ),
-          // Both of the remaining actions are Android-only affordances: one
-          // launches a store listing, the other an Android `Intent`. Both fail
-          // silently on the companion build, so they are omitted there instead
-          // of being shown as buttons that do nothing.
-          if (!isHarmonyOsTarget) ...[
-            SimpleDialogOption(
-              onPressed: () async {
+      title: AppStrings.settingsVoiceSourceDialogTitle,
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const TurnaIcon(
+                TurnaIconId.speaker,
+                size: 20,
+                color: TurnaTheme.brandTeal,
+              ),
+              title: Text(AppStrings.settingsPlaySample),
+              onTap: () => Navigator.of(context).pop('preview'),
+            ),
+            ListTile(
+              leading: const TurnaIcon(
+                TurnaIconId.wrench,
+                size: 20,
+                color: TurnaTheme.brandTeal,
+              ),
+              title: Text(AppStrings.settingsOpenSystemTts),
+              onTap: () async {
                 Navigator.of(context).pop();
                 final opened = await getIt<TtsAvailabilityChecker>()
-                    .openGoogleTtsInstallPage();
+                    .openSystemTtsSettings();
                 if (!opened) await _refreshDiagnostics();
               },
-              child: Text(AppStrings.settingsInstallGoogleTts),
             ),
+            // Both of the remaining actions are Android-only affordances: one
+            // launches a store listing, the other an Android `Intent`. Both fail
+            // silently on the companion build, so they are omitted there instead
+            // of being shown as buttons that do nothing.
+            if (!isHarmonyOsTarget)
+              ListTile(
+                leading: const TurnaIcon(
+                  TurnaIconId.download,
+                  size: 20,
+                  color: TurnaTheme.brandTeal,
+                ),
+                title: Text(AppStrings.settingsInstallGoogleTts),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final opened = await getIt<TtsAvailabilityChecker>()
+                      .openGoogleTtsInstallPage();
+                  if (!opened) await _refreshDiagnostics();
+                },
+              ),
           ],
-        ],
+        ),
       ),
     );
 
@@ -262,10 +279,6 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
   }
 
   void _showMessage(String message) {
-    TurnaSnackBar.show(
-      context,
-      message,
-      duration: const Duration(seconds: 4),
-    );
+    TurnaSnackBar.show(context, message, duration: const Duration(seconds: 4));
   }
 }

@@ -137,8 +137,9 @@ class _ReorderBodyState extends State<_ReorderBody>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _dimDuration =
-        _reduceMotion() ? Duration.zero : const Duration(milliseconds: 180);
+    _dimDuration = _reduceMotion()
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
   }
 
   @override
@@ -280,17 +281,15 @@ class _ReorderBodyState extends State<_ReorderBody>
     required Rect to,
     required VoidCallback onLanded,
   }) {
-    final controller =
-        AnimationController(vsync: this, duration: _flightDuration);
+    final controller = AnimationController(
+      vsync: this,
+      duration: _flightDuration,
+    );
     late final _GhostFlight flight;
     final entry = OverlayEntry(
       opaque: false,
-      builder: (_) => _GhostChip(
-        controller: controller,
-        text: text,
-        from: from,
-        to: to,
-      ),
+      builder: (_) =>
+          _GhostChip(controller: controller, text: text, from: from, to: to),
     );
     flight = _GhostFlight(controller, entry);
     _flights.add(flight);
@@ -319,10 +318,10 @@ class _ReorderBodyState extends State<_ReorderBody>
   }
 
   bool _matches() => matchesCourseAnswer(
-        _formatAnswer(),
-        widget.correct.join(' '),
-        widget.acceptedAnswers,
-      );
+    _formatAnswer(),
+    widget.correct.join(' '),
+    widget.acceptedAnswers,
+  );
 
   String _formatAnswer() => [for (final t in _picked) t.text].join(' ');
 
@@ -355,18 +354,16 @@ class _ReorderBodyState extends State<_ReorderBody>
               padding: const EdgeInsets.all(20),
               child: Text(
                 widget.prompt!,
-                style: AppTextStyles.promptLg(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTextStyles.promptLg(context)
+                    .copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 20),
           ],
           Text(
             AppStrings.lessonTapRightOrder,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
           const SizedBox(height: 12),
           _buildAnswerRow(submitted, correct),
@@ -409,16 +406,15 @@ class _ReorderBodyState extends State<_ReorderBody>
       decoration: BoxDecoration(
         color: background,
         border: Border.all(color: border, width: 2),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: _picked.isEmpty
           ? Center(
               child: Text(
                 AppStrings.lessonTapWordToStart,
-                style: TextStyle(
-                  color:
-                      TurnaTheme.textHintColor(context).withValues(alpha: 0.7),
-                  fontSize: 14,
+                style: AppTextStyles.captionSm(context).copyWith(
+                  color: TurnaTheme.textHintColor(context)
+                      .withValues(alpha: 0.7),
                 ),
               ),
             )
@@ -512,7 +508,7 @@ class _ReorderBodyState extends State<_ReorderBody>
           decoration: hovering
               ? BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: TurnaTheme.borderRadius,
                 )
               : null,
           child: Listener(
@@ -522,9 +518,7 @@ class _ReorderBodyState extends State<_ReorderBody>
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                for (final token in _pool) _poolChip(token),
-              ],
+              children: [for (final token in _pool) _poolChip(token)],
             ),
           ),
         );
@@ -576,19 +570,17 @@ class _GhostChip extends StatelessWidget {
       child: ExcludeSemantics(
         child: Material(
           color: TurnaTheme.brandTeal,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-          ),
+          shape: TurnaTheme.shape,
           elevation: 6,
           shadowColor: TurnaTheme.brandTeal.withValues(alpha: 0.4),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Text(
               text,
-              style: const TextStyle(
-                fontSize: 15,
+              style: AppTextStyles.bodyText(context).copyWith(
                 fontWeight: FontWeight.w600,
                 color: TurnaTheme.textOnPrimary,
+                height: 1.2,
               ),
             ),
           ),
@@ -608,7 +600,7 @@ class _DragFeedback extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        borderRadius: TurnaTheme.borderRadius,
         boxShadow: TurnaTheme.buttonShadow,
       ),
       child: WordChip(label: label, selected: true),

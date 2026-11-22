@@ -5,6 +5,7 @@ import 'package:turna/domain/course/reading_passage.dart';
 import 'package:turna/domain/course/word_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 void main() {
   setUp(() {
@@ -39,8 +40,10 @@ void main() {
 
     await tester.tap(find.widgetWithText(InkWell, 'Evimde'));
     await tester.pumpAndSettle();
-    final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
-    expect((dialog.title! as Text).data, 'ev');
-    expect(find.text('房子'), findsOneWidget);
+    final dialog = tester.widget<TurnaDialogPanel>(
+      find.byType(TurnaDialogPanel),
+    );
+    expect(dialog.title, 'ev');
+    expect(find.textContaining('房子'), findsOneWidget);
   });
 }

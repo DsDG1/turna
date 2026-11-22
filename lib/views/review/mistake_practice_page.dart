@@ -12,6 +12,8 @@ import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
 
 @RoutePage()
@@ -31,15 +33,15 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
 
   @override
   Widget build(BuildContext context) {
-    final interaction =
-        context.read<MistakeProvider>().toInteraction(widget.entry);
+    final interaction = context.read<MistakeProvider>().toInteraction(
+      widget.entry,
+    );
 
     if (interaction == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(AppStrings.reviewPracticeTitle)),
-        body: Center(
-          child: Text(AppStrings.reviewCannotPractice),
-        ),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        appBar: TurnaTopBar(title: AppStrings.reviewPracticeTitle),
+        body: Center(child: Text(AppStrings.reviewCannotPractice)),
       );
     }
 
@@ -47,27 +49,18 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        backgroundColor: TurnaTheme.surfaceColor(context),
-        elevation: 0,
-        iconTheme: IconThemeData(
-          color: TurnaTheme.textPrimaryColor(context),
-        ),
-        title: Text(
-          AppStrings.reviewPracticeMistakeTitle,
-          style: TextStyle(
-            color: TurnaTheme.textPrimaryColor(context),
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+      appBar: TurnaTopBar(title: AppStrings.reviewPracticeMistakeTitle),
       body: SafeArea(
         // Same overflow fix as `mistake_review_page.dart`: the renderer body
         // is a `Column` and a long prompt + many options can exceed the
         // viewport. Wrapping it in a scroll view makes the content reachable.
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            AppSpacing.md,
+            AppSpacing.pageMargin,
+            AppSpacing.lg,
+          ),
           child: KeyedSubtree(
             key: ValueKey(widget.entry.id),
             child: renderer.build(
@@ -83,9 +76,9 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
                   _correct = correct;
                 });
                 if (correct) {
-                  context
-                      .read<MistakeProvider>()
-                      .recordRewrite(widget.entry.id);
+                  context.read<MistakeProvider>().recordRewrite(
+                    widget.entry.id,
+                  );
                 }
               },
             ),

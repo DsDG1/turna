@@ -14,13 +14,16 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
-import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/search_field.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 收藏的讲解 —— 阅读目录模式（R14）：[DirectoryEntryRow] 词条行（标题 +
 /// 摘录 + 元信息），发丝线分隔；正文走全局弹层。搜索换 [TurnaSearchField]
@@ -47,11 +50,9 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(
-          AppStrings.aiSavedListTitle,
-          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 17),
-        ),
+      appBar: TurnaTopBar(
+        title: AppStrings.aiSavedListTitle,
+        showDivider: true,
       ),
       body: SafeArea(
         child: Column(
@@ -82,7 +83,6 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                           AppStrings.aiSavedListEmpty,
                           textAlign: TextAlign.center,
                           style: AppTextStyles.bodyText(context).copyWith(
-                            fontSize: 15,
                             color: TurnaTheme.textSecondaryColor(context),
                           ),
                         ),
@@ -105,7 +105,7 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                         onTap: () => _openDetail(context, e),
                         trailing: IconButton(
                           tooltip: AppStrings.aiSavedDelete,
-                          icon: const Icon(Icons.delete_outline, size: 20),
+                          icon: const TurnaIcon(TurnaIconId.delete, size: 20),
                           onPressed: () => _deleteWithUndo(context, store, e),
                         ),
                       );
@@ -174,9 +174,7 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
           label: AppStrings.aiDepthCopy,
           primary: true,
           onPressed: () {
-            Clipboard.setData(
-              ClipboardData(text: labelAiGenerated(e.body)),
-            );
+            Clipboard.setData(ClipboardData(text: labelAiGenerated(e.body)));
             TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
           },
         ),

@@ -11,7 +11,10 @@ import 'package:flutter/widget_previews.dart';
 
 // Project imports:
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 轻顶栏：左侧课程切换（名字 + 展开指示），右侧连胜标记。
 class LightTopBar extends StatelessWidget implements PreferredSizeWidget {
@@ -48,54 +51,53 @@ class LightTopBar extends StatelessWidget implements PreferredSizeWidget {
           child: Row(
             children: [
               Expanded(
-                child: InkWell(
-                  onTap: onSwitchCourse,
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.sm + 2,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            courseName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: TurnaTheme.textPrimaryColor(context),
+                child: Semantics(
+                  button: onSwitchCourse != null,
+                  label: switchTooltip ?? courseName,
+                  child: InkWell(
+                    onTap: onSwitchCourse,
+                    borderRadius: TurnaTheme.borderRadius,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm + 2,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              courseName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.cardTitle(context),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs + 2),
-                        Icon(
-                          Icons.expand_more_rounded,
-                          size: 20,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ],
+                          const SizedBox(width: AppSpacing.xs + 2),
+                          TurnaIcon(
+                            TurnaIconId.chevronDown,
+                            size: 20,
+                            color: TurnaTheme.textSecondaryColor(context),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
               if (streakLabel != null && streakLabel!.isNotEmpty) ...[
                 const SizedBox(width: AppSpacing.sm),
-                Icon(
-                  Icons.local_fire_department_rounded,
+                const TurnaIcon(
+                  TurnaIconId.flame,
                   size: 15,
                   color: TurnaTheme.anatolianClay,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
                   streakLabel!,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: AppTextStyles.captionSm(context).copyWith(
                     fontWeight: FontWeight.w600,
                     color: TurnaTheme.anatolianClay,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
@@ -109,14 +111,15 @@ class LightTopBar extends StatelessWidget implements PreferredSizeWidget {
 
 @Preview(name: 'Light top bar · light', group: 'Wetland mist')
 @Preview(
-    name: 'Light top bar · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Light top bar · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget lightTopBarPreview() => const Scaffold(
-      body: Column(
-        children: [
-          LightTopBar(courseName: '土耳其语 · 新版', streakLabel: '7 天'),
-          Expanded(child: SizedBox()),
-        ],
-      ),
-    );
+  body: Column(
+    children: [
+      LightTopBar(courseName: '土耳其语 · 新版', streakLabel: '7 天'),
+      Expanded(child: SizedBox()),
+    ],
+  ),
+);

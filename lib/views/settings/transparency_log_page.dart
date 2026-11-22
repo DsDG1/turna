@@ -11,13 +11,18 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
 import 'package:turna/core/log_capture.dart';
-import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/ambient_backdrop.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
-/// 透明度报告页 — 隐私详情页底部 pill 跳进来。
+/// 透明度报告页 — 隐私详情页底部入口条跳进来。
 ///
 /// 三段:
 ///   1. **最近操作日志** — info 级,最多 50 条
@@ -35,48 +40,42 @@ class TransparencyLogPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSquareControlTheme(
-      child: Scaffold(
-        backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          title: Text(
-            AppStrings.transparencyTitle,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+    return Scaffold(
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(
+        title: AppStrings.transparencyTitle,
+        actions: [
+          IconButton(
+            tooltip: AppStrings.transparencyClearAll,
+            icon: const TurnaIcon(TurnaIconId.deleteSweep),
+            onPressed: () => _confirmClear(context),
           ),
-          actions: [
-            IconButton(
-              tooltip: AppStrings.transparencyClearAll,
-              icon: const Icon(Icons.delete_sweep_outlined),
-              onPressed: () => _confirmClear(context),
-            ),
-          ],
-        ),
-        body: AmbientBackdrop(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _TransparencyHero(),
-                const SizedBox(height: 20),
-                _SectionHeader(text: AppStrings.transparencyOpsTitle),
-                const SizedBox(height: 10),
-                const _OpsLogCard(),
-                const SizedBox(height: 20),
-                _SectionHeader(text: AppStrings.transparencyErrorTitle),
-                const SizedBox(height: 10),
-                const _ErrorLogCard(),
-                const SizedBox(height: 20),
-                _SectionHeader(text: AppStrings.transparencyDeviceTitle),
-                const SizedBox(height: 10),
-                const _DeviceInfoCard(),
-                const SizedBox(height: 20),
-                const _FooterNote(),
-                const SizedBox(height: 8),
-              ],
-            ),
+        ],
+      ),
+      body: AmbientBackdrop(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _TransparencyHero(),
+              const SizedBox(height: 20),
+              TurnaReadingSectionHeader(title: AppStrings.transparencyOpsTitle),
+              const _OpsLogCard(),
+              const SizedBox(height: 20),
+              TurnaReadingSectionHeader(
+                title: AppStrings.transparencyErrorTitle,
+              ),
+              const _ErrorLogCard(),
+              const SizedBox(height: 20),
+              TurnaReadingSectionHeader(
+                title: AppStrings.transparencyDeviceTitle,
+              ),
+              const _DeviceInfoCard(),
+              const SizedBox(height: 20),
+              const _FooterNote(),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
@@ -84,23 +83,12 @@ class TransparencyLogPage extends StatelessWidget {
   }
 
   Future<void> _confirmClear(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.transparencyClearAll),
-        content: Text(AppStrings.transparencyClearConsequence),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.commonDelete),
-          ),
-        ],
-      ),
+      title: AppStrings.transparencyClearAll,
+      message: AppStrings.transparencyClearConsequence,
+      confirmLabel: AppStrings.commonDelete,
+      destructive: true,
     );
     if (confirmed == true) {
       await LogCapture.instance.clear();
@@ -111,7 +99,7 @@ class TransparencyLogPage extends StatelessWidget {
   }
 }
 
-/// 顶部 hero:visibility 图标 + 标题 + 一句话导语 + 复制全部按钮
+/// 顶部 hero:visibility 图标 + 标题 + 一句话导语
 class _TransparencyHero extends StatelessWidget {
   const _TransparencyHero();
 
@@ -119,28 +107,13 @@ class _TransparencyHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-      ),
+      decoration: TurnaTheme.flatPaperDecoration(context),
       clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // 顶部 teal 装饰条
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  TurnaTheme.brandTeal,
-                  TurnaTheme.brandTeal.withValues(alpha: 0.6),
-                ],
-              ),
-            ),
-          ),
+          Container(height: 4, color: TurnaTheme.brandTeal),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             child: Row(
@@ -148,13 +121,13 @@ class _TransparencyHero extends StatelessWidget {
                 Container(
                   width: 48,
                   height: 48,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusMedium),
+                    borderRadius: TurnaTheme.borderRadius,
                   ),
-                  child: const Icon(
-                    Icons.visibility_outlined,
+                  child: const TurnaIcon(
+                    TurnaIconId.eye,
                     color: TurnaTheme.brandTeal,
                     size: 26,
                   ),
@@ -166,19 +139,12 @@ class _TransparencyHero extends StatelessWidget {
                     children: [
                       Text(
                         AppStrings.transparencyTitle,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
+                        style: AppTextStyles.sectionTitle(context),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         AppStrings.transparencyIntro,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          height: 1.45,
+                        style: AppTextStyles.bodySm(context).copyWith(
                           color: TurnaTheme.textSecondaryColor(context),
                         ),
                       ),
@@ -204,7 +170,7 @@ class _OpsLogCard extends StatelessWidget {
       valueListenable: LogCapture.instance.entries,
       builder: (context, all, _) {
         final ops = all.where((e) => e.level == Level.info).take(50).toList();
-        return _AboutCard(
+        return TurnaReadingCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -232,13 +198,15 @@ class _ErrorLogCard extends StatelessWidget {
       valueListenable: LogCapture.instance.entries,
       builder: (context, all, _) {
         final errs = all
-            .where((e) =>
-                e.level == Level.warning ||
-                e.level == Level.error ||
-                e.level == Level.fatal)
+            .where(
+              (e) =>
+                  e.level == Level.warning ||
+                  e.level == Level.error ||
+                  e.level == Level.fatal,
+            )
             .take(50)
             .toList();
-        return _AboutCard(
+        return TurnaReadingCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -279,6 +247,7 @@ class _DeviceInfoCardState extends State<_DeviceInfoCard> {
     try {
       info = await PackageInfo.fromPlatform();
     } catch (_) {
+      // Best-effort device info probe; unavailable in narrow test hosts.
       info = null;
     }
     if (!mounted) return;
@@ -305,46 +274,45 @@ class _DeviceInfoCardState extends State<_DeviceInfoCard> {
 
     final rows = <_DeviceRow>[
       _DeviceRow(
-        icon: Icons.tag_rounded,
+        icon: TurnaIconId.tag,
         title: AppStrings.transparencyDeviceAppVersion,
         value: versionLabel,
       ),
       _DeviceRow(
-        icon: Icons.devices_rounded,
+        icon: TurnaIconId.wrench,
         title: AppStrings.transparencyDevicePlatform,
         value: _platformLabel(),
       ),
       _DeviceRow(
-        icon: Icons.memory_rounded,
+        icon: TurnaIconId.storage,
         title: AppStrings.transparencyDeviceOs,
         value: osLabel,
       ),
       _DeviceRow(
-        icon: Icons.aspect_ratio_rounded,
+        icon: TurnaIconId.textSize,
         title: AppStrings.transparencyDeviceScreen,
         value: screenLabel,
       ),
       _DeviceRow(
-        icon: Icons.translate_rounded,
+        icon: TurnaIconId.translate,
         title: AppStrings.transparencyDeviceLocale,
         value: localeLabel,
       ),
       _DeviceRow(
-        icon: Icons.schedule_rounded,
+        icon: TurnaIconId.timer,
         title: AppStrings.transparencyDeviceTimezone,
         value: tzLabel,
       ),
     ];
 
-    return _AboutCard(
+    return TurnaReadingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             AppStrings.transparencyDeviceIntro,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: TurnaTheme.textHintColor(context)),
           ),
           const SizedBox(height: 10),
           for (var i = 0; i < rows.length; i++) ...[
@@ -367,6 +335,7 @@ class _DeviceInfoCardState extends State<_DeviceInfoCard> {
     try {
       return '${Platform.operatingSystem} (${Platform.operatingSystemVersion.split(' ').first})';
     } catch (_) {
+      // Platform API unavailable on web.
       return '—';
     }
   }
@@ -377,6 +346,7 @@ class _DeviceInfoCardState extends State<_DeviceInfoCard> {
       if (v.isEmpty) return Platform.operatingSystem;
       return v;
     } catch (_) {
+      // Platform API unavailable on web.
       return '—';
     }
   }
@@ -386,6 +356,7 @@ class _DeviceInfoCardState extends State<_DeviceInfoCard> {
       final code = Platform.localeName;
       return code.isEmpty ? '—' : code;
     } catch (_) {
+      // Platform API unavailable on web.
       return '—';
     }
   }
@@ -402,10 +373,8 @@ class _FooterNote extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
-        ),
+        borderRadius: TurnaTheme.borderRadius,
+        border: Border.all(color: TurnaTheme.brandTeal.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,8 +382,8 @@ class _FooterNote extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.lock_outline_rounded,
+              const TurnaIcon(
+                TurnaIconId.lock,
                 color: TurnaTheme.brandTeal,
                 size: 18,
               ),
@@ -423,9 +392,9 @@ class _FooterNote extends StatelessWidget {
                 child: Text(
                   AppStrings.transparencyFooter,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: TurnaTheme.textSecondaryColor(context),
-                        height: 1.5,
-                      ),
+                    color: TurnaTheme.textSecondaryColor(context),
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],
@@ -438,8 +407,8 @@ class _FooterNote extends StatelessWidget {
               if (file == null) return const SizedBox.shrink();
               return Row(
                 children: [
-                  const Icon(
-                    Icons.description_outlined,
+                  const TurnaIcon(
+                    TurnaIconId.article,
                     size: 16,
                     color: TurnaTheme.brandTeal,
                   ),
@@ -447,24 +416,21 @@ class _FooterNote extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '${AppStrings.transparencyLogFileLabel}: ${file.path}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: TurnaTheme.textHintColor(context)),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
                     tooltip: AppStrings.commonCopyPath,
-                    icon: const Icon(
-                      Icons.copy_rounded,
+                    icon: const TurnaIcon(
+                      TurnaIconId.copy,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
                     onPressed: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: file.path),
-                      );
+                      await Clipboard.setData(ClipboardData(text: file.path));
                     },
                   ),
                 ],
@@ -494,28 +460,15 @@ class _CardMetaRow extends StatelessWidget {
         : AppStrings.transparencyOpsTitle;
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-          ),
-          child: Text(
-            AppStrings.transparencyLogCount(count),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
+        TurnaReadingBadge(
+          label: AppStrings.transparencyLogCount(count),
+          color: color,
         ),
         const SizedBox(width: 8),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: TurnaTheme.textHintColor(context),
-          ),
+          style: AppTextStyles.caption(context)
+              .copyWith(color: TurnaTheme.textHintColor(context)),
         ),
       ],
     );
@@ -548,8 +501,8 @@ class _LogLineState extends State<_LogLine> {
         : TurnaTheme.textHintColor(context);
     final levelTag = entry.isAbnormal
         ? (entry.level == Level.warning
-            ? AppStrings.transparencyLevelWarn
-            : AppStrings.transparencyLevelError)
+              ? AppStrings.transparencyLevelWarn
+              : AppStrings.transparencyLevelError)
         : AppStrings.transparencyLevelInfo;
     final expandable = entry.hasStackTrace;
 
@@ -561,7 +514,7 @@ class _LogLineState extends State<_LogLine> {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: TurnaTheme.borderRadius,
               onTap: expandable
                   ? () => setState(() => _expanded = !_expanded)
                   : null,
@@ -576,27 +529,25 @@ class _LogLineState extends State<_LogLine> {
                         time,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: TurnaTheme.textHintColor(context),
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ),
                     Container(
                       margin: const EdgeInsets.only(top: 1),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 1),
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(3),
+                        borderRadius: TurnaTheme.borderRadius,
                       ),
                       child: Text(
                         levelTag,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: color,
-                        ),
+                        style: AppTextStyles.captionSm(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w700, color: color),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -604,9 +555,9 @@ class _LogLineState extends State<_LogLine> {
                       child: Text(
                         entry.displayMessage,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textSecondaryColor(context),
-                              height: 1.4,
-                            ),
+                          color: TurnaTheme.textSecondaryColor(context),
+                          height: 1.4,
+                        ),
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -614,10 +565,10 @@ class _LogLineState extends State<_LogLine> {
                     if (expandable)
                       Padding(
                         padding: const EdgeInsets.only(left: 4, top: 1),
-                        child: Icon(
+                        child: TurnaIcon(
                           _expanded
-                              ? Icons.expand_less_rounded
-                              : Icons.expand_more_rounded,
+                              ? TurnaIconId.chevronUp
+                              : TurnaIconId.chevronDown,
                           size: 16,
                           color: TurnaTheme.textHintColor(context),
                         ),
@@ -629,21 +580,22 @@ class _LogLineState extends State<_LogLine> {
           ),
           if (expandable && _expanded)
             Container(
-              margin:
-                  const EdgeInsets.only(left: 70, top: 2, bottom: 4, right: 4),
+              margin: const EdgeInsets.only(
+                left: 70,
+                top: 2,
+                bottom: 4,
+                right: 4,
+              ),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: TurnaTheme.inputFillColor(context),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: TurnaTheme.statCardBorder(context),
-                ),
+                borderRadius: TurnaTheme.borderRadius,
+                border: Border.all(color: TurnaTheme.statCardBorder(context)),
               ),
               child: SelectableText(
                 entry.stackTrace!,
-                style: TextStyle(
+                style: AppTextStyles.captionSm(context).copyWith(
                   fontFamily: 'monospace',
-                  fontSize: 11,
                   height: 1.4,
                   color: TurnaTheme.textPrimaryColor(context),
                 ),
@@ -668,9 +620,8 @@ class _EmptyLine extends StatelessWidget {
         children: [
           Text(
             text,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
         ],
       ),
@@ -679,7 +630,7 @@ class _EmptyLine extends StatelessWidget {
 }
 
 class _DeviceRow extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final String value;
 
@@ -693,14 +644,13 @@ class _DeviceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: TurnaTheme.brandTeal),
+        TurnaIcon(icon, size: 18, color: TurnaTheme.brandTeal),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
         ),
         const SizedBox(width: 8),
@@ -719,63 +669,6 @@ class _DeviceRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 短 teal 横条 + 小标题
-class _SectionHeader extends StatelessWidget {
-  final String text;
-
-  const _SectionHeader({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 3,
-            height: 18,
-            decoration: BoxDecoration(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 通用内容卡片
-class _AboutCard extends StatelessWidget {
-  final Widget child;
-
-  const _AboutCard({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: TurnaTheme.glassDecoration(
-        context,
-        TurnaTheme.glassNeutral,
-        level: GlassLevel.l1Quiet,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-      ),
-      child: child,
     );
   }
 }

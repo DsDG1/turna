@@ -7,11 +7,13 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Renderer for [Interaction.readingMcq].
 ///
@@ -97,9 +99,9 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
       canSubmit: canSubmit,
       submit: canSubmit
           ? () => widget.onSubmit(
-                _selectedIndex == widget.correctIndex,
-                userAnswerText: widget.options[_selectedIndex!],
-              )
+              _selectedIndex == widget.correctIndex,
+              userAnswerText: widget.options[_selectedIndex!],
+            )
           : null,
     );
 
@@ -117,8 +119,8 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.menu_book_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.book,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -130,10 +132,7 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  widget.prompt,
-                  style: AppTextStyles.promptMd(context),
-                ),
+                Text(widget.prompt, style: AppTextStyles.promptMd(context)),
               ],
             ),
           ),
@@ -146,8 +145,9 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
               isCorrect: submitted && idx == widget.correctIndex,
               isWrong: submitted && correct == false && _selectedIndex == idx,
               showDivider: idx < widget.options.length - 1,
-              onTap:
-                  submitted ? null : () => setState(() => _selectedIndex = idx),
+              onTap: submitted
+                  ? null
+                  : () => setState(() => _selectedIndex = idx),
             ),
           if (submitted) ...[
             const SizedBox(height: 16),

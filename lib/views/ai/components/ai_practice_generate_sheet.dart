@@ -10,11 +10,13 @@ import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 
@@ -72,27 +74,26 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
   }
 
   String get _templateLabel => switch (_template) {
-        'mastery' => AppStrings.aiPracticeTemplateMastery,
-        'practice' => AppStrings.aiPracticeTemplatePractice,
-        'review' => AppStrings.aiPracticeTemplateReview,
-        _ => AppStrings.aiPracticeTemplateMixed,
-      };
+    'mastery' => AppStrings.aiPracticeTemplateMastery,
+    'practice' => AppStrings.aiPracticeTemplatePractice,
+    'review' => AppStrings.aiPracticeTemplateReview,
+    _ => AppStrings.aiPracticeTemplateMixed,
+  };
 
   String get _sourceLabel => switch (_source) {
-        AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
-        AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
-        AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
-        AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
-      };
+    AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
+    AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
+    AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
+    AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final complete =
-        context.select((AiEngineConfigHolder h) => h.config.isComplete);
+    final complete = context.select(
+      (AiEngineConfigHolder h) => h.config.isComplete,
+    );
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.pageMargin,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -131,7 +132,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
                   ? AppStrings.aiPracticeGenerating
                   : AppStrings.aiPracticeStartGeneration,
               onPressed: complete && !_busy ? _start : null,
-              trailingIcon: Icons.auto_awesome_rounded,
+              trailingIcon: TurnaIconId.spark,
             ),
             const SizedBox(height: AppSpacing.lg),
           ],
@@ -155,11 +156,11 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
               (AiPracticeSource.mistakes, AppStrings.aiPracticeSourceMistakes),
               (
                 AiPracticeSource.weakWords,
-                AppStrings.aiPracticeSourceWeakWords
+                AppStrings.aiPracticeSourceWeakWords,
               ),
               (
                 AiPracticeSource.difficult,
-                AppStrings.aiPracticeSourceDifficult
+                AppStrings.aiPracticeSourceDifficult,
               ),
             ],
             current: _source,
@@ -207,9 +208,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
           value: '$_units',
           onTap: () => _pick(
             title: AppStrings.aiPracticeCustomUnits,
-            options: [
-              for (var i = 1; i <= 4; i++) ('$i', '$i'),
-            ],
+            options: [for (var i = 1; i <= 4; i++) ('$i', '$i')],
             current: '$_units',
             onSelected: (value) => setState(() => _units = int.parse(value)),
           ),
@@ -219,9 +218,7 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
           value: '$_lessons',
           onTap: () => _pick(
             title: AppStrings.aiPracticeCustomLessons,
-            options: [
-              for (var i = 1; i <= 4; i++) ('$i', '$i'),
-            ],
+            options: [for (var i = 1; i <= 4; i++) ('$i', '$i')],
             current: '$_lessons',
             onSelected: (value) => setState(() => _lessons = int.parse(value)),
           ),
@@ -272,9 +269,8 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
         children: [
           Text(
             label,
-            style: AppTextStyles.captionSm(context).copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.sm - 2),
           TextField(
@@ -288,12 +284,11 @@ class _AiPracticeGenerateSheetState extends State<AiPracticeGenerateSheet> {
   }
 
   Widget _estimate(BuildContext context, int calls) => Text(
-        '${AppStrings.aiPracticeEstimatedCalls(calls)} · '
-        '${AppStrings.aiPracticeLessonPlan(_customMode ? _units * _lessons : 1)}',
-        style: AppTextStyles.captionSm(context).copyWith(
-          color: TurnaTheme.textHintColor(context),
-        ),
-      );
+    '${AppStrings.aiPracticeEstimatedCalls(calls)} · '
+    '${AppStrings.aiPracticeLessonPlan(_customMode ? _units * _lessons : 1)}',
+    style: AppTextStyles.captionSm(context)
+        .copyWith(color: TurnaTheme.textHintColor(context)),
+  );
 
   /// 偏好目录深页式的取值：值行 → 选项弹层（全局弹层容器），点选即回填。
   Future<void> _pick<T>({
@@ -373,8 +368,8 @@ class _ConfigWarning extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.warning_amber_rounded,
+        const TurnaIcon(
+          TurnaIconId.warning,
           size: 16,
           color: TurnaTheme.warning,
         ),
@@ -422,14 +417,13 @@ class _PickOptionRow extends StatelessWidget {
               child: Text(
                 label,
                 style: AppTextStyles.bodyText(context).copyWith(
-                  fontSize: 15,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
             ),
             if (selected)
-              const Icon(
-                Icons.check_rounded,
+              const TurnaIcon(
+                TurnaIconId.check,
                 size: 18,
                 color: TurnaTheme.brandTeal,
               ),

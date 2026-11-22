@@ -12,10 +12,13 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// 偏好目录深页的分区标题。
@@ -69,7 +72,7 @@ class AiConfigStatusLine extends StatelessWidget {
           isComplete
               ? AppStrings.aiConfigStatusConfigured
               : AppStrings.aiConfigStatusNotConfigured,
-          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
+          style: AppTextStyles.cardTitle(context),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
@@ -77,9 +80,8 @@ class AiConfigStatusLine extends StatelessWidget {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ),
       ],
@@ -136,7 +138,7 @@ class AiConfigBaseUrlBlock extends StatelessWidget {
         Text(
           AppStrings.settingsBaseUrlLabel,
           style: AppTextStyles.bodyText(context)
-              .copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+              .copyWith(fontWeight: FontWeight.w500),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -146,7 +148,6 @@ class AiConfigBaseUrlBlock extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: AppTextStyles.bodyText(context).copyWith(
-              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: TurnaTheme.brandTeal,
             ),
@@ -192,10 +193,8 @@ class _AiConfigApiKeyFieldState extends State<AiConfigApiKeyField> {
           tooltip: _obscure
               ? AppStrings.commonShowPassword
               : AppStrings.commonHidePassword,
-          icon: Icon(
-            _obscure
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
+          icon: TurnaIcon(
+            _obscure ? TurnaIconId.eyeOff : TurnaIconId.eye,
             size: 20,
             color: TurnaTheme.textHintColor(context),
           ),
@@ -361,12 +360,8 @@ class AiConfigConnectionTestSectionState
                         ? null
                         : _testConnection,
                     icon: _probing
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.wifi_tethering_rounded, size: 18),
+                        ? TurnaLoader.inline(size: 16)
+                        : const TurnaIcon(TurnaIconId.wifi, size: 18),
                     label: Text(AppStrings.aiHubToolsTestConnection),
                   ),
                 ),
@@ -376,7 +371,7 @@ class AiConfigConnectionTestSectionState
                 child: SessionPrimaryAction(
                   label: AppStrings.aiConfigSave,
                   onPressed: widget.onSave,
-                  trailingIcon: Icons.save_outlined,
+                  trailingIcon: TurnaIconId.save,
                 ),
               ),
             ],
@@ -394,8 +389,8 @@ class AiConfigConnectionTestSectionState
         : '${AppStrings.aiHubToolsTestConnectionFail}（${_probeResult!.errorCategory}）';
     return Row(
       children: [
-        Icon(
-          ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+        TurnaIcon(
+          ok ? TurnaIconId.checkCircle : TurnaIconId.error,
           size: 18,
           color: accent,
         ),
@@ -403,10 +398,8 @@ class AiConfigConnectionTestSectionState
         Expanded(
           child: Text(
             text,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: accent,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: accent, fontWeight: FontWeight.w600),
           ),
         ),
         if (!ok)
@@ -416,8 +409,8 @@ class AiConfigConnectionTestSectionState
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: AppStrings.aiConfigCopyEndpoint,
-            icon: Icon(
-              Icons.copy_rounded,
+            icon: TurnaIcon(
+              TurnaIconId.copy,
               size: 16,
               color: TurnaTheme.textHintColor(context),
             ),
@@ -450,15 +443,13 @@ class AiConfigDangerRow extends StatelessWidget {
       children: [
         TextButton.icon(
           onPressed: onClear,
-          style: TextButton.styleFrom(
-            foregroundColor: TurnaTheme.error,
-          ),
-          icon: const Icon(Icons.key_off_outlined, size: 18),
+          style: TextButton.styleFrom(foregroundColor: TurnaTheme.error),
+          icon: const TurnaIcon(TurnaIconId.keyOff, size: 18),
           label: Text(AppStrings.aiConfigClearKeyButton),
         ),
         TextButton.icon(
           onPressed: onRestore,
-          icon: const Icon(Icons.restore_rounded, size: 18),
+          icon: const TurnaIcon(TurnaIconId.restore, size: 18),
           label: Text(AppStrings.aiConfigRestoreDefaultsButton),
         ),
       ],
@@ -475,8 +466,8 @@ class AiConfigFooterHint extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.lock_outline_rounded,
+        TurnaIcon(
+          TurnaIconId.lock,
           size: 13,
           color: TurnaTheme.textHintColor(context),
         ),
@@ -484,10 +475,8 @@ class AiConfigFooterHint extends StatelessWidget {
         Flexible(
           child: Text(
             AppStrings.settingsAiApiConfigNotSaved,
-            style: AppTextStyles.captionSm(context).copyWith(
-              fontSize: 12,
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ),
       ],
@@ -504,8 +493,10 @@ class AiConfigCredentialSafetyNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<AiEngineConfigHolder,
-        (AiKeyStorageKind, AiCredentialMigrationStatus, bool)>(
+    return Selector<
+      AiEngineConfigHolder,
+      (AiKeyStorageKind, AiCredentialMigrationStatus, bool)
+    >(
       selector: (_, holder) => (
         holder.keyStorageKind,
         holder.migrationStatus,
@@ -520,19 +511,19 @@ class AiConfigCredentialSafetyNotice extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        final IconData icon;
+        final TurnaIconId icon;
         final Color accent;
         final String message;
         if (isFailure) {
-          icon = Icons.shield_outlined;
+          icon = TurnaIconId.shield;
           accent = TurnaTheme.error;
           message = AppStrings.aiConfigMigrationPendingNotice;
         } else if (isSession) {
-          icon = Icons.shield_outlined;
+          icon = TurnaIconId.shield;
           accent = TurnaTheme.warning;
           message = AppStrings.aiConfigSessionKeyNotice;
         } else {
-          icon = Icons.verified_user_outlined;
+          icon = TurnaIconId.verified;
           accent = TurnaTheme.brandSky;
           message = AppStrings.aiConfigKeyPersistedNotice;
         }
@@ -541,7 +532,7 @@ class AiConfigCredentialSafetyNotice extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Icon(icon, size: 16, color: accent),
+              child: TurnaIcon(icon, size: 16, color: accent),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -576,17 +567,17 @@ class AiConfigEndpointScopeNotice extends StatelessWidget {
       children: [
         AiConfigSectionHeading(AppStrings.aiConfigScopeTitle),
         _ScopeLine(
-          icon: Icons.terminal_rounded,
+          icon: TurnaIconId.code,
           text: AppStrings.aiConfigScopeProtocol,
         ),
         const SizedBox(height: AppSpacing.sm),
         _ScopeLine(
-          icon: Icons.cloud_upload_outlined,
+          icon: TurnaIconId.upload,
           text: AppStrings.aiConfigScopeDataFlow,
         ),
         const SizedBox(height: AppSpacing.sm),
         _ScopeLine(
-          icon: Icons.gavel_rounded,
+          icon: TurnaIconId.shield,
           text: AppStrings.aiConfigScopeLiability,
         ),
       ],
@@ -597,7 +588,7 @@ class AiConfigEndpointScopeNotice extends StatelessWidget {
 class _ScopeLine extends StatelessWidget {
   const _ScopeLine({required this.icon, required this.text});
 
-  final IconData icon;
+  final TurnaIconId icon;
   final String text;
 
   @override
@@ -607,7 +598,7 @@ class _ScopeLine extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 2),
-          child: Icon(
+          child: TurnaIcon(
             icon,
             size: 15,
             color: TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
@@ -617,8 +608,7 @@ class _ScopeLine extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: AppTextStyles.captionSm(context)
-                .copyWith(height: 1.45, fontSize: 12.5),
+            style: AppTextStyles.captionSm(context).copyWith(height: 1.45),
           ),
         ),
       ],

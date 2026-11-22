@@ -9,24 +9,30 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki_import/anki_import_controller.dart';
-import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
+import 'package:turna/application/anki_import/anki_import_controller.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
-import 'package:turna/views/widgets/session_shell.dart';
-import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_controls.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Anki import wizard shell (maintainability plan §10),「湿地雾光」步骤
 /// 流程版式（P1：只动视觉外壳，流程、判定与保真档位原样）：
@@ -85,19 +91,20 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         if (leave && context.mounted) context.router.pop();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            AppStrings.ankiImportTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+        appBar: TurnaTopBar(
+          title: AppStrings.ankiImportTitle,
+          showDivider: true,
           leading: IconButton(
             tooltip: AppStrings.commonBack,
-            icon: const Icon(Icons.arrow_back),
+            icon: TurnaIcon(
+              TurnaIconId.arrowBack,
+              size: 20,
+              color: TurnaTheme.textPrimaryColor(context),
+            ),
             onPressed: () async {
               final leave = await _confirmLeave(context, controller);
               // Same as the PopScope handler: pop unconditionally after the
-              // confirm — maybePop re-enters the canPop gate forever.
+              // confirm — cannot retry through canPop gate.
               if (leave && context.mounted) context.router.pop();
             },
           ),
@@ -109,10 +116,12 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             // A Failed state renders its return-state UI plus the error
             // surface (the legacy page swapped _error + step; this encodes
             // the same outcome in the type).
-            final effective =
-                state is AnkiImportFailed ? state.returnState : state;
-            final failureMessage =
-                state is AnkiImportFailed ? state.message : null;
+            final effective = state is AnkiImportFailed
+                ? state.returnState
+                : state;
+            final failureMessage = state is AnkiImportFailed
+                ? state.message
+                : null;
             return TurnaPageContent(
               maxWidth: 840,
               child: Column(
@@ -132,7 +141,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     ),
                   ),
                   if (_buildActionBand(
-                          context, controller, effective, failureMessage)
+                        context,
+                        controller,
+                        effective,
+                        failureMessage,
+                      )
                       case final band?)
                     band,
                 ],
@@ -149,13 +162,13 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   Widget _stageHeaderFor(AnkiImportWizardState effective, String? error) {
     final (String? title, String? hint) = switch (effective) {
       AnkiImportSelecting() => (
-          AppStrings.ankiImportSelectTitle,
-          error ?? AppStrings.ankiImportSelectSubtitle,
-        ),
+        AppStrings.ankiImportSelectTitle,
+        error ?? AppStrings.ankiImportSelectSubtitle,
+      ),
       AnkiImportAlreadyImported(:final displayName) => (
-          AppStrings.ankiAlreadyImportedTitle,
-          displayName,
-        ),
+        AppStrings.ankiAlreadyImportedTitle,
+        displayName,
+      ),
       AnkiImportParsing() => (AppStrings.ankiStepParse, null),
       AnkiImportCommitting() => (AppStrings.ankiStepImport, null),
       _ => (null, null),
@@ -197,17 +210,23 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     if (state is AnkiImportPreviewing) {
       final choice = await showDialog<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(AppStrings.ankiImportLeaveTitle),
-          content: Text(AppStrings.ankiImportLeavePreviewMessage),
+        builder: (ctx) => TurnaDialogPanel(
+          title: AppStrings.ankiImportLeaveTitle,
+          body: Text(
+            AppStrings.ankiImportLeavePreviewMessage,
+            style: AppTextStyles.bodyText(ctx)
+                .copyWith(color: TurnaTheme.textSecondaryColor(ctx)),
+          ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'later'),
-              child: Text(AppStrings.ankiImportLeaveContinueLater),
+            TurnaSheetAction(
+              label: AppStrings.ankiImportLeaveContinueLater,
+              onPressed: () => Navigator.of(ctx).pop('later'),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'discard'),
-              child: Text(AppStrings.ankiImportLeaveDiscard),
+            TurnaSheetAction(
+              label: AppStrings.ankiImportLeaveDiscard,
+              primary: true,
+              destructive: true,
+              onPressed: () => Navigator.of(ctx).pop('discard'),
             ),
           ],
         ),
@@ -218,24 +237,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       }
       return choice == 'later';
     }
-    final choice = await showDialog<String>(
+    final discard = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.ankiImportLeaveTitle),
-        content: Text(AppStrings.ankiImportLeaveBusyMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 'wait'),
-            child: Text(AppStrings.ankiImportLeaveWait),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 'discard'),
-            child: Text(AppStrings.ankiImportLeaveDiscard),
-          ),
-        ],
-      ),
+      title: AppStrings.ankiImportLeaveTitle,
+      message: AppStrings.ankiImportLeaveBusyMessage,
+      cancelLabel: AppStrings.ankiImportLeaveWait,
+      confirmLabel: AppStrings.ankiImportLeaveDiscard,
+      destructive: true,
     );
-    if (choice == 'discard') {
+    if (discard == true) {
       controller.cancel();
       return true;
     }
@@ -264,7 +274,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         return _buildCommittingStep(controller, effective);
       case AnkiImportPreviewing():
         return _buildPreviewStep(
-            context, controller, effective, failureMessage);
+          context,
+          controller,
+          effective,
+          failureMessage,
+        );
       case AnkiImportCompleted():
         return _buildDoneStep(controller, effective);
       case AnkiImportFailed():
@@ -297,10 +311,19 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.upload_file_rounded,
-                      size: 72,
-                      color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
+                    Container(
+                      width: 72,
+                      height: 72,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
+                        borderRadius: TurnaTheme.borderRadius,
+                      ),
+                      child: const TurnaIcon(
+                        TurnaIconId.upload,
+                        size: 36,
+                        color: TurnaTheme.brandTeal,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     OfficialPendingImportBanner(
@@ -310,17 +333,42 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       onChanged: controller.clearSelectFailure,
                       onContinue: (item) => controller.continuePending(item),
                     ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(AppStrings.ankiIncludeMedia),
-                      subtitle: Text(AppStrings.ankiIncludeMediaHint),
-                      value: controller.includeMedia,
-                      onChanged: (value) {
-                        controller.setIncludeMedia(value);
-                        // The switch is plain local state; the shell only
-                        // rebuilds on controller ticks, so nudge it here.
-                        setState(() {});
-                      },
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      decoration: TurnaTheme.flatPaperDecoration(context),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppStrings.ankiIncludeMedia,
+                                  style: AppTextStyles.cardTitle(context),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  AppStrings.ankiIncludeMediaHint,
+                                  style: AppTextStyles.captionSm(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          TurnaSwitch(
+                            value: controller.includeMedia,
+                            onChanged: (value) {
+                              controller.setIncludeMedia(value);
+                              // The switch is plain local state; the shell only
+                              // rebuilds on controller ticks, so nudge it here.
+                              setState(() {});
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -366,9 +414,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 parsing.stage!,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             ],
           ],
@@ -403,9 +450,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 committing.stage!,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             ],
             const SizedBox(height: AppSpacing.sm),
@@ -467,9 +513,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         await courseProvider.setCourseScope(wire);
       }
     }
-    // In Completed state _confirmLeave is an instant `true`, so a maybePop
-    // here would bounce off the canPop gate and re-enter the pop handler
-    // forever (the on-device freeze). Leave unconditionally.
+    // In Completed state _confirmLeave is an instant `true`, so popping
+    // unconditionally avoids bouncing off the canPop gate (on-device freeze).
     if (mounted) context.router.pop();
   }
 
@@ -500,12 +545,19 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.inventory_2_outlined,
-                size: 72, color: TurnaTheme.brandTeal),
-          ],
+        child: Container(
+          width: 72,
+          height: 72,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
+            borderRadius: TurnaTheme.borderRadius,
+          ),
+          child: const TurnaIcon(
+            TurnaIconId.layers,
+            size: 36,
+            color: TurnaTheme.brandTeal,
+          ),
         ),
       ),
     );
@@ -527,7 +579,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         return SessionActionBand(
           child: SessionPrimaryAction(
             label: AppStrings.ankiChooseFile,
-            trailingIcon: Icons.folder_open_outlined,
+            trailingIcon: TurnaIconId.folder,
             onPressed: hasUnfinished ? null : controller.pickFile,
           ),
         );
@@ -539,7 +591,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             children: [
               SessionPrimaryAction(
                 label: AppStrings.ankiAlreadyImportedOpen,
-                trailingIcon: Icons.play_arrow_rounded,
+                trailingIcon: TurnaIconId.play,
                 onPressed: () => unawaited(controller.openExistingCourse()),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -559,7 +611,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             height: 48,
             child: OutlinedButton.icon(
               onPressed: controller.cancel,
-              icon: const Icon(Icons.close_rounded, size: 18),
+              icon: const TurnaIcon(TurnaIconId.close, size: 18),
               label: Text(AppStrings.commonCancel),
             ),
           ),
@@ -591,9 +643,19 @@ class _ImportProgressIndicator extends StatelessWidget {
     if (current != null && totalCount != null && totalCount > 0) {
       return SizedBox(
         width: 220,
-        child: LinearProgressIndicator(value: current! / totalCount),
+        child: ClipRRect(
+          borderRadius: TurnaTheme.borderRadius,
+          child: LinearProgressIndicator(
+            value: (current! / totalCount).clamp(0.0, 1.0),
+            minHeight: 4,
+            backgroundColor: TurnaTheme.dividerBg(context),
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              TurnaTheme.brandTeal,
+            ),
+          ),
+        ),
       );
     }
-    return const CircularProgressIndicator();
+    return TurnaLoader.page();
   }
 }

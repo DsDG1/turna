@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Compact "label + value" row for stat cards (storage breakdown, cache
 /// stats, FSRS preview, etc.). Lives inside a [SettingsCard] with
@@ -14,53 +16,49 @@ class SettingsKeyValueTile extends StatelessWidget {
     required this.label,
     required this.value,
     this.icon,
+    this.iconId,
     this.dense = false,
   });
 
   final String label;
   final String value;
   final IconData? icon;
+  final TurnaIconId? iconId;
   final bool dense;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: dense ? 8 : 12,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: dense ? 8 : 12),
       child: Row(
         children: [
-          if (icon != null) ...[
+          if (iconId != null) ...[
+            TurnaIcon(iconId!, color: TurnaTheme.brandTeal, size: 18),
+            const SizedBox(width: 10),
+          ] else if (icon != null) ...[
             Icon(icon, color: TurnaTheme.brandTeal, size: 18),
             const SizedBox(width: 10),
           ],
           Expanded(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
             ),
           ),
           const SizedBox(width: 12),
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.brandTeal,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: TurnaTheme.brandTeal,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
     );
   }
 }
-
-/// Generic version of [SettingsToggleTile] for sources other than
-/// [SettingsProvider] (e.g. [SystemHealthMonitor.safeMode]). Same visual
-/// rhythm: 40×40 brandTeal-tint icon container + bodyLarge w600 title +
-/// bodySmall hint subtitle + teal Switch on the right.
 
 /// Single segment in [SettingsSegmentedBar].
 class SettingsSegmentedBarItem {
@@ -76,8 +74,6 @@ class SettingsSegmentedBarItem {
   final Color color;
   final String? formattedValue;
 }
-
-/// Multi-color segmented distribution bar (e.g. storage breakdown, memory distribution).
 
 /// Multi-color segmented distribution bar (e.g. storage breakdown, memory distribution).
 class SettingsSegmentedBar extends StatelessWidget {
@@ -103,7 +99,7 @@ class SettingsSegmentedBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(height / 2),
+            borderRadius: TurnaTheme.borderRadius,
             child: Container(
               height: height,
               color: TurnaTheme.dividerBg(context),
@@ -113,9 +109,10 @@ class SettingsSegmentedBar extends StatelessWidget {
                         for (final s in segments)
                           if (s.value > 0)
                             Expanded(
-                              flex: (s.value / total * 1000)
-                                  .round()
-                                  .clamp(1, 1000),
+                              flex: (s.value / total * 1000).round().clamp(
+                                1,
+                                1000,
+                              ),
                               child: Container(color: s.color),
                             ),
                       ],
@@ -145,9 +142,7 @@ class SettingsSegmentedBar extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           s.label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
+                          style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: TurnaTheme.textSecondaryColor(context),
                               ),
@@ -156,9 +151,7 @@ class SettingsSegmentedBar extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             s.formattedValue!,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: TurnaTheme.textPrimaryColor(context),

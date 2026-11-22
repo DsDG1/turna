@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// A node in the multi-level deck tree.
 class DeckTreeNode {
@@ -144,13 +148,13 @@ class DeckDirectoryTreeView extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = visibleDeckNodes(deckTree);
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       sliver: DecoratedSliver(
         decoration: TurnaTheme.glassDecoration(
           context,
           TurnaTheme.glassNeutral,
           level: GlassLevel.l1Subtle,
-          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+          borderRadius: TurnaTheme.borderRadius,
         ),
         sliver: SliverPadding(
           padding: const EdgeInsets.all(14),
@@ -159,31 +163,26 @@ class DeckDirectoryTreeView extends StatelessWidget {
               SliverToBoxAdapter(
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.account_tree_outlined,
+                    const TurnaIcon(
+                      TurnaIconId.tree,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       AppStrings.ankiImportFullTreeTitle,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTextStyles.cardTitle(context),
                     ),
                     const Spacer(),
                     Text(
                       AppStrings.ankiImportChapterNodeCount(totalDecks),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TurnaTheme.textHintColor(context),
-                      ),
+                      style: AppTextStyles.captionSm(context)
+                          .copyWith(color: TurnaTheme.textHintColor(context)),
                     ),
                   ],
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverList.builder(
                 itemCount: entries.length,
                 itemBuilder: (context, index) {
@@ -230,11 +229,7 @@ class DeckTreeNodeWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(
-            left: depth * 16.0,
-            top: 2,
-            bottom: 2,
-          ),
+          padding: EdgeInsets.only(left: depth * 16.0, top: 2, bottom: 2),
           child: Row(
             children: [
               if (node.deckId != null)
@@ -252,37 +247,32 @@ class DeckTreeNodeWidget extends StatelessWidget {
                     onToggle();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
+                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    child: TurnaIcon(
                       node.isExpanded
-                          ? Icons.keyboard_arrow_down_rounded
-                          : Icons.keyboard_arrow_right_rounded,
-                      size: 18,
+                          ? TurnaIconId.chevronDown
+                          : TurnaIconId.chevronRight,
+                      size: 16,
                       color: TurnaTheme.textSecondaryColor(context),
                     ),
                   ),
                 )
               else
-                const SizedBox(width: 26),
-              Icon(
-                hasChildren
-                    ? (node.isExpanded
-                        ? Icons.folder_open_rounded
-                        : Icons.folder_rounded)
-                    : Icons.library_books_outlined,
+                const SizedBox(width: 24),
+              TurnaIcon(
+                hasChildren ? TurnaIconId.folder : TurnaIconId.book,
                 size: 16,
                 color: hasChildren
                     ? TurnaTheme.brandTeal
                     : TurnaTheme.textSecondaryColor(context),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   node.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: AppTextStyles.captionSm(context).copyWith(
                     fontWeight: hasChildren ? FontWeight.w600 : FontWeight.w400,
                     color: TurnaTheme.textPrimaryColor(context),
                   ),
@@ -290,8 +280,9 @@ class DeckTreeNodeWidget extends StatelessWidget {
               ),
               if (node.archetypeLabel != null) ...[
                 GestureDetector(
-                  onTap:
-                      onInspectNode != null ? () => onInspectNode!(node) : null,
+                  onTap: onInspectNode != null
+                      ? () => onInspectNode!(node)
+                      : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -299,7 +290,7 @@ class DeckTreeNodeWidget extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: TurnaTheme.borderRadius,
                       border: Border.all(
                         color: TurnaTheme.brandTeal.withValues(alpha: 0.3),
                         width: 0.8,
@@ -307,10 +298,10 @@ class DeckTreeNodeWidget extends StatelessWidget {
                     ),
                     child: Text(
                       node.archetypeLabel!,
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: AppTextStyles.caption(context).copyWith(
                         fontWeight: FontWeight.w600,
                         color: TurnaTheme.brandTeal,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
@@ -324,14 +315,15 @@ class DeckTreeNodeWidget extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
                 child: Text(
                   AppStrings.ankiImportCardCountLabel(count),
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.caption(context).copyWith(
                     fontWeight: FontWeight.w500,
                     color: TurnaTheme.brandTeal,
+                    letterSpacing: 0,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),

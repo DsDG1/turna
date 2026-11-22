@@ -2,7 +2,11 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Exclusive 2–4 option control. Fill is the selection — no checkmark.
 class TurnaSegmented<T> extends StatelessWidget {
@@ -41,7 +45,7 @@ class TurnaChoiceCard<T> extends StatelessWidget {
   final T value;
   final T selected;
   final String label;
-  final IconData? icon;
+  final TurnaIconId? icon;
   final ValueChanged<T> onSelected;
 
   const TurnaChoiceCard({
@@ -57,7 +61,7 @@ class TurnaChoiceCard<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final on = value == selected;
     const accent = TurnaTheme.brandTeal;
-    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
+    const radius = TurnaTheme.borderRadius;
     return Material(
       color: on ? accent.withValues(alpha: 0.14) : TurnaTheme.cardBg(context),
       borderRadius: radius,
@@ -72,24 +76,23 @@ class TurnaChoiceCard<T> extends StatelessWidget {
               width: on ? 1.5 : 1,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
               if (icon != null) ...[
-                Icon(
-                  icon,
+                TurnaIcon(
+                  icon!,
                   size: 20,
                   color: on ? accent : TurnaTheme.textHintColor(context),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
               ],
               Expanded(
                 child: Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: AppTextStyles.captionSm(context).copyWith(
                     fontWeight: on ? FontWeight.w700 : FontWeight.w500,
                     color: on ? accent : TurnaTheme.textPrimaryColor(context),
                   ),
@@ -105,7 +108,7 @@ class TurnaChoiceCard<T> extends StatelessWidget {
 
 /// 2-column grid of [TurnaChoiceCard]s.
 class TurnaChoiceGrid<T> extends StatelessWidget {
-  final List<(T value, String label, IconData? icon)> items;
+  final List<(T value, String label, TurnaIconId? icon)> items;
   final T selected;
   final ValueChanged<T> onSelected;
 
@@ -122,7 +125,7 @@ class TurnaChoiceGrid<T> extends StatelessWidget {
       return Column(
         children: [
           for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) const SizedBox(height: 8),
+            if (i > 0) const SizedBox(height: AppSpacing.sm),
             TurnaChoiceCard<T>(
               value: items[i].$1,
               selected: selected,
@@ -139,8 +142,8 @@ class TurnaChoiceGrid<T> extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
+      mainAxisSpacing: AppSpacing.sm,
+      crossAxisSpacing: AppSpacing.sm,
       childAspectRatio: 2.5,
       children: [
         for (final item in items)

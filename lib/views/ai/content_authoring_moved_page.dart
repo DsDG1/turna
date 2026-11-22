@@ -6,9 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
-import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 内容创作退场 tombstone（Plan 3 §19.4）。
@@ -29,66 +33,87 @@ class ContentAuthoringMovedBody extends StatelessWidget {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.move_up_rounded,
-                size: 44, color: TurnaTheme.brandTeal),
-            const SizedBox(height: AppSpacing.md + 2),
-            Text(
-              AppStrings.authoringMovedTitle,
-              style: AppTextStyles.sectionTitle(context),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              AppStrings.authoringMovedBody,
-              style: AppTextStyles.bodyText(context).copyWith(
-                fontSize: 15,
-                height: 1.5,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            SessionPrimaryAction(
-              label: AppStrings.authoringMovedOpenGui,
-              onPressed: gui.enabled
-                  ? () => openExternalLink(context, ExternalLinkId.guiPlatform)
-                  : null,
-              trailingIcon: Icons.open_in_new_rounded,
-            ),
-            if (!gui.enabled) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                AppStrings.authoringMovedGuiUnconfigured,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  fontSize: 12,
-                  color: TurnaTheme.textHintColor(context),
-                  height: 1.4,
+        padding: const EdgeInsets.all(AppSpacing.pageMargin),
+        child: TurnaPageContent(
+          maxWidth: AppSpacing.studyColumnMaxWidth,
+          child: TurnaReadingCard(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.softTint(
+                      context,
+                      TurnaTheme.brandTeal,
+                      alpha: 0.12,
+                    ),
+                    borderRadius: TurnaTheme.borderRadius,
+                  ),
+                  child: const TurnaIcon(
+                    TurnaIconId.moveUp,
+                    size: 24,
+                    color: TurnaTheme.brandTeal,
+                  ),
                 ),
-              ),
-            ] else
-              TextButton.icon(
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: gui.uri.toString()),
-                  );
-                  TurnaSnackBar.show(
-                      context, AppStrings.externalLinkCopyAddress);
-                },
-                icon: const Icon(Icons.copy_rounded, size: 14),
-                label: Text(AppStrings.externalLinkCopyAddress),
-              ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              AppStrings.authoringMovedDraftsKept,
-              style: AppTextStyles.captionSm(context).copyWith(
-                fontSize: 12,
-                color: TurnaTheme.textHintColor(context),
-              ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  AppStrings.authoringMovedTitle,
+                  style: AppTextStyles.sectionTitle(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  AppStrings.authoringMovedBody,
+                  style: AppTextStyles.bodyText(context)
+                      .copyWith(color: TurnaTheme.textSecondaryColor(context)),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                SessionPrimaryAction(
+                  label: AppStrings.authoringMovedOpenGui,
+                  onPressed: gui.enabled
+                      ? () => openExternalLink(
+                          context,
+                          ExternalLinkId.guiPlatform,
+                        )
+                      : null,
+                  trailingIcon: TurnaIconId.openInNew,
+                ),
+                if (!gui.enabled) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    AppStrings.authoringMovedGuiUnconfigured,
+                    style: AppTextStyles.captionSm(context)
+                        .copyWith(color: TurnaTheme.textHintColor(context)),
+                  ),
+                ] else ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(
+                        ClipboardData(text: gui.uri.toString()),
+                      );
+                      TurnaSnackBar.show(
+                        context,
+                        AppStrings.externalLinkCopyAddress,
+                      );
+                    },
+                    icon: const TurnaIcon(TurnaIconId.copy, size: 14),
+                    label: Text(AppStrings.externalLinkCopyAddress),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  AppStrings.authoringMovedDraftsKept,
+                  style: AppTextStyles.captionSm(context)
+                      .copyWith(color: TurnaTheme.textHintColor(context)),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

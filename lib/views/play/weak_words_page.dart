@@ -22,7 +22,10 @@ import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 @RoutePage()
 class WeakWordsPage extends StatefulWidget {
@@ -137,9 +140,12 @@ class _WeakWordsPageState extends State<WeakWordsPage>
 
   @override
   Widget build(BuildContext context) {
+    final isNonSession = _blockedMessage != null || _empty;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: _buildAppBar(context),
+      appBar: isNonSession
+          ? TurnaTopBar(title: AppStrings.playWeakWordsTitleAppBar)
+          : const _WeakWordsProgressBar(),
       body: _blockedMessage != null
           ? PracticeEmptyState(
               title: _blockedMessage!,
@@ -147,116 +153,47 @@ class _WeakWordsPageState extends State<WeakWordsPage>
               onAction: () => Navigator.of(context).maybePop(),
             )
           : _empty
-              ? _buildEmpty()
-              : Selector<LessonViewModel,
-                  (Interaction?, InteractionState, String?, bool, bool)>(
-                  selector: (context, vm) => (
-                    vm.currentInteraction,
-                    vm.currentInteractionState,
-                    vm.currentStageName,
-                    vm.hasSubmitted,
-                    vm.isAnswerCorrect,
-                  ),
-                  builder: (context, selected, _) {
-                    final vm = _vm;
-                    final interaction = selected.$1;
-                    if (interaction == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final renderer = lookupRenderer(_renderers, interaction);
-                    return PracticeSessionBody(
-                      stageName: selected.$3,
-                      stageAccent: TurnaTheme.error,
-                      submitted: selected.$4,
-                      autoAdvance: renderer.autoAdvance,
-                      continueLabel: selected.$5
-                          ? AppStrings.lessonContinueUpper
-                          : AppStrings.lessonGotItUpper,
-                      onAdvance: () => vm.advance(),
-                      child: renderer.build(
-                        interaction,
-                        selected.$2,
-                        (correct, {userAnswerText, reviewQuality}) {
-                          vm.submitInteraction(
-                            correct,
-                            userAnswerText: userAnswerText,
-                            reviewQuality: reviewQuality,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: TurnaTheme.surfaceColor(context),
-      elevation: 0,
-      leading: IconButton(
-        tooltip: AppStrings.commonClose,
-        icon: Icon(
-          Icons.close_rounded,
-          color: TurnaTheme.textPrimaryColor(context),
-        ),
-        onPressed: () => Navigator.of(context).maybePop(),
-      ),
-      title: _empty
-          ? Text(
-              AppStrings.playWeakWordsTitleAppBar,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
-            )
-          : Selector<LessonViewModel, (int, int)>(
+          ? _buildEmpty()
+          : Selector<
+              LessonViewModel,
+              (Interaction?, InteractionState, String?, bool, bool)
+            >(
               selector: (context, vm) => (
-                vm.currentQuestionNumber,
-                vm.totalInteractionCount,
+                vm.currentInteraction,
+                vm.currentInteractionState,
+                vm.currentStageName,
+                vm.hasSubmitted,
+                vm.isAnswerCorrect,
               ),
-              builder: (context, pair, _) {
-                final (current, total) = pair;
-                return Column(
-                  children: [
-                    Text(
-                      AppStrings.playWeakWordsTitleAppBar,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
-                    ),
-                    if (total > 0) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        AppStrings.lessonQuestionIndex(current, total),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                    ],
-                  ],
+              builder: (context, selected, _) {
+                final vm = _vm;
+                final interaction = selected.$1;
+                if (interaction == null) {
+                  return Center(child: TurnaLoader.page());
+                }
+                final renderer = lookupRenderer(_renderers, interaction);
+                return PracticeSessionBody(
+                  stageName: selected.$3,
+                  stageAccent: TurnaTheme.error,
+                  submitted: selected.$4,
+                  autoAdvance: renderer.autoAdvance,
+                  continueLabel: selected.$5
+                      ? AppStrings.lessonContinueUpper
+                      : AppStrings.lessonGotItUpper,
+                  onAdvance: () => vm.advance(),
+                  child: renderer.build(interaction, selected.$2, (
+                    correct, {
+                    userAnswerText,
+                    reviewQuality,
+                  }) {
+                    vm.submitInteraction(
+                      correct,
+                      userAnswerText: userAnswerText,
+                      reviewQuality: reviewQuality,
+                    );
+                  }),
                 );
               },
-            ),
-      centerTitle: true,
-      bottom: _empty
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(4),
-              child: Selector<LessonViewModel, double>(
-                selector: (context, vm) => vm.progress,
-                builder: (context, progress, _) => LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: TurnaTheme.error.withValues(alpha: 0.1),
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(TurnaTheme.error),
-                ),
-              ),
             ),
     );
   }
@@ -267,6 +204,29 @@ class _WeakWordsPageState extends State<WeakWordsPage>
       message: AppStrings.playWeakWordsEmptyHint,
       actionLabel: AppStrings.commonBack,
       onAction: () => Navigator.of(context).maybePop(),
+    );
+  }
+}
+
+class _WeakWordsProgressBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _WeakWordsProgressBar();
+
+  @override
+  Size get preferredSize =>
+      const Size.fromHeight(SessionProgressBand.bandHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    final (current, total) = context.select<LessonViewModel, (int, int)>(
+      (vm) => (vm.currentQuestionNumber, vm.totalInteractionCount),
+    );
+    return SessionProgressBand(
+      currentIndex: current,
+      totalCount: total,
+      style: SessionProgressStyle.dots,
+      exitTooltip: AppStrings.commonClose,
+      onExit: () => Navigator.of(context).maybePop(),
     );
   }
 }

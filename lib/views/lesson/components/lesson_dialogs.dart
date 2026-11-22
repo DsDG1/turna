@@ -13,9 +13,11 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/animated_counter.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 
 enum MasteryDialogResult { retry, back }
@@ -25,7 +27,7 @@ enum MasteryDialogResult { retry, back }
 /// 「湿地雾光」R06：强调色收敛到 teal / reed 系（P1「几何完成标记」），
 /// 不再借用 warning / amethyst 等其他域的语义色。
 class LessonCelebrationStyle {
-  final IconData icon;
+  final TurnaIconId icon;
   final Color accent;
   final int styleIndex;
 
@@ -38,17 +40,17 @@ class LessonCelebrationStyle {
 
 const lessonCelebrationStyles = [
   LessonCelebrationStyle(
-    icon: Icons.celebration_rounded,
+    icon: TurnaIconId.trophy,
     accent: TurnaTheme.brandReed,
     styleIndex: 0,
   ),
   LessonCelebrationStyle(
-    icon: Icons.flash_on_rounded,
+    icon: TurnaIconId.bolt,
     accent: TurnaTheme.brandTeal,
     styleIndex: 1,
   ),
   LessonCelebrationStyle(
-    icon: Icons.auto_awesome_rounded,
+    icon: TurnaIconId.spark,
     accent: TurnaTheme.brandReed,
     styleIndex: 2,
   ),
@@ -80,22 +82,38 @@ Future<void> showLessonCompletionDialog({
   await Future.delayed(const Duration(milliseconds: 300));
   if (!isMounted()) return;
 
-  await showModalBottomSheet<void>(
+  final style =
+      lessonCelebrationStyles[random.nextInt(lessonCelebrationStyles.length)];
+  final title = switch (style.styleIndex) {
+    0 => AppStrings.lessonCompleteTitle1,
+    1 => AppStrings.lessonCompleteTitle2,
+    2 => AppStrings.lessonCompleteTitle3,
+    _ => AppStrings.lessonCompleteTitle1,
+  };
+  // 满分时副标题换成满分宣告，普通档保留随机庆祝语。
+  final subtitle = wasPerfect
+      ? AppStrings.lessonPerfectLesson
+      : switch (style.styleIndex) {
+          0 => AppStrings.lessonCompleteSubtitle1,
+          1 => AppStrings.lessonCompleteSubtitle2,
+          2 => AppStrings.lessonCompleteSubtitle3,
+          _ => AppStrings.lessonCompleteSubtitle1,
+        };
+
+  await showTurnaSheet<void>(
     // ignore: use_build_context_synchronously
     context: context,
-    isDismissible: false,
-    enableDrag: false,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) => _LessonCompletionSheet(
+    title: title,
+    subtitle: subtitle,
+    showClose: false,
+    body: _LessonCompletionSheetBody(
+      style: style,
       correctCount: correctCount,
       incorrectCount: incorrectCount,
       totalCount: totalCount,
       durationSeconds: durationSeconds,
       xpEarned: xpEarned,
       gemsEarned: gemsEarned,
-      wasPerfect: wasPerfect,
-      random: random,
       footnote: footnote,
     ),
   );
@@ -107,152 +125,125 @@ Future<void> showLessonCompletionDialog({
   }
 }
 
-class _LessonCompletionSheet extends StatelessWidget {
+class _LessonCompletionSheetBody extends StatelessWidget {
+  final LessonCelebrationStyle style;
   final int correctCount;
   final int incorrectCount;
   final int totalCount;
   final int durationSeconds;
   final int xpEarned;
   final int gemsEarned;
-  final bool wasPerfect;
-  final Random random;
   final String? footnote;
 
-  const _LessonCompletionSheet({
+  const _LessonCompletionSheetBody({
+    required this.style,
     required this.correctCount,
     required this.incorrectCount,
     required this.totalCount,
     required this.durationSeconds,
     required this.xpEarned,
     required this.gemsEarned,
-    required this.wasPerfect,
-    required this.random,
     this.footnote,
   });
 
   @override
   Widget build(BuildContext context) {
-    final style =
-        lessonCelebrationStyles[random.nextInt(lessonCelebrationStyles.length)];
-    final accuracyPercent =
-        totalCount == 0 ? 0 : ((correctCount / totalCount) * 100).round();
-    final title = switch (style.styleIndex) {
-      0 => AppStrings.lessonCompleteTitle1,
-      1 => AppStrings.lessonCompleteTitle2,
-      2 => AppStrings.lessonCompleteTitle3,
-      _ => AppStrings.lessonCompleteTitle1,
-    };
-    // 满分时副标题换成满分宣告，普通档保留随机庆祝语。
-    final subtitle = wasPerfect
-        ? AppStrings.lessonPerfectLesson
-        : switch (style.styleIndex) {
-            0 => AppStrings.lessonCompleteSubtitle1,
-            1 => AppStrings.lessonCompleteSubtitle2,
-            2 => AppStrings.lessonCompleteSubtitle3,
-            _ => AppStrings.lessonCompleteSubtitle1,
-          };
+    final accuracyPercent = totalCount == 0
+        ? 0
+        : ((correctCount / totalCount) * 100).round();
 
-    return TurnaSheetPanel(
-      title: title,
-      subtitle: subtitle,
-      showClose: false,
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pageMargin,
-                AppSpacing.sm,
-                AppSpacing.pageMargin,
-                0,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _GeometryCompletionMark(
-                    icon: style.icon,
-                    accent: style.accent,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    '${AppStrings.lessonResultsCount(correctCount, totalCount)}'
-                    ' · ${AppStrings.lessonAccuracy} '
-                    '${AppStrings.lessonPercentValue(accuracyPercent)}',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.cardTitle(context),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _HarvestList(
-                    rows: [
-                      _HarvestRowData(
-                        icon: Icons.check_circle_rounded,
-                        color: TurnaTheme.success,
-                        label: AppStrings.lessonCorrect,
-                        value: correctCount,
-                      ),
-                      _HarvestRowData(
-                        icon: Icons.cancel_rounded,
-                        color: TurnaTheme.error,
-                        label: AppStrings.lessonWrong,
-                        value: incorrectCount,
-                      ),
-                      _HarvestRowData(
-                        icon: Icons.timer_rounded,
-                        color: TurnaTheme.brandSky,
-                        label: AppStrings.lessonTime,
-                        valueText: _formatDuration(durationSeconds),
-                      ),
-                      _HarvestRowData(
-                        icon: Icons.stars_rounded,
-                        color: TurnaTheme.warning,
-                        label: AppStrings.lessonXp,
-                        value: xpEarned,
-                      ),
-                      _HarvestRowData(
-                        icon: Icons.diamond_rounded,
-                        color: TurnaTheme.brandReed,
-                        label: AppStrings.lessonGems,
-                        value: gemsEarned,
-                      ),
-                    ],
-                  ),
-                  if (footnote != null && footnote!.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      footnote!,
-                      style: AppTextStyles.captionSm(context).copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  // New achievements unlocked by this completion surface as
-                  // part of the summary — no follow-up modal spam after the
-                  // sheet closes (plan §7.5).
-                  const Padding(
-                    padding: EdgeInsets.only(top: AppSpacing.md),
-                    child: AchievementFeedbackBanner(),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-              ),
-            ),
-          ),
-          Padding(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.pageMargin,
-              0,
+              AppSpacing.sm,
               AppSpacing.pageMargin,
-              AppSpacing.lg,
+              0,
             ),
-            child: SessionPrimaryAction(
-              label: AppStrings.lessonContinueUpper,
-              onPressed: () => Navigator.of(context).pop(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _GeometryCompletionMark(icon: style.icon, accent: style.accent),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  '${AppStrings.lessonResultsCount(correctCount, totalCount)}'
+                  ' · ${AppStrings.lessonAccuracy} '
+                  '${AppStrings.lessonPercentValue(accuracyPercent)}',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.cardTitle(context),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _HarvestList(
+                  rows: [
+                    _HarvestRowData(
+                      icon: TurnaIconId.checkCircle,
+                      color: TurnaTheme.success,
+                      label: AppStrings.lessonCorrect,
+                      value: correctCount,
+                    ),
+                    _HarvestRowData(
+                      icon: TurnaIconId.cancel,
+                      color: TurnaTheme.error,
+                      label: AppStrings.lessonWrong,
+                      value: incorrectCount,
+                    ),
+                    _HarvestRowData(
+                      icon: TurnaIconId.timer,
+                      color: TurnaTheme.brandSky,
+                      label: AppStrings.lessonTime,
+                      valueText: _formatDuration(durationSeconds),
+                    ),
+                    _HarvestRowData(
+                      icon: TurnaIconId.star,
+                      color: TurnaTheme.warning,
+                      label: AppStrings.lessonXp,
+                      value: xpEarned,
+                    ),
+                    _HarvestRowData(
+                      icon: TurnaIconId.diamond,
+                      color: TurnaTheme.brandReed,
+                      label: AppStrings.lessonGems,
+                      value: gemsEarned,
+                    ),
+                  ],
+                ),
+                if (footnote != null && footnote!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    footnote!,
+                    style: AppTextStyles.captionSm(context)
+                        .copyWith(color: TurnaTheme.textHintColor(context)),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                // New achievements unlocked by this completion surface as
+                // part of the summary — no follow-up modal spam after the
+                // sheet closes (plan §7.5).
+                const Padding(
+                  padding: EdgeInsets.only(top: AppSpacing.md),
+                  child: AchievementFeedbackBanner(),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            0,
+            AppSpacing.pageMargin,
+            AppSpacing.lg,
+          ),
+          child: SessionPrimaryAction(
+            label: AppStrings.lessonContinueUpper,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -285,16 +276,13 @@ Future<bool> showSubLessonCompletionDialog({
 }) async {
   if (!isMounted()) return false;
 
-  final result = await showModalBottomSheet<bool>(
+  final result = await showTurnaSheet<bool>(
     context: context,
-    isDismissible: false,
-    enableDrag: false,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) => _SubLessonSheet(
-      segmentName: segmentName,
-      segmentNumber: segmentNumber,
-      segmentCount: segmentCount,
+    title: AppStrings.subLessonCompleteTitle,
+    subtitle:
+        '$segmentName · ${AppStrings.lessonSubLessonIndex(segmentNumber, segmentCount)}',
+    showClose: false,
+    body: _SubLessonSheetBody(
       correctCount: correctCount,
       incorrectCount: incorrectCount,
       totalCount: totalCount,
@@ -303,18 +291,12 @@ Future<bool> showSubLessonCompletionDialog({
   return result ?? false;
 }
 
-class _SubLessonSheet extends StatelessWidget {
-  final String segmentName;
-  final int segmentNumber;
-  final int segmentCount;
+class _SubLessonSheetBody extends StatelessWidget {
   final int correctCount;
   final int incorrectCount;
   final int totalCount;
 
-  const _SubLessonSheet({
-    required this.segmentName,
-    required this.segmentNumber,
-    required this.segmentCount,
+  const _SubLessonSheetBody({
     required this.correctCount,
     required this.incorrectCount,
     required this.totalCount,
@@ -322,94 +304,84 @@ class _SubLessonSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TurnaSheetPanel(
-      title: AppStrings.subLessonCompleteTitle,
-      subtitle:
-          '$segmentName · ${AppStrings.lessonSubLessonIndex(segmentNumber, segmentCount)}',
-      showClose: false,
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pageMargin,
-                AppSpacing.sm,
-                AppSpacing.pageMargin,
-                0,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const _GeometryCompletionMark(
-                    icon: Icons.task_alt_rounded,
-                    accent: TurnaTheme.brandTeal,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    AppStrings.lessonResultsCount(correctCount, totalCount),
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.cardTitle(context),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _HarvestList(
-                    rows: [
-                      _HarvestRowData(
-                        icon: Icons.check_circle_rounded,
-                        color: TurnaTheme.success,
-                        label: AppStrings.lessonCorrect,
-                        value: correctCount,
-                      ),
-                      _HarvestRowData(
-                        icon: Icons.cancel_rounded,
-                        color: TurnaTheme.error,
-                        label: AppStrings.lessonWrong,
-                        value: incorrectCount,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-              ),
-            ),
-          ),
-          Padding(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.pageMargin,
-              0,
+              AppSpacing.sm,
               AppSpacing.pageMargin,
-              AppSpacing.xs,
+              0,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SessionPrimaryAction(
-                  label: AppStrings.subLessonContinueNext,
-                  onPressed: () => Navigator.of(context).pop(true),
+                const _GeometryCompletionMark(
+                  icon: TurnaIconId.checkCircle,
+                  accent: TurnaTheme.brandTeal,
                 ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: Text(
-                    AppStrings.subLessonTakeABreak,
-                    style: AppTextStyles.bodyText(context).copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+                const SizedBox(height: AppSpacing.md),
                 Text(
-                  AppStrings.subLessonCompleteSubtitle,
-                  style: AppTextStyles.captionSm(context).copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+                  AppStrings.lessonResultsCount(correctCount, totalCount),
                   textAlign: TextAlign.center,
+                  style: AppTextStyles.cardTitle(context),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                _HarvestList(
+                  rows: [
+                    _HarvestRowData(
+                      icon: TurnaIconId.checkCircle,
+                      color: TurnaTheme.success,
+                      label: AppStrings.lessonCorrect,
+                      value: correctCount,
+                    ),
+                    _HarvestRowData(
+                      icon: TurnaIconId.cancel,
+                      color: TurnaTheme.error,
+                      label: AppStrings.lessonWrong,
+                      value: incorrectCount,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            0,
+            AppSpacing.pageMargin,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SessionPrimaryAction(
+                label: AppStrings.subLessonContinueNext,
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(
+                  AppStrings.subLessonTakeABreak,
+                  style: AppTextStyles.captionSm(context)
+                      .copyWith(color: TurnaTheme.textHintColor(context)),
+                ),
+              ),
+              Text(
+                AppStrings.subLessonCompleteSubtitle,
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -417,12 +389,9 @@ class _SubLessonSheet extends StatelessWidget {
 /// 顶部几何完成标记：几何底纹（圆 / 弧线）+ 圆形徽章位。装备中的完成
 /// 徽章装扮优先呈现，未装备时回退到本档的图标与强调色。
 class _GeometryCompletionMark extends StatelessWidget {
-  const _GeometryCompletionMark({
-    required this.icon,
-    required this.accent,
-  });
+  const _GeometryCompletionMark({required this.icon, required this.accent});
 
-  final IconData icon;
+  final TurnaIconId icon;
   final Color accent;
 
   @override
@@ -450,7 +419,7 @@ class _HarvestRowData {
     this.valueText,
   });
 
-  final IconData icon;
+  final TurnaIconId icon;
   final Color color;
   final String label;
   final int? value;
@@ -488,20 +457,16 @@ class _HarvestRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valueStyle = AppTextStyles.cardTitle(context).copyWith(
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+    final valueStyle = AppTextStyles.cardTitle(context)
+        .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
       child: Row(
         children: [
-          Icon(data.icon, color: data.color, size: 20),
+          TurnaIcon(data.icon, color: data.color, size: 20),
           const SizedBox(width: AppSpacing.sm + 2),
           Expanded(
-            child: Text(
-              data.label,
-              style: AppTextStyles.bodyText(context).copyWith(fontSize: 15),
-            ),
+            child: Text(data.label, style: AppTextStyles.bodyText(context)),
           ),
           if (data.valueText != null)
             Text(data.valueText!, style: valueStyle)
@@ -521,8 +486,6 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
 }) async {
   if (!isMounted()) return null;
 
-  final theme = Theme.of(context);
-
   await Future.delayed(const Duration(milliseconds: 300));
   if (!isMounted()) return null;
 
@@ -534,67 +497,45 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
     // ignore: use_build_context_synchronously
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
+    builder: (ctx) => TurnaDialogPanel(
+      title: AppStrings.lessonNotYet,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: TurnaTheme.error.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const TurnaIcon(
+              TurnaIconId.refresh,
+              color: TurnaTheme.error,
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            AppStrings.lessonMasteryMessage(correct, total, accuracyPercent),
+            style: AppTextStyles.bodyText(ctx)
+                .copyWith(color: TurnaTheme.textSecondaryColor(ctx)),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: TurnaTheme.error.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                color: TurnaTheme.error,
-                size: 40,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              AppStrings.lessonNotYet,
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppStrings.lessonMasteryMessage(correct, total, accuracyPercent),
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(ctx).pop(MasteryDialogResult.retry),
-                child: Text(
-                  AppStrings.lessonTryAgain,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.back),
-              child: Text(
-                AppStrings.lessonBackToCourses,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textHint,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.lessonBackToCourses,
+          onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.back),
         ),
-      ),
+        TurnaSheetAction(
+          label: AppStrings.lessonTryAgain,
+          primary: true,
+          onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.retry),
+        ),
+      ],
     ),
   );
 }

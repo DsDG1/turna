@@ -29,14 +29,26 @@ class AchievementFilterBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _chip(context, AchievementFilter.all,
-              AppStrings.achievementsFilterAll, null),
+          _chip(
+            context,
+            AchievementFilter.all,
+            AppStrings.achievementsFilterAll,
+            null,
+          ),
           const SizedBox(width: 8),
-          _chip(context, AchievementFilter.inProgress,
-              AppStrings.achievementsFilterInProgress, inProgressCount),
+          _chip(
+            context,
+            AchievementFilter.inProgress,
+            AppStrings.achievementsFilterInProgress,
+            inProgressCount,
+          ),
           const SizedBox(width: 8),
-          _chip(context, AchievementFilter.unlocked,
-              AppStrings.achievementsFilterUnlocked, unlockedCount),
+          _chip(
+            context,
+            AchievementFilter.unlocked,
+            AppStrings.achievementsFilterUnlocked,
+            unlockedCount,
+          ),
         ],
       ),
     );
@@ -59,14 +71,14 @@ class AchievementFilterBar extends StatelessWidget {
         color: isSelected
             ? accent.withValues(alpha: 0.14)
             : TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        borderRadius: TurnaTheme.borderRadius,
         child: InkWell(
           onTap: () => onChanged(filter),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          borderRadius: TurnaTheme.borderRadius,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+              borderRadius: TurnaTheme.borderRadius,
               border: Border.all(
                 color: isSelected ? accent : TurnaTheme.statCardBorder(context),
               ),
@@ -74,11 +86,11 @@ class AchievementFilterBar extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: isSelected
-                        ? accent
-                        : TurnaTheme.textSecondaryColor(context),
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
+                color: isSelected
+                    ? accent
+                    : TurnaTheme.textSecondaryColor(context),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
         ),

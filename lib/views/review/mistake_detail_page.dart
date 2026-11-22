@@ -20,7 +20,10 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 错题详情 ——「湿地雾光」R09 学习笔记式详情页。
 ///
@@ -40,7 +43,8 @@ class MistakeDetailPage extends StatelessWidget {
     final grammar = entry.grammarPointId != null
         ? grammarPointById[entry.grammarPointId!]
         : null;
-    final question = word?.term ??
+    final question =
+        word?.term ??
         grammar?.title ??
         (entry.interactionId.isNotEmpty
             ? entry.interactionId
@@ -60,12 +64,12 @@ class MistakeDetailPage extends StatelessWidget {
     final typeLabel = grammar != null
         ? AppStrings.reviewGrammarLabel
         : word != null
-            ? AppStrings.reviewWordsLabel
-            : AppStrings.mistakeDashboardOtherType;
+        ? AppStrings.reviewWordsLabel
+        : AppStrings.mistakeDashboardOtherType;
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(title: Text(AppStrings.mistakeDetailTitle)),
+      appBar: TurnaTopBar(title: AppStrings.mistakeDetailTitle),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: AppSpacing.pageGutterMist,
@@ -77,7 +81,7 @@ class MistakeDetailPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 '$typeLabel · ${AppStrings.timeAgo(entry.timestamp)}',
-                style: AppTextStyles.captionSm(context).copyWith(fontSize: 12),
+                style: AppTextStyles.captionSm(context),
               ),
               const SizedBox(height: AppSpacing.xl),
 
@@ -109,16 +113,15 @@ class MistakeDetailPage extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () =>
                         context.read<MistakeProvider>().recordRewrite(entry.id),
-                    icon: const Icon(Icons.check_circle_outline_rounded,
-                        size: 18),
+                    icon: const TurnaIcon(TurnaIconId.checkCircle, size: 18),
                     label: Text(AppStrings.reviewGotItNow),
                   ),
                   if (entry.grammarPointId != null)
                     TextButton.icon(
                       onPressed: () async {
-                        await context
-                            .read<GrammarReviewProvider>()
-                            .markDueNow(entry.grammarPointId!);
+                        await context.read<GrammarReviewProvider>().markDueNow(
+                          entry.grammarPointId!,
+                        );
                         if (context.mounted) {
                           // 保真：与列表页旧入口同一导航语义。
                           unawaited(
@@ -126,7 +129,7 @@ class MistakeDetailPage extends StatelessWidget {
                           );
                         }
                       },
-                      icon: const Icon(Icons.menu_book_rounded, size: 18),
+                      icon: const TurnaIcon(TurnaIconId.book, size: 18),
                       label: Text(AppStrings.reviewReviewGrammar),
                     ),
                 ],
@@ -142,7 +145,7 @@ class MistakeDetailPage extends StatelessWidget {
           label: AppStrings.mistakeDetailPractice,
           onPressed: () =>
               context.router.push(MistakePracticeRoute(entry: entry)),
-          trailingIcon: Icons.play_arrow_rounded,
+          trailingIcon: TurnaIconId.play,
         ),
       ),
     );
@@ -168,10 +171,7 @@ class _CompareSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Divider(
-            height: 1,
-            color: TurnaTheme.dividerBg(context),
-          ),
+          Divider(height: 1, color: TurnaTheme.dividerBg(context)),
           const SizedBox(height: AppSpacing.md),
           Text(label, style: AppTextStyles.caption(context)),
           const SizedBox(height: AppSpacing.xs + 2),

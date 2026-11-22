@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/application/profile_prefs_facade.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -54,7 +57,6 @@ Future<String?> showAvatarPickerSheet(
   if (selected == null) return null;
 
   if (!context.mounted) return null;
-  final messenger = ScaffoldMessenger.of(context);
 
   if (selected == _kResetSentinel) {
     // Reset to default: explicitly null out the field so the user can tell
@@ -62,11 +64,7 @@ Future<String?> showAvatarPickerSheet(
     final updated = user.copyWith(clearAvatarId: true);
     await ProfilePrefsFacade.saveUser(updated, settings: settings);
     if (!context.mounted) return null;
-    TurnaSnackBar.showVia(
-      messenger,
-      context,
-      AppStrings.accountAvatarResetDone,
-    );
+    TurnaSnackBar.maybeShow(context, AppStrings.accountAvatarResetDone);
     return null;
   }
 
@@ -76,11 +74,7 @@ Future<String?> showAvatarPickerSheet(
   await ProfilePrefsFacade.saveUser(updated, settings: settings);
   if (!context.mounted) return null;
   final name = AvatarCatalog.resolve(selected).name;
-  TurnaSnackBar.showVia(
-    messenger,
-    context,
-    AppStrings.accountAvatarChangedDone(name),
-  );
+  TurnaSnackBar.maybeShow(context, AppStrings.accountAvatarChangedDone(name));
   return selected;
 }
 
@@ -98,7 +92,7 @@ class _AvatarPickerSheet extends StatelessWidget {
       // Cap the sheet height so the grid scrolls when the catalog grows
       // past ~20 entries.
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.6,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -178,10 +172,10 @@ class _AvatarTile extends StatelessWidget {
       label: avatar.name,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             color: selected
                 ? TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.18 : 0.10)
                 : Colors.transparent,
@@ -205,7 +199,7 @@ class _AvatarTile extends StatelessWidget {
                     backgroundColor: avatar.background.withValues(alpha: 0.18),
                     child: Text(
                       avatar.emoji,
-                      style: const TextStyle(fontSize: 22),
+                      style: AppTextStyles.promptLg(context),
                     ),
                   ),
                   if (selected)
@@ -222,10 +216,10 @@ class _AvatarTile extends StatelessWidget {
                           ),
                         ),
                         padding: const EdgeInsets.all(2),
-                        child: const Icon(
-                          Icons.check_rounded,
+                        child: const TurnaIcon(
+                          TurnaIconId.check,
                           size: 12,
-                          color: Colors.white,
+                          color: TurnaTheme.textOnPrimary,
                         ),
                       ),
                     ),
@@ -238,11 +232,11 @@ class _AvatarTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? TurnaTheme.brandTeal
-                          : TurnaTheme.textSecondaryColor(context),
-                    ),
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? TurnaTheme.brandTeal
+                      : TurnaTheme.textSecondaryColor(context),
+                ),
               ),
             ],
           ),

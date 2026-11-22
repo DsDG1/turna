@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 import 'package:turna/views/widgets/report_kit.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 
 /// Unified review completion summary screen.
@@ -45,7 +49,10 @@ class UnifiedReviewCompletion extends StatelessWidget {
     final hasMore = remainingDue > 0 && onReviewMore != null;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.pageMargin,
+        vertical: AppSpacing.xl,
+      ),
       child: TurnaPageContent(
         maxWidth: 560,
         child: Column(
@@ -56,35 +63,31 @@ class UnifiedReviewCompletion extends StatelessWidget {
               kind: TurnaGeometryKind.achievement,
               size: 132,
               child: CosmeticCompletionBadge(
-                fallbackIcon: Icons.check_circle_rounded,
+                fallbackIcon: TurnaIconId.checkCircle,
                 fallbackColor: TurnaTheme.brandTeal,
                 iconSize: 48,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               AppStrings.reviewCompletionTitle,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
+              style: AppTextStyles.pageTitle(context),
             ),
 
             // ── 结果一行 ────────────────────────────────────────────
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               AppStrings.reviewCompletionResultLine(
                 totalCount,
                 rememberedCount,
                 forgottenCount,
               ),
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+              style: AppTextStyles.bodyText(context)
+                  .copyWith(color: TurnaTheme.textSecondaryColor(context)),
             ),
 
             // ── 收获纵向（经验 / 宝石 / 本场成就） ───────────────────
-            const SizedBox(height: 32),
+            const SizedBox(height: AppSpacing.xxl),
             if (xpEarned > 0 || gemsEarned > 0)
               ReportDefinitionList(
                 rows: [
@@ -104,32 +107,29 @@ class UnifiedReviewCompletion extends StatelessWidget {
             // in the same completion surface as the XP / gem rewards.
             const AchievementFeedbackBanner(),
             if (onUndoLast != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextButton.icon(
                 onPressed: onUndoLast,
-                icon: const Icon(Icons.undo_rounded),
+                icon: const TurnaIcon(TurnaIconId.undo, size: 18),
                 label: Text(AppStrings.reviewUndoLastCard),
               ),
             ],
             if (remainingDue > 0) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 AppStrings.reviewRemainingDue(remainingDue),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
+                style: AppTextStyles.captionSm(context),
               ),
             ],
 
             // ── 单一下一步 ──────────────────────────────────────────
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             SessionPrimaryAction(
               label: hasMore
                   ? AppStrings.reviewContinueBatch
                   : AppStrings.commonDone,
               onPressed: hasMore ? onReviewMore : onFinish,
-              trailingIcon:
-                  hasMore ? Icons.play_arrow_rounded : Icons.check_rounded,
+              trailingIcon: hasMore ? TurnaIconId.play : TurnaIconId.check,
             ),
           ],
         ),

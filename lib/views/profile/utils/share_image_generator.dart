@@ -30,8 +30,9 @@ class ShareProgressImageGenerator {
   ///
   /// [shareText] is the localized text passed to the platform share sheet.
   Future<void> captureAndShare({required String shareText}) async {
-    final boundary = _boundaryKey.currentContext?.findRenderObject()
-        as RenderRepaintBoundary?;
+    final boundary =
+        _boundaryKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
 
     if (boundary == null) {
       throw StateError(
@@ -50,11 +51,13 @@ class ShareProgressImageGenerator {
     final ui.Image image = await boundary.toImage(
       pixelRatio: cappedSharePixelRatio(deviceRatio),
     );
-    final ByteData? byteData =
-        await image.toByteData(format: ui.ImageByteFormat.png);
+    final ByteData? byteData = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     if (byteData == null) {
       throw StateError(
-          'Failed to encode share image to PNG (toByteData null).');
+        'Failed to encode share image to PNG (toByteData null).',
+      );
     }
     final Uint8List pngBytes = byteData.buffer.asUint8List();
 
@@ -62,10 +65,7 @@ class ShareProgressImageGenerator {
     final file = File('${tempDir.path}/turna_progress.png');
     await file.writeAsBytes(pngBytes);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: shareText,
-    );
+    await Share.shareXFiles([XFile(file.path)], text: shareText);
   }
 }
 

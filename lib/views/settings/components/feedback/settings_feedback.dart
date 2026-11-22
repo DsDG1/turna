@@ -2,10 +2,15 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/components/primitives/settings_section.dart';
-import 'package:turna/views/settings/components/controls/settings_square_controls.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Visual tone for [SettingsInfoCard]. Maps to a tinted surface + accent
 /// border + accent icon color. All tints are theme-aware so dark mode never
@@ -13,26 +18,6 @@ import 'package:turna/core/theme.dart';
 enum SettingsInfoTone { neutral, warning, success, danger }
 
 /// Standard scaffold used by every Settings → 高级 sub-page.
-///
-/// Renders the same `surfaceColor` / `elevation: 0` / `centerTitle: true`
-/// AppBar that the main settings list uses (see `settings_page.dart`), so
-/// the sub-pages are visually a continuation of the list rather than a
-/// separate Material default AppBar. Set [allowPop] to `false` to hide
-/// the back button; for pages that need to control the pop decision
-/// dynamically (e.g. blocking pop until an alert is handled) wrap this
-/// scaffold in a `PopScope` from the call site — same pattern the main
-/// settings page uses.
-
-/// Standard scaffold used by every Settings → 高级 sub-page.
-///
-/// Renders the same `surfaceColor` / `elevation: 0` / `centerTitle: true`
-/// AppBar that the main settings list uses (see `settings_page.dart`), so
-/// the sub-pages are visually a continuation of the list rather than a
-/// separate Material default AppBar. Set [allowPop] to `false` to hide
-/// the back button; for pages that need to control the pop decision
-/// dynamically (e.g. blocking pop until an alert is handled) wrap this
-/// scaffold in a `PopScope` from the call site — same pattern the main
-/// settings page uses.
 class SettingsScaffold extends StatelessWidget {
   const SettingsScaffold({
     super.key,
@@ -49,50 +34,34 @@ class SettingsScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSquareControlTheme(
-      child: Scaffold(
-        backgroundColor: TurnaTheme.surfaceColor(context),
-        appBar: AppBar(
-          // AppBar 比页面高一档中性灰，走主题而不是 surfaceColor ——
-          // 深色下 surface 与 scaffold 同值（#000000），顶栏再取 surface
-          // 就会和页面糊成一片，丢掉边缘分离。
-          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-          elevation: 0,
-          centerTitle: true,
-          automaticallyImplyLeading: allowPop,
-          title: Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          actions: actions,
-        ),
-        body: body,
+    return Scaffold(
+      backgroundColor: TurnaTheme.surfaceColor(context),
+      appBar: TurnaTopBar(
+        title: title,
+        centerTitle: true,
+        automaticallyImplyLeading: allowPop,
+        actions: actions,
+        showDivider: true,
       ),
+      body: body,
     );
   }
 }
 
 /// Theme-aware info / hint banner used in place of every legacy
-/// `const Card(child: Padding(child: Text(...)))` block. Each tone maps to
-/// a soft tinted surface + 1px accent border; dark mode is handled inside
-/// the helper so the banner never becomes a dead-bright block.
-
-/// Theme-aware info / hint banner used in place of every legacy
-/// `const Card(child: Padding(child: Text(...)))` block. Each tone maps to
-/// a soft tinted surface + 1px accent border; dark mode is handled inside
-/// the helper so the banner never becomes a dead-bright block.
+/// `const Card(child: Padding(child: Text(...)))` block.
 class SettingsInfoCard extends StatelessWidget {
   const SettingsInfoCard({
     super.key,
     required this.text,
     this.icon,
+    this.iconId,
     this.tone = SettingsInfoTone.neutral,
   });
 
   final String text;
   final IconData? icon;
+  final TurnaIconId? iconId;
   final SettingsInfoTone tone;
 
   Color _surface(BuildContext context) {
@@ -121,45 +90,32 @@ class SettingsInfoCard extends StatelessWidget {
     }
   }
 
-  Color _text(BuildContext context) {
-    switch (tone) {
-      case SettingsInfoTone.neutral:
-        return TurnaTheme.textPrimaryColor(context);
-      case SettingsInfoTone.warning:
-        return TurnaTheme.textPrimaryColor(context);
-      case SettingsInfoTone.success:
-        return TurnaTheme.textPrimaryColor(context);
-      case SettingsInfoTone.danger:
-        return TurnaTheme.textPrimaryColor(context);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final accent = _accent(context);
-    final textColor = _text(context);
+    final textColor = TurnaTheme.textPrimaryColor(context);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md + 2),
       decoration: BoxDecoration(
         color: _surface(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: accent.withValues(alpha: 0.30)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (icon != null) ...[
+          if (iconId != null) ...[
+            TurnaIcon(iconId!, color: accent, size: 20),
+            const SizedBox(width: AppSpacing.md),
+          ] else if (icon != null) ...[
             Icon(icon, color: accent, size: 20),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
           ],
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: textColor,
-                    height: 1.45,
-                  ),
+              style: AppTextStyles.bodyText(context).copyWith(color: textColor),
             ),
           ),
         ],
@@ -167,11 +123,6 @@ class SettingsInfoCard extends StatelessWidget {
     );
   }
 }
-
-/// Compact "label + value" row for stat cards (storage breakdown, cache
-/// stats, FSRS preview, etc.). Lives inside a [SettingsCard] with
-/// [settingsTileDivider] separators. Value text uses brandTeal w700 so it
-/// reads as the primary datum in the row.
 
 /// Standard empty card used inside settings sub-pages when lists are empty.
 class SettingsEmptyCard extends StatelessWidget {
@@ -191,24 +142,26 @@ class SettingsEmptyCard extends StatelessWidget {
     return SettingsCard(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.xxl,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                style: AppTextStyles.bodyText(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
               if (actionLabel != null && onAction != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 TextButton(
                   onPressed: onAction,
                   child: Text(
                     actionLabel!,
-                    style: const TextStyle(
+                    style: AppTextStyles.captionSm(context).copyWith(
                       color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700,
                     ),
@@ -223,20 +176,20 @@ class SettingsEmptyCard extends StatelessWidget {
   }
 }
 
-/// Compact status pill/badge for list tiles and cards.
-
-/// Compact status pill/badge for list tiles and cards.
+/// Compact 4px status badge for list tiles and cards.
 class SettingsStatusPill extends StatelessWidget {
   const SettingsStatusPill({
     super.key,
     required this.text,
     this.tone = SettingsInfoTone.neutral,
     this.icon,
+    this.iconId,
   });
 
   final String text;
   final SettingsInfoTone tone;
   final IconData? icon;
+  final TurnaIconId? iconId;
 
   @override
   Widget build(BuildContext context) {
@@ -268,34 +221,35 @@ class SettingsStatusPill extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: border, width: 0.8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
+          if (iconId != null) ...[
+            TurnaIcon(iconId!, color: fg, size: 13),
+            const SizedBox(width: AppSpacing.xs),
+          ] else if (icon != null) ...[
             Icon(icon, color: fg, size: 13),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
           ],
           Text(
             text,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: fg,
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(fontWeight: FontWeight.w600, color: fg),
           ),
         ],
       ),
     );
   }
 }
-
-/// Turna-styled form dropdown with a square border and subtle background.
 
 class SettingsConfirmDialog extends StatelessWidget {
   final String title;
@@ -311,42 +265,29 @@ class SettingsConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSquareControlTheme(
-      child: AlertDialog(
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              confirmText,
-              style: const TextStyle(color: TurnaTheme.error),
-            ),
-          ),
-        ],
+    return TurnaDialogPanel(
+      title: title,
+      body: Text(
+        message,
+        style: AppTextStyles.bodyText(context)
+            .copyWith(color: TurnaTheme.textSecondaryColor(context)),
       ),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.commonCancel,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TurnaSheetAction(
+          label: confirmText,
+          primary: true,
+          destructive: true,
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
     );
   }
 }
 
-// =============================================================================
-// Shared widgets for the Settings → 高级 sub-pages (ADR + style-unification
-// pass). These wrap the same brandTeal / SettingsCard rhythm that the main
-// settings list uses, so every advanced sub-page reads as the same family.
-// =============================================================================
-
-/// Visual tone for [SettingsInfoCard]. Maps to a tinted surface + accent
-/// border + accent icon color. All tints are theme-aware so dark mode never
-/// "贴亮块" with the legacy hard-coded hex colors.
-
-/// Non-destructive info / result dialog used in place of the bare
-/// `AlertDialog(actions: [TextButton(知道了)])` pattern. Same shape as
-/// [SettingsConfirmDialog] so the dialog family reads consistently.
 class SettingsInfoDialog extends StatelessWidget {
   const SettingsInfoDialog({
     super.key,
@@ -365,41 +306,26 @@ class SettingsInfoDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = messageIsSelectable ? SelectableText(message) : Text(message);
-    return SettingsSquareControlTheme(
-      child: AlertDialog(
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: Text(title),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxContentWidth),
-          child: text,
+    final style = AppTextStyles.bodyText(context)
+        .copyWith(color: TurnaTheme.textSecondaryColor(context));
+    final text = messageIsSelectable
+        ? SelectableText(message, style: style)
+        : Text(message, style: style);
+    return TurnaDialogPanel(
+      title: title,
+      maxWidth: maxContentWidth,
+      body: text,
+      actions: [
+        TurnaSheetAction(
+          label: doneText ?? AppStrings.commonDone,
+          primary: true,
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(doneText ?? AppStrings.commonDone),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-/// Form-style dialog that wraps [SettingsConfirmDialog]'s shape +
-/// button-order + square controls but takes an arbitrary body for inputs. Used by
-/// the deck-override editor (multiple switches + dropdowns + slider).
-///
-/// [destructive] flips the confirm button to [TurnaTheme.error] (default).
-/// When [primaryLabel] is null, the confirm button uses the destructive
-/// "保存" style: brandTeal text instead of error.
-
-/// Form-style dialog that wraps [SettingsConfirmDialog]'s shape +
-/// button-order + square controls but takes an arbitrary body for inputs. Used by
-/// the deck-override editor (multiple switches + dropdowns + slider).
-///
-/// [destructive] flips the confirm button to [TurnaTheme.error] (default).
-/// When [primaryLabel] is null, the confirm button uses the destructive
-/// "保存" style: brandTeal text instead of error.
 class SettingsFormDialog extends StatelessWidget {
   const SettingsFormDialog({
     super.key,
@@ -412,79 +338,71 @@ class SettingsFormDialog extends StatelessWidget {
 
   final String title;
   final Widget body;
-
-  /// Confirm button label; falls back to [AppStrings.commonSave] when null.
   final String? confirmText;
   final bool destructive;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSquareControlTheme(
-      child: AlertDialog(
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: Text(title),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [body],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          TextButton(
-            onPressed: enabled ? () => Navigator.of(context).pop(true) : null,
-            child: Text(
-              confirmText ?? AppStrings.commonSave,
-              style: TextStyle(
-                color: destructive ? TurnaTheme.error : TurnaTheme.brandTeal,
-              ),
-            ),
-          ),
-        ],
+    return TurnaDialogPanel(
+      title: title,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [body],
       ),
+      actions: [
+        TurnaSheetAction(
+          label: AppStrings.commonCancel,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TurnaSheetAction(
+          label: confirmText ?? AppStrings.commonSave,
+          primary: true,
+          destructive: destructive,
+          onPressed: enabled ? () => Navigator.of(context).pop(true) : null,
+        ),
+      ],
     );
   }
 }
 
-/// Primary CTA style for the Settings → 高级 sub-pages. Renders a teal
-/// filled button with square corners — used in place of the legacy
-/// `FilledButton.tonalIcon` (which is a different shade on every platform)
-/// and the default `FilledButton` (which is primary container, not
-/// brandTeal). Mirrors the main settings page's teal CTA rhythm.
-
-/// Primary CTA style for the Settings → 高级 sub-pages. Renders a teal
-/// filled button with square corners — used in place of the legacy
-/// `FilledButton.tonalIcon` (which is a different shade on every platform)
-/// and the default `FilledButton` (which is primary container, not
-/// brandTeal). Mirrors the main settings page's teal CTA rhythm.
 class SettingsPrimaryButton extends StatelessWidget {
   const SettingsPrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.icon,
+    this.iconId,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
+  final TurnaIconId? iconId;
 
   @override
   Widget build(BuildContext context) {
     final style = FilledButton.styleFrom(
       backgroundColor: TurnaTheme.brandTeal,
-      foregroundColor: Colors.white,
+      foregroundColor: TurnaTheme.textOnPrimary,
       disabledBackgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.35),
-      disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+      disabledForegroundColor: TurnaTheme.textOnPrimary.withValues(alpha: 0.7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg + AppSpacing.xs,
+        vertical: AppSpacing.md + 2,
+      ),
+      shape: TurnaTheme.shape,
+      textStyle: AppTextStyles.cardTitle(context),
     );
+    if (iconId != null) {
+      return FilledButton.icon(
+        onPressed: onPressed,
+        icon: TurnaIcon(iconId!, size: 18, color: TurnaTheme.textOnPrimary),
+        label: Text(label),
+        style: style,
+      );
+    }
     if (icon != null) {
       return FilledButton.icon(
         onPressed: onPressed,
@@ -493,11 +411,7 @@ class SettingsPrimaryButton extends StatelessWidget {
         style: style,
       );
     }
-    return FilledButton(
-      onPressed: onPressed,
-      style: style,
-      child: Text(label),
-    );
+    return FilledButton(onPressed: onPressed, style: style, child: Text(label));
   }
 }
 

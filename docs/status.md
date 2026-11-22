@@ -121,21 +121,19 @@
 
 ## 8. 设计翻新
 
-全 App 逐页重设计（计划见 [`app-design-refresh-plan.md`](./app-design-refresh-plan.md)）已进入实施：**P0 页面、状态与资产清点完成**，四份产物在 [`design-refresh/`](./design-refresh/)。**P1 完成**：六类核心视觉稿确认、四类材质对照与深色 / 200% / 高对比样稿、R01–R18 全族线框，收口在 [`design-refresh/p1-language-and-wireframes.md`](./design-refresh/p1-language-and-wireframes.md)。**P2 完成**：版面 token 与五组公共组件（清单见 [`design-refresh/p2-components.md`](./design-refresh/p2-components.md)）。**P3 + P4 完成（组件已全量接线，尾项已收口）**：外壳（轻顶栏 + 文字导航，状态胶囊退役）、课程树紧凑三层目录 + 底部继续条、课时域（会话骨架 / 编号行选项 / 完成弹层收敛）、课程管理（内置语言课程 + 记忆卡牌组条目 + 从记忆卡导入卡，[ADR 0067](./decisions/0067-memory-card-returns-to-course-domain.md) 口径）、练习任务台、统一 / 语法 / 记忆卡会话接评分带、错题与弱词学习笔记式、进度 / 洞察 / 仪表盘接报告套件（热图含逐日语义）、词典阅读目录 + 搜索基元、卡牌浏览器搜索基元、AI 全域（大厅任务目录 / 聊天 / 诊断 / API 配置偏好目录）、个人学习档案、设置落地页与系统健康 / 存储诊断报告版式。**P4 尾项完成**：设置深页原语已随主体重塑（六个深页自动继承新版式）、远程备份页按 R17 重组为「连接 → 最近结果 → 当前操作」工作流、关于 / 隐私 / 更新日志转长文阅读版式（纸面卡 + sectionTitle/bodyText 角色 + 表单栏宽）、章节切换与 AI 深度讲解弹层迁入 TurnaSheet 容器、连胜断裂弹层 R18 同构；`AnkiDeckStatsPage` 已接入 `ReportKit` 并退役 `fl_chart` 与全部 `league*` 色板常量，七处 B6 异步异常/重试态与七组（14 张）Golden 快照已随新版式重录并全绿通过，四个超长视图文件已拆至 `components/`。A3（鸿蒙会话 chrome 契约显式化）随 OHOS 侧验证推进。
+全 App「湿地雾光」逐页重设计（计划见 [`app-design-refresh-plan.md`](./app-design-refresh-plan.md)）已完成 **S0–S7 全部代码与资产重构**（规则定稿见 [ADR 0075](./decisions/0075-uniform-4px-geometry-and-bauhaus-icons.md)）：
 
-**题型模板深化完成（计划 §7.1，纯 UI）**：17 个 renderer 的题面与作答区按题型分组重画——大题面统一为纸面 `SessionRecallCanvas`（该 P2 组件自此真正接线）与紧凑答案区形成尺度差；反馈区收编为 `InteractionFeedbackPanel`（答对一行轻结果、答错「你的答案 / 正确表达」分区，`LessonCorrectAnswerBanner` 删除）；听辨类播放主控 `SpeakerHero` 上画布中央；判分书写区、提示 chip、`termHero` 大词头文字角色收口在 `interaction_fields.dart` 与 `text_styles.dart`；退役占位卡接入底栏 CTA 契约（无 `LessonActionScope` 的消费面回退卡内按钮），`LessonPracticeCard` 只保留翻面语义的 front / back 变体（surface 变体随题面纸面化删除）。
+- **统一 4px 几何体系**：`lib/core/theme.dart` 收口为唯一矩形圆角令牌 `TurnaTheme.radius`（4px，保留 `cardRadius` 别名），旧圆角阶梯全部移除；四套主题（浅色 / 深色 / 高对比浅 / 高对比深）的按钮、输入框、分段控件、标签、对话框、底部弹层（顶两角 4px）、SnackBar 与全局 `TurnaSwitch` / `TurnaSlider`（`lib/views/widgets/turna_controls.dart`）统一为 4px，真圆形元素改用 `BoxShape.circle`，设置域局部方形覆写并入全局。
+- **包豪斯几何 SVG 图标族**：在 `assets/icons/` 落地全套 24×24 包豪斯几何 SVG（静态校验全通过），经纯 Dart 枚举 `TurnaIconId`（`lib/core/turna_icon_id.dart`）与 `TurnaIcon`（`lib/views/widgets/turna_icon.dart`）全量替换全 `lib/` 中的 Material `Icons.*`，并剥离 `domain/cosmetics/` 与 `application/settings/settings_destination.dart` 中的 `IconData` 依赖。
+- **共享骨架与 R01–R18 逐页收口**：落地 `TurnaTopBar`、`TurnaLoader`（三档几何加载器，遵守 `reducedMotion`）、`TurnaDialogPanel` / `showTurnaConfirmDialog` / `showTurnaInfoDialog` / `showTurnaFormDialog`、4px `TurnaSnackBar` 与 `TurnaReadingLayout`；完成 R01 外壳与启动、R02 课程树、R03 课程管理书架式重做、R04–R06 课时与全题型（含 B11 键盘避让与完成/重试弹层统一）、R07 练习台与信息浮层、R08–R10 复习与错题报告、R11 词典（含宽屏并排）、R12–R13 记忆卡导入步骤工作区 / 复习主卡与修复中心、R14 AI 卡面收敛与教材导入、R15 个人 / 成就与包豪斯分享海报、R16–R18 设置 / 存储诊断（B5）/ 备份弹层与说明页阅读合并（B9）。
+- **品牌资产重绘（P6）**：`TurnaGeometry` 补齐 `brokenStreak` 几何熄火构图并退役 `assets/images/offFire.png`；重绘湿地雾光包豪斯版 `app_logo.png`（含 `store_1024` / `store_216`）与 `turna_reading.png` / `turna_waving.png`，同步 Android / iOS / Web / macOS / OHOS 启动器图标并通过 `sync_ohos_icons_test.py`。
+- **架构门禁棘轮**：`test/architecture/code_conventions_guard_test.dart` 新增统一 4px 几何、零 Material `Icons.*`、共享 `TurnaTopBar` / `TurnaSheet` / `TurnaDialogPanel` / `TurnaLoader` 及禁裸黑白色的强制断言。
 
-**课程模板呈现二次优化已落地（纯 UI）**：视图层 `LessonPresentationProfile` 统一七种课程模板的图标、进度样式与内容宽度；听力对话阶段恢复消费已有 `ListeningPhase.audioAsset / transcript`，听选、听写与概要共用带播放状态和按需原文揭示的听力面板；选择、书写与阅读题面按任务重组，课程包图片路径解析按 asset 复用。非 golden 全量测试、静态分析和 Android debug 构建通过；组件渲染已核对听力 / 阅读与浅色 / 深色，窄屏 200% 和 reduced-motion 有回归用例。**移动真机流程与帧耗时仍未验收**。
+**材质第三轮（[ADR 0068](./decisions/0068-ambient-light-and-frosted-glass.md)）**：L0「白 + 三片极淡天光」（`AmbientLight`，峰值 ≤8.6%，只落边缘）与 `GlassLevel.l2Frost`（每页 ≤2 张）继续生效；个人页头卡保持静态淡彩玻璃，L0 天光保持静态。
 
-「湿地雾光」的公共色彩、纸面/玻璃材质、L0 环境天光与毛玻璃档、间距圆角、跨域卡片、几何图形（含页级贴边形态）、运动 token 与宽屏内容容器已落地；学习、复习、词典、记忆卡、AI、个人与设置入口均有对应处理，明细见 `dist/design-refresh/coverage.md`。课程 / 练习 / 个人 / 设置四个 Tab 各有几何主视觉位（拱、斜切、环、交叠色片），装饰层随垂直滚动做受限视差，学习单元展开时局部模糊并淡化；减少动效时静止。设置域交互控件使用局部方形主题。组件提供浅色/深色 `@Preview` 样板。实现规则见 [`project-guide.md`](./project-guide.md)「主题与可访问性」。
+**ADR 0067 记忆卡回归课程域已落地**（数据 / 引擎层零改动）：记忆卡牌组以课程形态进入课程管理书架索引，练习台与个人页按当前课程裁剪，第三方卡片内容区保真契约保持不变。
 
-**材质第三轮（[ADR 0068](./decisions/0068-ambient-light-and-frosted-glass.md)）**：L0 从纯白改为「白 + 三片极淡天光」（`AmbientLight`，峰值 ≤8.6%，只落边缘），`AmbientBackdrop` 接回主外壳 / 课时作答页 / 三个长文阅读页；`GlassLevel.l2Frost`（半透明填充 + `BackdropFilter sigma 14` + 1px 顶部受光边，每页 ≤2 张）由受控 `GlassSurface.frost` 承载。个人页头卡为避免滚动时实时采样闪烁，已改为静态淡彩玻璃，保留原有渐变、描边与投影；L0 天光本身仍保持静态。
-
-**ADR 0067 记忆卡回归课程域已落地**（统一底座界面口径，原 ADR 0066 已随文档精简删除，数据 / 引擎层零改动）：记忆卡牌组恢复为课程——课程管理列出牌组条目（切换 / 排序 / 卸载 / 适配恢复）并恢复「从记忆卡导入课程」卡、未完成导入横幅与修复中心入口；导入完成「立即学习」切到牌组课程、「查看牌组」高亮打开课程管理；`CourseProvider.setScope` 重新接受 anki scope，持久化 scope 原样恢复；练习台与个人页按当前课程裁剪——记忆卡课程激活时语言队列让位给「记忆卡复习」行（点按直开正式复习，同步失败有页内重试条），语言课程激活时无任何记忆卡入口；记忆卡中枢页（`MemoryCardHubPage`）与 `ankiDeckEntries` 窄缝删除，牌组管理回归课程管理页与 `AnkiReviewPage`。ADR 0066 的 `turna.course.scope` 配置区越界写删除保留（prefs 是唯一持久层）。
-
-**已取得的运行证据**：Pixel 6 / Android 15 模拟器的 debug 构建已走通启动、四个主 Tab、词典输入与无结果、深色、高对比、200% 字号，以及课程树展开 → 13/13 子课作答（含文本键盘输入）→ 完成 → 返回并显示真实进度。截图与覆盖记录位于 `dist/design-refresh/`。
-
-**验收边界**：设计源码覆盖和上述模拟器路径不等于全平台视觉验收。宽屏、屏幕阅读器、性能对比及 Android/iOS/鸿蒙真机矩阵仍需各自的真实运行证据；未连接设备的平台不写成已验证。
+**验收边界**：本轮已在离线环境下完成全量 SVG 静态校验、OHOS 图标同步单测、`dart format` 全文件语法校验与全库静态门禁扫描；云端环境因 `gitcode.com` 对 OHOS 依赖返回 HTTP 418 无法在线运行 `flutter pub get` / `flutter test` / Golden 重录，需要在本机或 CI 环境执行 `flutter analyze`、`flutter test --exclude-tags golden`、`flutter test --update-goldens test/golden/` 以及 Android / iOS / 鸿蒙真机视觉、宽屏、屏幕阅读器与帧耗时验收。
 
 ---
 

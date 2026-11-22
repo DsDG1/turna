@@ -16,6 +16,9 @@ import 'package:turna/views/ai/components/ai_generated_notice.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -220,25 +223,15 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   }
 
   Widget _genreGrid(BuildContext context) {
-    final tiles = <(DepthGenre, String, IconData)>[
-      (DepthGenre.grammar, AppStrings.aiDepthGrammar, Icons.menu_book_outlined),
-      (
-        DepthGenre.synonyms,
-        AppStrings.aiDepthSynonyms,
-        Icons.compare_arrows_rounded
-      ),
-      (
-        DepthGenre.decompose,
-        AppStrings.aiDepthDecompose,
-        Icons.account_tree_outlined
-      ),
+    final tiles = <(DepthGenre, String, TurnaIconId)>[
+      (DepthGenre.grammar, AppStrings.aiDepthGrammar, TurnaIconId.book),
+      (DepthGenre.synonyms, AppStrings.aiDepthSynonyms, TurnaIconId.swapArrows),
+      (DepthGenre.decompose, AppStrings.aiDepthDecompose, TurnaIconId.tree),
     ];
     return TurnaChoiceGrid<DepthGenre>(
       selected: _genre,
       onSelected: _select,
-      items: [
-        for (final t in tiles) (t.$1, t.$2, t.$3),
-      ],
+      items: [for (final t in tiles) (t.$1, t.$2, t.$3)],
     );
   }
 
@@ -259,35 +252,20 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
       style: aiSheetPrimaryButtonStyle(),
       onPressed: _loading ? null : _generate,
       icon: _loading
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Icon(Icons.bolt_rounded),
+          ? TurnaLoader.button()
+          : const TurnaIcon(TurnaIconId.bolt, size: 18),
       label: Text(AppStrings.aiDepthGenerate),
     );
   }
 
   Widget _resultArea(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: TurnaTheme.brandTeal,
-          strokeWidth: 3,
-        ),
-      );
+      return Center(child: TurnaLoader.inline());
     }
     if (_error != null) {
       return AiSurfaceCard(
         accent: TurnaTheme.error,
-        child: Text(
-          _error!,
-          style: const TextStyle(color: TurnaTheme.error),
-        ),
+        child: Text(_error!, style: const TextStyle(color: TurnaTheme.error)),
       );
     }
     if (_result == null) return const SizedBox.shrink();
@@ -299,7 +277,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: _copy,
-              icon: const Icon(Icons.copy_outlined, size: 18),
+              icon: const TurnaIcon(TurnaIconId.copy, size: 18),
               label: Text(AppStrings.aiDepthCopy),
             ),
           ),
@@ -312,95 +290,95 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   // ─── Result renderers ────────────────────────────────────────────────
 
   Widget _grammarWidget(GrammarExplanation r) => _card([
-        SelectableText(r.explanation,
-            style: Theme.of(context).textTheme.bodyMedium),
-        if (r.relatedExamples.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _sectionLabel(AppStrings.aiDepthRelatedExamples),
-          for (final e in r.relatedExamples) _bullet(e),
-        ],
-        if (r.contrastWith.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _sectionLabel(AppStrings.aiDepthContrastWith),
-          for (final e in r.contrastWith) _bullet(e),
-        ],
-      ]);
+    SelectableText(
+      r.explanation,
+      style: Theme.of(context).textTheme.bodyMedium,
+    ),
+    if (r.relatedExamples.isNotEmpty) ...[
+      const SizedBox(height: 8),
+      _sectionLabel(AppStrings.aiDepthRelatedExamples),
+      for (final e in r.relatedExamples) _bullet(e),
+    ],
+    if (r.contrastWith.isNotEmpty) ...[
+      const SizedBox(height: 8),
+      _sectionLabel(AppStrings.aiDepthContrastWith),
+      for (final e in r.contrastWith) _bullet(e),
+    ],
+  ]);
 
   Widget _synonymsWidget(SynonymComparison r) => _card([
-        for (final p in r.pairs) ...[
-          _pairHeader(p.a, p.b),
-          const SizedBox(height: 4),
-          _labeled(AppStrings.aiDepthNuance, p.nuance),
-          _labeled(AppStrings.aiDepthWhenToUseA, p.whenToUseA),
-          _labeled(AppStrings.aiDepthWhenToUseB, p.whenToUseB),
-          if (p.examples.isNotEmpty)
-            for (final e in p.examples) _bullet(e),
-          const Divider(height: 24),
-        ],
-      ]);
+    for (final p in r.pairs) ...[
+      _pairHeader(p.a, p.b),
+      const SizedBox(height: 4),
+      _labeled(AppStrings.aiDepthNuance, p.nuance),
+      _labeled(AppStrings.aiDepthWhenToUseA, p.whenToUseA),
+      _labeled(AppStrings.aiDepthWhenToUseB, p.whenToUseB),
+      if (p.examples.isNotEmpty)
+        for (final e in p.examples) _bullet(e),
+      const Divider(height: 24),
+    ],
+  ]);
 
   Widget _decomposeWidget(SentenceBreakdown r) => _card([
-        for (final t in r.tokens)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: SelectableText(
-              '${t.surface}'
-              '${t.lemma == null || t.lemma!.isEmpty ? '' : ' (${t.lemma})'}'
-              '  —  ${t.gloss}  [${t.role}]',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-        const SizedBox(height: 8),
-        _labeled(AppStrings.aiDepthStructure, r.structure),
-      ]);
+    for (final t in r.tokens)
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: SelectableText(
+          '${t.surface}'
+          '${t.lemma == null || t.lemma!.isEmpty ? '' : ' (${t.lemma})'}'
+          '  —  ${t.gloss}  [${t.role}]',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+    const SizedBox(height: 8),
+    _labeled(AppStrings.aiDepthStructure, r.structure),
+  ]);
 
   /// 三种深度解释共用这一个容器，所以显式标识挂在这里：新增一种结果
   /// 形态也会自动带上《标识办法》要求的提示，不会漏标。
   Widget _card(List<Widget> children) => AiSurfaceCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [...children, const AiGeneratedNotice()],
-        ),
-      );
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [...children, const AiGeneratedNotice()],
+    ),
+  );
 
   Widget _sectionLabel(String text) => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 2),
-        child: Text(
-          text,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: TurnaTheme.brandTeal,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 4, bottom: 2),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.labelMedium
+          ?.copyWith(color: TurnaTheme.brandTeal, fontWeight: FontWeight.w600),
+    ),
+  );
 
   Widget _bullet(String text) => Padding(
-        padding: const EdgeInsets.only(left: 12, top: 2),
-        child: SelectableText('• $text',
-            style: Theme.of(context).textTheme.bodyMedium),
-      );
+    padding: const EdgeInsets.only(left: 12, top: 2),
+    child: SelectableText(
+      '• $text',
+      style: Theme.of(context).textTheme.bodyMedium,
+    ),
+  );
 
   Widget _labeled(String label, String value) => Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: RichText(
-          text: TextSpan(
-            style: Theme.of(context).textTheme.bodyMedium,
-            children: [
-              TextSpan(
-                text: '$label：',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              TextSpan(text: value),
-            ],
+    padding: const EdgeInsets.only(top: 4),
+    child: RichText(
+      text: TextSpan(
+        style: Theme.of(context).textTheme.bodyMedium,
+        children: [
+          TextSpan(
+            text: '$label：',
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-        ),
-      );
+          TextSpan(text: value),
+        ],
+      ),
+    ),
+  );
 
   Widget _pairHeader(String a, String b) => Text(
-        '$a  vs  $b',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: TurnaTheme.brandTeal,
-            ),
-      );
+    '$a  vs  $b',
+    style: Theme.of(context).textTheme.titleSmall
+        ?.copyWith(fontWeight: FontWeight.w700, color: TurnaTheme.brandTeal),
+  );
 }

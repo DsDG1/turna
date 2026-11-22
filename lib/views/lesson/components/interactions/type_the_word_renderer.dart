@@ -68,10 +68,8 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   void _syncDraft(BuildContext context) {
     final canSubmit =
         !widget.state.submitted && _controller.text.trim().isNotEmpty;
-    LessonActionScope.maybeOf(context)?.report(
-      canSubmit: canSubmit,
-      submit: canSubmit ? _trySubmit : null,
-    );
+    LessonActionScope.maybeOf(context)
+        ?.report(canSubmit: canSubmit, submit: canSubmit ? _trySubmit : null);
   }
 
   void _onTextChanged() {
@@ -97,8 +95,9 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   }
 
   Future<void> _speak() async {
-    final result =
-        await getIt<AudioController>().speakWordWithResult(widget.audioAsset);
+    final result = await getIt<AudioController>().speakWordWithResult(
+      widget.audioAsset,
+    );
     if (!mounted) return;
     setState(() => _hasPlayed = true);
     showTtsFailureFeedback(context, result);
@@ -137,8 +136,10 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
           // 大字号书写档与听写共用（interaction_fields 收口处）。
           InteractionTextField(
             controller: _controller,
-            verdict:
-                interactionVerdictOf(submitted: submitted, correct: correct),
+            verdict: interactionVerdictOf(
+              submitted: submitted,
+              correct: correct,
+            ),
             enabled: !submitted,
             autofocus: !submitted,
             textAlign: TextAlign.center,

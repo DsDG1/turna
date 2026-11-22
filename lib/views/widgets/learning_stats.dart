@@ -13,6 +13,8 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
 
@@ -137,7 +139,10 @@ class _TodaySummaryCardState extends _StudyFuturesState<TodaySummaryCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-              context, AppStrings.profileTodayTitle, Icons.insights_rounded),
+            context,
+            AppStrings.profileTodayTitle,
+            TurnaIconId.insights,
+          ),
           const SizedBox(height: 10),
           FutureBuilder<DailyStudyStats>(
             future: _todayFuture,
@@ -234,43 +239,28 @@ class _StatsErrorBanner extends StatelessWidget {
       decoration: TurnaTheme.flatPaperDecoration(context),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: TurnaTheme.error,
-            size: 20,
-          ),
+          const TurnaIcon(TurnaIconId.error, color: TurnaTheme.error, size: 20),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               AppStrings.learningStatsLoadFailed,
-              style: AppTextStyles.captionSm(context).copyWith(
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textPrimaryColor(context)),
             ),
           ),
-          TextButton(
-            onPressed: onRetry,
-            child: Text(AppStrings.commonRetry),
-          ),
+          TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
         ],
       ),
     );
   }
 }
 
-Widget _sectionTitle(BuildContext context, String text, IconData icon) {
+Widget _sectionTitle(BuildContext context, String text, TurnaIconId icon) {
   return Row(
     children: [
-      Icon(icon, color: TurnaTheme.brandTeal, size: 20),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Text(
-          text,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      ),
+      TurnaIcon(icon, color: TurnaTheme.brandTeal, size: 20),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(child: Text(text, style: AppTextStyles.cardTitle(context))),
     ],
   );
 }
@@ -287,8 +277,9 @@ class _TodaySummary extends StatelessWidget {
     final s = stats;
     final xp = s?.totalXp ?? 0;
     final minutes = ((s?.totalDurationSeconds ?? 0) / 60).ceil();
-    final accuracy =
-        s != null ? int.parse((s.accuracy * 100).toStringAsFixed(0)) : 0;
+    final accuracy = s != null
+        ? int.parse((s.accuracy * 100).toStringAsFixed(0))
+        : 0;
 
     return Container(
       width: double.infinity,
@@ -299,8 +290,11 @@ class _TodaySummary extends StatelessWidget {
       decoration: TurnaTheme.flatPaperDecoration(context),
       child: Row(
         children: [
-          const Icon(Icons.bolt_rounded,
-              color: TurnaTheme.anatolianClay, size: 20),
+          const TurnaIcon(
+            TurnaIconId.bolt,
+            color: TurnaTheme.anatolianClay,
+            size: 20,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -322,7 +316,7 @@ class _TodaySummary extends StatelessWidget {
 }
 
 class _TodayItem extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final Color iconColor;
   final String value;
   final String label;
@@ -338,21 +332,18 @@ class _TodayItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: iconColor, size: 22),
-        const SizedBox(height: 6),
+        TurnaIcon(icon, color: iconColor, size: 22),
+        const SizedBox(height: AppSpacing.xs + 2),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+          style: AppTextStyles.cardTitle(context)
+              .copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textHintColor(context),
-                fontWeight: FontWeight.w500,
-              ),
+          style: AppTextStyles.caption(context)
+              .copyWith(letterSpacing: 0, fontWeight: FontWeight.w500),
         ),
       ],
     );
@@ -368,27 +359,26 @@ class _WeeklyXpBars extends StatelessWidget {
   Widget build(BuildContext context) {
     if (days.isEmpty) return const SizedBox.shrink();
 
-    final maxXp =
-        days.map((d) => d.totalXp).fold<int>(1, (a, b) => a > b ? a : b);
+    final maxXp = days
+        .map((d) => d.totalXp)
+        .fold<int>(1, (a, b) => a > b ? a : b);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             AppStrings.profileLast7Days,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: AppTextStyles.cardTitle(context),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -401,13 +391,10 @@ class _WeeklyXpBars extends StatelessWidget {
                 children: [
                   Text(
                     day.totalXp.toString(),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: AppTextStyles.caption(context)
+                        .copyWith(letterSpacing: 0),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Container(
                     width: 22,
                     height: barHeight,
@@ -415,17 +402,14 @@ class _WeeklyXpBars extends StatelessWidget {
                       color: day.totalXp > 0
                           ? TurnaTheme.brandTeal
                           : TurnaTheme.dividerBg(context),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: TurnaTheme.borderRadius,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xs + 2),
                   Text(
                     AppStrings.weekdayShortLabel(day.date.weekday),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                    style: AppTextStyles.caption(context)
+                        .copyWith(letterSpacing: 0),
                   ),
                 ],
               );
@@ -446,8 +430,8 @@ class _OverallStatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalMinutes = (data['totalMinutes'] as num?)?.toInt() ?? 0;
     final accuracy = int.parse(
-        (((data['accuracy'] as num?) ?? 0.0).toDouble() * 100)
-            .toStringAsFixed(0));
+      (((data['accuracy'] as num?) ?? 0.0).toDouble() * 100).toStringAsFixed(0),
+    );
     final totalLessons = (data['totalLessons'] as num?)?.toInt() ?? 0;
     final totalReviews = (data['totalReviews'] as num?)?.toInt() ?? 0;
 
@@ -456,30 +440,30 @@ class _OverallStatsGrid extends StatelessWidget {
       primary: false,
       shrinkWrap: true,
       crossAxisCount: 2,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
+      crossAxisSpacing: AppSpacing.sm + 2,
+      mainAxisSpacing: AppSpacing.sm + 2,
       childAspectRatio: 2.2,
       children: [
         _StatCard(
-          icon: Icons.timer_rounded,
+          icon: TurnaIconId.timer,
           iconColor: TurnaTheme.anatolianClay,
           value: AppStrings.profileTotalStudyTimeValue(totalMinutes),
           label: AppStrings.profileTotalStudyTime,
         ),
         _StatCard(
-          icon: Icons.percent_rounded,
+          icon: TurnaIconId.percent,
           iconColor: TurnaTheme.successDark,
           value: AppStrings.profileOverallAccuracyValue(accuracy),
           label: AppStrings.profileOverallAccuracy,
         ),
         _StatCard(
-          icon: Icons.school_rounded,
+          icon: TurnaIconId.school,
           iconColor: TurnaTheme.brandSky,
           value: totalLessons.toString(),
           label: AppStrings.profileLessonsDone,
         ),
         _StatCard(
-          icon: Icons.repeat_rounded,
+          icon: TurnaIconId.repeat,
           iconColor: TurnaTheme.achievementGold,
           value: totalReviews.toString(),
           label: AppStrings.profileReviewsDone,
@@ -489,57 +473,58 @@ class _OverallStatsGrid extends StatelessWidget {
   }
 }
 
-/// Breakdown card showing Anki-deck activity separately from language-course
-/// lessons. Only renders when there is non-zero Anki activity.
+/// Breakdown card showing memory-card activity separately from language-course
+/// lessons. Only renders when there is non-zero activity.
 class _AnkiStatsCard extends StatelessWidget {
   final int ankiLessons;
   final int ankiReviews;
 
-  const _AnkiStatsCard({
-    required this.ankiLessons,
-    required this.ankiReviews,
-  });
+  const _AnkiStatsCard({required this.ankiLessons, required this.ankiReviews});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.layers_rounded,
-                  color: TurnaTheme.brandTeal, size: 20),
-              const SizedBox(width: 8),
+              const TurnaIcon(
+                TurnaIconId.layers,
+                color: TurnaTheme.brandTeal,
+                size: 20,
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 AppStrings.profileAnkiDecks,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: AppTextStyles.cardTitle(context),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _TodayItem(
-                icon: Icons.school_rounded,
+                icon: TurnaIconId.school,
                 iconColor: TurnaTheme.brandSky,
                 value: ankiLessons.toString(),
                 label: AppStrings.profileAnkiLessons,
               ),
               Container(
-                  width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
+                width: 1,
+                height: 40,
+                color: TurnaTheme.dividerBg(context),
+              ),
               _TodayItem(
-                icon: Icons.repeat_rounded,
+                icon: TurnaIconId.repeat,
                 iconColor: TurnaTheme.achievementGold,
                 value: ankiReviews.toString(),
                 label: AppStrings.profileAnkiReviews,
@@ -553,7 +538,7 @@ class _AnkiStatsCard extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final Color iconColor;
   final String value;
   final String label;
@@ -568,12 +553,12 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: TurnaTheme.glassDecoration(
         context,
         TurnaTheme.glassNeutral,
         level: GlassLevel.l1Subtle,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -581,28 +566,25 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
+              TurnaIcon(icon, color: iconColor, size: 20),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   value,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: AppTextStyles.cardTitle(context)
+                      .copyWith(fontWeight: FontWeight.w700),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Padding(
             padding: const EdgeInsets.only(left: 28),
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: AppTextStyles.caption(context)
+                  .copyWith(letterSpacing: 0, fontWeight: FontWeight.w500),
             ),
           ),
         ],

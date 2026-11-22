@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 /// Shared icon + color mapping for course sections.
 ///
@@ -13,24 +15,24 @@ class SectionVisuals {
   const SectionVisuals._();
 
   /// Thematic icon for [sectionId]. Unknown ids fall back to a book icon;
-  /// imported Anki decks (id prefix 'anki-') get a dedicated card-stack icon.
-  static IconData iconFor(String sectionId) {
-    if (sectionId.startsWith('anki-')) return Icons.style_rounded;
+  /// imported memory-card decks (id prefix 'anki-') get a dedicated cards icon.
+  static TurnaIconId iconFor(String sectionId) {
+    if (sectionId.startsWith('anki-')) return TurnaIconId.cards;
     return switch (sectionId) {
-      'section1' => Icons.waving_hand_rounded,
-      'section2' => Icons.pets_rounded,
-      'section3' => Icons.mood_rounded,
-      'section4' => Icons.chat_bubble_rounded,
-      'section5' => Icons.forum_rounded,
-      'section6' => Icons.record_voice_over_rounded,
-      'section7' => Icons.psychology_rounded,
-      'section8' => Icons.flight_takeoff_rounded,
-      _ => Icons.menu_book_rounded,
+      'section1' => TurnaIconId.sunrise,
+      'section2' => TurnaIconId.leaf,
+      'section3' => TurnaIconId.sun,
+      'section4' => TurnaIconId.chat,
+      'section5' => TurnaIconId.translate,
+      'section6' => TurnaIconId.speakVoice,
+      'section7' => TurnaIconId.brain,
+      'section8' => TurnaIconId.explore,
+      _ => TurnaIconId.book,
     };
   }
 
   /// Soft background + icon tint for [sectionId], cycling the app palette.
-  /// Imported Anki decks (id prefix 'anki-') share one fixed pairing.
+  /// Imported memory-card decks (id prefix 'anki-') share one fixed pairing.
   static ({Color background, Color foreground}) colorsFor(String sectionId) {
     if (sectionId.startsWith('anki-')) {
       return (
@@ -40,41 +42,41 @@ class SectionVisuals {
     }
     return switch (sectionId) {
       'section1' => (
-          background: TurnaTheme.success.withValues(alpha: 0.18),
-          foreground: TurnaTheme.successDark,
-        ),
+        background: TurnaTheme.success.withValues(alpha: 0.18),
+        foreground: TurnaTheme.successDark,
+      ),
       'section2' => (
-          background: TurnaTheme.brandSky.withValues(alpha: 0.18),
-          foreground: TurnaTheme.brandTeal,
-        ),
+        background: TurnaTheme.brandSky.withValues(alpha: 0.18),
+        foreground: TurnaTheme.brandTeal,
+      ),
       'section3' => (
-          background: TurnaTheme.warning.withValues(alpha: 0.18),
-          foreground: TurnaTheme.warning,
-        ),
+        background: TurnaTheme.warning.withValues(alpha: 0.18),
+        foreground: TurnaTheme.warning,
+      ),
       'section4' => (
-          background: TurnaTheme.achievementAmethyst.withValues(alpha: 0.18),
-          foreground: TurnaTheme.achievementAmethyst,
-        ),
+        background: TurnaTheme.achievementAmethyst.withValues(alpha: 0.18),
+        foreground: TurnaTheme.achievementAmethyst,
+      ),
       'section5' => (
-          background: TurnaTheme.achievementEmerald.withValues(alpha: 0.18),
-          foreground: TurnaTheme.achievementEmerald,
-        ),
+        background: TurnaTheme.achievementEmerald.withValues(alpha: 0.18),
+        foreground: TurnaTheme.achievementEmerald,
+      ),
       'section6' => (
-          background: TurnaTheme.brandSky.withValues(alpha: 0.18),
-          foreground: TurnaTheme.brandSky,
-        ),
+        background: TurnaTheme.brandSky.withValues(alpha: 0.18),
+        foreground: TurnaTheme.brandSky,
+      ),
       'section7' => (
-          background: TurnaTheme.anatolianClay.withValues(alpha: 0.18),
-          foreground: TurnaTheme.anatolianClay,
-        ),
+        background: TurnaTheme.anatolianClay.withValues(alpha: 0.18),
+        foreground: TurnaTheme.anatolianClay,
+      ),
       'section8' => (
-          background: TurnaTheme.brandReed.withValues(alpha: 0.22),
-          foreground: TurnaTheme.brandTeal,
-        ),
+        background: TurnaTheme.brandReed.withValues(alpha: 0.22),
+        foreground: TurnaTheme.brandTeal,
+      ),
       _ => (
-          background: TurnaTheme.tintSoft,
-          foreground: TurnaTheme.textSecondary,
-        ),
+        background: TurnaTheme.tintSoft,
+        foreground: TurnaTheme.textSecondary,
+      ),
     };
   }
 }
@@ -93,12 +95,12 @@ class SectionLevelLabel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: TurnaTheme.tintSoft,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 11,
+        style: AppTextStyles.caption(context).copyWith(
+          letterSpacing: 0,
           fontWeight: FontWeight.w700,
           color: TurnaTheme.textSecondaryColor(context),
         ),

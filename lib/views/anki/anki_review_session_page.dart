@@ -36,10 +36,16 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Shared formal-review session for Official-owned Anki cards.
 ///
@@ -50,11 +56,7 @@ import 'package:turna/views/widgets/turna_snack_bar.dart';
 /// [OfficialStudyLedger].
 @RoutePage()
 class AnkiReviewSessionPage extends StatefulWidget {
-  const AnkiReviewSessionPage({
-    super.key,
-    this.sectionId,
-    this.officialOwner,
-  });
+  const AnkiReviewSessionPage({super.key, this.sectionId, this.officialOwner});
 
   final String? sectionId;
 
@@ -68,7 +70,8 @@ class AnkiReviewSessionPage extends StatefulWidget {
   static Future<OfficialFormalReviewLoadResult?> Function({
     required String importId,
     required String courseId,
-  })? debugOfficialBatchBuilder;
+  })?
+  debugOfficialBatchBuilder;
 
   /// Production loader (overridable in tests that drive the page widget).
   static OfficialFormalReviewProductionLoader productionLoader =
@@ -153,19 +156,19 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
           !_advancingSource &&
           !_advanceScheduled) {
         _advanceScheduled = true;
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) {
-            _advanceScheduled = false;
-            unawaited(_advanceReviewAll());
-          },
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _advanceScheduled = false;
+          unawaited(_advanceReviewAll());
+        });
       } else if (_sourceCoordinator == null && !_settlement.isRecorded) {
-        unawaited(_recordSessionCompletion(
-          total: controller.answeredCount,
-          remembered: controller.rememberedCount,
-          forgotten: controller.forgottenCount,
-          elapsed: DateTime.now().difference(controller.startedAt),
-        ));
+        unawaited(
+          _recordSessionCompletion(
+            total: controller.answeredCount,
+            remembered: controller.rememberedCount,
+            forgotten: controller.forgottenCount,
+            elapsed: DateTime.now().difference(controller.startedAt),
+          ),
+        );
       }
     }
     setState(() {});
@@ -219,15 +222,17 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         return;
       }
       final selectedSectionId = sourceTarget == null ? widget.sectionId : null;
-      final importId = sourceTarget?.importOrSourceId ??
+      final importId =
+          sourceTarget?.importOrSourceId ??
           (selectedSectionId == null
               ? ''
               : LegacyAnkiIdentifiers.importIdFromSectionId(selectedSectionId));
       final officialOwner = sourceTarget != null
           ? sourceTarget.owner == AnkiEngineKind.official
           : widget.officialOwner ??
-              OfficialFormalDueRepository.instance.officialImportIds
-                  .contains(importId);
+                OfficialFormalDueRepository.instance.officialImportIds.contains(
+                  importId,
+                );
       final launch = const FormalReviewLauncher().resolve(
         entry: FormalReviewEntryKind.ankiHub,
         courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
@@ -261,8 +266,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       }
 
       final selectedImportId = importId;
-      final courseId =
-          selectedImportId.isEmpty ? 'anki' : 'anki-$selectedImportId';
+      final courseId = selectedImportId.isEmpty
+          ? 'anki'
+          : 'anki-$selectedImportId';
 
       if (officialOwner) {
         await _startOfficialOwned(
@@ -320,12 +326,14 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
           _loading = false;
         });
       }
-      unawaited(_recordSessionCompletion(
-        total: coordinator.totalCount,
-        remembered: coordinator.rememberedCount,
-        forgotten: coordinator.forgottenCount,
-        elapsed: DateTime.now().difference(_settlement.startedAt),
-      ));
+      unawaited(
+        _recordSessionCompletion(
+          total: coordinator.totalCount,
+          remembered: coordinator.rememberedCount,
+          forgotten: coordinator.forgottenCount,
+          elapsed: DateTime.now().difference(_settlement.startedAt),
+        ),
+      );
       _advancingSource = false;
       return;
     }
@@ -365,8 +373,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         StateError('blocked:${result.sourceId}'),
         kind: FormalReviewFailureKind.render,
         retryable: true,
-        code:
-            result.failures.isNotEmpty ? result.failures.first.code : 'unknown',
+        code: result.failures.isNotEmpty
+            ? result.failures.first.code
+            : 'unknown',
       );
       setState(() {
         _blockedLoad = result;
@@ -397,7 +406,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       liveQueue.addListener(_onLiveQueueRebuilt);
     }
 
-    final host = AnkiStudySessionHost.debugOverride ??
+    final host =
+        AnkiStudySessionHost.debugOverride ??
         AnkiStudySessionHost.resolveOrNull() ??
         AnkiStudySessionHost(
           resolver: StudyLedgerResolver(official: readyBatch.ledger),
@@ -504,12 +514,14 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     // settlement exactly when the session had actually completed, so the
     // completion view behind the ability always reported 0 XP.
     if (controller != null && !_settlement.isRecorded && answered > 0) {
-      unawaited(_recordSessionCompletion(
-        total: answered,
-        remembered: controller.rememberedCount,
-        forgotten: controller.forgottenCount,
-        elapsed: DateTime.now().difference(controller.startedAt),
-      ));
+      unawaited(
+        _recordSessionCompletion(
+          total: answered,
+          remembered: controller.rememberedCount,
+          forgotten: controller.forgottenCount,
+          elapsed: DateTime.now().difference(controller.startedAt),
+        ),
+      );
     }
     // UI-16: a finished queue hands the completion screen back to Flutter
     // instead of popping.
@@ -623,29 +635,34 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Material(
                     color: TurnaTheme.error.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                    borderRadius: TurnaTheme.borderRadius,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
                       child: Column(
                         children: [
                           Row(
                             children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
+                              const TurnaIcon(
+                                TurnaIconId.error,
                                 color: TurnaTheme.error,
+                                size: 20,
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  AppStrings.ankiReviewFailedSources(reviewAll
-                                      .failures
-                                      .map((failure) =>
-                                          failure.target.displayName)
-                                      .join('、')),
-                                  style: const TextStyle(
-                                    color: TurnaTheme.error,
-                                    fontWeight: FontWeight.w600,
+                                  AppStrings.ankiReviewFailedSources(
+                                    reviewAll.failures
+                                        .map(
+                                          (failure) =>
+                                              failure.target.displayName,
+                                        )
+                                        .join('、'),
                                   ),
+                                  style: AppTextStyles.captionSm(context)
+                                      .copyWith(
+                                        color: TurnaTheme.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ),
                             ],
@@ -655,13 +672,15 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
                               alignment: Alignment.centerRight,
                               child: TextButton.icon(
                                 key: const Key('anki-review-all-retry-failed'),
-                                onPressed: () => unawaited(
-                                  _retryFailedSources(reviewAll),
+                                onPressed: () =>
+                                    unawaited(_retryFailedSources(reviewAll)),
+                                icon: const TurnaIcon(
+                                  TurnaIconId.refresh,
+                                  size: 16,
                                 ),
-                                icon:
-                                    const Icon(Icons.refresh_rounded, size: 18),
                                 label: Text(
-                                    AppStrings.ankiReviewRetryFailedSources),
+                                  AppStrings.ankiReviewRetryFailedSources,
+                                ),
                               ),
                             ),
                         ],
@@ -678,8 +697,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
                         totalCount: reviewAll.totalCount,
                         rememberedCount: reviewAll.rememberedCount,
                         forgottenCount: reviewAll.forgottenCount,
-                        elapsed:
-                            DateTime.now().difference(_settlement.startedAt),
+                        elapsed: DateTime.now().difference(
+                          _settlement.startedAt,
+                        ),
                         xpEarned: _settlement.earnedXp,
                         gemsEarned: 0,
                         onFinish: () => Navigator.of(context).maybePop(),
@@ -710,11 +730,15 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     final blocked = _blockedLoad;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.ankiReviewTitle),
+      appBar: TurnaTopBar(
+        title: AppStrings.ankiReviewTitle,
         leading: IconButton(
           tooltip: AppStrings.commonClose,
-          icon: const Icon(Icons.close_rounded),
+          icon: TurnaIcon(
+            TurnaIconId.close,
+            size: 20,
+            color: TurnaTheme.textPrimaryColor(context),
+          ),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -722,23 +746,23 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         child: _loading
             ? const _PreparingPanel()
             : blocked != null
-                ? _BlockedLoadPanel(
-                    blocked: blocked,
-                    inReviewAll: reviewAll != null,
-                    onRetry: _retryBlockedSource,
-                    onContinue: _continuePastBlockedSource,
-                  )
-                : _error != null
-                    ? PracticeEmptyState(
-                        title: _error == FormalReviewLauncher.failClosedMessage
-                            ? AppStrings.officialAnkiError(
-                                FormalReviewLauncher.failClosedMessage,
-                              )
-                            : AppStrings.ankiReviewLoadFailed,
-                        actionLabel: AppStrings.ankiReviewRetry,
-                        onAction: () => unawaited(_start()),
+            ? _BlockedLoadPanel(
+                blocked: blocked,
+                inReviewAll: reviewAll != null,
+                onRetry: _retryBlockedSource,
+                onContinue: _continuePastBlockedSource,
+              )
+            : _error != null
+            ? PracticeEmptyState(
+                title: _error == FormalReviewLauncher.failClosedMessage
+                    ? AppStrings.officialAnkiError(
+                        FormalReviewLauncher.failClosedMessage,
                       )
-                    : const _AnkiFormalReviewEmptyPanel(),
+                    : AppStrings.ankiReviewLoadFailed,
+                actionLabel: AppStrings.ankiReviewRetry,
+                onAction: () => unawaited(_start()),
+              )
+            : const _AnkiFormalReviewEmptyPanel(),
       ),
     );
   }
@@ -802,59 +826,56 @@ class _BlockedLoadPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final debugDetails = kDebugMode
         ? 'source=${blocked.sourceId} '
-            'code=${blocked.failures.isNotEmpty ? blocked.failures.first.code : 'unknown'} '
-            'cards=${blocked.schedulerCardCount}'
+              'code=${blocked.failures.isNotEmpty ? blocked.failures.first.code : 'unknown'} '
+              'cards=${blocked.schedulerCardCount}'
         : null;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.visibility_off_rounded,
-              size: 56,
+            TurnaIcon(
+              TurnaIconId.eyeOff,
+              size: 48,
               color: TurnaTheme.textHintColor(context),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               AppStrings.ankiReviewSourceBlocked,
               key: const Key('anki-review-blocked'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: AppTextStyles.sectionTitle(context),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               AppStrings.ankiReviewSchedulerOwes(blocked.schedulerCardCount),
-              style: TextStyle(
-                fontSize: 14,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+              style: AppTextStyles.captionSm(context),
               textAlign: TextAlign.center,
             ),
             if (debugDetails != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 debugDetails,
                 key: const Key('anki-review-blocked-debug'),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: TurnaTheme.textHintColor(context),
-                ),
+                style: AppTextStyles.caption(context)
+                    .copyWith(letterSpacing: 0),
                 textAlign: TextAlign.center,
               ),
             ],
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: () => unawaited(onRetry()),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: const TurnaIcon(
+                TurnaIconId.refresh,
+                size: 18,
+                color: TurnaTheme.textOnPrimary,
+              ),
               label: Text(AppStrings.ankiReviewRetry),
             ),
             if (inReviewAll) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextButton(
                 key: const Key('anki-review-blocked-continue'),
                 onPressed: () => unawaited(onContinue()),
@@ -873,27 +894,7 @@ class _PreparingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(
-          width: 36,
-          height: 36,
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            color: TurnaTheme.brandTeal,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          AppStrings.ankiReviewPreparing,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-      ],
-    );
+    return TurnaLoader.page(label: AppStrings.ankiReviewPreparing);
   }
 }
 
@@ -991,9 +992,10 @@ class _AnkiStudySessionView extends StatelessWidget {
 
     final item = controller.currentItem;
     if (item == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(body: Center(child: TurnaLoader.page()));
     }
-    final revealed = controller.answerReceipt != null ||
+    final revealed =
+        controller.answerReceipt != null ||
         controller.phase == StudyCardPhase.revealingAnswer ||
         controller.phase == StudyCardPhase.showingAnswer ||
         controller.phase == StudyCardPhase.showingFeedback ||
@@ -1021,7 +1023,7 @@ class _AnkiStudySessionView extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: AppStrings.commonUndoLastCard,
-            icon: const Icon(Icons.undo_rounded),
+            icon: const TurnaIcon(TurnaIconId.undo, size: 20),
             onPressed: (controller.lastReceipt != null && !controller.isLocked)
                 ? () async {
                     final ok = await controller.undoLast();
@@ -1053,7 +1055,7 @@ class _AnkiStudySessionView extends StatelessWidget {
             return Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: sizing.horizontalPadding,
-                vertical: 16,
+                vertical: AppSpacing.lg,
               ),
               child: Column(
                 children: [
@@ -1115,7 +1117,7 @@ class _AnkiStudySessionView extends StatelessWidget {
                       AppStrings.ankiReviewRenderBlocked,
                       key: const Key('anki-study-session-render-blocked'),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: AppTextStyles.captionSm(context).copyWith(
                         color: TurnaTheme.error,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1126,17 +1128,19 @@ class _AnkiStudySessionView extends StatelessWidget {
                         'source=${blockedFailure.sourceId} '
                         'code=${blockedFailure.code}',
                         key: const Key('anki-study-session-render-debug'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: TurnaTheme.textHintColor(context),
-                        ),
+                        style: AppTextStyles.caption(context)
+                            .copyWith(letterSpacing: 0),
                       ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     FilledButton.icon(
                       onPressed: onRetryBlockedCard == null
                           ? null
                           : () => unawaited(onRetryBlockedCard!()),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      icon: const TurnaIcon(
+                        TurnaIconId.refresh,
+                        size: 18,
+                        color: TurnaTheme.textOnPrimary,
+                      ),
                       label: Text(AppStrings.ankiReviewRetry),
                     ),
                   ] else if (controller.phase ==
@@ -1145,15 +1149,19 @@ class _AnkiStudySessionView extends StatelessWidget {
                       AppStrings.ankiReviewWriteUnsafe,
                       key: const Key('anki-study-session-error'),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: AppTextStyles.captionSm(context).copyWith(
                         color: TurnaTheme.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     FilledButton.icon(
                       onPressed: controller.retryCurrent,
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      icon: const TurnaIcon(
+                        TurnaIconId.refresh,
+                        size: 18,
+                        color: TurnaTheme.textOnPrimary,
+                      ),
                       label: Text(AppStrings.ankiReviewRetry),
                     ),
                   ] else if (structured)
@@ -1165,12 +1173,12 @@ class _AnkiStudySessionView extends StatelessWidget {
                       label: AppStrings.lessonShowAnswer,
                       onPressed: controller.canReveal
                           ? () => unawaited(
-                                AnkiStudySessionHost.revealAndPresentAnswer(
-                                  controller,
-                                  onOfficialShowAnswer:
-                                      officialSession?.showAnswer,
-                                ),
-                              )
+                              AnkiStudySessionHost.revealAndPresentAnswer(
+                                controller,
+                                onOfficialShowAnswer:
+                                    officialSession?.showAnswer,
+                              ),
+                            )
                           : null,
                     )
                   else
@@ -1250,11 +1258,11 @@ class _AnkiStudySessionView extends StatelessWidget {
       onNativeRated: session == null
           ? null
           : (rating) => advanceAndPresentAfterNativeRating(
-                controller: controller,
-                officialSession: session,
-                liveQueue: liveQueue,
-                rating: rating,
-              ),
+              controller: controller,
+              officialSession: session,
+              liveQueue: liveQueue,
+              rating: rating,
+            ),
       onReveal: () {
         unawaited(
           AnkiStudySessionHost.revealAndPresentAnswer(
@@ -1311,7 +1319,7 @@ class _AnkiSessionToolbar extends StatelessWidget {
                   TurnaTheme.brandSky,
                   alpha: 0.12,
                 ),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                borderRadius: TurnaTheme.borderRadius,
                 border: Border.all(
                   // ADR 0062：来源 chip 走 L3 —— 描边取自身色相而非中性灰。
                   color: TurnaTheme.brandSky.withValues(alpha: 0.24),
@@ -1319,11 +1327,13 @@ class _AnkiSessionToolbar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.style_rounded,
+                  TurnaIcon(
+                    TurnaIconId.cards,
                     size: 16,
-                    color:
-                        TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
+                    color: TurnaTheme.accentOnCard(
+                      context,
+                      TurnaTheme.brandSky,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -1331,9 +1341,10 @@ class _AnkiSessionToolbar extends StatelessWidget {
                       sourceProgress!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: AppTextStyles.captionSm(context).copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: TurnaTheme.textPrimaryColor(context),
+                      ),
                     ),
                   ),
                 ],
@@ -1344,21 +1355,17 @@ class _AnkiSessionToolbar extends StatelessWidget {
           const Spacer(),
         IconButton(
           tooltip: AppStrings.ankiCardRedo,
-          icon: const Icon(Icons.redo_rounded, size: 20),
+          icon: const TurnaIcon(TurnaIconId.redo, size: 20),
           onPressed: canRedo ? () => unawaited(onRedo()) : null,
         ),
         IconButton(
           tooltip: AppStrings.ankiCardBury,
-          icon: Icon(Icons.bedtime_outlined, size: 20, color: secondary),
+          icon: TurnaIcon(TurnaIconId.moon, size: 20, color: secondary),
           onPressed: canMutate ? () => unawaited(onBury()) : null,
         ),
         IconButton(
           tooltip: AppStrings.ankiCardSuspend,
-          icon: Icon(
-            Icons.pause_circle_outline_rounded,
-            size: 20,
-            color: secondary,
-          ),
+          icon: TurnaIcon(TurnaIconId.pause, size: 20, color: secondary),
           onPressed: canMutate ? () => unawaited(onSuspend()) : null,
         ),
       ],

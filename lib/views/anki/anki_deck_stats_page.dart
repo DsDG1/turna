@@ -11,17 +11,21 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 @RoutePage()
 class AnkiDeckStatsPage extends StatefulWidget {
   final String importId;
   final String title;
   final Future<OfficialAnkiSourceAwareStatsSnapshot>? Function(String importId)?
-      statsLoader;
+  statsLoader;
 
   const AnkiDeckStatsPage({
     super.key,
@@ -73,9 +77,9 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.ankiDeckStatsPageTitle(widget.title)),
-        backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(
+        title: AppStrings.ankiDeckStatsPageTitle(widget.title),
+        showDivider: true,
       ),
       body: TurnaPageContent(
         maxWidth: AppSpacing.formColumnMaxWidth,
@@ -99,7 +103,7 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                     );
                   }
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(child: TurnaLoader.page());
                   }
                   return _StatsReportBody(officialSnap: snapshot.data!);
                 },
@@ -144,7 +148,8 @@ class _StatsReportBody extends StatelessWidget {
           if (officialSnap.retentionByInterval.length >= 2) ...[
             const SizedBox(height: AppSpacing.xl),
             ReportSectionHeading(
-                title: AppStrings.ankiStatsRetentionByInterval),
+              title: AppStrings.ankiStatsRetentionByInterval,
+            ),
             ReportLineChart(
               semanticsLabel: AppStrings.ankiDeckStatsRetentionChartLabel,
               maxValue: 100,
@@ -231,7 +236,7 @@ class _SummaryMetricsSection extends StatelessWidget {
             officialSnap.buriedCount ?? 0,
           )
         : '${officialSnap.suspendedCount ?? 0} / '
-            '${officialSnap.buriedCount ?? 0}';
+              '${officialSnap.buriedCount ?? 0}';
     final todayValue = AppStrings.ankiStatsTodayValue(
       officialSnap.todayAnswerCount ?? 0,
       officialSnap.todayLearnCount ?? 0,
@@ -311,13 +316,13 @@ class _SemanticsNoteCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.info_outline_rounded,
+          const TurnaIcon(
+            TurnaIconId.info,
             color: TurnaTheme.brandTeal,
             size: 20,
           ),

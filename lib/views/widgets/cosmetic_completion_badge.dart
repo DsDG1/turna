@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/cosmetic_provider.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Completion-surface consumer for the equipped effect. Motion-sensitive
 /// users receive the same identifiable badge with no tween.
@@ -16,7 +18,7 @@ class CosmeticCompletionBadge extends StatelessWidget {
     this.iconSize = 44,
   });
 
-  final IconData fallbackIcon;
+  final TurnaIconId fallbackIcon;
   final Color fallbackColor;
   final double size;
   final double iconSize;
@@ -28,6 +30,7 @@ class CosmeticCompletionBadge extends StatelessWidget {
       effect = Provider.of<CosmeticProvider>(context)
           .equippedItem(CosmeticSlot.completionEffect);
     } catch (_) {
+      // Optional provider in standalone tests/previews.
       effect = null;
     }
     final reduceMotion = accessibilityOf(context).reduceMotion;
@@ -64,7 +67,7 @@ class _Badge extends StatelessWidget {
 
   final double size;
   final double iconSize;
-  final IconData icon;
+  final TurnaIconId icon;
   final Color color;
   final String label;
   final bool staticVariant;
@@ -79,13 +82,11 @@ class _Badge extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.14),
           shape: BoxShape.circle,
-          border: Border.all(
-            color: color,
-            width: staticVariant ? 3 : 2,
-          ),
+          border: Border.all(color: color, width: staticVariant ? 3 : 2),
           boxShadow: staticVariant
               ? const []
               : [
@@ -95,7 +96,7 @@ class _Badge extends StatelessWidget {
                   ),
                 ],
         ),
-        child: Icon(icon, size: iconSize, color: color),
+        child: TurnaIcon(icon, size: iconSize, color: color),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/settings/components/settings_sound_section.dart';
@@ -21,8 +22,9 @@ void main() {
     settings = SettingsProvider(prefs);
   });
 
-  testWidgets('sound and haptic toggles update SettingsProvider',
-      (tester) async {
+  testWidgets('sound and haptic toggles update SettingsProvider', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ChangeNotifierProvider<SettingsProvider>.value(
         value: settings,
@@ -31,14 +33,14 @@ void main() {
             body: SettingsCard(
               children: [
                 SettingsToggleTile(
-                  icon: Icons.music_note_rounded,
+                  iconId: TurnaIconId.waveform,
                   title: 'Sound effects',
                   subtitle: 'Play sounds',
                   valueSelector: (p) => p.soundEffectsEnabled,
                   onChanged: (p, v) => p.setSoundEffects(v),
                 ),
                 SettingsToggleTile(
-                  icon: Icons.vibration_rounded,
+                  iconId: TurnaIconId.accessibility,
                   title: 'Haptic feedback',
                   subtitle: 'Vibrate',
                   valueSelector: (p) => p.hapticFeedbackEnabled,
@@ -55,7 +57,7 @@ void main() {
     expect(find.text('Haptic feedback'), findsOneWidget);
     expect(settings.soundEffectsEnabled, isTrue);
 
-    await tester.tap(find.byKey(const Key('settings-square-switch')).first);
+    await tester.tap(find.byKey(const Key('turna-switch')).first);
     await tester.pumpAndSettle();
     expect(settings.soundEffectsEnabled, isFalse);
   });

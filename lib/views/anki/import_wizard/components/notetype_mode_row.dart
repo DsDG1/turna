@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/study_preset_selector.dart';
@@ -42,8 +43,8 @@ class NotetypeModeRow extends StatelessWidget {
                 if (countsLabel != null)
                   Text(
                     countsLabel!,
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: AppTextStyles.caption(context).copyWith(
+                      letterSpacing: 0,
                       color: TurnaTheme.textSecondaryColor(context),
                     ),
                   ),

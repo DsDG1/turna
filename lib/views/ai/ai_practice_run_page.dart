@@ -11,7 +11,9 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
@@ -21,7 +23,9 @@ import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Plays a generated section straight from the practice library.
 ///
@@ -164,31 +168,31 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
     final hasNext = _lessonIndex + 1 < _lessons.length;
     final total = _vm.totalInteractionCount;
     final correct = _vm.correctAnswers;
-    await showDialog<void>(
+    await showTurnaFormDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.aiPracticeRunnerSummary),
-        content: Text(AppStrings.aiPracticeRunnerScore(correct, total)),
-        actions: [
-          if (hasNext)
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _loadLessonAt(_lessonIndex + 1);
-              },
-              child: Text(AppStrings.aiPracticeRunnerNext),
-            )
-          else
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                Navigator.of(context).maybePop();
-              },
-              child: Text(AppStrings.aiPracticeRunnerFinish),
-            ),
-        ],
+      title: AppStrings.aiPracticeRunnerSummary,
+      body: Text(
+        AppStrings.aiPracticeRunnerScore(correct, total),
+        style: AppTextStyles.bodyText(context)
+            .copyWith(color: TurnaTheme.textSecondaryColor(context)),
       ),
+      actions: [
+        TurnaSheetAction(
+          label: hasNext
+              ? AppStrings.aiPracticeRunnerNext
+              : AppStrings.aiPracticeRunnerFinish,
+          primary: true,
+          onPressed: () {
+            Navigator.of(context).pop();
+            if (hasNext) {
+              _loadLessonAt(_lessonIndex + 1);
+            } else {
+              Navigator.of(context).maybePop();
+            }
+          },
+        ),
+      ],
     );
     _dialogShown = false;
   }
@@ -199,40 +203,19 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
       value: _vm,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          backgroundColor: TurnaTheme.surfaceColor(context),
-          elevation: 0,
+        appBar: TurnaTopBar(
+          centerTitle: true,
           leading: IconButton(
             tooltip: AppStrings.commonClose,
-            icon: const Icon(Icons.close_rounded),
+            icon: const TurnaIcon(TurnaIconId.close, size: 20),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
-          title: Column(
-            children: [
-              Text(
-                _lessons.isEmpty
-                    ? AppStrings.aiPracticeRunnerTitle
-                    : _lessons[_lessonIndex].name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${AppStrings.aiPracticeRunnerTitle} · '
-                '${_lessonIndex + 1}/${_lessons.isEmpty ? 1 : _lessons.length}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-              ),
-            ],
-          ),
-          centerTitle: true,
+          title: _lessons.isEmpty
+              ? AppStrings.aiPracticeRunnerTitle
+              : _lessons[_lessonIndex].name,
+          subtitle:
+              '${AppStrings.aiPracticeRunnerTitle} · '
+              '${_lessonIndex + 1}/${_lessons.isEmpty ? 1 : _lessons.length}',
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(4),
             child: SessionThinProgressBar(value: _vm.progress),
@@ -257,8 +240,9 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
         }
         final renderer = lookupRenderer(_renderers, interaction);
         final passage = _lessons[_lessonIndex].content.readingPassage;
-        final Widget? header =
-            passage == null ? null : LessonReadingPassageCard(passage: passage);
+        final Widget? header = passage == null
+            ? null
+            : LessonReadingPassageCard(passage: passage);
         return PracticeSessionBody(
           stageName: vm.currentStageName,
           stageAccent: TurnaTheme.brandTeal,
@@ -269,36 +253,36 @@ class _AiPracticeRunPageState extends State<AiPracticeRunPage>
               ? AppStrings.lessonContinueUpper
               : AppStrings.lessonGotItUpper,
           onAdvance: () => vm.advance(),
-          child: renderer.build(
-            interaction,
-            vm.currentInteractionState,
-            (correct, {userAnswerText, reviewQuality}) {
-              vm.submitInteraction(
-                correct,
-                userAnswerText: userAnswerText,
-                reviewQuality: reviewQuality,
-              );
-            },
-          ),
+          child: renderer.build(interaction, vm.currentInteractionState, (
+            correct, {
+            userAnswerText,
+            reviewQuality,
+          }) {
+            vm.submitInteraction(
+              correct,
+              userAnswerText: userAnswerText,
+              reviewQuality: reviewQuality,
+            );
+          }),
         );
       },
     );
   }
 
   Widget _message(String text) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(text, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                child: Text(AppStrings.commonBack),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            child: Text(AppStrings.commonBack),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }

@@ -14,10 +14,14 @@ import 'package:turna/application/ai/practice/ai_practice_quality.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_practice_actions.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Course detail: the generated outline (unit → lesson → item count), the
 /// content-verification report, and the generation history.
@@ -38,12 +42,10 @@ class AiPracticeDetailPage extends StatelessWidget {
     final course = queue.byId(courseId);
     return Scaffold(
       backgroundColor: TurnaTheme.surfaceColor(context),
-      appBar: AppBar(
+      appBar: TurnaTopBar(
         centerTitle: true,
-        title: Text(
-          AppStrings.aiPracticeDetailTitle,
-          style: AppTextStyles.cardTitle(context).copyWith(fontSize: 17),
-        ),
+        showDivider: true,
+        title: AppStrings.aiPracticeDetailTitle,
         actions: [
           if (course != null && course.isPlayable)
             IconButton(
@@ -52,8 +54,9 @@ class AiPracticeDetailPage extends StatelessWidget {
                   : AppStrings.aiPracticeFavorite,
               onPressed: () =>
                   togglePin(context, course, pinned: !course.pinned),
-              icon: Icon(
-                course.pinned ? Icons.star_rounded : Icons.star_border_rounded,
+              icon: TurnaIcon(
+                TurnaIconId.star,
+                size: 20,
                 color: course.pinned
                     ? TurnaTheme.anatolianClay
                     : TurnaTheme.textSecondaryColor(context),
@@ -65,10 +68,8 @@ class AiPracticeDetailPage extends StatelessWidget {
           ? Center(
               child: Text(
                 AppStrings.aiPracticeRunnerEmpty,
-                style: AppTextStyles.bodyText(context).copyWith(
-                  fontSize: 15,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+                style: AppTextStyles.bodyText(context)
+                    .copyWith(color: TurnaTheme.textSecondaryColor(context)),
               ),
             )
           : SafeArea(
@@ -118,14 +119,14 @@ class AiPracticeDetailPage extends StatelessWidget {
                                 label: AppStrings.aiPracticeStart,
                                 onPressed: () =>
                                     openAiPractice(context, course),
-                                trailingIcon: Icons.play_arrow_rounded,
+                                trailingIcon: TurnaIconId.play,
                               ),
                             ],
                           )
                         : SessionPrimaryAction(
                             label: AppStrings.aiPracticeRegenerate,
                             onPressed: () => retryAiPractice(context, course),
-                            trailingIcon: Icons.refresh_rounded,
+                            trailingIcon: TurnaIconId.refresh,
                           ),
                   ),
                 ],
@@ -149,20 +150,15 @@ class _Header extends StatelessWidget {
         Text(
           course.title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
+            fontWeight: FontWeight.w700,
+            color: TurnaTheme.textPrimaryColor(context),
+          ),
         ),
         const SizedBox(height: 6),
         Text(
-          [
-            _sourceLabel,
-            course.level,
-            if (expiry != null) expiry,
-          ].join(' · '),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+          [_sourceLabel, course.level, if (expiry != null) expiry].join(' · '),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: TurnaTheme.textSecondaryColor(context)),
         ),
         if (course.topic.trim().isNotEmpty &&
             course.topic.trim() != course.title) ...[
@@ -170,9 +166,9 @@ class _Header extends StatelessWidget {
           Text(
             course.topic,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                  height: 1.5,
-                ),
+              color: TurnaTheme.textSecondaryColor(context),
+              height: 1.5,
+            ),
           ),
         ],
       ],
@@ -189,11 +185,11 @@ class _Header extends StatelessWidget {
   }
 
   String get _sourceLabel => switch (course.source) {
-        AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
-        AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
-        AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
-        AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
-      };
+    AiPracticeSource.mistakes => AppStrings.aiPracticeSourceMistakes,
+    AiPracticeSource.weakWords => AppStrings.aiPracticeSourceWeakWords,
+    AiPracticeSource.difficult => AppStrings.aiPracticeSourceDifficult,
+    AiPracticeSource.custom => AppStrings.aiPracticeSourceCustom,
+  };
 }
 
 class _QualitySection extends StatelessWidget {
@@ -227,7 +223,8 @@ class _QualitySection extends StatelessWidget {
             _muted(
               context,
               AppStrings.aiPracticeDetailQualityAdvisory(
-                  report.advisory.length),
+                report.advisory.length,
+              ),
             ),
           ],
           for (final issue in [...report.blocking, ...report.advisory].take(8))
@@ -236,11 +233,11 @@ class _QualitySection extends StatelessWidget {
               child: Text(
                 '· ${issue.message}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: issue.advisory
-                          ? TurnaTheme.textSecondaryColor(context)
-                          : TurnaTheme.error,
-                      height: 1.4,
-                    ),
+                  color: issue.advisory
+                      ? TurnaTheme.textSecondaryColor(context)
+                      : TurnaTheme.error,
+                  height: 1.4,
+                ),
               ),
             ),
         ],
@@ -273,9 +270,9 @@ class _OutlineSection extends StatelessWidget {
                   Text(
                     unit.name,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: TurnaTheme.textPrimaryColor(context),
-                        ),
+                      fontWeight: FontWeight.w600,
+                      color: TurnaTheme.textPrimaryColor(context),
+                    ),
                   ),
                   for (final lesson in unit.lessons)
                     Padding(
@@ -287,20 +284,17 @@ class _OutlineSection extends StatelessWidget {
                               lesson.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color:
-                                        TurnaTheme.textSecondaryColor(context),
+                                    color: TurnaTheme.textSecondaryColor(
+                                      context,
+                                    ),
                                   ),
                             ),
                           ),
                           Text(
                             AppStrings.aiPracticeDetailItems(lesson.itemCount),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: TurnaTheme.textSecondaryColor(context),
                                 ),
@@ -336,15 +330,20 @@ class _OutlineSection extends StatelessWidget {
               }
             }
           }
-          lessons.add(_LessonOutline(
-            name: lesson['name']?.toString() ?? lesson['id']?.toString() ?? '',
-            itemCount: count,
-          ));
+          lessons.add(
+            _LessonOutline(
+              name:
+                  lesson['name']?.toString() ?? lesson['id']?.toString() ?? '',
+              itemCount: count,
+            ),
+          );
         }
-        units.add(_UnitOutline(
-          name: unit['name']?.toString() ?? unit['id']?.toString() ?? '',
-          lessons: lessons,
-        ));
+        units.add(
+          _UnitOutline(
+            name: unit['name']?.toString() ?? unit['id']?.toString() ?? '',
+            lessons: lessons,
+          ),
+        );
       }
       return units;
     } catch (_) {
@@ -375,18 +374,17 @@ class _HistorySection extends StatelessWidget {
                       course.versions.length - i,
                     ),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
                 Text(
                   _statusLabel(course.versions[i].status),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color:
-                            course.versions[i].status == AiPracticeStatus.failed
-                                ? TurnaTheme.error
-                                : TurnaTheme.textSecondaryColor(context),
-                      ),
+                    color: course.versions[i].status == AiPracticeStatus.failed
+                        ? TurnaTheme.error
+                        : TurnaTheme.textSecondaryColor(context),
+                  ),
                 ),
               ],
             ),
@@ -396,12 +394,12 @@ class _HistorySection extends StatelessWidget {
   }
 
   static String _statusLabel(AiPracticeStatus status) => switch (status) {
-        AiPracticeStatus.ready => AppStrings.aiPracticeReady,
-        AiPracticeStatus.queued => AppStrings.aiPracticeQueued,
-        AiPracticeStatus.running => AppStrings.aiPracticeGenerating,
-        AiPracticeStatus.failed => AppStrings.aiPracticeFailed,
-        AiPracticeStatus.interrupted => AppStrings.aiPracticeInterrupted,
-      };
+    AiPracticeStatus.ready => AppStrings.aiPracticeReady,
+    AiPracticeStatus.queued => AppStrings.aiPracticeQueued,
+    AiPracticeStatus.running => AppStrings.aiPracticeGenerating,
+    AiPracticeStatus.failed => AppStrings.aiPracticeFailed,
+    AiPracticeStatus.interrupted => AppStrings.aiPracticeInterrupted,
+  };
 }
 
 class _UnitOutline {
@@ -431,31 +429,22 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      // R14：阅读页信息块走纸面（实色 + 发丝边），不再叠玻璃。
-      decoration: TurnaTheme.flatPaperDecoration(
-        context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-      ),
+    return TurnaReadingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 3,
-                height: 14,
+                width: 4,
+                height: 16,
                 decoration: BoxDecoration(
                   color: accent,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                title,
-                style: AppTextStyles.cardTitle(context).copyWith(fontSize: 15),
-              ),
+              Text(title, style: AppTextStyles.cardTitle(context)),
             ],
           ),
           const SizedBox(height: AppSpacing.sm + 2),

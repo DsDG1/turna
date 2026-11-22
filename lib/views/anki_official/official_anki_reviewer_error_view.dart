@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 class OfficialAnkiReviewerErrorView extends StatelessWidget {
   const OfficialAnkiReviewerErrorView({
@@ -49,7 +52,11 @@ class OfficialAnkiReviewerErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 40),
+            const TurnaIcon(
+              TurnaIconId.error,
+              size: 36,
+              color: TurnaTheme.error,
+            ),
             const SizedBox(height: 12),
             Text(localize(messageKey), textAlign: TextAlign.center),
             if (code != null) ...[

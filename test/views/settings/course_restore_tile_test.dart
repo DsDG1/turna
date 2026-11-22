@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/content_ota/course_ota_service.dart';
 import 'package:turna/views/settings/components/settings_course_restore_tile.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 void main() {
   Future<void> pumpTile(
@@ -43,9 +44,11 @@ void main() {
 
     await openDialog(tester);
 
-    expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text(AppStrings.settingsCourseRestoreDialogMessage),
-        findsOneWidget);
+    expect(find.byType(TurnaDialogPanel), findsOneWidget);
+    expect(
+      find.text(AppStrings.settingsCourseRestoreDialogMessage),
+      findsOneWidget,
+    );
     expect(clearCalls, 0);
   });
 
@@ -68,8 +71,9 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
-  testWidgets('confirming clears, reseeds and acknowledges the version',
-      (tester) async {
+  testWidgets('confirming clears, reseeds and acknowledges the version', (
+    tester,
+  ) async {
     final calls = <String>[];
     String? refreshedLanguage;
     await pumpTile(
@@ -117,8 +121,9 @@ void main() {
     );
   });
 
-  testWidgets('a failed reseed still reports that the package was removed',
-      (tester) async {
+  testWidgets('a failed reseed still reports that the package was removed', (
+    tester,
+  ) async {
     var acknowledgeCalls = 0;
     await pumpTile(
       tester,
@@ -138,8 +143,9 @@ void main() {
     );
   });
 
-  testWidgets('nothing installed reports bundled content without reseeding',
-      (tester) async {
+  testWidgets('nothing installed reports bundled content without reseeding', (
+    tester,
+  ) async {
     var refreshCalls = 0;
     await pumpTile(
       tester,

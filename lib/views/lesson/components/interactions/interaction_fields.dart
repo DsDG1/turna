@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';
 
 // Project imports:
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 作答书写区、提示 chip 与反馈区 —— 题型模板的共享题面件（§7.1 输入族 /
 /// §7.2 骨架第 3–4 段）。
@@ -21,18 +24,17 @@ enum InteractionVerdict { pending, correct, wrong }
 extension InteractionVerdictColors on InteractionVerdict {
   /// 书写区填充色。
   Color fillColor(BuildContext context) => switch (this) {
-        InteractionVerdict.pending => TurnaTheme.inputFillColor(context),
-        InteractionVerdict.correct =>
-          TurnaTheme.success.withValues(alpha: 0.10),
-        InteractionVerdict.wrong => TurnaTheme.error.withValues(alpha: 0.08),
-      };
+    InteractionVerdict.pending => TurnaTheme.inputFillColor(context),
+    InteractionVerdict.correct => TurnaTheme.success.withValues(alpha: 0.10),
+    InteractionVerdict.wrong => TurnaTheme.error.withValues(alpha: 0.08),
+  };
 
   /// 判分后的书写区描边; 未提交时 `null`（交给主题默认）。
   Color? outlineColor() => switch (this) {
-        InteractionVerdict.pending => null,
-        InteractionVerdict.correct => TurnaTheme.success,
-        InteractionVerdict.wrong => TurnaTheme.error,
-      };
+    InteractionVerdict.pending => null,
+    InteractionVerdict.correct => TurnaTheme.success,
+    InteractionVerdict.wrong => TurnaTheme.error,
+  };
 }
 
 /// 提交态 + 判分结果 → 三态枚举。renderer 里的 `state.submitted` /
@@ -40,12 +42,9 @@ extension InteractionVerdictColors on InteractionVerdict {
 InteractionVerdict interactionVerdictOf({
   required bool submitted,
   bool? correct,
-}) =>
-    !submitted
-        ? InteractionVerdict.pending
-        : (correct == true
-            ? InteractionVerdict.correct
-            : InteractionVerdict.wrong);
+}) => !submitted
+    ? InteractionVerdict.pending
+    : (correct == true ? InteractionVerdict.correct : InteractionVerdict.wrong);
 
 /// 作答书写区（§7.1「填空 / 翻译 / 拼写 / 听写 / 简答」）。
 ///
@@ -77,7 +76,7 @@ class InteractionTextField extends StatelessWidget {
   final int? minLines;
   final TextAlign textAlign;
 
-  /// 拼写 / 听写的大字号档（24/700/0.5 字距）; 默认 18 正文档。
+  /// 拼写 / 听写的大字号档; 默认正文档。
   final bool largeStyle;
 
   @override
@@ -88,7 +87,7 @@ class InteractionTextField extends StatelessWidget {
     InputBorder? judgedBorder;
     if (outline != null) {
       judgedBorder = OutlineInputBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
         borderSide: BorderSide(color: outline, width: 1.5),
       );
     }
@@ -113,17 +112,12 @@ class InteractionTextField extends StatelessWidget {
     );
   }
 
-  TextStyle _heroStyle(BuildContext context) => TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
-        color: TurnaTheme.textPrimaryColor(context),
-      );
+  TextStyle _heroStyle(BuildContext context) =>
+      AppTextStyles.promptLg(context)
+          .copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5);
 
-  TextStyle _bodyStyle(BuildContext context) => TextStyle(
-        fontSize: 18,
-        color: TurnaTheme.textPrimaryColor(context),
-      );
+  TextStyle _bodyStyle(BuildContext context) =>
+      AppTextStyles.sectionTitle(context).copyWith(fontWeight: FontWeight.w400);
 }
 
 /// 统一提示 chip: warning 淡底 + 灯泡 + captionSm 文字。
@@ -139,28 +133,19 @@ class InteractionHintChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(TurnaTheme.radiusRound);
+    const radius = TurnaTheme.borderRadius;
     final body = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.lightbulb_outline,
+          const TurnaIcon(
+            TurnaIconId.lightbulb,
             size: 16,
             color: TurnaTheme.warning,
           ),
           const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-            ),
-          ),
+          Flexible(child: Text(label, style: AppTextStyles.captionSm(context))),
         ],
       ),
     );
@@ -176,13 +161,9 @@ class InteractionHintChip extends StatelessWidget {
     }
     return Material(
       color: TurnaTheme.warning.withValues(alpha: 0.12),
-      shape: RoundedRectangleBorder(borderRadius: radius),
+      shape: const RoundedRectangleBorder(borderRadius: radius),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: body,
-      ),
+      child: InkWell(onTap: onTap, borderRadius: radius, child: body),
     );
   }
 }
@@ -227,9 +208,9 @@ class InteractionFeedbackPanel extends StatelessWidget {
       label: correct
           ? AppStrings.lessonResultCorrect
           : '${AppStrings.lessonResultWrong}，'
-              '${AppStrings.lessonYourAnswer} ${userAnswer ?? ''}，'
-              '${correctAnswerLabel ?? AppStrings.lessonCorrectAnswer} '
-              '$correctAnswer',
+                '${AppStrings.lessonYourAnswer} ${userAnswer ?? ''}，'
+                '${correctAnswerLabel ?? AppStrings.lessonCorrectAnswer} '
+                '$correctAnswer',
       child: correct
           ? Center(child: _buildCorrectRow(context))
           : _buildWrongPanel(context),
@@ -241,12 +222,15 @@ class InteractionFeedbackPanel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.check_circle, size: 18, color: TurnaTheme.successDark),
+        const TurnaIcon(
+          TurnaIconId.checkCircle,
+          size: 18,
+          color: TurnaTheme.successDark,
+        ),
         const SizedBox(width: 8),
         Text(
           AppStrings.lessonResultCorrect,
-          style: TextStyle(
-            fontSize: 14,
+          style: AppTextStyles.captionSm(context).copyWith(
             fontWeight: FontWeight.w600,
             color: TurnaTheme.textPrimaryColor(context),
           ),
@@ -261,7 +245,7 @@ class InteractionFeedbackPanel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: TurnaTheme.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
         border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.4)),
       ),
       child: Column(
@@ -270,12 +254,15 @@ class InteractionFeedbackPanel extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cancel, size: 18, color: TurnaTheme.error),
+              const TurnaIcon(
+                TurnaIconId.cancel,
+                size: 18,
+                color: TurnaTheme.error,
+              ),
               const SizedBox(width: 8),
               Text(
                 AppStrings.lessonResultWrong,
-                style: TextStyle(
-                  fontSize: 14,
+                style: AppTextStyles.captionSm(context).copyWith(
                   fontWeight: FontWeight.w600,
                   color: TurnaTheme.textPrimaryColor(context),
                 ),
@@ -300,11 +287,7 @@ class InteractionFeedbackPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               explanation!,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
+              style: AppTextStyles.captionSm(context).copyWith(height: 1.5),
             ),
           ],
         ],
@@ -330,26 +313,18 @@ class _AnswerZone extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8,
-            color: TurnaTheme.textHintColor(context),
-          ),
-        ),
+        Text(label, style: AppTextStyles.caption(context)),
         const SizedBox(height: 2),
         Text(
           value,
-          style: TextStyle(
-            fontSize: emphasized ? 16 : 15,
-            fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
-            height: 1.4,
-            color: emphasized
-                ? TurnaTheme.textPrimaryColor(context)
-                : TurnaTheme.textSecondaryColor(context),
-          ),
+          style: emphasized
+              ? AppTextStyles.cardTitle(context)
+                    .copyWith(fontWeight: FontWeight.w700, height: 1.4)
+              : AppTextStyles.bodyText(context).copyWith(
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
         ),
       ],
     );
@@ -360,9 +335,10 @@ class _AnswerZone extends StatelessWidget {
 
 @Preview(name: 'Interaction fields · light', group: 'Wetland mist')
 @Preview(
-    name: 'Interaction fields · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Interaction fields · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget interactionFieldsPreview() => const _InteractionFieldsPreview();
 
 class _InteractionFieldsPreview extends StatelessWidget {

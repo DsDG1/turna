@@ -9,15 +9,20 @@ import 'package:share_plus/share_plus.dart';
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 import 'package:turna/application/settings/app_build_info.dart';
 import 'package:turna/application/settings/external_link_registry.dart';
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/views/widgets/ambient_backdrop.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_reading_layout.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Dedicated About page for Turna (Plan 2 §7.1).
 ///
@@ -54,13 +59,8 @@ class AboutTurnaPage extends StatelessWidget {
       length: 2,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: AppBar(
-          title: Text(
-            AppStrings.aboutTitle,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
+        appBar: TurnaTopBar(
+          title: AppStrings.aboutTitle,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(48),
             child: Container(
@@ -70,9 +70,8 @@ class AboutTurnaPage extends StatelessWidget {
                 indicatorWeight: 3,
                 labelColor: TurnaTheme.brandTeal,
                 unselectedLabelColor: TurnaTheme.textHintColor(context),
-                labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                labelStyle: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
                 tabs: [
                   Tab(text: AppStrings.aboutTabAbout),
                   Tab(text: AppStrings.aboutTabChangelog),
@@ -84,10 +83,7 @@ class AboutTurnaPage extends StatelessWidget {
         body: AmbientBackdrop(
           child: TabBarView(
             children: [
-              _AboutTab(
-                buildInfo: buildInfo,
-                onShare: _shareApp,
-              ),
+              _AboutTab(buildInfo: buildInfo, onShare: _shareApp),
               const ChangelogFromAsset(),
             ],
           ),
@@ -115,35 +111,35 @@ class _AboutTab extends StatelessWidget {
       maxWidth: AppSpacing.formColumnMaxWidth,
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-            AppSpacing.pageMargin, 12, AppSpacing.pageMargin, 24),
+          AppSpacing.pageMargin,
+          12,
+          AppSpacing.pageMargin,
+          24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _HeroCard(buildInfo: buildInfo),
             const SizedBox(height: 20),
-            _SectionHeader(text: AppStrings.aboutWhatIsTitle),
-            const SizedBox(height: 10),
-            _AboutCard(
+            TurnaReadingSectionHeader(title: AppStrings.aboutWhatIsTitle),
+            TurnaReadingCard(
               child: Text(
                 AppStrings.aboutWhatIsBody,
-                style: AppTextStyles.bodyText(context).copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+                style: AppTextStyles.bodyText(context)
+                    .copyWith(color: TurnaTheme.textSecondaryColor(context)),
               ),
             ),
             const SizedBox(height: 20),
-            _SectionHeader(text: AppStrings.aboutHighlightsTitle),
-            const SizedBox(height: 10),
+            TurnaReadingSectionHeader(title: AppStrings.aboutHighlightsTitle),
             const _HighlightsCard(),
             const SizedBox(height: 20),
-            _SectionHeader(text: AppStrings.aboutLinksTitle),
-            const SizedBox(height: 10),
-            _AboutCard(
+            TurnaReadingSectionHeader(title: AppStrings.aboutLinksTitle),
+            TurnaReadingCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _LinkTile(
-                    icon: Icons.code_rounded,
+                    icon: TurnaIconId.code,
                     title: AppStrings.settingsOpenSourceLicenses,
                     onTap: () => showTurnaLicensePage(
                       context: context,
@@ -154,7 +150,7 @@ class _AboutTab extends StatelessWidget {
                   _ExternalLinkTile(
                     registry: linkRegistry,
                     id: ExternalLinkId.projectHome,
-                    icon: Icons.open_in_new_rounded,
+                    icon: TurnaIconId.openInNew,
                     title: AppStrings.aboutUpstreamTitle,
                     configuredSubtitle: AppStrings.aboutUpstreamSubtitle,
                   ),
@@ -162,7 +158,7 @@ class _AboutTab extends StatelessWidget {
                   _ExternalLinkTile(
                     registry: linkRegistry,
                     id: ExternalLinkId.issueTracker,
-                    icon: Icons.bug_report_rounded,
+                    icon: TurnaIconId.bug,
                     title: AppStrings.aboutReportIssueTitle,
                     configuredSubtitle: AppStrings.aboutReportIssueSubtitle,
                   ),
@@ -170,13 +166,13 @@ class _AboutTab extends StatelessWidget {
                   _ExternalLinkTile(
                     registry: linkRegistry,
                     id: ExternalLinkId.releaseNotes,
-                    icon: Icons.new_releases_rounded,
+                    icon: TurnaIconId.spark,
                     title: AppStrings.aboutViewReleasesTitle,
                     configuredSubtitle: AppStrings.aboutViewReleasesSubtitle,
                   ),
                   _LinkDivider(),
                   _LinkTile(
-                    icon: Icons.share_rounded,
+                    icon: TurnaIconId.share,
                     title: AppStrings.aboutShareTitle,
                     onTap: () => onShare(context),
                   ),
@@ -188,41 +184,37 @@ class _AboutTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 AppStrings.aboutLinksNotConfiguredNote,
-                style: AppTextStyles.captionSm(context).copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             ),
             const SizedBox(height: 20),
-            _SectionHeader(text: AppStrings.aboutPrivacyTitle),
-            const SizedBox(height: 10),
+            TurnaReadingSectionHeader(title: AppStrings.aboutPrivacyTitle),
             _PrivacyTile(),
             const SizedBox(height: 20),
-            _SectionHeader(text: AppStrings.aboutCreditsTitle),
-            const SizedBox(height: 10),
-            _AboutCard(
+            TurnaReadingSectionHeader(title: AppStrings.aboutCreditsTitle),
+            TurnaReadingCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     AppStrings.aboutCreditsOriginal,
-                    style: AppTextStyles.bodyText(context).copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
+                    style: AppTextStyles.bodyText(
+                      context,
+                    ).copyWith(color: TurnaTheme.textSecondaryColor(context)),
                   ),
                   const SizedBox(height: 10),
                   Text(
                     AppStrings.aboutCreditsFork,
-                    style: AppTextStyles.bodyText(context).copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
+                    style: AppTextStyles.bodyText(
+                      context,
+                    ).copyWith(color: TurnaTheme.textSecondaryColor(context)),
                   ),
                   const SizedBox(height: 10),
                   Text(
                     AppStrings.aboutLicense,
-                    style: AppTextStyles.captionSm(context).copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                    style: AppTextStyles.captionSm(context)
+                        .copyWith(color: TurnaTheme.textHintColor(context)),
                   ),
                 ],
               ),
@@ -231,9 +223,8 @@ class _AboutTab extends StatelessWidget {
             Center(
               child: Text(
                 AppStrings.aboutCopyright(year.toString()),
-                style: AppTextStyles.captionSm(context).copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             ),
           ],
@@ -243,23 +234,7 @@ class _AboutTab extends StatelessWidget {
   }
 }
 
-/// 区块标题：与隐私长文页共用同一个 sectionTitle 角色（R18 阅读语）。
-class _SectionHeader extends StatelessWidget {
-  final String text;
-
-  const _SectionHeader({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: AppTextStyles.sectionTitle(context));
-  }
-}
-
-/// Brand hero: the identity strip and the three facts worth reading first.
-///
-/// The version moved out of its own section and into the hero chip — the page
-/// used to repeat it in the header *and* in a dedicated card two screens down,
-/// which made a build number the most redundant thing on an About page.
+/// Brand hero: Bauhaus geometric identity strip + three core facts.
 class _HeroCard extends StatelessWidget {
   const _HeroCard({this.buildInfo});
 
@@ -271,7 +246,8 @@ class _HeroCard extends StatelessWidget {
       future: buildInfo != null ? Future.value(buildInfo) : AppBuildInfo.load(),
       builder: (context, snapshot) {
         // No hardcoded fallback number: unknown stays "未知版本".
-        final info = snapshot.data ??
+        final info =
+            snapshot.data ??
             const AppBuildInfo(
               versionName: AppBuildInfo.unknownVersion,
               buildNumber: '',
@@ -282,133 +258,143 @@ class _HeroCard extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          // R18 阅读语：品牌开篇也走纸面；身份感由 clay+sand 色带与
-          // 图标井承担，不靠玻璃浮起。
           decoration: TurnaTheme.flatPaperDecoration(context),
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              // Decorative bloom, sized off the card so it never drives layout.
-              Positioned(
-                right: -28,
-                top: -34,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
+              // Bauhaus geometric corner mark, decorative only.
+              const Positioned(
+                right: -18,
+                top: -22,
+                child: IgnorePointer(
+                  child: TurnaGeometry(
+                    kind: TurnaGeometryKind.ripples,
+                    size: 132,
+                    intensity: 0.75,
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Clay + sand brand strip: the one piece of the old header
-                    // that is worth keeping — it is the app's identity pair,
-                    // and the palette contract pins it here.
-                    Container(
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(2),
-                        gradient: LinearGradient(
-                          colors: [
-                            TurnaTheme.anatolianClay,
-                            TurnaTheme.warmSand.withValues(alpha: 0.95),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Bauhaus identity band: clay + warmSand + brandTeal blocks.
+                  SizedBox(
+                    height: 4,
+                    child: Row(
                       children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(
-                              TurnaTheme.radiusMedium,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.school_rounded,
-                            color: TurnaTheme.anatolianClay,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                AppStrings.aboutBrandName,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.2,
-                                  color: TurnaTheme.textPrimaryColor(context),
+                          flex: 5,
+                          child: Container(color: TurnaTheme.brandTeal),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Container(color: TurnaTheme.anatolianClay),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Container(color: TurnaTheme.warmSand),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: TurnaTheme.brandTeal.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: TurnaTheme.borderRadius,
+                                border: Border.all(
+                                  color: TurnaTheme.brandTeal.withValues(
+                                    alpha: 0.22,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                AppStrings.aboutTagline,
-                                style: AppTextStyles.captionSm(context),
+                              child: const TurnaIcon(
+                                TurnaIconId.school,
+                                color: TurnaTheme.anatolianClay,
+                                size: 26,
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: TurnaTheme.brandTeal,
-                            borderRadius:
-                                BorderRadius.circular(TurnaTheme.radiusRound),
-                          ),
-                          child: Text(
-                            displayVersion,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: TurnaTheme.textOnPrimary,
                             ),
-                          ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppStrings.aboutBrandName,
+                                    style: AppTextStyles.sectionTitle(context)
+                                        .copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.2,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    AppStrings.aboutTagline,
+                                    style: AppTextStyles.captionSm(context),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: TurnaTheme.brandTeal,
+                                borderRadius: TurnaTheme.borderRadius,
+                              ),
+                              child: Text(
+                                displayVersion,
+                                style: AppTextStyles.captionSm(context)
+                                    .copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: TurnaTheme.textOnPrimary,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Divider(
+                          height: 1,
+                          color: TurnaTheme.dividerBg(context),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 8,
+                          children: [
+                            _HeroFact(
+                              icon: TurnaIconId.cloudOff,
+                              label: AppStrings.aboutHeroFactOffline,
+                            ),
+                            _HeroFact(
+                              icon: TurnaIconId.lock,
+                              label: AppStrings.aboutHeroFactLocalOnly,
+                            ),
+                            _HeroFact(
+                              icon: TurnaIconId.heartPulse,
+                              label: AppStrings.aboutHeroFactOpenSource,
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Divider(
-                      height: 1,
-                      color: TurnaTheme.dividerBg(context),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 8,
-                      children: [
-                        _HeroFact(
-                          icon: Icons.wifi_off_rounded,
-                          label: AppStrings.aboutHeroFactOffline,
-                        ),
-                        _HeroFact(
-                          icon: Icons.phonelink_lock_rounded,
-                          label: AppStrings.aboutHeroFactLocalOnly,
-                        ),
-                        _HeroFact(
-                          icon: Icons.volunteer_activism_rounded,
-                          label: AppStrings.aboutHeroFactOpenSource,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -419,7 +405,7 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _HeroFact extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String label;
 
   const _HeroFact({required this.icon, required this.label});
@@ -429,7 +415,7 @@ class _HeroFact extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 15, color: TurnaTheme.brandTeal),
+        TurnaIcon(icon, size: 15, color: TurnaTheme.brandTeal),
         const SizedBox(width: 5),
         Text(label, style: AppTextStyles.captionSm(context)),
       ],
@@ -445,17 +431,17 @@ class _HighlightsCard extends StatelessWidget {
 
   static final _highlights = [
     (
-      icon: Icons.cloud_off_rounded,
+      icon: TurnaIconId.cloudOff,
       title: AppStrings.aboutHighlightOfflineTitle,
       subtitle: AppStrings.aboutHighlightOfflineSubtitle,
     ),
     (
-      icon: Icons.psychology_rounded,
+      icon: TurnaIconId.brain,
       title: AppStrings.aboutHighlightSrsTitle,
       subtitle: AppStrings.aboutHighlightSrsSubtitle,
     ),
     (
-      icon: Icons.quiz_rounded,
+      icon: TurnaIconId.cards,
       title: AppStrings.aboutHighlightInteractionsTitle,
       subtitle: AppStrings.aboutHighlightInteractionsSubtitle,
     ),
@@ -463,39 +449,42 @@ class _HighlightsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _AboutCard(
-      child: Builder(builder: (context) {
-        // Wrap instead of a fixed 3-column Row: at 200% text scale or on
-        // narrow screens the items flow onto extra lines instead of
-        // overflowing (Plan §14.4).
-        final screenWidth = MediaQuery.sizeOf(context).width;
-        final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
-        final singleColumn = screenWidth < 520 || largeText;
-        final itemWidth =
-            singleColumn ? double.infinity : (screenWidth - 32 - 32 - 20) / 3;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 14,
-          children: [
-            for (final highlight in _highlights)
-              SizedBox(
-                width: itemWidth,
-                child: _HighlightItem(
-                  icon: highlight.icon,
-                  title: highlight.title,
-                  subtitle: highlight.subtitle,
-                  centered: !singleColumn,
+    return TurnaReadingCard(
+      child: Builder(
+        builder: (context) {
+          // Wrap instead of a fixed 3-column Row: at 200% text scale or on
+          // narrow screens the items flow onto extra lines instead of
+          // overflowing (Plan §14.4).
+          final screenWidth = MediaQuery.sizeOf(context).width;
+          final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          final singleColumn = screenWidth < 520 || largeText;
+          final itemWidth = singleColumn
+              ? double.infinity
+              : (screenWidth - 32 - 32 - 20) / 3;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 14,
+            children: [
+              for (final highlight in _highlights)
+                SizedBox(
+                  width: itemWidth,
+                  child: _HighlightItem(
+                    icon: highlight.icon,
+                    title: highlight.title,
+                    subtitle: highlight.subtitle,
+                    centered: !singleColumn,
+                  ),
                 ),
-              ),
-          ],
-        );
-      }),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
 class _HighlightItem extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final String subtitle;
   final bool centered;
@@ -512,17 +501,19 @@ class _HighlightItem extends StatelessWidget {
     final textAlign = centered ? TextAlign.center : TextAlign.start;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment:
-          centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: centered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         Container(
           width: 42,
           height: 42,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: TurnaTheme.brandTeal.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: TurnaTheme.borderRadius,
           ),
-          child: Icon(icon, color: TurnaTheme.brandTeal, size: 21),
+          child: TurnaIcon(icon, color: TurnaTheme.brandTeal, size: 21),
         ),
         const SizedBox(height: 8),
         Text(
@@ -538,9 +529,8 @@ class _HighlightItem extends StatelessWidget {
           textAlign: textAlign,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.captionSm(context).copyWith(
-            color: TurnaTheme.textHintColor(context),
-          ),
+          style: AppTextStyles.captionSm(context)
+              .copyWith(color: TurnaTheme.textHintColor(context)),
         ),
       ],
     );
@@ -552,13 +542,13 @@ class _HighlightItem extends StatelessWidget {
 class _PrivacyTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return _AboutCard(
+    return TurnaReadingCard(
       padding: EdgeInsets.zero,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: InkWell(
-          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+          borderRadius: TurnaTheme.borderRadius,
           onTap: () => context.router.push(const PrivacyDetailsRoute()),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -567,13 +557,13 @@ class _PrivacyTile extends StatelessWidget {
                 Container(
                   width: 36,
                   height: 36,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusMedium),
+                    borderRadius: TurnaTheme.borderRadius,
                   ),
-                  child: const Icon(
-                    Icons.shield_outlined,
+                  child: const TurnaIcon(
+                    TurnaIconId.shield,
                     color: TurnaTheme.brandTeal,
                     size: 20,
                   ),
@@ -598,8 +588,8 @@ class _PrivacyTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right_rounded,
+                TurnaIcon(
+                  TurnaIconId.chevronRight,
                   color: TurnaTheme.textHint.withValues(alpha: 0.6),
                 ),
               ],
@@ -607,27 +597,6 @@ class _PrivacyTile extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 通用内容卡片（R18 长文阅读）：纸面（实色 + 中性细边），长文不铺玻璃。
-class _AboutCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _AboutCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: TurnaTheme.flatPaperDecoration(context),
-      child: child,
     );
   }
 }
@@ -646,7 +615,7 @@ class _ExternalLinkTile extends StatelessWidget {
 
   final ExternalLinkRegistry registry;
   final ExternalLinkId id;
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
 
   /// Subtitle shown when the link is configured.
@@ -655,21 +624,19 @@ class _ExternalLinkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final descriptor = registry.describe(id);
-    final subtitle =
-        descriptor.enabled ? configuredSubtitle : descriptor.unavailableReason;
+    final subtitle = descriptor.enabled
+        ? configuredSubtitle
+        : descriptor.unavailableReason;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
         onTap: descriptor.enabled
             ? () => openExternalLink(context, id, registry: registry)
             // Disabled links still explain themselves on tap instead of
             // silently doing nothing.
-            : () => TurnaSnackBar.show(
-                  context,
-                  descriptor.unavailableReason,
-                ),
+            : () => TurnaSnackBar.show(context, descriptor.unavailableReason),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
@@ -677,11 +644,12 @@ class _ExternalLinkTile extends StatelessWidget {
               Container(
                 width: 36,
                 height: 36,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: Icon(
+                child: TurnaIcon(
                   icon,
                   color: descriptor.enabled
                       ? TurnaTheme.brandTeal
@@ -710,17 +678,16 @@ class _ExternalLinkTile extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.captionSm(context).copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
+                      style: AppTextStyles.captionSm(context)
+                          .copyWith(color: TurnaTheme.textHintColor(context)),
                     ),
                   ],
                 ),
               ),
-              Icon(
+              TurnaIcon(
                 descriptor.enabled
-                    ? Icons.chevron_right_rounded
-                    : Icons.lock_outline_rounded,
+                    ? TurnaIconId.chevronRight
+                    : TurnaIconId.lock,
                 size: 20,
                 color: TurnaTheme.textHint.withValues(alpha: 0.6),
               ),
@@ -733,23 +700,19 @@ class _ExternalLinkTile extends StatelessWidget {
 }
 
 class _LinkTile extends StatelessWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final VoidCallback? onTap;
 
-  const _LinkTile({
-    required this.icon,
-    required this.title,
-    this.onTap,
-  });
+  const _LinkTile({required this.icon, required this.title, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      borderRadius: TurnaTheme.borderRadius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -758,30 +721,24 @@ class _LinkTile extends StatelessWidget {
               Container(
                 width: 36,
                 height: 36,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: Icon(
-                  icon,
-                  color: TurnaTheme.brandTeal,
-                  size: 20,
-                ),
+                child: TurnaIcon(icon, color: TurnaTheme.brandTeal, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.cardTitle(context),
-                    ),
+                    Text(title, style: AppTextStyles.cardTitle(context)),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
+              TurnaIcon(
+                TurnaIconId.chevronRight,
                 color: TurnaTheme.textHint.withValues(alpha: 0.6),
               ),
             ],

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/audio_controller.dart';
@@ -28,9 +29,15 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Unified review page providing a single, consistent review experience for all card sources.
 @RoutePage()
@@ -41,7 +48,7 @@ class UnifiedReviewPage extends StatefulWidget {
   final int remainingDue;
   final VoidCallback? onReviewMore;
   final Future<void> Function(ReviewItem item, RecallOutcome outcome)?
-      onOutcomeRecorded;
+  onOutcomeRecorded;
   final Future<void> Function(ReviewEventReceipt receipt)? onOutcomeUndone;
 
   const UnifiedReviewPage({
@@ -61,8 +68,8 @@ class UnifiedReviewPage extends StatefulWidget {
 
 class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   final AudioController _audioController = getIt<AudioController>();
-  final String _gemSessionSequence =
-      DateTime.now().microsecondsSinceEpoch.toString();
+  final String _gemSessionSequence = DateTime.now().microsecondsSinceEpoch
+      .toString();
   late final ReviewSessionController _controller;
   final Map<String, String> _mistakeIdsBySchedulingKey = {};
   bool _settled = false;
@@ -134,22 +141,12 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
       return;
     }
     final remaining = _controller.remainingCount;
-    final go = await showDialog<bool>(
+    final go = await showTurnaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.reviewExitConfirmTitle),
-        content: Text(AppStrings.reviewExitConfirmBody(remaining)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppStrings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(AppStrings.reviewExitAnyway),
-          ),
-        ],
-      ),
+      title: AppStrings.reviewExitConfirmTitle,
+      message: AppStrings.reviewExitConfirmBody(remaining),
+      confirmLabel: AppStrings.reviewExitAnyway,
+      cancelLabel: AppStrings.commonCancel,
     );
     if (go == true && mounted) {
       await _settleIfNeeded();
@@ -158,7 +155,9 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   }
 
   Future<void> _onOutcomeRecorded(
-      ReviewItem item, RecallOutcome outcome) async {
+    ReviewItem item,
+    RecallOutcome outcome,
+  ) async {
     final receipt = _controller.lastReceipt;
     if (receipt != null) {
       StudyProductAnalytics.instance.recordEvent(
@@ -173,10 +172,12 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         final term = content is StandardCourseCardContent
             ? content.frontText
             : item.schedulingKey.rawId;
-        final translation =
-            content is StandardCourseCardContent ? content.backText : '';
+        final translation = content is StandardCourseCardContent
+            ? content.backText
+            : '';
 
-        final mistakeId = receipt?.eventId ??
+        final mistakeId =
+            receipt?.eventId ??
             'review_${DateTime.now().microsecondsSinceEpoch}_${item.sessionItemId}';
         await mp?.record(
           MistakeEntry(
@@ -198,16 +199,20 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         _mistakeIdsBySchedulingKey[item.schedulingKey.rawId] = mistakeId;
       } catch (e, st) {
         // A lost mistake write is silent data loss for the learner.
-        logger.w('UnifiedReview: mistake recording failed',
-            error: e, stackTrace: st);
+        logger.w(
+          'UnifiedReview: mistake recording failed',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
   }
 
   Future<void> _onOutcomeUndone(ReviewEventReceipt receipt) async {
     StudyProductAnalytics.instance.forget(receipt.eventId);
-    final mistakeId =
-        _mistakeIdsBySchedulingKey.remove(receipt.schedulingKey.rawId);
+    final mistakeId = _mistakeIdsBySchedulingKey.remove(
+      receipt.schedulingKey.rawId,
+    );
     if (mistakeId == null) return;
     final mistakes = context.read<MistakeProvider?>();
     // The grade is being rolled back, not mastered — removing it via the
@@ -231,14 +236,14 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
 
   /// 讲解用的目标语言。
   ///
-  /// 课程卡片的语言就是当前课程语言；Anki 卡片来自用户导入的牌组，语言可能
+  /// 课程卡片的语言就是当前课程语言；记忆卡来自用户导入的牌组，语言可能
   /// 与课程完全无关（日语卡、英语卡……）。此前这里一律传当前课程语言，于是
-  /// 进了 Anki 之后 AI 仍把每张卡当土耳其语讲。Anki 来源返回 `null`，交给
+  /// 进了记忆卡之后 AI 仍把每张卡当土耳其语讲。记忆卡来源返回 `null`，交给
   /// 提示词要求模型从卡片文本自己判断。
   String? _aiLanguageForCard(ReviewItem item) => switch (item.source) {
-        TurnaCourseSource() => context.read<LanguageProvider>().displayName,
-        LegacyAnkiSource() || OfficialAnkiSource() => null,
-      };
+    TurnaCourseSource() => context.read<LanguageProvider>().displayName,
+    LegacyAnkiSource() || OfficialAnkiSource() => null,
+  };
 
   void _openAiTutor() {
     final item = _controller.currentItem;
@@ -255,18 +260,16 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
       TurnaSnackBar.show(context, AppStrings.aiCardExplainUnsupported);
       return;
     }
-    showAiCardExplainSheet(
-      context,
-      cardContext: context_,
-    );
+    showAiCardExplainSheet(context, cardContext: context_);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_controller.items.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title ?? AppStrings.reviewReviewAppBarTitle),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        appBar: TurnaTopBar(
+          title: widget.title ?? AppStrings.reviewReviewAppBarTitle,
         ),
         body: PracticeEmptyState(
           title: AppStrings.reviewNoItemsDue,
@@ -283,6 +286,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
           if (!didPop) Navigator.of(context).pop();
         },
         child: Scaffold(
+          backgroundColor: TurnaTheme.scaffoldBg(context),
           body: SafeArea(
             child: UnifiedReviewCompletion(
               totalCount: _controller.totalCount,
@@ -293,15 +297,15 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
               onReviewMore: widget.onReviewMore,
               onUndoLast:
                   _controller.lastReceipt == null || _controller.isPersisting
-                      ? null
-                      : () async {
-                          final ok = await _controller.undoLast();
-                          if (!ok || !context.mounted) return;
-                          TurnaSnackBar.show(
-                            context,
-                            AppStrings.reviewUndoRatingDone,
-                          );
-                        },
+                  ? null
+                  : () async {
+                      final ok = await _controller.undoLast();
+                      if (!ok || !context.mounted) return;
+                      TurnaSnackBar.show(
+                        context,
+                        AppStrings.reviewUndoRatingDone,
+                      );
+                    },
               onFinish: () => Navigator.of(context).pop(),
             ),
           ),
@@ -311,7 +315,8 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
 
     final item = _controller.currentItem!;
     final content = item.content;
-    final structured = content is StandardCourseCardContent &&
+    final structured =
+        content is StandardCourseCardContent &&
         content.interaction != null &&
         content.interaction is! AnkiCard &&
         content.interaction is! AnkiHtmlCard;
@@ -337,13 +342,14 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
             if (!isDegraded(OhosDegradation.aiGeneration))
               IconButton(
                 tooltip: AppStrings.aiExplainCard,
-                icon: const Icon(Icons.auto_awesome_rounded),
+                icon: const TurnaIcon(TurnaIconId.spark, size: 20),
                 onPressed: _openAiTutor,
               ),
             IconButton(
               tooltip: AppStrings.commonUndoLastCard,
-              icon: const Icon(Icons.undo_rounded),
-              onPressed: (_controller.lastReceipt != null &&
+              icon: const TurnaIcon(TurnaIconId.undo, size: 20),
+              onPressed:
+                  (_controller.lastReceipt != null &&
                       !_controller.isSubmitting &&
                       !_controller.isPersisting &&
                       _controller.writeError == null)
@@ -378,8 +384,10 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                     final mq = MediaQuery.of(context);
                     final sizing = resolveAnkiWebViewSizing(
                       AnkiWebViewSizingInput(
-                        viewport:
-                            Size(constraints.maxWidth, constraints.maxHeight),
+                        viewport: Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        ),
                         orientation: mq.orientation,
                         scene: AnkiWebViewScene.review,
                       ),
@@ -387,7 +395,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                     return Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: sizing.horizontalPadding,
-                        vertical: 8,
+                        vertical: AppSpacing.sm,
                       ),
                       child: StudyCardSurface(
                         content: content,
@@ -395,7 +403,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                         onReveal: _controller.reveal,
                         onSpeak: content is StandardCourseCardContent
                             ? () =>
-                                _speakText(content.frontText, feedback: true)
+                                  _speakText(content.frontText, feedback: true)
                             : null,
                         onObjectiveResult: structured
                             ? (correct) {
@@ -426,16 +434,17 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                   AppStrings.reviewWriteFailed,
                   key: const Key('unified-review-error'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: AppTextStyles.captionSm(context).copyWith(
                     color: TurnaTheme.error,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 TextButton.icon(
                   key: const Key('unified-review-retry'),
-                  onPressed:
-                      _controller.isPersisting ? null : _controller.retryWrite,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  onPressed: _controller.isPersisting
+                      ? null
+                      : _controller.retryWrite,
+                  icon: const TurnaIcon(TurnaIconId.refresh, size: 18),
                   label: Text(AppStrings.reviewRetry),
                 ),
               ] else if (_controller.previewError != null) ...[
@@ -444,7 +453,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                   onPressed: _controller.isSubmitting
                       ? null
                       : _controller.retryPreviews,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: const TurnaIcon(TurnaIconId.refresh, size: 18),
                   label: Text(AppStrings.reviewRetry),
                 ),
               ] else if (_controller.sideEffectWarning != null) ...[
@@ -452,22 +461,21 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                   AppStrings.reviewSavedStatsPending,
                   key: const Key('unified-review-side-effect-warning'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+                  style: AppTextStyles.captionSm(context),
                 ),
               ],
               if (_controller.writeError != null ||
                   _controller.previewError != null ||
                   _controller.sideEffectWarning != null)
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
               if (structured)
                 const SizedBox.shrink()
               else if (!_controller.isRevealed)
                 SessionPrimaryAction(
                   label: AppStrings.lessonShowAnswer,
-                  onPressed:
-                      _controller.isSubmitting ? null : _controller.reveal,
+                  onPressed: _controller.isSubmitting
+                      ? null
+                      : _controller.reveal,
                 )
               else
                 SessionRatingBand(
@@ -487,7 +495,8 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                           _controller.answer(RecallOutcome.remembered),
                     ),
                   ],
-                  enabled: !_controller.isSubmitting &&
+                  enabled:
+                      !_controller.isSubmitting &&
                       !_controller.isPersisting &&
                       _controller.writeError == null,
                 ),
@@ -499,10 +508,10 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   }
 
   /// 来源行的图标：课程卡 / 记忆卡两类宿主。
-  IconData _sourceLineIcon(ReviewItem item) => switch (item.source) {
-        TurnaCourseSource() => Icons.school_rounded,
-        LegacyAnkiSource() || OfficialAnkiSource() => Icons.style_rounded,
-      };
+  TurnaIconId _sourceLineIcon(ReviewItem item) => switch (item.source) {
+    TurnaCourseSource() => TurnaIconId.school,
+    LegacyAnkiSource() || OfficialAnkiSource() => TurnaIconId.cards,
+  };
 
   /// 来源行文案：课程卡用课时名，记忆卡不猜牌组语言。
   String _sourceLineLabel(ReviewItem item) {

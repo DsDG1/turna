@@ -9,10 +9,12 @@ import 'package:turna/application/audio_controller.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/guide_page.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 class GuideBlockView extends StatelessWidget {
   const GuideBlockView({super.key, required this.block});
@@ -25,17 +27,17 @@ class GuideBlockView extends StatelessWidget {
       GuideTextBlock() => _GuideText(block: block as GuideTextBlock),
       GuideTermsBlock() => _GuideTerms(block: block as GuideTermsBlock),
       GuideClassificationBlock() => _GuideClassification(
-          key: ValueKey(block.id),
-          block: block as GuideClassificationBlock,
-        ),
+        key: ValueKey(block.id),
+        block: block as GuideClassificationBlock,
+      ),
       GuideSuffixBuilderBlock() => _GuideSuffixBuilder(
-          key: ValueKey(block.id),
-          block: block as GuideSuffixBuilderBlock,
-        ),
+        key: ValueKey(block.id),
+        block: block as GuideSuffixBuilderBlock,
+      ),
       GuideWordOrderBlock() => _GuideWordOrder(
-          key: ValueKey(block.id),
-          block: block as GuideWordOrderBlock,
-        ),
+        key: ValueKey(block.id),
+        block: block as GuideWordOrderBlock,
+      ),
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -125,7 +127,7 @@ class _GuideTermCard extends StatelessWidget {
     return Material(
       color: TurnaTheme.lessonCanvasBg(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         side: BorderSide(color: TurnaTheme.dividerBg(context)),
       ),
       clipBehavior: Clip.antiAlias,
@@ -141,14 +143,12 @@ class _GuideTermCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       term.text,
-                      style: AppTextStyles.cardTitle(context).copyWith(
-                        fontSize: 20,
-                        color: TurnaTheme.brandTealDark,
-                      ),
+                      style: AppTextStyles.promptMd(context)
+                          .copyWith(color: TurnaTheme.brandTealDark),
                     ),
                   ),
-                  Icon(
-                    Icons.volume_up_rounded,
+                  TurnaIcon(
+                    TurnaIconId.speaker,
                     size: 20,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
@@ -156,17 +156,11 @@ class _GuideTermCard extends StatelessWidget {
               ),
               if (term.translation.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  term.translation,
-                  style: AppTextStyles.bodyText(context),
-                ),
+                Text(term.translation, style: AppTextStyles.bodyText(context)),
               ],
               if (term.note.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  term.note,
-                  style: AppTextStyles.captionSm(context),
-                ),
+                Text(term.note, style: AppTextStyles.captionSm(context)),
               ],
             ],
           ),
@@ -229,10 +223,7 @@ class _GuideClassificationState extends State<_GuideClassification> {
         children: [
           _GuideBlockTitle(block.title),
           if (block.instruction.isNotEmpty)
-            Text(
-              block.instruction,
-              style: AppTextStyles.bodyText(context),
-            ),
+            Text(block.instruction, style: AppTextStyles.bodyText(context)),
           const SizedBox(height: AppSpacing.xs),
           Text(
             AppStrings.guideClassificationHint,
@@ -304,7 +295,7 @@ class _GuideClassificationState extends State<_GuideClassification> {
           if (done) ...[
             const SizedBox(height: AppSpacing.md),
             _GuideHint(
-              icon: Icons.check_circle_outline_rounded,
+              icon: TurnaIconId.checkCircle,
               text: block.completionNote.isEmpty
                   ? AppStrings.guideClassificationDone
                   : '${block.completionNote}\n${AppStrings.guideClassificationDone}',
@@ -319,7 +310,7 @@ class _GuideClassificationState extends State<_GuideClassification> {
                 _feedback = null;
                 _hintCardId = null;
               }),
-              icon: const Icon(Icons.restart_alt_rounded),
+              icon: const TurnaIcon(TurnaIconId.restart, size: 18),
               label: Text(AppStrings.guideReset),
             ),
           ),
@@ -353,7 +344,7 @@ class _ClassificationTarget extends StatelessWidget {
               ? TurnaTheme.brandTeal.withValues(alpha: 0.08)
               : TurnaTheme.lessonCanvasBg(context),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             side: BorderSide(
               color: highlighted
                   ? TurnaTheme.brandTeal
@@ -368,10 +359,7 @@ class _ClassificationTarget extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    category.label,
-                    style: AppTextStyles.cardTitle(context),
-                  ),
+                  Text(category.label, style: AppTextStyles.cardTitle(context)),
                   if (category.description.isNotEmpty)
                     Text(
                       category.description,
@@ -426,7 +414,7 @@ class _ClassificationWord extends StatelessWidget {
     return Material(
       color: TurnaTheme.cardBg(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         side: BorderSide(color: borderColor, width: selected ? 2 : 1),
       ),
       clipBehavior: Clip.antiAlias,
@@ -438,10 +426,7 @@ class _ClassificationWord extends StatelessWidget {
             vertical: AppSpacing.sm,
           ),
           child: Center(
-            child: _HighlightedWord(
-              text: card.text,
-              highlight: card.highlight,
-            ),
+            child: _HighlightedWord(text: card.text, highlight: card.highlight),
           ),
         ),
       ),
@@ -457,7 +442,7 @@ class _HighlightedWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = AppTextStyles.cardTitle(context).copyWith(fontSize: 20);
+    final style = AppTextStyles.promptMd(context);
     final index = highlight.isEmpty ? -1 : text.lastIndexOf(highlight);
     if (index < 0) return Text(text, style: style);
     return Text.rich(
@@ -497,8 +482,9 @@ class _GuideSuffixBuilderState extends State<_GuideSuffixBuilder> {
     if (widget.block.examples.isEmpty) return const SizedBox.shrink();
     final example = widget.block.examples[_exampleIndex];
     final safeStep = _stepIndex.clamp(0, example.steps.length);
-    final result =
-        safeStep == 0 ? example.root : example.steps[safeStep - 1].result;
+    final result = safeStep == 0
+        ? example.root
+        : example.steps[safeStep - 1].result;
     final meaning = safeStep == 0
         ? example.rootMeaning
         : example.steps[safeStep - 1].meaning;
@@ -546,8 +532,9 @@ class _GuideSuffixBuilderState extends State<_GuideSuffixBuilder> {
                 onTap: () => setState(() => _stepIndex = 0),
               ),
               for (var i = 0; i < example.steps.length; i++) ...[
-                Icon(
-                  Icons.add_rounded,
+                TurnaIcon(
+                  TurnaIconId.add,
+                  size: 20,
                   color: TurnaTheme.textSecondaryColor(context),
                 ),
                 _SuffixCarriage(
@@ -562,10 +549,10 @@ class _GuideSuffixBuilderState extends State<_GuideSuffixBuilder> {
           const SizedBox(height: AppSpacing.lg),
           Material(
             color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             child: InkWell(
               onTap: () => unawaited(_speak(context, result)),
-              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+              borderRadius: TurnaTheme.borderRadius,
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(
@@ -574,24 +561,16 @@ class _GuideSuffixBuilderState extends State<_GuideSuffixBuilder> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            result,
-                            style: AppTextStyles.termHero(context).copyWith(
-                              fontSize: 32,
-                            ),
-                          ),
+                          Text(result, style: AppTextStyles.pageTitle(context)),
                           const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            meaning,
-                            style: AppTextStyles.bodyText(context),
-                          ),
+                          Text(meaning, style: AppTextStyles.bodyText(context)),
                         ],
                       ),
                     ),
                     IconButton(
                       tooltip: AppStrings.guideSuffixListen,
                       onPressed: () => unawaited(_speak(context, result)),
-                      icon: const Icon(Icons.volume_up_rounded),
+                      icon: const TurnaIcon(TurnaIconId.speaker, size: 22),
                     ),
                   ],
                 ),
@@ -620,26 +599,27 @@ class _SuffixCarriage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color:
-          selected ? TurnaTheme.brandTeal : TurnaTheme.lessonCanvasBg(context),
+      color: selected
+          ? TurnaTheme.brandTeal
+          : TurnaTheme.lessonCanvasBg(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         side: BorderSide(
-          color:
-              selected ? TurnaTheme.brandTeal : TurnaTheme.dividerBg(context),
+          color: selected
+              ? TurnaTheme.brandTeal
+              : TurnaTheme.dividerBg(context),
         ),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             children: [
               Text(
                 label,
-                style: AppTextStyles.cardTitle(context).copyWith(
-                  fontSize: 22,
+                style: AppTextStyles.promptLg(context).copyWith(
                   color: selected
                       ? TurnaTheme.textOnPrimary
                       : TurnaTheme.textPrimaryColor(context),
@@ -698,10 +678,10 @@ class _GuideWordOrderState extends State<_GuideWordOrder> {
           const SizedBox(height: AppSpacing.md),
           Material(
             color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            borderRadius: TurnaTheme.borderRadius,
             child: InkWell(
               onTap: () => unawaited(_speak(context, sentence)),
-              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+              borderRadius: TurnaTheme.borderRadius,
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(
@@ -715,7 +695,7 @@ class _GuideWordOrderState extends State<_GuideWordOrder> {
                     IconButton(
                       tooltip: AppStrings.guideSentenceListen,
                       onPressed: () => unawaited(_speak(context, sentence)),
-                      icon: const Icon(Icons.volume_up_rounded),
+                      icon: const TurnaIcon(TurnaIconId.speaker, size: 22),
                     ),
                   ],
                 ),
@@ -740,7 +720,7 @@ class _GuideWordOrderState extends State<_GuideWordOrder> {
           if (selected != null) ...[
             const SizedBox(height: AppSpacing.sm),
             _GuideHint(
-              icon: Icons.label_outline_rounded,
+              icon: TurnaIconId.tag,
               text: '${selected.role} · ${selected.meaning}',
             ),
           ],
@@ -762,10 +742,7 @@ class _GuideWordOrderState extends State<_GuideWordOrder> {
               ),
             ),
           if (widget.block.note.isNotEmpty)
-            Text(
-              widget.block.note,
-              style: AppTextStyles.captionSm(context),
-            ),
+            Text(widget.block.note, style: AppTextStyles.captionSm(context)),
         ],
       ),
     );
@@ -784,7 +761,7 @@ class _GuidePanel extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: child,
     );
@@ -806,13 +783,10 @@ class _GuideBlockTitle extends StatelessWidget {
 }
 
 class _GuideHint extends StatelessWidget {
-  const _GuideHint({
-    required this.text,
-    this.icon = Icons.lightbulb_outline_rounded,
-  });
+  const _GuideHint({required this.text, this.icon = TurnaIconId.lightbulb});
 
   final String text;
-  final IconData icon;
+  final TurnaIconId icon;
 
   @override
   Widget build(BuildContext context) {
@@ -820,16 +794,14 @@ class _GuideHint extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: TurnaTheme.brandSky.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: TurnaTheme.brandTeal),
+          TurnaIcon(icon, size: 20, color: TurnaTheme.brandTeal),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(text, style: AppTextStyles.bodyText(context)),
-          ),
+          Expanded(child: Text(text, style: AppTextStyles.bodyText(context))),
         ],
       ),
     );

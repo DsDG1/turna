@@ -39,8 +39,12 @@ import 'package:turna/views/home/streak_broken_dialog.dart';
 import 'package:turna/views/play/play_hub_page.dart';
 import 'package:turna/views/profile/profile_page.dart';
 import 'package:turna/views/settings/settings_page.dart';
-import 'package:turna/core/theme.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -97,11 +101,18 @@ class _HomePageState extends State<HomePage> {
     final revision = _courseProvider!.contentRevision;
     if (revision == _observedContentRevision) return;
     _observedContentRevision = revision;
-    unawaited(_maybePromptContentUpdate()
-        .catchError((Object error, StackTrace stackTrace) {
-      logger.w('Content update prompt failed',
-          error: error, stackTrace: stackTrace);
-    }));
+    unawaited(
+      _maybePromptContentUpdate().catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        logger.w(
+          'Content update prompt failed',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }),
+    );
   }
 
   @override
@@ -184,8 +195,8 @@ class _HomePageState extends State<HomePage> {
     final version = _contentUpdateVersion;
     if (version == null) return;
     await context.read<CourseProvider>().acknowledgeSpecificContentVersion(
-          version,
-        );
+      version,
+    );
     if (mounted) setState(() => _contentUpdateVersion = null);
   }
 
@@ -272,25 +283,85 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             children: [
               if (_contentUpdateVersion != null)
-                Material(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                  child: ListTile(
-                    title: Text(AppStrings.contentUpdateTitle),
-                    subtitle: Text(AppStrings.contentUpdateBannerMessage),
-                    trailing: Wrap(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pageMarginCompact,
+                    AppSpacing.sm,
+                    AppSpacing.pageMarginCompact,
+                    AppSpacing.xs,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.sm,
+                    ),
+                    decoration: TurnaTheme.glassDecoration(
+                      context,
+                      TurnaTheme.brandTeal,
+                      level: GlassLevel.l1Subtle,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextButton(
-                          onPressed: _acknowledgeContentUpdate,
-                          child: Text(AppStrings.contentUpdateKeepProgress),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: TurnaIcon(
+                                TurnaIconId.info,
+                                size: 18,
+                                color: TurnaTheme.brandTeal,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppStrings.contentUpdateTitle,
+                                    style: AppTextStyles.cardTitle(context),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    AppStrings.contentUpdateBannerMessage,
+                                    style: AppTextStyles.captionSm(context),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: AppStrings.commonClose,
+                              onPressed: _acknowledgeContentUpdate,
+                              icon: const TurnaIcon(
+                                TurnaIconId.close,
+                                size: 18,
+                              ),
+                            ),
+                          ],
                         ),
-                        TextButton(
-                          onPressed: _resetProgressAfterConfirm,
-                          child: Text(AppStrings.contentUpdateResetProgress),
-                        ),
-                        IconButton(
-                          tooltip: AppStrings.commonClose,
-                          onPressed: _acknowledgeContentUpdate,
-                          icon: const Icon(Icons.close),
+                        const SizedBox(height: AppSpacing.xs),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: AppSpacing.sm,
+                          children: [
+                            TextButton(
+                              onPressed: _resetProgressAfterConfirm,
+                              style: TextButton.styleFrom(
+                                foregroundColor: TurnaTheme.error,
+                              ),
+                              child: Text(
+                                AppStrings.contentUpdateResetProgress,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _acknowledgeContentUpdate,
+                              child: Text(AppStrings.contentUpdateKeepProgress),
+                            ),
+                          ],
                         ),
                       ],
                     ),

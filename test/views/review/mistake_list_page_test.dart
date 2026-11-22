@@ -18,8 +18,10 @@ import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/review/mistake_list_page.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/review/mistake_list_page.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,11 +37,7 @@ void main() {
     mistakes = MistakeProvider(prefs);
   });
 
-  MistakeEntry entry(
-    String id, {
-    String? wordId,
-    String? grammarPointId,
-  }) =>
+  MistakeEntry entry(String id, {String? wordId, String? grammarPointId}) =>
       MistakeEntry(
         id: id,
         lessonId: 'lesson-1',
@@ -110,8 +108,9 @@ void main() {
     expect(find.text('item-w-1'), findsNothing);
   });
 
-  testWidgets('cards show relative time and rewrite progress semantics',
-      (tester) async {
+  testWidgets('cards show relative time and rewrite progress semantics', (
+    tester,
+  ) async {
     final now = DateTime.now();
     await mistakes.record(
       entry('w-1', wordId: 'word-1').copyWith(timestamp: now),
@@ -136,17 +135,24 @@ void main() {
     );
   });
 
-  testWidgets('the removed why-wrong action leaves no UI trace',
-      (tester) async {
+  testWidgets('the removed why-wrong action leaves no UI trace', (
+    tester,
+  ) async {
     await mistakes.record(entry('w-1', wordId: 'word-1'));
     await pumpPage(tester);
 
     expect(find.text('为什么错'), findsNothing);
-    expect(find.byIcon(Icons.auto_awesome_rounded), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TurnaIcon && w.id == TurnaIconId.spark,
+      ),
+      findsNothing,
+    );
   });
 
-  testWidgets('load error shows retry state and recovers on retry',
-      (tester) async {
+  testWidgets('load error shows retry state and recovers on retry', (
+    tester,
+  ) async {
     mistakes.useRepository(_FlakyMistakeRepo([entry('w-retry', wordId: 'w1')]));
     await mistakes.ensureLoaded();
     expect(mistakes.hasLoadError, isTrue);
@@ -226,6 +232,5 @@ class _FlakyMistakeRepo implements IMistakeRepository {
     required String logJson,
     required String dailyCountsJson,
     required int masteredTotal,
-  }) async =>
-      false;
+  }) async => false;
 }

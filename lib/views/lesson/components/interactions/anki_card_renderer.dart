@@ -15,7 +15,9 @@ import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 /// Anki-style flip card renderer. Shows the front, user taps "Show Answer",
 /// then records the binary recall result: forgotten or remembered.
@@ -207,8 +209,9 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                     scale: scale,
                     alignment: Alignment.center,
                     filterQuality: FilterQuality.medium,
-                    child:
-                        showFront ? _buildFront(context) : _buildBack(context),
+                    child: showFront
+                        ? _buildFront(context)
+                        : _buildBack(context),
                   );
                 },
               ),
@@ -225,8 +228,9 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           // not jump the column after the pulse.
           if (!widget.state.submitted)
             ConstrainedBox(
-              constraints:
-                  const BoxConstraints(minHeight: _actionAreaMinHeight),
+              constraints: const BoxConstraints(
+                minHeight: _actionAreaMinHeight,
+              ),
               child: Align(
                 alignment: Alignment.topCenter,
                 child: _showGradeButtons
@@ -250,8 +254,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.style_rounded,
+          TurnaIcon(
+            TurnaIconId.cards,
             size: 32,
             color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
           ),
@@ -270,9 +274,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReveal,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ),
@@ -286,8 +289,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.check_circle_outline,
+          TurnaIcon(
+            TurnaIconId.checkCircle,
             size: 28,
             color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
           ),
@@ -312,9 +315,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReturnFront,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ],
       ),
@@ -330,10 +332,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
     }
     return Padding(
       padding: const EdgeInsets.only(top: 16),
-      child: AnkiMediaStrip(
-        audioAssets: audioAssets,
-        imageAssets: imageAssets,
-      ),
+      child: AnkiMediaStrip(audioAssets: audioAssets, imageAssets: imageAssets),
     );
   }
 

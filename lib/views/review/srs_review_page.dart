@@ -11,8 +11,11 @@ import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/application/review/review_ledger_resolver.dart';
 import 'package:turna/domain/review/review_source.dart';
 import 'package:turna/domain/review/turna_review_ledger.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/review/unified_review_page.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Today's Turna SRS queue rendered by the shared course-style review shell.
 ///
@@ -42,10 +45,8 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
   void _loadBatch() {
     final srs = context.read<SrsProvider>();
     final batchSize = context.read<SettingsProvider?>()?.reviewBatchSize ?? 25;
-    final due = <SrsWord>[
-      ...srs.getDueWords(),
-      ...srs.getDueExpressions(),
-    ]..sort((a, b) => a.dueAt.compareTo(b.dueAt));
+    final due = <SrsWord>[...srs.getDueWords(), ...srs.getDueExpressions()]
+      ..sort((a, b) => a.dueAt.compareTo(b.dueAt));
 
     final items = <ReviewItem>[];
     for (final scheduled in due) {
@@ -84,9 +85,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
 
     _remainingDue = items.length > batchSize ? items.length - batchSize : 0;
     _items = items.take(batchSize).toList();
-    _ledgerResolver = ReviewLedgerResolver(
-      turnaLedger: TurnaReviewLedger(srs),
-    );
+    _ledgerResolver = ReviewLedgerResolver(turnaLedger: TurnaReviewLedger(srs));
   }
 
   @override
@@ -94,7 +93,11 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
     final items = _items;
     final resolver = _ledgerResolver;
     if (items == null || resolver == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: TurnaTheme.scaffoldBg(context),
+        appBar: TurnaTopBar(title: AppStrings.reviewSrsAppBarTitle),
+        body: Center(child: TurnaLoader.page()),
+      );
     }
     return UnifiedReviewPage(
       items: items,
@@ -103,9 +106,9 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
       remainingDue: _remainingDue,
       onReviewMore: _remainingDue > 0
           ? () => setState(() {
-                _items = null;
-                _loadBatch();
-              })
+              _items = null;
+              _loadBatch();
+            })
           : null,
     );
   }

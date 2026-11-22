@@ -2,8 +2,12 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 显式标识：《人工智能生成合成内容标识办法》（2025-09-01 施行）要求
 /// 生成合成内容在适当位置带**肉眼可见的文字提示**；华为应用市场把
@@ -19,7 +23,7 @@ import 'package:turna/l10n/app_strings.dart';
 class AiGeneratedNotice extends StatelessWidget {
   const AiGeneratedNotice({
     super.key,
-    this.margin = const EdgeInsets.only(top: 8),
+    this.margin = const EdgeInsets.only(top: AppSpacing.sm),
     this.alignment = MainAxisAlignment.start,
   });
 
@@ -35,12 +39,17 @@ class AiGeneratedNotice extends StatelessWidget {
         mainAxisAlignment: alignment,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_awesome_outlined, size: 12, color: tint),
-          const SizedBox(width: 4),
+          TurnaIcon(TurnaIconId.spark, size: 12, color: tint),
+          const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
               AppStrings.aiGeneratedBadge,
-              style: TextStyle(fontSize: 11, color: tint, height: 1.3),
+              style: AppTextStyles.caption(context).copyWith(
+                letterSpacing: 0,
+                fontWeight: FontWeight.w500,
+                color: tint,
+                height: 1.3,
+              ),
             ),
           ),
         ],
@@ -69,20 +78,24 @@ class AiGeneratedBanner extends StatelessWidget {
     final tint = TurnaTheme.textSecondaryColor(context);
     return Container(
       margin: margin,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + 2,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: TurnaTheme.softTint(context, TurnaTheme.primaryLight),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.auto_awesome_outlined, size: 14, color: tint),
-          const SizedBox(width: 6),
+          TurnaIcon(TurnaIconId.spark, size: 14, color: tint),
+          const SizedBox(width: AppSpacing.xs + 2),
           Expanded(
             child: Text(
               AppStrings.aiGeneratedBannerText,
-              style: TextStyle(fontSize: 12, color: tint, height: 1.35),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: tint, height: 1.35),
             ),
           ),
         ],

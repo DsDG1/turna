@@ -1,5 +1,6 @@
 // Flutter imports:
-import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart' show Color;
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 
 /// Free default ring id — always treated as unlocked.
@@ -104,25 +105,25 @@ class CosmeticCatalog {
         catalogVersion: ring.catalogVersion,
         surfaces: _avatarSurfaces,
         accentColor: ring.borderColor,
-        icon: Icons.account_circle_rounded,
+        icon: TurnaIconId.person,
       ),
     CosmeticItem(
       id: CosmeticItems.profileMist,
       slot: CosmeticSlot.profileTheme,
       price: 70,
       surfaces: {CosmeticSurface.settings, CosmeticSurface.profile},
-      accentColor: Color(0xFF1F727E),
-      secondaryColor: Color(0xFF8CCAD0),
-      icon: Icons.landscape_rounded,
+      accentColor: const Color(0xFF1F727E),
+      secondaryColor: const Color(0xFF8CCAD0),
+      icon: TurnaIconId.landscape,
     ),
     CosmeticItem(
       id: CosmeticItems.profileSunrise,
       slot: CosmeticSlot.profileTheme,
       price: 130,
       surfaces: {CosmeticSurface.settings, CosmeticSurface.profile},
-      accentColor: Color(0xFFB9684E),
-      secondaryColor: Color(0xFFE8C78D),
-      icon: Icons.wb_twilight_rounded,
+      accentColor: const Color(0xFFB9684E),
+      secondaryColor: const Color(0xFFE8C78D),
+      icon: TurnaIconId.sunrise,
     ),
     CosmeticItem(
       id: CosmeticItems.completionReedBloom,
@@ -134,8 +135,8 @@ class CosmeticCatalog {
         CosmeticSurface.reviewComplete,
       },
       accessibilityVariant: CosmeticAccessibilityVariant.staticAlternative,
-      accentColor: Color(0xFF78C7B8),
-      icon: Icons.spa_rounded,
+      accentColor: const Color(0xFF78C7B8),
+      icon: TurnaIconId.leaf,
     ),
     CosmeticItem(
       id: CosmeticItems.completionLakeGlow,
@@ -147,8 +148,8 @@ class CosmeticCatalog {
         CosmeticSurface.reviewComplete,
       },
       accessibilityVariant: CosmeticAccessibilityVariant.staticAlternative,
-      accentColor: Color(0xFF76558D),
-      icon: Icons.auto_awesome_rounded,
+      accentColor: const Color(0xFF76558D),
+      icon: TurnaIconId.spark,
     ),
   ];
 
@@ -169,12 +170,11 @@ class CosmeticCatalog {
       .every((item) => item.surfaces.any(_isPrimarySurface));
 
   static bool _isPrimarySurface(CosmeticSurface surface) => switch (surface) {
-        CosmeticSurface.profile ||
-        CosmeticSurface.lessonComplete ||
-        CosmeticSurface.reviewComplete =>
-          true,
-        CosmeticSurface.settings => false,
-      };
+    CosmeticSurface.profile ||
+    CosmeticSurface.lessonComplete ||
+    CosmeticSurface.reviewComplete => true,
+    CosmeticSurface.settings => false,
+  };
 
   static AvatarRing? ringById(String id) {
     for (final ring in rings) {

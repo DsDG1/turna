@@ -226,12 +226,11 @@ def build_icon() -> Image.Image:
         rgba = source.convert("RGBA")
         margin = find_margin(rgba)
         if not margin:
-            raise SystemExit(
-                f"{SOURCE.name} has no border-connected margin; the source is "
-                "already full bleed and this script no longer matches it"
-            )
-        print(f"{SOURCE.name}: {len(margin)} margin px to inpaint")
-        filled = inpaint(rgba, margin)
+            print(f"{SOURCE.name}: already full bleed; skipping margin inpaint")
+            filled = rgba
+        else:
+            print(f"{SOURCE.name}: {len(margin)} margin px to inpaint")
+            filled = inpaint(rgba, margin)
 
     # HarmonyOS rejects transparency in a media icon. The margin inpaint is
     # already opaque, but the source carries an alpha channel, so flatten it.

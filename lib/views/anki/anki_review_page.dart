@@ -9,18 +9,23 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/widgets/turna_cards.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/glass_surface.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
 /// allows starting a review session for a selected section.
@@ -32,21 +37,18 @@ class AnkiReviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.ankiReviewScreenTitle),
-        leading: IconButton(
-          tooltip: AppStrings.commonBack,
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.router.maybePop(),
-        ),
+      appBar: TurnaTopBar(
+        title: AppStrings.ankiReviewScreenTitle,
+        onBack: () => context.router.maybePop(),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: IconButton.filledTonal(
-              icon: const Icon(Icons.file_upload_outlined),
-              tooltip: AppStrings.ankiImportNewDeck,
-              onPressed: () => context.router.push(AnkiImportRoute()),
+          IconButton(
+            icon: const TurnaIcon(
+              TurnaIconId.upload,
+              size: 20,
+              color: TurnaTheme.brandTeal,
             ),
+            tooltip: AppStrings.ankiImportNewDeck,
+            onPressed: () => context.router.push(AnkiImportRoute()),
           ),
         ],
       ),
@@ -96,12 +98,17 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         courseProvider.catalogEntries[i].wireKey: i,
     };
     ankiSections.sort(
-      (a, b) => (deckOrder[wireForImportId[
-                  LegacyAnkiIdentifiers.importIdFromSectionId(a.id)]] ??
-              9999)
-          .compareTo(deckOrder[wireForImportId[
-                  LegacyAnkiIdentifiers.importIdFromSectionId(b.id)]] ??
-              9999),
+      (a, b) =>
+          (deckOrder[wireForImportId[LegacyAnkiIdentifiers.importIdFromSectionId(
+                    a.id,
+                  )]] ??
+                  9999)
+              .compareTo(
+                deckOrder[wireForImportId[LegacyAnkiIdentifiers.importIdFromSectionId(
+                      b.id,
+                    )]] ??
+                    9999,
+              ),
     );
 
     if (ankiSections.isEmpty) {
@@ -117,7 +124,12 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     return CustomScrollView(
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            AppSpacing.sm,
+            AppSpacing.pageMargin,
+            0,
+          ),
           sliver: SliverToBoxAdapter(
             child: OfficialFormalDueRepository.instance.snapshot.unavailable
                 ? _AnkiDueUnavailableBanner(onRetry: _refreshOfficialDue)
@@ -126,24 +138,37 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                     unintroducedNew: unintroducedNew,
                     onReviewAll: totalDue > 0
                         ? () => _startReview(
-                              context,
-                              null,
-                              entry: FormalReviewEntryKind.courseReview,
-                            )
+                            context,
+                            null,
+                            entry: FormalReviewEntryKind.courseReview,
+                          )
                         : null,
                   ),
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            AppSpacing.xl,
+            AppSpacing.pageMargin,
+            AppSpacing.md,
+          ),
           sliver: SliverToBoxAdapter(
-            child: SectionTitle(title: AppStrings.ankiHubDecksTitle),
+            child: Text(
+              AppStrings.ankiHubDecksTitle,
+              style: AppTextStyles.sectionTitle(context),
+            ),
           ),
         ),
         // Section list. The order is persisted in the same course-order
         // preference used by the course-management screen.
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageMargin,
+            0,
+            AppSpacing.pageMargin,
+            AppSpacing.xl,
+          ),
           sliver: SliverToBoxAdapter(
             child: ReorderableListView.builder(
               padding: EdgeInsets.zero,
@@ -171,15 +196,19 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                       section.id,
                       entry: FormalReviewEntryKind.deckSection,
                     ),
-                    onStats: () => context.router.push(AnkiDeckStatsRoute(
-                      importId: importId,
-                      title: section.name,
-                    )),
-                    onBrowse: () => context.router.push(AnkiCardBrowserRoute(
-                      importId: importId,
-                      title: section.name,
-                      sectionId: section.id,
-                    )),
+                    onStats: () => context.router.push(
+                      AnkiDeckStatsRoute(
+                        importId: importId,
+                        title: section.name,
+                      ),
+                    ),
+                    onBrowse: () => context.router.push(
+                      AnkiCardBrowserRoute(
+                        importId: importId,
+                        title: section.name,
+                        sectionId: section.id,
+                      ),
+                    ),
                     onPin: () => _pinDeck(context, section.id),
                   ),
                 );
@@ -221,13 +250,15 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }
 
   int? _dueForSection(String importId) {
-    if (OfficialFormalDueRepository.instance.officialImportIds
-        .contains(importId)) {
+    if (OfficialFormalDueRepository.instance.officialImportIds.contains(
+      importId,
+    )) {
       if (OfficialFormalDueRepository.instance.snapshot.unavailable) {
         return null;
       }
-      return OfficialFormalDueRepository.instance
-          .formalOfficialDueForImport(importId);
+      return OfficialFormalDueRepository.instance.formalOfficialDueForImport(
+        importId,
+      );
     }
     // Legacy-owned section: scheduler retired (doc 35 L2), nothing is due.
     return 0;
@@ -236,7 +267,8 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   int _aggregatedDue(List<Section> ankiSections) {
     var total = 0;
     for (final section in ankiSections) {
-      total += _dueForSection(
+      total +=
+          _dueForSection(
             LegacyAnkiIdentifiers.importIdFromSectionId(section.id),
           ) ??
           0;
@@ -280,35 +312,47 @@ class _AnkiDueUnavailableBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoftCard(
+    return Container(
       key: const Key('anki-due-unavailable'),
-      accentColor: TurnaTheme.warning,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-        child: Row(
-          children: [
-            AccentIconChip(
-              icon: Icons.sync_problem_rounded,
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 14, AppSpacing.sm, 14),
+      decoration: BoxDecoration(
+        color: TurnaTheme.warning.withValues(alpha: 0.08),
+        borderRadius: TurnaTheme.borderRadius,
+        border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: TurnaTheme.warning.withValues(alpha: 0.14),
+              borderRadius: TurnaTheme.borderRadius,
+            ),
+            child: const TurnaIcon(
+              TurnaIconId.warning,
               color: TurnaTheme.warning,
-              size: 22,
-              padding: 8,
+              size: 20,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                AppStrings.ankiDueUnavailable,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              AppStrings.ankiDueUnavailable,
+              style: AppTextStyles.cardTitle(context),
             ),
-            IconButton(
-              tooltip: AppStrings.ankiReviewRetry,
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            tooltip: AppStrings.ankiReviewRetry,
+            onPressed: onRetry,
+            icon: TurnaIcon(
+              TurnaIconId.refresh,
+              size: 20,
+              color: TurnaTheme.textPrimaryColor(context),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -332,38 +376,28 @@ class _AnkiDueHero extends StatelessWidget {
       return const _AnkiCaughtUpCard();
     }
 
-    const radius = BorderRadius.all(Radius.circular(TurnaTheme.cardRadius));
     return Semantics(
       button: onReviewAll != null,
       label: AppStrings.ankiReviewAll,
-      child: Material(
+      child: GlassSurface(
         key: const Key('anki-review-hub-hero'),
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onReviewAll,
-          borderRadius: radius,
-          child: Ink(
-            decoration: TurnaTheme.brandHeroDecoration(
-              context,
-              borderRadius: radius,
+        accent: TurnaTheme.brandTeal,
+        frost: true,
+        radius: TurnaTheme.borderRadius,
+        onTap: onReviewAll,
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AnkiDueHeroHeader(
+              introducedDue: introducedDue,
+              unintroducedNew: unintroducedNew,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _AnkiDueHeroHeader(
-                    introducedDue: introducedDue,
-                    unintroducedNew: unintroducedNew,
-                  ),
-                  if (onReviewAll != null) ...[
-                    const SizedBox(height: 16),
-                    _AnkiReviewAllButton(onPressed: onReviewAll!),
-                  ],
-                ],
-              ),
-            ),
-          ),
+            if (onReviewAll != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _AnkiReviewAllButton(onPressed: onReviewAll!),
+            ],
+          ],
         ),
       ),
     );
@@ -376,35 +410,50 @@ class _AnkiCaughtUpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoftCard(
+    return GlassSurface(
       key: const Key('anki-review-hub-caught-up'),
-      accentColor: TurnaTheme.brandTeal,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppStrings.ankiHubCaughtUpTitle,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppStrings.ankiHubCaughtUpMessage,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                  ),
-                ],
+      accent: TurnaTheme.brandTeal,
+      level: GlassLevel.l1Subtle,
+      radius: TurnaTheme.borderRadius,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: TurnaTheme.softTint(
+                context,
+                TurnaTheme.brandTeal,
+                alpha: 0.12,
               ),
+              borderRadius: TurnaTheme.borderRadius,
             ),
-          ],
-        ),
+            child: const TurnaIcon(
+              TurnaIconId.checkCircle,
+              size: 20,
+              color: TurnaTheme.brandTeal,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.ankiHubCaughtUpTitle,
+                  style: AppTextStyles.cardTitle(context),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  AppStrings.ankiHubCaughtUpMessage,
+                  style: AppTextStyles.captionSm(context),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -423,67 +472,60 @@ class _AnkiDueHeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal);
     return Row(
       children: [
         Container(
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+            color: TurnaTheme.softTint(
+              context,
+              TurnaTheme.brandTeal,
+              alpha: 0.14,
+            ),
+            borderRadius: TurnaTheme.borderRadius,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.24),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
             ),
           ),
-          child: const Icon(
-            Icons.style_rounded,
-            color: Colors.white,
-            size: 28,
-          ),
+          child: TurnaIcon(TurnaIconId.cards, color: accent, size: 22),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 AppStrings.ankiReviewScreenTitle,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.3,
-                    ),
+                style: AppTextStyles.sectionTitle(context),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 AppStrings.ankiFormalDueBreakdown(
                   introducedDue: introducedDue,
                   unintroducedNew: unintroducedNew,
                 ),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
+                style: AppTextStyles.captionSm(context),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               '$introducedDue',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    height: 1.1,
-                  ),
+              style: AppTextStyles.metricHero(
+                context,
+                color: accent,
+              ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
             ),
             Text(
               AppStrings.ankiHubDueCountLabel,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.75),
-                  ),
+              style: AppTextStyles.caption(context).copyWith(letterSpacing: 0),
             ),
           ],
         ),
@@ -502,21 +544,20 @@ class _AnkiReviewAllButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 44,
+      height: 46,
       child: FilledButton.icon(
         onPressed: onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: TurnaTheme.brandTeal,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          backgroundColor: TurnaTheme.brandTeal,
+          foregroundColor: TurnaTheme.textOnPrimary,
+          shape: TurnaTheme.shape,
         ),
-        icon: const Icon(Icons.play_arrow_rounded),
-        label: Text(
-          AppStrings.ankiReviewAll,
-          style: const TextStyle(fontWeight: FontWeight.w800),
+        icon: const TurnaIcon(
+          TurnaIconId.play,
+          size: 18,
+          color: TurnaTheme.textOnPrimary,
         ),
+        label: Text(AppStrings.ankiReviewAll, style: AppTextStyles.buttonLabel),
       ),
     );
   }
@@ -551,111 +592,130 @@ class _AnkiSectionCard extends StatelessWidget {
     final hasDue = dueCount == null || dueCount! > 0;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: SoftCard(
-        accentColor: TurnaTheme.brandSky,
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: GlassSurface(
+        accent: TurnaTheme.brandSky,
+        level: GlassLevel.l1Subtle,
+        radius: TurnaTheme.borderRadius,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 14, 4, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.drag_indicator_rounded,
-                        color: TurnaTheme.textHintColor(context),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.sm,
+          14,
+          AppSpacing.xs,
+          10,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ReorderableDragStartListener(
+                  index: index,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
+                    child: TurnaIcon(
+                      TurnaIconId.dragHandle,
+                      size: 18,
+                      color: TurnaTheme.textHintColor(context),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.softTint(context, accent, alpha: 0.12),
+                    borderRadius: TurnaTheme.borderRadius,
+                  ),
+                  child: TurnaIcon(TurnaIconId.cards, color: accent, size: 18),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        sectionName,
+                        style: AppTextStyles.cardTitle(context),
+                      ),
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          description,
+                          style: AppTextStyles.captionSm(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (hasDue) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm + 2,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: TurnaTheme.brandTeal,
+                      borderRadius: TurnaTheme.borderRadius,
+                    ),
+                    child: Text(
+                      dueCount?.toString() ?? '—',
+                      style: AppTextStyles.caption(context).copyWith(
+                        color: TurnaTheme.textOnPrimary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),
-                  AccentIconChip(
-                    icon: Icons.style_rounded,
-                    color: accent,
-                    size: 22,
-                    padding: 8,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sectionName,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        if (description.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            description,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: TurnaTheme.textSecondaryColor(context),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                TurnaIcon(
+                  TurnaIconId.chevronRight,
+                  size: 16,
+                  color: accent.withValues(alpha: 0.7),
+                ),
+                _DeckMenuButton(
+                  onStats: onStats,
+                  onBrowse: onBrowse,
+                  onPin: onPin,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              child: Row(
+                children: [
+                  if (onBrowse != null)
+                    TextButton.icon(
+                      onPressed: onBrowse,
+                      icon: const TurnaIcon(TurnaIconId.list, size: 15),
+                      label: Text(AppStrings.ankiBrowseCards),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: TurnaTheme.textSecondaryColor(context),
+                      ),
                     ),
-                  ),
-                  if (hasDue) ...[
-                    CountBadge(
-                      label: dueCount?.toString() ?? '—',
-                      color: TurnaTheme.brandTeal,
+                  if (onStats != null)
+                    TextButton.icon(
+                      onPressed: onStats,
+                      icon: const TurnaIcon(TurnaIconId.insights, size: 15),
+                      label: Text(AppStrings.ankiDeckStats),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: TurnaTheme.textSecondaryColor(context),
+                      ),
                     ),
-                    const SizedBox(width: 4),
-                  ],
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 14,
-                    color: accent.withValues(alpha: 0.7),
-                  ),
-                  _DeckMenuButton(
-                    onStats: onStats,
-                    onBrowse: onBrowse,
-                    onPin: onPin,
-                  ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Row(
-                  children: [
-                    if (onBrowse != null)
-                      TextButton.icon(
-                        onPressed: onBrowse,
-                        icon: const Icon(Icons.view_list_outlined, size: 16),
-                        label: Text(AppStrings.ankiBrowseCards),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          foregroundColor:
-                              TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                    if (onStats != null)
-                      TextButton.icon(
-                        onPressed: onStats,
-                        icon: const Icon(Icons.insights_outlined, size: 16),
-                        label: Text(AppStrings.ankiDeckStats),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          foregroundColor:
-                              TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -676,12 +736,12 @@ class _DeckMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert_rounded,
-        size: 20,
+      icon: TurnaIcon(
+        TurnaIconId.moreVert,
+        size: 18,
         color: TurnaTheme.textSecondaryColor(context),
       ),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(AppSpacing.xs),
       tooltip: '',
       itemBuilder: (context) => [
         if (onStats != null)
@@ -689,8 +749,8 @@ class _DeckMenuButton extends StatelessWidget {
             value: 'stats',
             child: Row(
               children: [
-                const Icon(Icons.insights_outlined, size: 20),
-                const SizedBox(width: 12),
+                const TurnaIcon(TurnaIconId.insights, size: 18),
+                const SizedBox(width: AppSpacing.md),
                 Text(AppStrings.ankiDeckStats),
               ],
             ),
@@ -700,8 +760,8 @@ class _DeckMenuButton extends StatelessWidget {
             value: 'browse',
             child: Row(
               children: [
-                const Icon(Icons.view_list_outlined, size: 20),
-                const SizedBox(width: 12),
+                const TurnaIcon(TurnaIconId.list, size: 18),
+                const SizedBox(width: AppSpacing.md),
                 Text(AppStrings.ankiBrowseCards),
               ],
             ),
@@ -710,8 +770,8 @@ class _DeckMenuButton extends StatelessWidget {
           value: 'pin',
           child: Row(
             children: [
-              const Icon(Icons.push_pin_outlined, size: 20),
-              const SizedBox(width: 12),
+              const TurnaIcon(TurnaIconId.pin, size: 18),
+              const SizedBox(width: AppSpacing.md),
               Text(AppStrings.ankiPinDeck),
             ],
           ),

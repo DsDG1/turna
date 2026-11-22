@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/recognition/facts/options_structure.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 /// In-place modal bottom sheet for inspecting and fine-tuning recognized choice
 /// questions (or other archetypes) for a specific Anki notetype/chapter.
@@ -13,22 +18,14 @@ void showMcqPreviewSheet({
   required OfficialAnkiMappingSuggestion currentSuggestion,
   required void Function(OfficialAnkiMappingSuggestion updated) onConfirmed,
 }) {
-  showModalBottomSheet<void>(
+  showTurnaSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: TurnaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(TurnaTheme.radiusLarge),
-      ),
+    title: AppStrings.mcqPreviewTitle(schema.name),
+    body: _McqPreviewContent(
+      schema: schema,
+      currentSuggestion: currentSuggestion,
+      onConfirmed: onConfirmed,
     ),
-    builder: (sheetContext) {
-      return _McqPreviewContent(
-        schema: schema,
-        currentSuggestion: currentSuggestion,
-        onConfirmed: onConfirmed,
-      );
-    },
   );
 }
 
@@ -89,7 +86,8 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
   @override
   Widget build(BuildContext context) {
     final sample = widget.schema.samples.firstOrNull;
-    final isChoice = widget.currentSuggestion.cardArchetype.name == 'choice' ||
+    final isChoice =
+        widget.currentSuggestion.cardArchetype.name == 'choice' ||
         _enabledKinds.contains('multipleChoice') ||
         _enabledKinds.contains('multiSelect');
 
@@ -114,17 +112,22 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
       if (multiOptions != null && multiOptions.length >= 2) {
         options = multiOptions;
         promptText = frontVal.replaceAll(RegExp(r'<[^>]*>'), '').trim();
-        correctIndices =
-            EmbeddedOptionsParser.parseCorrectIndices(backVal, options);
+        correctIndices = EmbeddedOptionsParser.parseCorrectIndices(
+          backVal,
+          options,
+        );
       } else {
         // Try embedded options
         final embedded = EmbeddedOptionsParser.extractEmbeddedOptions(frontVal);
         if (embedded != null) {
-          promptText =
-              embedded.prompt.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+          promptText = embedded.prompt
+              .replaceAll(RegExp(r'<[^>]*>'), '')
+              .trim();
           options = embedded.options;
-          correctIndices =
-              EmbeddedOptionsParser.parseCorrectIndices(backVal, options);
+          correctIndices = EmbeddedOptionsParser.parseCorrectIndices(
+            backVal,
+            options,
+          );
         } else {
           promptText = frontVal.replaceAll(RegExp(r'<[^>]*>'), '').trim();
         }
@@ -141,157 +144,137 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
       selectedModeIndex = 1;
     }
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color:
-                      TurnaTheme.textHintColor(context).withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMargin,
+        AppSpacing.xs,
+        AppSpacing.pageMargin,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 3,
+            ),
+            decoration: BoxDecoration(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+              borderRadius: TurnaTheme.borderRadius,
+            ),
+            child: Text(
+              isMultiSelect
+                  ? AppStrings.mcqPreviewKindMultiSelect
+                  : (isChoice
+                        ? AppStrings.mcqPreviewKindSingleChoice
+                        : AppStrings.mcqPreviewKindFlip),
+              style: AppTextStyles.caption(context).copyWith(
+                fontWeight: FontWeight.w600,
+                color: TurnaTheme.brandTeal,
+                letterSpacing: 0,
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // 模式微调选项卡
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: TurnaTheme.scaffoldBg(context),
+              borderRadius: TurnaTheme.borderRadius,
+              border: Border.all(color: TurnaTheme.dividerBg(context)),
+            ),
+            child: Row(
               children: [
-                Expanded(
-                  child: Text(
-                    AppStrings.mcqPreviewTitle(widget.schema.name),
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                _modeTab(
+                  0,
+                  AppStrings.mcqPreviewModeInteractive,
+                  selectedModeIndex == 0,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-                  ),
-                  child: Text(
-                    isMultiSelect
-                        ? AppStrings.mcqPreviewKindMultiSelect
-                        : (isChoice
-                            ? AppStrings.mcqPreviewKindSingleChoice
-                            : AppStrings.mcqPreviewKindFlip),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: TurnaTheme.brandTeal,
-                    ),
-                  ),
+                _modeTab(
+                  1,
+                  AppStrings.mcqPreviewModeClassic,
+                  selectedModeIndex == 1,
+                ),
+                _modeTab(
+                  2,
+                  AppStrings.mcqPreviewModeFidelity,
+                  selectedModeIndex == 2,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: AppSpacing.lg),
 
-            // 模式微调选项卡
-            Container(
-              padding: const EdgeInsets.all(3),
+          // 题目渲染卡片
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: TurnaTheme.scaffoldBg(context),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                borderRadius: TurnaTheme.borderRadius,
+                border: Border.all(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
+                ),
               ),
-              child: Row(
+              child: ListView(
+                shrinkWrap: true,
                 children: [
-                  _modeTab(0, AppStrings.mcqPreviewModeInteractive,
-                      selectedModeIndex == 0),
-                  _modeTab(1, AppStrings.mcqPreviewModeClassic,
-                      selectedModeIndex == 1),
-                  _modeTab(2, AppStrings.mcqPreviewModeFidelity,
-                      selectedModeIndex == 2),
+                  Text(
+                    promptText.isNotEmpty
+                        ? promptText
+                        : AppStrings.mcqPreviewNoPrompt,
+                    style: AppTextStyles.cardTitle(context)
+                        .copyWith(height: 1.4),
+                  ),
+                  if (options.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    for (var i = 0; i < options.length; i++)
+                      _optionTile(
+                        context,
+                        index: i,
+                        text: options[i],
+                        isCorrect: correctIndices.contains(i),
+                        isMulti: isMultiSelect,
+                      ),
+                  ],
+                  if (sample != null &&
+                      sample.fields.length > 1 &&
+                      options.isEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    const Divider(height: 1),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      AppStrings.mcqPreviewBackAnswer(
+                        sample.fields[1]
+                            .replaceAll(RegExp(r'<[^>]*>'), '')
+                            .trim(),
+                      ),
+                      style: AppTextStyles.captionSm(context),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-
-            // 题目渲染卡片
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: TurnaTheme.scaffoldBg(context),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-                  border: Border.all(
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
-                  ),
-                ),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    Text(
-                      promptText.isNotEmpty
-                          ? promptText
-                          : AppStrings.mcqPreviewNoPrompt,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
-                      ),
-                    ),
-                    if (options.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      for (var i = 0; i < options.length; i++)
-                        _optionTile(
-                          context,
-                          index: i,
-                          text: options[i],
-                          isCorrect: correctIndices.contains(i),
-                          isMulti: isMultiSelect,
-                        ),
-                    ],
-                    if (sample != null &&
-                        sample.fields.length > 1 &&
-                        options.isEmpty) ...[
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-                      Text(
-                        AppStrings.mcqPreviewBackAnswer(sample.fields[1]
-                            .replaceAll(RegExp(r'<[^>]*>'), '')
-                            .trim()),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: FilledButton.styleFrom(
+                backgroundColor: TurnaTheme.brandTeal,
+                foregroundColor: TurnaTheme.textOnPrimary,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                shape: TurnaTheme.shape,
               ),
+              child: Text(AppStrings.commonDone),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TurnaTheme.brandTeal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusMedium),
-                  ),
-                ),
-                child: Text(AppStrings.commonDone,
-                    style: const TextStyle(fontSize: 14)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -304,22 +287,18 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
           padding: const EdgeInsets.symmetric(vertical: 7),
           decoration: BoxDecoration(
             color: active ? TurnaTheme.cardBg(context) : Colors.transparent,
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
+            borderRadius: TurnaTheme.borderRadius,
+            border: active
+                ? Border.all(
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.35),
+                  )
                 : null,
           ),
           child: Center(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
+              style: AppTextStyles.caption(context).copyWith(
+                letterSpacing: 0,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 color: active
                     ? TurnaTheme.brandTeal
@@ -341,14 +320,17 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
   }) {
     final letter = String.fromCharCode(65 + index);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 10,
+        ),
         decoration: BoxDecoration(
           color: isCorrect
               ? TurnaTheme.brandTeal.withValues(alpha: 0.06)
               : TurnaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+          borderRadius: TurnaTheme.borderRadius,
           border: Border.all(
             color: isCorrect
                 ? TurnaTheme.brandTeal
@@ -358,24 +340,23 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
         ),
         child: Row(
           children: [
-            Icon(
+            TurnaIcon(
               isMulti
                   ? (isCorrect
-                      ? Icons.check_box_rounded
-                      : Icons.check_box_outline_blank_rounded)
+                        ? TurnaIconId.checkboxChecked
+                        : TurnaIconId.checkboxUnchecked)
                   : (isCorrect
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_unchecked_rounded),
+                        ? TurnaIconId.radioChecked
+                        : TurnaIconId.radioUnchecked),
               size: 18,
               color: isCorrect
                   ? TurnaTheme.brandTeal
                   : TurnaTheme.textHintColor(context),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               '$letter. ',
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTextStyles.captionSm(context).copyWith(
                 fontWeight: FontWeight.w700,
                 color: isCorrect
                     ? TurnaTheme.brandTeal
@@ -385,26 +366,26 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
             Expanded(
               child: Text(
                 text,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textPrimaryColor(context)),
               ),
             ),
             if (isCorrect)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                decoration: BoxDecoration(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: const BoxDecoration(
                   color: TurnaTheme.brandTeal,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
                 child: Text(
                   AppStrings.mcqPreviewCorrectBadge,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.caption(context).copyWith(
+                    color: TurnaTheme.textOnPrimary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0,
                   ),
                 ),
               ),

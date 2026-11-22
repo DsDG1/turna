@@ -12,11 +12,7 @@ import 'package:turna/core/theme.dart';
 
 /// Maps [AiErrorMapping] flags onto retry / configure actions.
 class AiErrorBanner extends StatelessWidget {
-  const AiErrorBanner({
-    super.key,
-    required this.mapping,
-    this.onRetry,
-  });
+  const AiErrorBanner({super.key, required this.mapping, this.onRetry});
 
   final AiErrorMapping mapping;
   final VoidCallback? onRetry;
@@ -35,10 +31,7 @@ class AiErrorBanner extends StatelessWidget {
           Row(
             children: [
               if (mapping.canRetry && onRetry != null)
-                TextButton(
-                  onPressed: onRetry,
-                  child: Text(AppStrings.aiRetry),
-                ),
+                TextButton(onPressed: onRetry, child: Text(AppStrings.aiRetry)),
               if (mapping.canConfigure)
                 TextButton(
                   onPressed: () =>

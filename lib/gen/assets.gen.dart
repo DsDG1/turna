@@ -41,14 +41,14 @@ class $AssetsAnkiReviewerGen {
 
   /// List of all assets
   List<String> get values => [
-        cardFrameHtml,
-        cardFrameJs,
-        manifest,
-        mathjaxConfig,
-        reviewerCss,
-        reviewerHtml,
-        reviewerJs
-      ];
+    cardFrameHtml,
+    cardFrameJs,
+    manifest,
+    mathjaxConfig,
+    reviewerCss,
+    reviewerHtml,
+    reviewerJs,
+  ];
 }
 
 class $AssetsCoursesGen {
@@ -83,15 +83,16 @@ class $AssetsImagesGen {
   /// File path: assets/images/ayse.png
   AssetGenImage get ayse => const AssetGenImage('assets/images/ayse.png');
 
-  /// File path: assets/images/offFire.png
-  AssetGenImage get offFire => const AssetGenImage('assets/images/offFire.png');
-
   /// Directory path: assets/images/turna
   $AssetsImagesTurnaGen get turna => const $AssetsImagesTurnaGen();
 
   /// List of all assets
-  List<AssetGenImage> get values =>
-      [appLogo, appLogoStore1024, appLogoStore216, ayse, offFire];
+  List<AssetGenImage> get values => [
+    appLogo,
+    appLogoStore1024,
+    appLogoStore216,
+    ayse,
+  ];
 }
 
 class $AssetsSoundsGen {
@@ -122,8 +123,16 @@ class $AssetsSoundsGen {
   String get levelUp4 => 'assets/sounds/level_up_4.mp3';
 
   /// List of all assets
-  List<String> get values =>
-      [error1, error2, error3, error4, levelUp1, levelUp2, levelUp3, levelUp4];
+  List<String> get values => [
+    error1,
+    error2,
+    error3,
+    error4,
+    levelUp1,
+    levelUp2,
+    levelUp3,
+    levelUp4,
+  ];
 }
 
 class $AssetsAnkiReviewerMathjaxGen {
@@ -165,8 +174,14 @@ class $AssetsCoursesNouveauTurkishGen {
   String get vocab => 'assets/courses/nouveau-turkish/vocab.json';
 
   /// List of all assets
-  List<String> get values =>
-      [audioManifest, expressions, grammarPoints, index, mediaManifest, vocab];
+  List<String> get values => [
+    audioManifest,
+    expressions,
+    grammarPoints,
+    index,
+    mediaManifest,
+    vocab,
+  ];
 }
 
 class $AssetsImagesTurnaGen {
@@ -221,15 +236,15 @@ class $AssetsCoursesNouveauTurkishSectionsGen {
 
   /// List of all assets
   List<String> get values => [
-        section1,
-        section2,
-        section3,
-        section4,
-        section5,
-        section6,
-        section7,
-        section8
-      ];
+    section1,
+    section2,
+    section3,
+    section4,
+    section5,
+    section6,
+    section7,
+    section8,
+  ];
 }
 
 abstract final class Assets {
@@ -310,15 +325,8 @@ class AssetGenImage {
     );
   }
 
-  ImageProvider provider({
-    AssetBundle? bundle,
-    String? package,
-  }) {
-    return AssetImage(
-      _assetName,
-      bundle: bundle,
-      package: package,
-    );
+  ImageProvider provider({AssetBundle? bundle, String? package}) {
+    return AssetImage(_assetName, bundle: bundle, package: package);
   }
 
   String get path => _assetName;

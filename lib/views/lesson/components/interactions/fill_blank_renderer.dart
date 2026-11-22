@@ -18,7 +18,9 @@ import 'package:turna/views/lesson/components/interactions/interaction_fields.da
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
 import 'package:turna/views/widgets/tts_feedback.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 
 /// Fill in a blanked word in a sentence. The data uses `_____` to mark the
 /// gap; we replace the first occurrence with a tappable [TextField].
@@ -88,14 +90,13 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
   /// 文本类题型的"能否提交"来自 controller, 输入变化不会重建父 widget ——
   /// 所以既要 build 时同步一次首帧, 也要监听输入变化.
   void _syncDraft(BuildContext context) {
-    final canSubmit = !widget.state.submitted &&
+    final canSubmit =
+        !widget.state.submitted &&
         (_useChoices
             ? _selectedChoice != null
             : _controller.text.trim().isNotEmpty);
-    LessonActionScope.maybeOf(context)?.report(
-      canSubmit: canSubmit,
-      submit: canSubmit ? _trySubmit : null,
-    );
+    LessonActionScope.maybeOf(context)
+        ?.report(canSubmit: canSubmit, submit: canSubmit ? _trySubmit : null);
   }
 
   void _onTextChanged() {
@@ -166,8 +167,10 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
 
     final (before, after) = _split;
     // 句中内联空与独立书写区共用同一判分配色（interaction_fields 收口处）。
-    final verdict =
-        interactionVerdictOf(submitted: submitted, correct: correct);
+    final verdict = interactionVerdictOf(
+      submitted: submitted,
+      correct: correct,
+    );
 
     _syncDraft(context);
 
@@ -196,8 +199,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.edit_note_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.edit,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -212,8 +215,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                 RichText(
                   textAlign: TextAlign.start,
                   text: TextSpan(
-                    style:
-                        AppTextStyles.promptLg(context).copyWith(height: 1.4),
+                    style: AppTextStyles.promptLg(context)
+                        .copyWith(height: 1.4),
                     children: [
                       TextSpan(text: before),
                       WidgetSpan(
@@ -281,14 +284,14 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           decoration: BoxDecoration(
             color: verdict.fillColor(context),
             border: border,
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+            borderRadius: TurnaTheme.borderRadius,
           ),
           child: TextField(
             controller: _controller,
             enabled: !widget.state.submitted,
             autofocus: !widget.state.submitted,
             textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd(context).copyWith(fontSize: 18),
+            style: AppTextStyles.sectionTitle(context),
             decoration: InputDecoration(
               border: InputBorder.none,
               isDense: true,
@@ -312,18 +315,15 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
         decoration: BoxDecoration(
           color: verdict.fillColor(context),
           border: border,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+          borderRadius: TurnaTheme.borderRadius,
         ),
         child: Text(
           _selectedChoice ?? AppStrings.lessonFillBlankHint,
           textAlign: TextAlign.center,
           style: _selectedChoice == null
-              ? TextStyle(
-                  fontSize: 14,
-                  color: TurnaTheme.textHintColor(context),
-                )
-              : AppTextStyles.promptMd(context)
-                  .copyWith(fontSize: 18, fontWeight: FontWeight.w600),
+              ? AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context))
+              : AppTextStyles.sectionTitle(context),
         ),
       ),
     );

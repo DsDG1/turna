@@ -9,11 +9,7 @@ import 'package:turna/core/theme.dart';
 /// Horizontal wrap of quick-follow-up chips. Tapping calls [onChip] with the
 /// chip label (equals an ask turn).
 class AiQuickChipsBar extends StatelessWidget {
-  const AiQuickChipsBar({
-    super.key,
-    required this.onChip,
-    this.enabled = true,
-  });
+  const AiQuickChipsBar({super.key, required this.onChip, this.enabled = true});
 
   final ValueChanged<String> onChip;
   final bool enabled;

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/streak_broken_dialog.dart';
+import 'package:turna/views/widgets/turna_geometry.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 
 void main() {
   group('StreakBrokenDialog', () {
@@ -23,10 +25,16 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
+      expect(find.byType(TurnaDialogPanel), findsOneWidget);
       expect(find.text(AppStrings.homeStreakBrokenTitle), findsOneWidget);
       expect(find.text(AppStrings.homeStreakBroken), findsOneWidget);
       expect(find.text(AppStrings.commonGotIt), findsOneWidget);
-      expect(find.byType(Image), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is TurnaGeometry && w.kind == TurnaGeometryKind.brokenStreak,
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('got-it dismisses the dialog', (tester) async {
@@ -53,8 +61,9 @@ void main() {
       expect(find.byType(StreakBrokenDialog), findsNothing);
     });
 
-    testWidgets('barrier tap dismisses when barrierDismissible is true',
-        (tester) async {
+    testWidgets('barrier tap dismisses when barrierDismissible is true', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(

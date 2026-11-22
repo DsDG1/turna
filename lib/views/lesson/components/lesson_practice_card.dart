@@ -54,7 +54,7 @@ class LessonPracticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _resolveColors(variant);
-    final radius = BorderRadius.circular(TurnaTheme.cardRadius);
+    const radius = TurnaTheme.borderRadius;
 
     // 单层 gradient（白高光预混进 stop）。同时传 `color` 时 BoxDecoration
     // 只画 gradient，底色会静默失效 —— 这里压根不给 color。

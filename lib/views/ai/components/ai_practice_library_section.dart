@@ -11,11 +11,13 @@ import 'package:turna/application/ai/practice/ai_practice_job_queue.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/ai/components/ai_practice_actions.dart';
 import 'package:turna/views/ai/components/ai_practice_card.dart';
 import 'package:turna/views/ai/components/ai_practice_job_banner.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// "我的练习" block embedded in the AI Hub —— 目录化（R14）：
 ///
@@ -151,8 +153,8 @@ class _AiPracticeLibrarySectionState extends State<AiPracticeLibrarySection> {
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.hourglass_bottom_rounded,
+                      TurnaIcon(
+                        TurnaIconId.timer,
                         size: 16,
                         color: TurnaTheme.textSecondaryColor(context),
                       ),
@@ -162,8 +164,8 @@ class _AiPracticeLibrarySectionState extends State<AiPracticeLibrarySection> {
                         style: AppTextStyles.captionSm(context),
                       ),
                       const Spacer(),
-                      Icon(
-                        Icons.chevron_right_rounded,
+                      TurnaIcon(
+                        TurnaIconId.chevronRight,
                         size: 18,
                         color: TurnaTheme.textSecondaryColor(context),
                       ),
@@ -195,10 +197,9 @@ class _EmptyHint extends StatelessWidget {
             configured
                 ? AppStrings.aiPracticeSectionEmpty
                 : AppStrings.aiPracticeLibraryNotConfiguredHint,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-              height: 1.45,
-            ),
+            style: AppTextStyles.captionSm(
+              context,
+            ).copyWith(color: TurnaTheme.textHintColor(context), height: 1.45),
           ),
         ),
         if (configured) ...[

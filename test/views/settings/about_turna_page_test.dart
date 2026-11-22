@@ -9,9 +9,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/settings/app_build_info.dart';
 import 'package:turna/application/settings/external_link_registry.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/about_turna_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +30,9 @@ void main() {
 ''';
 
   Future<ByteData?> assetsHandler(ByteData? message) async {
-    final key =
-        message == null ? '' : utf8.decode(message.buffer.asUint8List());
+    final key = message == null
+        ? ''
+        : utf8.decode(message.buffer.asUint8List());
     if (key.endsWith('changelog.md')) {
       return ByteData.sublistView(utf8.encode(minimalChangelog));
     }
@@ -37,7 +40,8 @@ void main() {
   }
 
   Future<void> installHandler(
-      Future<ByteData?> Function(ByteData?) handler) async {
+    Future<ByteData?> Function(ByteData?) handler,
+  ) async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', handler);
   }
@@ -51,8 +55,9 @@ void main() {
         .setMockMessageHandler('flutter/assets', null);
   });
 
-  testWidgets('about page shows exactly two tabs; usage guide removed',
-      (tester) async {
+  testWidgets('about page shows exactly two tabs; usage guide removed', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(home: AboutTurnaPage(buildInfo: AppBuildInfo.testInstance)),
     );
@@ -66,8 +71,9 @@ void main() {
     expect(find.text('使用指南'), findsNothing);
   });
 
-  testWidgets('unconfigured external links render disabled with a reason',
-      (tester) async {
+  testWidgets('unconfigured external links render disabled with a reason', (
+    tester,
+  ) async {
     // Default registry: all URLs null (not confirmed yet per Plan 2 §0.1).
     await tester.pumpWidget(
       MaterialApp(home: AboutTurnaPage(buildInfo: AppBuildInfo.testInstance)),
@@ -80,7 +86,10 @@ void main() {
 
     // Disabled links explain themselves instead of dead-tapping.
     expect(find.text(AppStrings.externalLinkNotConfigured), findsWidgets);
-    expect(find.byIcon(Icons.lock_outline_rounded), findsWidgets);
+    expect(
+      find.byWidgetPredicate((w) => w is TurnaIcon && w.id == TurnaIconId.lock),
+      findsWidgets,
+    );
 
     // Tapping an unconfigured link shows the reason, never a launch attempt.
     await tester.tap(find.text(AppStrings.aboutUpstreamTitle));
@@ -109,12 +118,16 @@ void main() {
 
     // Non-https (and non-loopback http) is rejected by the scheme guard.
     final evil = configured.describe(ExternalLinkId.issueTracker);
-    expect(evil.enabled, isFalse,
-        reason: 'http to a public host must be rejected');
+    expect(
+      evil.enabled,
+      isFalse,
+      reason: 'http to a public host must be rejected',
+    );
   });
 
-  testWidgets('version comes from AppBuildInfo with no hardcoded fallback',
-      (tester) async {
+  testWidgets('version comes from AppBuildInfo with no hardcoded fallback', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: AboutTurnaPage(
@@ -125,12 +138,16 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('9.9.9'), findsWidgets);
-    expect(find.textContaining('0.7.0'), findsNothing,
-        reason: 'no hardcoded fallback version may leak into the header');
+    expect(
+      find.textContaining('0.7.0'),
+      findsNothing,
+      reason: 'no hardcoded fallback version may leak into the header',
+    );
   });
 
-  testWidgets('changelog tab renders release cards from the asset',
-      (tester) async {
+  testWidgets('changelog tab renders release cards from the asset', (
+    tester,
+  ) async {
     await installHandler(assetsHandler);
     await tester.pumpWidget(
       MaterialApp(home: AboutTurnaPage(buildInfo: AppBuildInfo.testInstance)),
@@ -153,7 +170,10 @@ void main() {
     );
     // Asset now uses the unified 0.x numbering, matching the manifest.
     expect(find.text('0.7', skipOffstage: false), findsWidgets);
-    expect(find.text('1.1.0', skipOffstage: false), findsNothing,
-        reason: 'legacy 1.x ids must be renumbered to the 0.x scheme');
+    expect(
+      find.text('1.1.0', skipOffstage: false),
+      findsNothing,
+      reason: 'legacy 1.x ids must be renumbered to the 0.x scheme',
+    );
   });
 }

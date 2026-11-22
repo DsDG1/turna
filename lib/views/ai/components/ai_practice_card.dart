@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/ai/ai_course.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// One row in the AI practice library ("我的练习") —— 目录行，不是卡。
 ///
@@ -50,7 +53,8 @@ class AiPracticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final failed = item.status == AiPracticeStatus.failed ||
+    final failed =
+        item.status == AiPracticeStatus.failed ||
         item.status == AiPracticeStatus.interrupted;
     final row = InkWell(
       onTap: selectionMode ? onTap : (onTap ?? (_playable ? onStart : null)),
@@ -84,7 +88,6 @@ class AiPracticeCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.captionSm(context).copyWith(
-                      fontSize: 12.5,
                       color: failed
                           ? TurnaTheme.error
                           : TurnaTheme.textSecondaryColor(context),
@@ -98,8 +101,8 @@ class AiPracticeCard extends StatelessWidget {
               IconButton(
                 tooltip: AppStrings.aiPracticeCancel,
                 onPressed: onCancel,
-                icon: Icon(
-                  Icons.stop_circle_outlined,
+                icon: TurnaIcon(
+                  TurnaIconId.stop,
                   size: 20,
                   color: TurnaTheme.textSecondaryColor(context),
                 ),
@@ -113,10 +116,8 @@ class AiPracticeCard extends StatelessWidget {
                       ? AppStrings.aiPracticeUnfavorite
                       : AppStrings.aiPracticeFavorite,
                   onPressed: item.pinned ? onUnpin : onPin,
-                  icon: Icon(
-                    item.pinned
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
+                  icon: TurnaIcon(
+                    TurnaIconId.star,
                     size: 20,
                     color: item.pinned
                         ? TurnaTheme.anatolianClay
@@ -125,8 +126,8 @@ class AiPracticeCard extends StatelessWidget {
                 ),
               PopupMenuButton<String>(
                 tooltip: AppStrings.commonMoreActions,
-                icon: Icon(
-                  Icons.more_vert_rounded,
+                icon: TurnaIcon(
+                  TurnaIconId.moreVert,
                   size: 20,
                   color: TurnaTheme.textSecondaryColor(context),
                 ),
@@ -161,9 +162,12 @@ class AiPracticeCard extends StatelessWidget {
                       value: 'start',
                       child: Row(
                         children: [
-                          const Icon(Icons.play_arrow_rounded,
-                              size: 20, color: TurnaTheme.brandTeal),
-                          const SizedBox(width: 10),
+                          const TurnaIcon(
+                            TurnaIconId.play,
+                            size: 20,
+                            color: TurnaTheme.brandTeal,
+                          ),
+                          const SizedBox(width: AppSpacing.sm + 2),
                           Text(AppStrings.aiPracticeStart),
                         ],
                       ),
@@ -174,9 +178,12 @@ class AiPracticeCard extends StatelessWidget {
                       value: 'retry',
                       child: Row(
                         children: [
-                          const Icon(Icons.refresh_rounded,
-                              size: 20, color: TurnaTheme.brandTeal),
-                          const SizedBox(width: 10),
+                          const TurnaIcon(
+                            TurnaIconId.refresh,
+                            size: 20,
+                            color: TurnaTheme.brandTeal,
+                          ),
+                          const SizedBox(width: AppSpacing.sm + 2),
                           Text(AppStrings.aiPracticeRetry),
                         ],
                       ),
@@ -186,9 +193,12 @@ class AiPracticeCard extends StatelessWidget {
                       value: 'detail',
                       child: Row(
                         children: [
-                          const Icon(Icons.account_tree_outlined,
-                              size: 20, color: TurnaTheme.brandSky),
-                          const SizedBox(width: 10),
+                          const TurnaIcon(
+                            TurnaIconId.tree,
+                            size: 20,
+                            color: TurnaTheme.brandSky,
+                          ),
+                          const SizedBox(width: AppSpacing.sm + 2),
                           Text(AppStrings.aiPracticeDetailTitle),
                         ],
                       ),
@@ -198,9 +208,12 @@ class AiPracticeCard extends StatelessWidget {
                       value: 'adjust',
                       child: Row(
                         children: [
-                          const Icon(Icons.auto_fix_high_rounded,
-                              size: 20, color: TurnaTheme.brandTeal),
-                          const SizedBox(width: 10),
+                          const TurnaIcon(
+                            TurnaIconId.spark,
+                            size: 20,
+                            color: TurnaTheme.brandTeal,
+                          ),
+                          const SizedBox(width: AppSpacing.sm + 2),
                           Text(AppStrings.aiPracticeAdjust),
                         ],
                       ),
@@ -210,17 +223,17 @@ class AiPracticeCard extends StatelessWidget {
                       value: item.pinned ? 'unpin' : 'pin',
                       child: Row(
                         children: [
-                          Icon(
-                            item.pinned
-                                ? Icons.push_pin_outlined
-                                : Icons.push_pin_rounded,
+                          const TurnaIcon(
+                            TurnaIconId.pin,
                             size: 20,
                             color: TurnaTheme.anatolianClay,
                           ),
-                          const SizedBox(width: 10),
-                          Text(item.pinned
-                              ? AppStrings.aiPracticeUnpin
-                              : AppStrings.aiPracticePin),
+                          const SizedBox(width: AppSpacing.sm + 2),
+                          Text(
+                            item.pinned
+                                ? AppStrings.aiPracticeUnpin
+                                : AppStrings.aiPracticePin,
+                          ),
                         ],
                       ),
                     ),
@@ -228,9 +241,12 @@ class AiPracticeCard extends StatelessWidget {
                     value: 'delete',
                     child: Row(
                       children: [
-                        const Icon(Icons.delete_outline_rounded,
-                            size: 20, color: TurnaTheme.error),
-                        const SizedBox(width: 10),
+                        const TurnaIcon(
+                          TurnaIconId.delete,
+                          size: 20,
+                          color: TurnaTheme.error,
+                        ),
+                        const SizedBox(width: AppSpacing.sm + 2),
                         Text(AppStrings.aiPracticeDelete),
                       ],
                     ),
@@ -258,12 +274,13 @@ class AiPracticeCard extends StatelessWidget {
     final status = switch (item.status) {
       AiPracticeStatus.queued => AppStrings.aiPracticeQueued,
       AiPracticeStatus.running => AppStrings.aiPracticeProgress(
-          item.progressDone,
-          item.progressTotal,
-        ),
-      AiPracticeStatus.ready => item.pinned
-          ? '${AppStrings.aiPracticeReady} · ${AppStrings.aiPracticePermanentTag}'
-          : AppStrings.aiPracticeReady,
+        item.progressDone,
+        item.progressTotal,
+      ),
+      AiPracticeStatus.ready =>
+        item.pinned
+            ? '${AppStrings.aiPracticeReady} · ${AppStrings.aiPracticePermanentTag}'
+            : AppStrings.aiPracticeReady,
       AiPracticeStatus.failed =>
         item.errorMessage ?? AppStrings.aiPracticeFailed,
       AiPracticeStatus.interrupted =>
@@ -302,46 +319,40 @@ class _StatusGlyph extends StatelessWidget {
     return switch (status) {
       // 排队：空心环（未达）。
       AiPracticeStatus.queued => Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: TurnaTheme.dividerBg(context), width: 2),
-          ),
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: TurnaTheme.dividerBg(context), width: 2),
         ),
-      // 生成中：小 spinner。
-      AiPracticeStatus.running => const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.2,
-            color: TurnaTheme.brandTeal,
-          ),
-        ),
+      ),
+      // 生成中：小加载器。
+      AiPracticeStatus.running => TurnaLoader.inline(size: 18),
       // 待练习：实心 teal（可开始）。
       AiPracticeStatus.ready => Container(
-          width: 18,
-          height: 18,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: TurnaTheme.brandTeal,
-          ),
-          child: const Icon(
-            Icons.play_arrow_rounded,
-            size: 12,
-            color: TurnaTheme.textOnPrimary,
-          ),
+        width: 18,
+        height: 18,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: TurnaTheme.brandTeal,
         ),
-      AiPracticeStatus.failed => const Icon(
-          Icons.error_outline_rounded,
-          size: 18,
-          color: TurnaTheme.error,
+        child: const TurnaIcon(
+          TurnaIconId.play,
+          size: 11,
+          color: TurnaTheme.textOnPrimary,
         ),
-      AiPracticeStatus.interrupted => Icon(
-          Icons.pause_circle_outline_rounded,
-          size: 18,
-          color: TurnaTheme.warning,
-        ),
+      ),
+      AiPracticeStatus.failed => const TurnaIcon(
+        TurnaIconId.error,
+        size: 18,
+        color: TurnaTheme.error,
+      ),
+      AiPracticeStatus.interrupted => const TurnaIcon(
+        TurnaIconId.pause,
+        size: 18,
+        color: TurnaTheme.warning,
+      ),
     };
   }
 }

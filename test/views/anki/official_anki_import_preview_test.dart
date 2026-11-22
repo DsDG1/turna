@@ -7,14 +7,17 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_import/anki_import_adaptation_drafts.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
 import 'package:turna/views/anki/import_wizard/study_preset_selector.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 void main() {
-  testWidgets('modern preview shows course overview, stats and deck tree',
-      (tester) async {
+  testWidgets('modern preview shows course overview, stats and deck tree', (
+    tester,
+  ) async {
     final controller = _StubController();
     final preview = OfficialAnkiImportPreviewModel(
       plan: _plan(),
@@ -25,7 +28,10 @@ void main() {
       noteCount: 42,
       decks: const [
         OfficialAnkiDeckNode(
-            deckId: 1, name: 'Biology::Genetics::Mendel', level: 1),
+          deckId: 1,
+          name: 'Biology::Genetics::Mendel',
+          level: 1,
+        ),
       ],
       cardCountByDeck: const {1: 42},
       schemas: [
@@ -37,10 +43,7 @@ void main() {
           templateNames: const ['Card 1'],
           schemaFingerprint: 'fp',
           samples: const [
-            OfficialAnkiProjectionSample(
-              noteId: 1,
-              fields: ['Trait', '性状'],
-            ),
+            OfficialAnkiProjectionSample(noteId: 1, fields: ['Trait', '性状']),
           ],
         ),
       ],
@@ -69,15 +72,17 @@ void main() {
       },
     );
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
-          error: null,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: preview,
+            controller: controller,
+            error: null,
+          ),
         ),
       ),
-    ));
+    );
 
     // 1. 验证课程概览头部与卡片统计（标题用文件名，不再用树的第一个根）
     expect(find.text('Biology.apkg'), findsOneWidget);
@@ -95,7 +100,11 @@ void main() {
     expect(find.text('完整章节目录'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Genetics'), 200);
     expect(find.text('Mendel'), findsNothing);
-    await tester.tap(find.byIcon(Icons.keyboard_arrow_right_rounded));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is TurnaIcon && w.id == TurnaIconId.chevronRight,
+      ),
+    );
     await tester.pump();
     await tester.scrollUntilVisible(find.text('Mendel'), 200);
     expect(find.text('Mendel'), findsOneWidget);
@@ -104,8 +113,9 @@ void main() {
     expect(find.text('开始导入'), findsOneWidget);
   });
 
-  testWidgets('switching study preset mode updates suggestions',
-      (tester) async {
+  testWidgets('switching study preset mode updates suggestions', (
+    tester,
+  ) async {
     final controller = _RecordingController();
     final schema = OfficialAnkiProjectionSchema(
       notetypeId: 1,
@@ -123,9 +133,7 @@ void main() {
       sourceHash: 'h',
       cardCount: 10,
       noteCount: 10,
-      decks: const [
-        OfficialAnkiDeckNode(deckId: 1, name: 'Vocab', level: 1),
-      ],
+      decks: const [OfficialAnkiDeckNode(deckId: 1, name: 'Vocab', level: 1)],
       cardCountByDeck: const {1: 10},
       schemas: [schema],
       suggestions: const {
@@ -153,14 +161,16 @@ void main() {
       },
     );
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: preview,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
 
     // 全局预设只改未确认行，不把该行标成 userConfirmed。
     await tester.tap(find.text('经典闪卡翻面'));
@@ -176,8 +186,9 @@ void main() {
     );
   });
 
-  testWidgets('blocking schema displays warning and allows in-place picking',
-      (tester) async {
+  testWidgets('blocking schema displays warning and allows in-place picking', (
+    tester,
+  ) async {
     final controller = _RecordingController();
     final schema = OfficialAnkiProjectionSchema(
       notetypeId: 99,
@@ -202,9 +213,7 @@ void main() {
       sourceHash: 'h',
       cardCount: 5,
       noteCount: 5,
-      decks: const [
-        OfficialAnkiDeckNode(deckId: 1, name: 'Exam', level: 1),
-      ],
+      decks: const [OfficialAnkiDeckNode(deckId: 1, name: 'Exam', level: 1)],
       schemas: [schema],
       suggestions: const {
         99: OfficialAnkiMappingSuggestion(
@@ -230,14 +239,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: preview,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
 
     // 1. 验证阻断提示条显示
     await tester.ensureVisible(find.text('选正面'));
@@ -265,118 +276,125 @@ void main() {
   });
 
   testWidgets(
-      'shows choice badge and clicking chapter node opens mcq preview sheet',
-      (tester) async {
-    final controller = _RecordingController();
-    final schema = OfficialAnkiProjectionSchema(
-      notetypeId: 10,
-      name: 'ExamMCQ',
-      kind: 'normal',
-      fieldNames: const [
-        'Question',
-        'OptionA',
-        'OptionB',
-        'OptionC',
-        'OptionD',
-        'Answer'
-      ],
-      templateNames: const ['Card 1'],
-      schemaFingerprint: 'fp_mcq',
-      samples: const [
-        OfficialAnkiProjectionSample(
-          noteId: 1,
-          fields: [
-            '我国第一部社会主义类型的宪法是哪一年颁布的？',
-            '1949年',
-            '1954年',
-            '1978年',
-            '1982年',
-            'B',
-          ],
-        ),
-      ],
-    );
+    'shows choice badge and clicking chapter node opens mcq preview sheet',
+    (tester) async {
+      final controller = _RecordingController();
+      final schema = OfficialAnkiProjectionSchema(
+        notetypeId: 10,
+        name: 'ExamMCQ',
+        kind: 'normal',
+        fieldNames: const [
+          'Question',
+          'OptionA',
+          'OptionB',
+          'OptionC',
+          'OptionD',
+          'Answer',
+        ],
+        templateNames: const ['Card 1'],
+        schemaFingerprint: 'fp_mcq',
+        samples: const [
+          OfficialAnkiProjectionSample(
+            noteId: 1,
+            fields: [
+              '我国第一部社会主义类型的宪法是哪一年颁布的？',
+              '1949年',
+              '1954年',
+              '1978年',
+              '1982年',
+              'B',
+            ],
+          ),
+        ],
+      );
 
-    final preview = OfficialAnkiImportPreviewModel(
-      plan: _plan(),
-      filePath: 'Politics.apkg',
-      sourceId: 'src-1',
-      sourceHash: 'h',
-      cardCount: 50,
-      noteCount: 50,
-      decks: const [
-        OfficialAnkiDeckNode(
-            deckId: 1, name: 'Politics::Constitution', level: 1),
-      ],
-      cardCountByDeck: const {1: 50},
-      schemas: [schema],
-      suggestions: const {
-        10: OfficialAnkiMappingSuggestion(
-          status: OfficialAnkiMappingStatus.auto,
-          archetype: 'choice',
-          enabledKinds: ['multipleChoice', 'flip'],
-          candidates: [
-            OfficialAnkiFieldCandidate(
-              role: FieldRole.prompt,
-              fieldIndex: 0,
-              fieldName: 'Question',
-              confidence: 0.9,
-              evidence: [],
+      final preview = OfficialAnkiImportPreviewModel(
+        plan: _plan(),
+        filePath: 'Politics.apkg',
+        sourceId: 'src-1',
+        sourceHash: 'h',
+        cardCount: 50,
+        noteCount: 50,
+        decks: const [
+          OfficialAnkiDeckNode(
+            deckId: 1,
+            name: 'Politics::Constitution',
+            level: 1,
+          ),
+        ],
+        cardCountByDeck: const {1: 50},
+        schemas: [schema],
+        suggestions: const {
+          10: OfficialAnkiMappingSuggestion(
+            status: OfficialAnkiMappingStatus.auto,
+            archetype: 'choice',
+            enabledKinds: ['multipleChoice', 'flip'],
+            candidates: [
+              OfficialAnkiFieldCandidate(
+                role: FieldRole.prompt,
+                fieldIndex: 0,
+                fieldName: 'Question',
+                confidence: 0.9,
+                evidence: [],
+              ),
+              OfficialAnkiFieldCandidate(
+                role: FieldRole.response,
+                fieldIndex: 5,
+                fieldName: 'Answer',
+                confidence: 0.9,
+                evidence: [],
+              ),
+            ],
+          ),
+        },
+      );
+
+      tester.view.physicalSize = const Size(1000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ModernAnkiImportPreview(
+              preview: preview,
+              controller: controller,
             ),
-            OfficialAnkiFieldCandidate(
-              role: FieldRole.response,
-              fieldIndex: 5,
-              fieldName: 'Answer',
-              confidence: 0.9,
-              evidence: [],
-            ),
-          ],
+          ),
         ),
-      },
-    );
+      );
 
-    tester.view.physicalSize = const Size(1000, 2000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+      // 1. 验证顶部显示了选择题识别徽章
+      expect(find.text('选择题已自动识别'), findsOneWidget);
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
-        ),
-      ),
-    ));
+      // 2. 验证章节树显示了单选题标签
+      await tester.ensureVisible(find.text('单选'));
+      expect(find.text('单选'), findsOneWidget);
 
-    // 1. 验证顶部显示了选择题识别徽章
-    expect(find.text('选择题已自动识别'), findsOneWidget);
+      // 3. 点击「单选」标签打开样题预览抽屉
+      await tester.tap(find.text('单选'));
+      await tester.pumpAndSettle();
 
-    // 2. 验证章节树显示了单选题标签
-    await tester.ensureVisible(find.text('单选'));
-    expect(find.text('单选'), findsOneWidget);
+      // 4. 验证抽屉内渲染了题干与选项，且正确选项有正确答案标识
+      expect(find.text('题型效果预览（ExamMCQ）'), findsOneWidget);
+      expect(find.text('我国第一部社会主义类型的宪法是哪一年颁布的？'), findsOneWidget);
+      expect(find.text('1954年'), findsOneWidget);
+      expect(find.text('正确答案'), findsOneWidget);
 
-    // 3. 点击「单选」标签打开样题预览抽屉
-    await tester.tap(find.text('单选'));
-    await tester.pumpAndSettle();
+      // 5. 点击「完成」关闭抽屉
+      await tester.ensureVisible(find.text('完成'));
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+      expect(find.text('题型效果预览（ExamMCQ）'), findsNothing);
+    },
+  );
 
-    // 4. 验证抽屉内渲染了题干与选项，且正确选项有正确答案标识
-    expect(find.text('题型效果预览（ExamMCQ）'), findsOneWidget);
-    expect(find.text('我国第一部社会主义类型的宪法是哪一年颁布的？'), findsOneWidget);
-    expect(find.text('1954年'), findsOneWidget);
-    expect(find.text('正确答案'), findsOneWidget);
-
-    // 5. 点击「完成」关闭抽屉
-    await tester.ensureVisible(find.text('完成'));
-    await tester.tap(find.text('完成'));
-    await tester.pumpAndSettle();
-    expect(find.text('题型效果预览（ExamMCQ）'), findsNothing);
-  });
-
-  testWidgets('deck inspect opens the notetype that owns that deck',
-      (tester) async {
+  testWidgets('deck inspect opens the notetype that owns that deck', (
+    tester,
+  ) async {
     final controller = _RecordingController();
     OfficialAnkiProjectionSchema schema(int id, String name) {
       return OfficialAnkiProjectionSchema(
@@ -423,14 +441,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: preview,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
 
     await tester.ensureVisible(find.text('填空'));
     await tester.tap(find.text('填空'));
@@ -438,8 +458,9 @@ void main() {
     expect(find.text('题型效果预览（Cloze）'), findsOneWidget);
   });
 
-  testWidgets('one notetype dropdown does not confirm the other row',
-      (tester) async {
+  testWidgets('one notetype dropdown does not confirm the other row', (
+    tester,
+  ) async {
     final controller = _RecordingController();
     OfficialAnkiProjectionSchema schema(int id, String name) {
       return OfficialAnkiProjectionSchema(
@@ -459,9 +480,7 @@ void main() {
       sourceHash: 'h',
       cardCount: 4,
       noteCount: 4,
-      decks: const [
-        OfficialAnkiDeckNode(deckId: 1, name: 'A', level: 0),
-      ],
+      decks: const [OfficialAnkiDeckNode(deckId: 1, name: 'A', level: 0)],
       includedDeckIds: const {1},
       schemas: [schema(1, 'Basic'), schema(2, 'Cloze')],
       suggestions: const {},
@@ -474,14 +493,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: preview,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
 
     await tester.tap(find.byType(DropdownButton<StudyPresetMode>).at(1));
     await tester.pumpAndSettle();
@@ -510,9 +531,7 @@ void main() {
       sourceHash: 'h',
       cardCount: 5,
       noteCount: 5,
-      decks: const [
-        OfficialAnkiDeckNode(deckId: 1, name: 'Exam', level: 0),
-      ],
+      decks: const [OfficialAnkiDeckNode(deckId: 1, name: 'Exam', level: 0)],
       includedDeckIds: const {1},
       schemas: [schema],
       suggestions: const {
@@ -531,14 +550,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: blocked,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: blocked,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
     expect(
       tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
       isNull,
@@ -561,22 +582,25 @@ void main() {
       suggestions: blocked.suggestions,
       skippedNotetypes: const {99},
     );
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: skipped,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: skipped,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
     expect(
       tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
       isNotNull,
     );
   });
 
-  testWidgets('unchecking a deck records it as excluded from the course',
-      (tester) async {
+  testWidgets('unchecking a deck records it as excluded from the course', (
+    tester,
+  ) async {
     final controller = _RecordingController();
     final preview = OfficialAnkiImportPreviewModel(
       plan: _plan(),
@@ -611,14 +635,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ModernAnkiImportPreview(
-          preview: preview,
-          controller: controller,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ModernAnkiImportPreview(
+            preview: preview,
+            controller: controller,
+          ),
         ),
       ),
-    ));
+    );
 
     final boxes = find.byType(Checkbox);
     expect(boxes, findsNWidgets(2));
@@ -627,27 +653,30 @@ void main() {
     expect(controller.toggledDecks, [(8, false)]);
   });
 
-  testWidgets('done step states new notes, skipped notes, parts and media',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: AnkiImportDoneStep(
-        summary: const AnkiImportSummary(
-          importId: 'src',
-          sectionCount: 2,
-          lessonCount: 4,
-          cardCount: 10,
-          wordEntryCount: 0,
-          newNoteCount: 6,
-          duplicateNoteCount: 2,
-          partCount: 3,
-          includeMedia: false,
+  testWidgets('done step states new notes, skipped notes, parts and media', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AnkiImportDoneStep(
+          summary: const AnkiImportSummary(
+            importId: 'src',
+            sectionCount: 2,
+            lessonCount: 4,
+            cardCount: 10,
+            wordEntryCount: 0,
+            newNoteCount: 6,
+            duplicateNoteCount: 2,
+            partCount: 3,
+            includeMedia: false,
+          ),
+          keptLearningProgress: true,
+          onStartLearningNow: () {},
+          onViewDecks: () {},
+          onDone: () {},
         ),
-        keptLearningProgress: true,
-        onStartLearningNow: () {},
-        onViewDecks: () {},
-        onDone: () {},
       ),
-    ));
+    );
 
     expect(find.text('本次新增 6 条笔记'), findsOneWidget);
     expect(find.text('已存在并跳过 2 条笔记'), findsOneWidget);
@@ -658,15 +687,15 @@ void main() {
 }
 
 AnkiImportExecutionPlan _plan() => const AnkiImportExecutionPlan(
-      productMode: AnkiProductMode.officialAndroid,
-      kind: AnkiImportExecutionKind.officialFirst,
-      owner: AnkiImportOwner.official,
-      platform: 'test',
-      writesLegacyNoteStore: false,
-      writesTurnaAnkiSrs: false,
-      writesOfficialCollection: true,
-      reason: 'test',
-    );
+  productMode: AnkiProductMode.officialAndroid,
+  kind: AnkiImportExecutionKind.officialFirst,
+  owner: AnkiImportOwner.official,
+  platform: 'test',
+  writesLegacyNoteStore: false,
+  writesTurnaAnkiSrs: false,
+  writesOfficialCollection: true,
+  reason: 'test',
+);
 
 class _StubController implements AnkiImportController {
   @override

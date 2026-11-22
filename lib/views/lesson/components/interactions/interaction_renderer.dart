@@ -15,11 +15,13 @@ import 'package:turna/core/motion.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 // Re-exported for the ~22 files that historically imported the state types
 // from this file; the definitions live in the domain layer now.
@@ -114,11 +116,7 @@ class LessonActionDraft {
   }
 
   /// renderer 在 build 里调用一次.
-  void report({
-    required bool canSubmit,
-    VoidCallback? submit,
-    String? label,
-  }) {
+  void report({required bool canSubmit, VoidCallback? submit, String? label}) {
     _hasCta = true;
     _submit = submit;
     _label = label;
@@ -251,7 +249,7 @@ class _LessonCheckButtonState extends State<LessonCheckButton> {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(TurnaTheme.radiusOption);
+    const radius = TurnaTheme.borderRadius;
     final enabled = widget.enabled;
     final lifted = enabled && !_pressed;
     final a11y = accessibilityOf(context);
@@ -432,8 +430,9 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
         final t = _verdict.value;
         if (t == 0.0) return child!;
         // 错误: 频率 2 个周期, 振幅随时间衰减. 正确: 单峰轻弹.
-        final dx =
-            widget.isWrong ? math.sin(t * math.pi * 4) * 6 * (1 - t) : 0.0;
+        final dx = widget.isWrong
+            ? math.sin(t * math.pi * 4) * 6 * (1 - t)
+            : 0.0;
         final scale = widget.isCorrect ? 1 + 0.03 * math.sin(t * math.pi) : 1.0;
         return Transform.translate(
           offset: Offset(dx, 0),
@@ -451,10 +450,11 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
     // 选中 teal 6%；判分用语义色淡底（与圈、图标同一色相）。
     final rowColor = switch (stateAccent) {
       null => Colors.transparent,
-      final accent =>
-        accent.withValues(alpha: accent == TurnaTheme.brandTeal ? 0.06 : 0.10),
+      final accent => accent.withValues(
+        alpha: accent == TurnaTheme.brandTeal ? 0.06 : 0.10,
+      ),
     };
-    final radius = BorderRadius.circular(TurnaTheme.radiusMedium);
+    const radius = TurnaTheme.borderRadius;
 
     return Padding(
       // 高亮底左右外扩 8：比题干/文本列宽出一圈，选中行一眼成块。
@@ -473,8 +473,10 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
               child: AnimatedContainer(
                 duration: TurnaMotion.scaled(TurnaMotion.base, reduceMotion),
                 curve: Curves.easeOutCubic,
-                decoration:
-                    BoxDecoration(color: rowColor, borderRadius: radius),
+                decoration: BoxDecoration(
+                  color: rowColor,
+                  borderRadius: radius,
+                ),
                 child: Material(
                   type: MaterialType.transparency,
                   child: InkWell(
@@ -507,13 +509,11 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
                           Expanded(
                             child: Text(
                               widget.label,
-                              style: TextStyle(
-                                fontSize: 16,
+                              style: AppTextStyles.bodyText(context).copyWith(
                                 height: 1.4,
                                 fontWeight: stateAccent == null
                                     ? FontWeight.w500
                                     : FontWeight.w600,
-                                color: TurnaTheme.textPrimaryColor(context),
                               ),
                             ),
                           ),
@@ -526,10 +526,7 @@ class _InteractionOptionTileState extends State<InteractionOptionTile>
             ),
           ),
           if (widget.showDivider)
-            Container(
-              height: 1,
-              color: TurnaTheme.dividerBg(context),
-            ),
+            Container(height: 1, color: TurnaTheme.dividerBg(context)),
         ],
       ),
     );
@@ -566,15 +563,12 @@ class _NumberRing extends StatelessWidget {
       child: accent == null
           ? Text(
               '$index',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: hint,
-                height: 1,
-              ),
+              style: AppTextStyles.captionSm(
+                context,
+              ).copyWith(fontWeight: FontWeight.w600, color: hint, height: 1),
             )
-          : Icon(
-              isWrong ? Icons.close : Icons.check,
+          : TurnaIcon(
+              isWrong ? TurnaIconId.close : TurnaIconId.check,
               size: 15,
               color: TurnaTheme.textOnPrimary,
             ),
@@ -618,20 +612,18 @@ class WordChip extends StatelessWidget {
         color: bg,
         shape: RoundedRectangleBorder(
           side: BorderSide(color: border, width: 1.5),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          borderRadius: TurnaTheme.borderRadius,
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          borderRadius: TurnaTheme.borderRadius,
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: fg,
-              ),
+              style: AppTextStyles.bodyText(
+                context,
+              ).copyWith(fontWeight: FontWeight.w600, color: fg, height: 1.2),
             ),
           ),
         ),
@@ -688,10 +680,12 @@ class SpeakerButton extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: speaking ? null : onPressed,
-              child: Icon(
-                speaking ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
-                color: TurnaTheme.brandTeal,
-                size: 22,
+              child: Center(
+                child: TurnaIcon(
+                  speaking ? TurnaIconId.waveform : TurnaIconId.speaker,
+                  color: TurnaTheme.brandTeal,
+                  size: 22,
+                ),
               ),
             ),
           ),
@@ -764,10 +758,12 @@ class SpeakerHero extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: speaking ? null : onPressed,
-                child: Icon(
-                  speaking ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
-                  color: TurnaTheme.textOnPrimary,
-                  size: 30,
+                child: Center(
+                  child: TurnaIcon(
+                    speaking ? TurnaIconId.waveform : TurnaIconId.speaker,
+                    color: TurnaTheme.textOnPrimary,
+                    size: 30,
+                  ),
                 ),
               ),
             ),
@@ -790,10 +786,7 @@ class SectionCaption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Text(
-        text.toUpperCase(),
-        style: AppTextStyles.caption(context),
-      ),
+      child: Text(text.toUpperCase(), style: AppTextStyles.caption(context)),
     );
   }
 }
@@ -802,9 +795,10 @@ class SectionCaption extends StatelessWidget {
 
 @Preview(name: 'Speaker buttons · light', group: 'Wetland mist')
 @Preview(
-    name: 'Speaker buttons · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Speaker buttons · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget speakerButtonsPreview() => const _SpeakerButtonsPreview();
 
 class _SpeakerButtonsPreview extends StatelessWidget {

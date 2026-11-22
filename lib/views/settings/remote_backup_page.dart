@@ -13,6 +13,8 @@ import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
@@ -20,8 +22,10 @@ import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Manual WebDAV remote backup / restore. Everything is user-triggered:
@@ -74,8 +78,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
 
   RemoteBackupConfigStore? get _configStore =>
       getIt.isRegistered<RemoteBackupConfigStore>()
-          ? getIt<RemoteBackupConfigStore>()
-          : null;
+      ? getIt<RemoteBackupConfigStore>()
+      : null;
 
   /// Whether this build can actually talk to a WebDAV server.
   ///
@@ -168,23 +172,30 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     final resolved = await _configStore?.loadResolved();
     if (resolved == null || !resolved.isConfigured) return;
     setState(
-        () => _remoteStatusText = AppStrings.remoteBackupRemoteStatusLoading);
+      () => _remoteStatusText = AppStrings.remoteBackupRemoteStatusLoading,
+    );
     try {
       final manifest = await service.fetchRemoteStatus();
       if (!mounted) return;
       if (manifest == null) {
         setState(() => _remoteStatusText = AppStrings.remoteBackupNoBackupYet);
       } else {
-        final time =
-            DateFormat('yyyy-MM-dd HH:mm').format(manifest.createdAtUtc);
-        setState(() => _remoteStatusText =
-            AppStrings.remoteBackupRemoteStatusValue(
-                time, manifest.deviceLabel));
+        final time = DateFormat('yyyy-MM-dd HH:mm')
+            .format(manifest.createdAtUtc);
+        setState(
+          () => _remoteStatusText = AppStrings.remoteBackupRemoteStatusValue(
+            time,
+            manifest.deviceLabel,
+          ),
+        );
       }
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _remoteStatusText =
-          AppStrings.remoteBackupRemoteStatusError(_errText(e)));
+      setState(
+        () => _remoteStatusText = AppStrings.remoteBackupRemoteStatusError(
+          _errText(e),
+        ),
+      );
     }
   }
 
@@ -192,8 +203,10 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   /// replaced when the (masked) password field contains a new entry; an
   /// empty field plus the "已保存凭据" placeholder keeps the existing one.
   Future<void> _saveAndTest() async {
-    logger.d('SAVEANDTEST: store=${_configStore != null} busy=$_busy '
-        'canSave=$_canSave');
+    logger.d(
+      'SAVEANDTEST: store=${_configStore != null} busy=$_busy '
+      'canSave=$_canSave',
+    );
     final store = _configStore;
     if (store == null || _busy) return;
     setState(() {
@@ -202,10 +215,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     });
     try {
       final endpoint = _endpoint
-          .copyWith(
-            serverUrl: _urlCtrl.text,
-            username: _userCtrl.text,
-          )
+          .copyWith(serverUrl: _urlCtrl.text, username: _userCtrl.text)
           .normalized();
       // Refuse before anything is written or any password is stored: the
       // same shared policy the AI base URL uses (see EndpointUrlPolicy).
@@ -295,13 +305,19 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         },
         onMediaProgress: (done, total) {
           if (!mounted) return;
-          setState(() =>
-              _stage = AppStrings.remoteBackupPhaseHashingMedia(done, total));
+          setState(
+            () =>
+                _stage = AppStrings.remoteBackupPhaseHashingMedia(done, total),
+          );
         },
         onMediaUploadProgress: (uploaded, skipped) {
           if (!mounted) return;
-          setState(() => _stage =
-              AppStrings.remoteBackupPhaseUploadingMedia(uploaded, skipped));
+          setState(
+            () => _stage = AppStrings.remoteBackupPhaseUploadingMedia(
+              uploaded,
+              skipped,
+            ),
+          );
         },
       );
       _lastLocal = service.lastLocalBackup();
@@ -311,7 +327,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         _stage = null;
       });
       _showSnack(
-          AppStrings.remoteBackupSuccess(_formatBytes(result.coreZipBytes)));
+        AppStrings.remoteBackupSuccess(_formatBytes(result.coreZipBytes)),
+      );
       unawaited(_refreshRemoteStatus());
     } on Object catch (e) {
       if (!mounted) return;
@@ -347,15 +364,14 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       return;
     }
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTurnaConfirmDialog(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.remoteBackupRestoreDialogTitle,
-        message: AppStrings.remoteBackupRestoreDialogMessage,
-        confirmText: AppStrings.remoteBackupRestoreConfirm,
-      ),
+      title: AppStrings.remoteBackupRestoreDialogTitle,
+      message: AppStrings.remoteBackupRestoreDialogMessage,
+      confirmLabel: AppStrings.remoteBackupRestoreConfirm,
+      destructive: true,
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() {
       _restoring = true;
@@ -370,8 +386,9 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         manifest,
         onMediaProgress: (done, total) {
           if (!mounted) return;
-          setState(() =>
-              _stage = AppStrings.remoteBackupRestoringMedia(done, total));
+          setState(
+            () => _stage = AppStrings.remoteBackupRestoringMedia(done, total),
+          );
         },
       );
       if (!mounted) return;
@@ -379,12 +396,10 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         _restoring = false;
         _stage = null;
       });
-      await showDialog<void>(
+      await showTurnaInfoDialog(
         context: context,
-        builder: (_) => SettingsInfoDialog(
-          title: AppStrings.remoteBackupRestoreStagedTitle,
-          message: AppStrings.remoteBackupRestoreStagedMessage,
-        ),
+        title: AppStrings.remoteBackupRestoreStagedTitle,
+        message: AppStrings.remoteBackupRestoreStagedMessage,
       );
     } on Object catch (e) {
       if (!mounted) return;
@@ -433,7 +448,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
               if (_blockedNotice != null) ...[
                 SettingsInfoCard(
                   tone: SettingsInfoTone.warning,
-                  icon: Icons.warning_amber_rounded,
+                  iconId: TurnaIconId.warning,
                   text: _blockedNotice!,
                 ),
                 const SizedBox(height: 12),
@@ -446,7 +461,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
               const SizedBox(height: 20),
               SettingsInfoCard(
                 tone: SettingsInfoTone.neutral,
-                icon: Icons.info_outline,
+                iconId: TurnaIconId.info,
                 text: AppStrings.remoteBackupHint,
               ),
             ],
@@ -461,7 +476,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionTitle(
-          icon: Icons.dns_outlined,
+          iconId: TurnaIconId.storage,
           title: AppStrings.remoteBackupServerSection,
         ),
         const SizedBox(height: 8),
@@ -481,7 +496,9 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                       keyboardType: TextInputType.url,
                       autocorrect: false,
                       decoration: _inputDecoration(
-                          context, AppStrings.remoteBackupServerUrlHint),
+                        context,
+                        AppStrings.remoteBackupServerUrlHint,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -493,7 +510,9 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                       enabled: !_busy,
                       autocorrect: false,
                       decoration: _inputDecoration(
-                          context, AppStrings.remoteBackupUsernameHint),
+                        context,
+                        AppStrings.remoteBackupUsernameHint,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -514,15 +533,16 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                           tooltip: _obscurePassword
                               ? AppStrings.commonShowPassword
                               : AppStrings.commonHidePassword,
-                          icon: Icon(
+                          icon: TurnaIcon(
                             _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
+                                ? TurnaIconId.eyeOff
+                                : TurnaIconId.eye,
                             size: 20,
                             color: TurnaTheme.textHintColor(context),
                           ),
                           onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                     ),
@@ -532,7 +552,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                     label: _saving
                         ? AppStrings.remoteBackupSaving
                         : AppStrings.remoteBackupSaveAndTest,
-                    icon: Icons.save_rounded,
+                    iconId: TurnaIconId.save,
                     onPressed: _canSave ? _saveAndTest : null,
                   ),
                   if (_testResult != null) ...[
@@ -554,19 +574,20 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Row(
         children: [
-          Icon(_testOk ? Icons.check_circle : Icons.error_outline,
-              size: 18, color: color),
+          TurnaIcon(
+            _testOk ? TurnaIconId.checkCircle : TurnaIconId.error,
+            size: 18,
+            color: color,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _testResult!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
+              style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: color, fontWeight: FontWeight.w600),
             ),
           ),
@@ -589,7 +610,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionTitle(
-          icon: Icons.schedule_rounded,
+          iconId: TurnaIconId.timer,
           title: AppStrings.remoteBackupRecentSection,
         ),
         const SizedBox(height: 8),
@@ -619,14 +640,14 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionTitle(
-          icon: Icons.play_circle_outline,
+          iconId: TurnaIconId.play,
           title: AppStrings.remoteBackupActionsSection,
         ),
         const SizedBox(height: 8),
         SettingsCard(
           children: [
             SettingsSwitchTile(
-              icon: Icons.image_outlined,
+              iconId: TurnaIconId.image,
               title: AppStrings.remoteBackupIncludeMediaTitle,
               subtitle: AppStrings.remoteBackupIncludeMediaSubtitle,
               value: _endpoint.includeMedia,
@@ -634,7 +655,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
             ),
             settingsTileDivider(context),
             SettingsActionTile(
-              icon: Icons.backup_outlined,
+              iconId: TurnaIconId.upload,
               title: AppStrings.remoteBackupBackupNow,
               subtitle: AppStrings.remoteBackupBackupNowSubtitle,
               enabled: !busy,
@@ -642,7 +663,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
             ),
             settingsTileDivider(context),
             SettingsActionTile(
-              icon: Icons.settings_backup_restore_rounded,
+              iconId: TurnaIconId.restore,
               title: AppStrings.remoteBackupRestoreFromRemote,
               subtitle: AppStrings.remoteBackupRestoreSubtitle,
               enabled: !busy,
@@ -654,11 +675,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                 child: Row(
                   children: [
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                    const TurnaLoader.button(),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -686,9 +703,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       children: [
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
+          style: Theme.of(context).textTheme.bodyMedium
               ?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
@@ -701,15 +716,12 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     BuildContext context,
     String hint, {
     Widget? suffixIcon,
-  }) =>
-      InputDecoration(
-        hintText: hint,
-        suffixIcon: suffixIcon,
-        isDense: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        ),
-      );
+  }) => InputDecoration(
+    hintText: hint,
+    suffixIcon: suffixIcon,
+    isDense: true,
+    border: OutlineInputBorder(borderRadius: TurnaTheme.borderRadius),
+  );
 }
 
 String _formatBytes(int bytes) {
@@ -738,16 +750,16 @@ class _ResultRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textSecondaryColor(context)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: AppTextStyles.cardTitle(context).copyWith(fontSize: 14),
+              style: AppTextStyles.bodyText(context)
+                  .copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],

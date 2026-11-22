@@ -31,6 +31,7 @@ import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/anki_review_session_page.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -71,10 +72,7 @@ void main() {
     srs = SrsProvider(appPrefs, LessonLinkStore(appPrefs), SrsStateDao(db));
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<AnkiDeckManager>(
-      AnkiDeckManager(
-        repo: CourseRepository(db),
-        appPrefs: appPrefs,
-      ),
+      AnkiDeckManager(repo: CourseRepository(db), appPrefs: appPrefs),
     );
     savedFlags = OfficialAnkiFeatureFlags.current;
     OfficialAnkiFeatureFlags.current = flags;
@@ -101,50 +99,48 @@ void main() {
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: importId,
-          sourceId: importId,
-          deckId: 1,
-          cardIds: {1, 2},
-        ),
-        activePlacementCardIds: (_) => {1, 2},
-        presentationsForCards: ({
-          required String sourceId,
-          required Iterable<OfficialReviewQueueCard> cards,
-        }) async {
-          return {
-            for (final card in cards)
-              CanonicalCardKey(
-                backend: AnkiBackendKind.official,
-                profileId: 'profile-default-01',
-                sourceId: sourceId,
-                cardId: card.cardId,
-              ): FlipCardPresentation(
-                cardKey: CanonicalCardKey(
-                  backend: AnkiBackendKind.official,
-                  profileId: 'profile-default-01',
-                  sourceId: sourceId,
-                  cardId: card.cardId,
-                ),
-                frontText: 'front-${card.cardId}',
-                backText: 'back-${card.cardId}',
-                sourceFingerprint: 't',
-              ),
-          };
-        },
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
             flags: flags,
-            allowedCardIds: allowedCardIds,
+            engine: engine,
+            resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+              importId: importId,
+              sourceId: importId,
+              deckId: 1,
+              cardIds: {1, 2},
+            ),
+            activePlacementCardIds: (_) => {1, 2},
+            presentationsForCards:
+                ({
+                  required String sourceId,
+                  required Iterable<OfficialReviewQueueCard> cards,
+                }) async {
+                  return {
+                    for (final card in cards)
+                      CanonicalCardKey(
+                        backend: AnkiBackendKind.official,
+                        profileId: 'profile-default-01',
+                        sourceId: sourceId,
+                        cardId: card.cardId,
+                      ): FlipCardPresentation(
+                        cardKey: CanonicalCardKey(
+                          backend: AnkiBackendKind.official,
+                          profileId: 'profile-default-01',
+                          sourceId: sourceId,
+                          cardId: card.cardId,
+                        ),
+                        frontText: 'front-${card.cardId}',
+                        backText: 'back-${card.cardId}',
+                        sourceFingerprint: 't',
+                      ),
+                  };
+                },
+            sessionFactory: ({required engine, required allowedCardIds}) async {
+              return OfficialReviewSession(
+                engine: engine,
+                flags: flags,
+                allowedCardIds: allowedCardIds,
+              );
+            },
           );
-        },
-      );
 
       expect(
         AnkiReviewSessionPage.debugOfficialBatchBuilder,
@@ -159,9 +155,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
           ],
           child: const MaterialApp(
-            home: AnkiReviewSessionPage(
-              sectionId: 'anki-src-official-page-s1',
-            ),
+            home: AnkiReviewSessionPage(sectionId: 'anki-src-official-page-s1'),
           ),
         ),
       );
@@ -172,61 +166,62 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TurnaLoader), findsNothing);
       expect(find.textContaining('front-1'), findsWidgets);
     },
   );
 
-  test(
-    'productionLoader default path renders non-empty faces without presentationsForCards',
-    () async {
-      final engine = FakeOfficialAnkiEngine();
-      engine.seedPackage(packagePath: 'loader.apkg', notes: 2, cards: 2);
-      // No presentationsForCards — must use engine.renderCard → Flip text.
-      final loader = OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: 'src-l',
-          sourceId: 'src-l',
-          deckId: 1,
-          cardIds: {1, 2},
-        ),
-        activePlacementCardIds: (_) => {1, 2},
-      );
-
-      final result = await loader.load(
+  test('productionLoader default path renders non-empty faces without presentationsForCards', () async {
+    final engine = FakeOfficialAnkiEngine();
+    engine.seedPackage(packagePath: 'loader.apkg', notes: 2, cards: 2);
+    // No presentationsForCards — must use engine.renderCard → Flip text.
+    final loader = OfficialFormalReviewProductionLoader(
+      flags: flags,
+      engine: engine,
+      resolveTarget: (_) async => const OfficialAnkiRoutedSource(
         importId: 'src-l',
-        courseId: 'anki-src-l',
-      );
-      expect(result, isA<OfficialFormalReviewReady>());
-      final batch = (result as OfficialFormalReviewReady).batch;
-      expect(batch.items, isNotEmpty);
-      expect(
-        batch.items
-            .every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
-        isTrue,
-      );
-      expect(batch.items.every((i) => i.presentation is FlipCardPresentation),
-          isTrue);
+        sourceId: 'src-l',
+        deckId: 1,
+        cardIds: {1, 2},
+      ),
+      activePlacementCardIds: (_) => {1, 2},
+    );
 
-      for (final item in batch.items) {
-        final body = reviewContentFor(
-          item,
-          fidelityInteractions: batch.fidelityInteractions,
-        );
-        expect(body, isA<StandardCourseCardContent>());
-        final content = body as StandardCourseCardContent;
-        expect(content.frontText, isNotEmpty,
-            reason: 'default production path must not yield blank fronts');
-        expect(content.backText, isNotEmpty,
-            reason: 'default production path must not yield blank backs');
-        expect(content.frontText, startsWith('Q'));
-        expect(content.backText, startsWith('A'));
-      }
-      expect(engine.renderCount, greaterThan(0));
-    },
-  );
+    final result = await loader.load(importId: 'src-l', courseId: 'anki-src-l');
+    expect(result, isA<OfficialFormalReviewReady>());
+    final batch = (result as OfficialFormalReviewReady).batch;
+    expect(batch.items, isNotEmpty);
+    expect(
+      batch.items.every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
+      isTrue,
+    );
+    expect(
+      batch.items.every((i) => i.presentation is FlipCardPresentation),
+      isTrue,
+    );
+
+    for (final item in batch.items) {
+      final body = reviewContentFor(
+        item,
+        fidelityInteractions: batch.fidelityInteractions,
+      );
+      expect(body, isA<StandardCourseCardContent>());
+      final content = body as StandardCourseCardContent;
+      expect(
+        content.frontText,
+        isNotEmpty,
+        reason: 'default production path must not yield blank fronts',
+      );
+      expect(
+        content.backText,
+        isNotEmpty,
+        reason: 'default production path must not yield blank backs',
+      );
+      expect(content.frontText, startsWith('Q'));
+      expect(content.backText, startsWith('A'));
+    }
+    expect(engine.renderCount, greaterThan(0));
+  });
 
   testWidgets(
     'Official owner page default loader shows renderCard text (no Flip inject)',
@@ -239,27 +234,24 @@ void main() {
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: importId,
-          sourceId: importId,
-          deckId: 1,
-          cardIds: {1, 2},
-        ),
-        activePlacementCardIds: (_) => {1, 2},
-        // presentationsForCards intentionally omitted.
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
             flags: flags,
-            allowedCardIds: allowedCardIds,
+            engine: engine,
+            resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+              importId: importId,
+              sourceId: importId,
+              deckId: 1,
+              cardIds: {1, 2},
+            ),
+            activePlacementCardIds: (_) => {1, 2},
+            // presentationsForCards intentionally omitted.
+            sessionFactory: ({required engine, required allowedCardIds}) async {
+              return OfficialReviewSession(
+                engine: engine,
+                flags: flags,
+                allowedCardIds: allowedCardIds,
+              );
+            },
           );
-        },
-      );
       expect(AnkiReviewSessionPage.debugOfficialBatchBuilder, isNull);
 
       await tester.pumpWidget(
@@ -280,7 +272,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TurnaLoader), findsNothing);
       // FakeOfficialAnkiEngine.renderCard returns Q$id / A$id.
       expect(find.textContaining('Q1'), findsWidgets);
     },
@@ -297,26 +289,23 @@ void main() {
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: importId,
-          sourceId: importId,
-          deckId: 1,
-          cardIds: {1, 2},
-        ),
-        activePlacementCardIds: (_) => {1, 2},
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
             flags: flags,
-            allowedCardIds: allowedCardIds,
+            engine: engine,
+            resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+              importId: importId,
+              sourceId: importId,
+              deckId: 1,
+              cardIds: {1, 2},
+            ),
+            activePlacementCardIds: (_) => {1, 2},
+            sessionFactory: ({required engine, required allowedCardIds}) async {
+              return OfficialReviewSession(
+                engine: engine,
+                flags: flags,
+                allowedCardIds: allowedCardIds,
+              );
+            },
           );
-        },
-      );
 
       await tester.pumpWidget(
         MultiProvider(
@@ -325,9 +314,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
           ],
           child: const MaterialApp(
-            home: AnkiReviewSessionPage(
-              sectionId: 'anki-src-answer-s1',
-            ),
+            home: AnkiReviewSessionPage(sectionId: 'anki-src-answer-s1'),
           ),
         ),
       );
@@ -351,88 +338,80 @@ void main() {
     },
   );
 
-  testWidgets(
-    'second card still commits after the first leaves the live queue '
-    '(regression: 当前卡片无法安全写入)',
-    (tester) async {
-      const importId = 'src-answer-2';
-      _registerOfficialImport(importId);
+  testWidgets('second card still commits after the first leaves the live queue '
+      '(regression: 当前卡片无法安全写入)', (tester) async {
+    const importId = 'src-answer-2';
+    _registerOfficialImport(importId);
 
-      final engine = FakeOfficialAnkiEngine();
-      engine.seedPackage(packagePath: 'answer2.apkg', notes: 3, cards: 3);
+    final engine = FakeOfficialAnkiEngine();
+    engine.seedPackage(packagePath: 'answer2.apkg', notes: 3, cards: 3);
 
-      AnkiReviewSessionPage.productionLoader =
-          OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: importId,
-          sourceId: importId,
-          deckId: 1,
-          cardIds: {1, 2, 3},
-        ),
-        activePlacementCardIds: (_) => {1, 2, 3},
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
-            flags: flags,
-            allowedCardIds: allowedCardIds,
-          );
-        },
-      );
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<SrsProvider>.value(value: srs),
-            ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
-          ],
-          child: const MaterialApp(
-            home: AnkiReviewSessionPage(
-              sectionId: 'anki-src-answer-2-s1',
-            ),
+    AnkiReviewSessionPage.productionLoader =
+        OfficialFormalReviewProductionLoader(
+          flags: flags,
+          engine: engine,
+          resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+            importId: importId,
+            sourceId: importId,
+            deckId: 1,
+            cardIds: {1, 2, 3},
           ),
+          activePlacementCardIds: (_) => {1, 2, 3},
+          sessionFactory: ({required engine, required allowedCardIds}) async {
+            return OfficialReviewSession(
+              engine: engine,
+              flags: flags,
+              allowedCardIds: allowedCardIds,
+            );
+          },
+        );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<SrsProvider>.value(value: srs),
+          ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
+        ],
+        child: const MaterialApp(
+          home: AnkiReviewSessionPage(sectionId: 'anki-src-answer-2-s1'),
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 20));
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump(const Duration(milliseconds: 200));
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 200));
 
-      // First card: reveal + 记住 (good) — the card leaves the queue and
-      // the live queue rebuilds the batch in place.
-      expect(find.text(AppStrings.lessonShowAnswer), findsOneWidget);
-      await tester.tap(find.text(AppStrings.lessonShowAnswer));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(engine.officialAnswers, 1);
+    // First card: reveal + 记住 (good) — the card leaves the queue and
+    // the live queue rebuilds the batch in place.
+    expect(find.text(AppStrings.lessonShowAnswer), findsOneWidget);
+    await tester.tap(find.text(AppStrings.lessonShowAnswer));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(engine.officialAnswers, 1);
 
-      // Second card: must advance onto the scheduler's refreshed current
-      // and commit without schedulingContextStale.
-      expect(find.text(AppStrings.lessonShowAnswer), findsOneWidget);
-      await tester.tap(find.text(AppStrings.lessonShowAnswer));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(find.text(AppStrings.reviewBinaryRemembered), findsOneWidget);
-      await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+    // Second card: must advance onto the scheduler's refreshed current
+    // and commit without schedulingContextStale.
+    expect(find.text(AppStrings.lessonShowAnswer), findsOneWidget);
+    await tester.tap(find.text(AppStrings.lessonShowAnswer));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text(AppStrings.reviewBinaryRemembered), findsOneWidget);
+    await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
-      expect(engine.officialAnswers, 2);
-      expect(engine.answeredIds, containsAll([1, 2]));
-      expect(
-        find.byKey(const Key('anki-study-session-error')),
-        findsNothing,
-        reason: 'the second commit must not enter recoverableError',
-      );
-    },
-  );
+    expect(engine.officialAnswers, 2);
+    expect(engine.answeredIds, containsAll([1, 2]));
+    expect(
+      find.byKey(const Key('anki-study-session-error')),
+      findsNothing,
+      reason: 'the second commit must not enter recoverableError',
+    );
+  });
 
   testWidgets(
     'completion summary counts answered cards, not the residual live queue '
@@ -446,26 +425,23 @@ void main() {
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: importId,
-          sourceId: importId,
-          deckId: 1,
-          cardIds: {1, 2, 3},
-        ),
-        activePlacementCardIds: (_) => {1, 2, 3},
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
             flags: flags,
-            allowedCardIds: allowedCardIds,
+            engine: engine,
+            resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+              importId: importId,
+              sourceId: importId,
+              deckId: 1,
+              cardIds: {1, 2, 3},
+            ),
+            activePlacementCardIds: (_) => {1, 2, 3},
+            sessionFactory: ({required engine, required allowedCardIds}) async {
+              return OfficialReviewSession(
+                engine: engine,
+                flags: flags,
+                allowedCardIds: allowedCardIds,
+              );
+            },
           );
-        },
-      );
 
       await tester.pumpWidget(
         MultiProvider(
@@ -474,9 +450,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
           ],
           child: const MaterialApp(
-            home: AnkiReviewSessionPage(
-              sectionId: 'anki-src-summary-s1',
-            ),
+            home: AnkiReviewSessionPage(sectionId: 'anki-src-summary-s1'),
           ),
         ),
       );
@@ -497,9 +471,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(engine.officialAnswers, 3);
-      expect(find.text(AppStrings.reviewCompletionTitle), findsOneWidget,
-          reason: 'a completed session with answered cards must show the '
-              'summary, even when the live queue drained to empty');
+      expect(
+        find.text(AppStrings.reviewCompletionTitle),
+        findsOneWidget,
+        reason:
+            'a completed session with answered cards must show the '
+            'summary, even when the live queue drained to empty',
+      );
       // 结果一行（湿地雾光 R08）：总数 = 已答题数（不是残留活队列），
       // 记得/不记得计数天然落在 0..3 内——旧版「记忆率 4000%」的口径
       // 回归由这一行的三个数字共同守住。
@@ -521,26 +499,23 @@ void main() {
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: 'src-all',
-          sourceId: 'src-all',
-          deckId: 1,
-          cardIds: {1, 2},
-        ),
-        activePlacementCardIds: (_) => {1, 2},
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
             flags: flags,
-            allowedCardIds: allowedCardIds,
+            engine: engine,
+            resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+              importId: 'src-all',
+              sourceId: 'src-all',
+              deckId: 1,
+              cardIds: {1, 2},
+            ),
+            activePlacementCardIds: (_) => {1, 2},
+            sessionFactory: ({required engine, required allowedCardIds}) async {
+              return OfficialReviewSession(
+                engine: engine,
+                flags: flags,
+                allowedCardIds: allowedCardIds,
+              );
+            },
           );
-        },
-      );
 
       await tester.pumpWidget(
         MultiProvider(
@@ -548,9 +523,7 @@ void main() {
             ChangeNotifierProvider<SrsProvider>.value(value: srs),
             ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
           ],
-          child: const MaterialApp(
-            home: AnkiReviewSessionPage(),
-          ),
+          child: const MaterialApp(home: AnkiReviewSessionPage()),
         ),
       );
       await tester.pump();
@@ -558,7 +531,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TurnaLoader), findsNothing);
       expect(find.textContaining('Q1'), findsWidgets);
     },
   );
@@ -579,26 +552,23 @@ void main() {
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
-        flags: flags,
-        engine: engine,
-        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
-          importId: 'src-new-only',
-          sourceId: 'src-new-only',
-          deckId: 1,
-          cardIds: {1, 2},
-        ),
-        activePlacementCardIds: (_) => {1, 2},
-        sessionFactory: ({
-          required engine,
-          required allowedCardIds,
-        }) async {
-          return OfficialReviewSession(
-            engine: engine,
             flags: flags,
-            allowedCardIds: allowedCardIds,
+            engine: engine,
+            resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+              importId: 'src-new-only',
+              sourceId: 'src-new-only',
+              deckId: 1,
+              cardIds: {1, 2},
+            ),
+            activePlacementCardIds: (_) => {1, 2},
+            sessionFactory: ({required engine, required allowedCardIds}) async {
+              return OfficialReviewSession(
+                engine: engine,
+                flags: flags,
+                allowedCardIds: allowedCardIds,
+              );
+            },
           );
-        },
-      );
 
       await tester.pumpWidget(
         MultiProvider(
@@ -606,9 +576,7 @@ void main() {
             ChangeNotifierProvider<SrsProvider>.value(value: srs),
             ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
           ],
-          child: const MaterialApp(
-            home: AnkiReviewSessionPage(),
-          ),
+          child: const MaterialApp(home: AnkiReviewSessionPage()),
         ),
       );
       await tester.pump();
@@ -616,7 +584,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TurnaLoader), findsNothing);
       expect(find.text(AppStrings.reviewCompletionTitle), findsNothing);
       expect(find.text(AppStrings.reviewXpEarned(15)), findsNothing);
       expect(find.text(AppStrings.reviewGemsEarned(5)), findsNothing);

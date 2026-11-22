@@ -21,8 +21,11 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 import 'package:turna/core/motion.dart';
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
@@ -80,13 +83,14 @@ class _DailyChallengePageState extends State<DailyChallengePage>
     final courseProvider = context.read<CourseProvider>();
     // Yield to the event loop so the loading spinner renders before the
     // potentially CPU-heavy assembly work runs on the UI thread.
-    final lesson =
-        await Future(() => DailyChallengeAssembler(courseProvider).assemble(
-              count: kDailyChallengeCount,
-              random: _random,
-            ));
+    final lesson = await Future(
+      () =>
+          DailyChallengeAssembler(courseProvider)
+              .assemble(count: kDailyChallengeCount, random: _random),
+    );
     if (!mounted) return;
-    final isEmpty = lesson.flattenedStages.isEmpty ||
+    final isEmpty =
+        lesson.flattenedStages.isEmpty ||
         lesson.flattenedStages.every((s) => s.items.isEmpty);
     setState(() => _empty = isEmpty);
     _vm.loadLessonInstance(lesson);
@@ -106,11 +110,14 @@ class _DailyChallengePageState extends State<DailyChallengePage>
 
   @override
   Widget build(BuildContext context) {
+    final isNonSession = _blockedMessage != null || _empty;
     return ChangeNotifierProvider.value(
       value: _vm,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
-        appBar: const _ChallengeAppBar(),
+        appBar: isNonSession
+            ? TurnaTopBar(title: AppStrings.playDailyTitle)
+            : const _ChallengeProgressBar(),
         body: Consumer<LessonViewModel>(
           builder: (context, vm, _) {
             if (_blockedMessage != null) {
@@ -124,12 +131,7 @@ class _DailyChallengePageState extends State<DailyChallengePage>
               return _buildEmptyDeck();
             }
             if (vm.lesson == null) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: TurnaTheme.brandTeal,
-                  strokeWidth: 3,
-                ),
-              );
+              return Center(child: TurnaLoader.page());
             }
             return _ChallengeSessionBody(
               vm: vm,
@@ -242,7 +244,7 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
     // 不能渗到下一题（与 PracticeSessionBody 相同的复位规则）。
     final newItem =
         old.vm.currentInteractionId != widget.vm.currentInteractionId ||
-            (_wasSubmitted && !widget.vm.hasSubmitted);
+        (_wasSubmitted && !widget.vm.hasSubmitted);
     _wasSubmitted = widget.vm.hasSubmitted;
     if (newItem) {
       _draft.detach(_onDraftChanged);
@@ -267,9 +269,7 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
     final vm = widget.vm;
     final interaction = vm.currentInteraction;
     if (interaction == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: TurnaTheme.brandTeal),
-      );
+      return Center(child: TurnaLoader.page());
     }
     final renderer = lookupRenderer(widget.renderers, interaction);
     final autoAdvance = renderer.autoAdvance;
@@ -286,21 +286,21 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
           child: LessonActionScope(
             draft: _draft,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 8, bottom: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               // 单题入场：淡入 + 上移（reduceMotion 时立即呈现）。
               child: _EnterTransition(
                 key: ValueKey(vm.currentInteractionId),
-                child: renderer.build(
-                  interaction,
-                  vm.currentInteractionState,
-                  (correct, {userAnswerText, reviewQuality}) {
-                    vm.submitInteraction(
-                      correct,
-                      userAnswerText: userAnswerText,
-                      reviewQuality: reviewQuality,
-                    );
-                  },
-                ),
+                child: renderer.build(interaction, vm.currentInteractionState, (
+                  correct, {
+                  userAnswerText,
+                  reviewQuality,
+                }) {
+                  vm.submitInteraction(
+                    correct,
+                    userAnswerText: userAnswerText,
+                    reviewQuality: reviewQuality,
+                  );
+                }),
               ),
             ),
           ),
@@ -309,7 +309,10 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
       ],
     );
 
-    final content = TurnaPageContent(maxWidth: 720, child: body);
+    final content = TurnaPageContent(
+      maxWidth: AppSpacing.studyColumnMaxWidth,
+      child: body,
+    );
     // 安全区只收一次：有动作带时由 SessionActionBand 自己吞底部 inset，
     // 没有动作带（自动推进型）时退回到整列。
     if (!autoAdvance) return content;
@@ -325,8 +328,9 @@ class _ChallengeSessionBodyState extends State<_ChallengeSessionBody> {
     return SessionActionBand(
       child: SessionPrimaryAction(
         label: submitted ? widget.continueLabel : AppStrings.lessonCheck,
-        onPressed:
-            enabled ? (submitted ? widget.onAdvance : _draft.submit) : null,
+        onPressed: enabled
+            ? (submitted ? widget.onAdvance : _draft.submit)
+            : null,
       ),
     );
   }
@@ -357,10 +361,11 @@ class _EnterTransition extends StatelessWidget {
   }
 }
 
-/// 挑战页顶栏：SessionProgressBand 的响应式装配（AppBar 槽要求
+/// 挑战页顶栏：SessionProgressBand 的响应式装配（appBar 槽要求
 /// PreferredSizeWidget，Selector 不是）。
-class _ChallengeAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _ChallengeAppBar();
+class _ChallengeProgressBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _ChallengeProgressBar();
 
   @override
   Size get preferredSize =>
@@ -371,8 +376,9 @@ class _ChallengeAppBar extends StatelessWidget implements PreferredSizeWidget {
     final (current, total) = context.select<LessonViewModel, (int, int)>(
       (vm) => (vm.currentQuestionNumber, vm.totalInteractionCount),
     );
-    final complete =
-        context.select<LessonViewModel, bool>((vm) => vm.isComplete);
+    final complete = context.select<LessonViewModel, bool>(
+      (vm) => vm.isComplete,
+    );
     return SessionProgressBand(
       currentIndex: current,
       totalCount: total,

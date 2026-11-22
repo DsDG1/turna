@@ -19,6 +19,7 @@ import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// Formal review shares the official renderer, typed-answer comparison and AV
 /// pipeline with preview. Only that renderer acknowledges a presented face.
@@ -108,10 +109,12 @@ class _OfficialTemplateWebViewBodyState
     if (oldWidget.presentation?.cardKey != widget.presentation?.cardKey ||
         oldWidget.generation != widget.generation ||
         oldWidget.controller != widget.controller) {
-      logger.w('[OhosReviewer] body rebuild: card '
-          '${oldWidget.presentation?.cardKey.cardId} -> '
-          '${widget.presentation?.cardKey.cardId} '
-          '(gen ${oldWidget.generation} -> ${widget.generation})');
+      logger.w(
+        '[OhosReviewer] body rebuild: card '
+        '${oldWidget.presentation?.cardKey.cardId} -> '
+        '${widget.presentation?.cardKey.cardId} '
+        '(gen ${oldWidget.generation} -> ${widget.generation})',
+      );
       unawaited(_boot());
     } else if (oldWidget.isRevealed != widget.isRevealed) {
       unawaited(_syncSide());
@@ -124,8 +127,10 @@ class _OfficialTemplateWebViewBodyState
     _detach();
     _lastReceipt = null;
     _error = null;
-    logger.w('[OhosReviewer] body boot #$request card='
-        '${widget.presentation?.cardKey.cardId} gen=${widget.generation}');
+    logger.w(
+      '[OhosReviewer] body boot #$request card='
+      '${widget.presentation?.cardKey.cardId} gen=${widget.generation}',
+    );
     final unavailable = _unavailable;
     if (unavailable != null) {
       _report(ok: false, code: unavailable);
@@ -139,8 +144,10 @@ class _OfficialTemplateWebViewBodyState
         paths: paths,
         controller: widget.controller,
       );
-      logger.w('[OhosReviewer] body boot #$request controller ready after '
-          '${DateTime.now().difference(started).inMilliseconds}ms');
+      logger.w(
+        '[OhosReviewer] body boot #$request controller ready after '
+        '${DateTime.now().difference(started).inMilliseconds}ms',
+      );
       if (!mounted || request != _request) {
         if (widget.controller == null) await controller.dispose();
         return;
@@ -158,20 +165,26 @@ class _OfficialTemplateWebViewBodyState
       if (seed != null && seed.cardId == widget.presentation!.cardKey.cardId) {
         await controller.adoptRenderedCard(seed);
       } else {
-        await controller
-            .loadAndShowQuestion(widget.presentation!.cardKey.cardId);
+        await controller.loadAndShowQuestion(
+          widget.presentation!.cardKey.cardId,
+        );
       }
-      logger.w('[OhosReviewer] body boot #$request card loaded: '
-          'card=${controller.card?.cardId} '
-          'gen=${controller.presentGeneration} '
-          'side=${controller.showingAnswer ? 'answer' : 'question'} '
-          'after ${DateTime.now().difference(started).inMilliseconds}ms');
+      logger.w(
+        '[OhosReviewer] body boot #$request card loaded: '
+        'card=${controller.card?.cardId} '
+        'gen=${controller.presentGeneration} '
+        'side=${controller.showingAnswer ? 'answer' : 'question'} '
+        'after ${DateTime.now().difference(started).inMilliseconds}ms',
+      );
       if (!mounted || request != _request) return;
       await _syncSide();
     } catch (error, stack) {
       if (!mounted || request != _request) return;
-      logger.w('Official formal-review renderer boot failed',
-          error: error, stackTrace: stack);
+      logger.w(
+        'Official formal-review renderer boot failed',
+        error: error,
+        stackTrace: stack,
+      );
       _error = error;
       _report(ok: false, code: 'official_anki.render_failed');
     } finally {
@@ -198,8 +211,11 @@ class _OfficialTemplateWebViewBodyState
         }
       }
     } catch (error, stack) {
-      logger.w('Official formal-review face change failed',
-          error: error, stackTrace: stack);
+      logger.w(
+        'Official formal-review face change failed',
+        error: error,
+        stackTrace: stack,
+      );
       if (mounted && identical(controller, _controller)) {
         _error = error;
         _report(ok: false, code: 'official_anki.render_failed');
@@ -227,8 +243,9 @@ class _OfficialTemplateWebViewBodyState
       }
     } else if (controller.ui.isError) {
       _report(
-          ok: false,
-          code: controller.error?.messageKey ?? 'official_anki.render_failed');
+        ok: false,
+        code: controller.error?.messageKey ?? 'official_anki.render_failed',
+      );
     }
     setState(() {});
   }
@@ -239,8 +256,9 @@ class _OfficialTemplateWebViewBodyState
     final generation = widget.generation;
     final request = _request;
     final ack = _controller?.lastAck;
-    final side =
-        widget.isRevealed ? PresentationSide.answer : PresentationSide.question;
+    final side = widget.isRevealed
+        ? PresentationSide.answer
+        : PresentationSide.question;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           request != _request ||
@@ -253,15 +271,17 @@ class _OfficialTemplateWebViewBodyState
         return;
       }
       if (ok && (ack == null || !identical(ack, _controller?.lastAck))) return;
-      widget.onPresented?.call(PresentationReceipt(
-        cardKey: presentation.cardKey,
-        generation: generation,
-        side: side,
-        renderer: PresentationRendererKind.officialTemplate,
-        presentedAt: DateTime.now(),
-        ok: ok,
-        code: code,
-      ));
+      widget.onPresented?.call(
+        PresentationReceipt(
+          cardKey: presentation.cardKey,
+          generation: generation,
+          side: side,
+          renderer: PresentationRendererKind.officialTemplate,
+          presentedAt: DateTime.now(),
+          ok: ok,
+          code: code,
+        ),
+      );
     });
   }
 
@@ -291,7 +311,8 @@ class _OfficialTemplateWebViewBodyState
     final error = _error;
     if (unavailable != null || error != null) {
       return OfficialAnkiReviewerErrorView(
-        messageKey: unavailable ??
+        messageKey:
+            unavailable ??
             (error is OfficialAnkiException
                 ? error.messageKey
                 : 'official_anki.render_failed'),
@@ -301,7 +322,7 @@ class _OfficialTemplateWebViewBodyState
     final controller = _controller;
     final paths = _paths;
     if (controller == null || paths == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: TurnaLoader.page());
     }
     final forceDisableJs = context.select<SettingsProvider?, bool>(
       (settings) => settings?.ankiForceDisableJs ?? false,

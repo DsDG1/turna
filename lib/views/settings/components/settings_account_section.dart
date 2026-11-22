@@ -11,12 +11,14 @@ import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/profile_prefs_facade.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Preset daily XP goal values for the slider.
 const _xpGoalSteps = [50, 100, 150, 200, 250, 300, 400, 500];
@@ -62,7 +64,7 @@ class _CosmeticsEntry extends StatelessWidget {
     return SettingsCard(
       children: [
         SettingsTile(
-          icon: Icons.account_circle_outlined,
+          iconId: TurnaIconId.person,
           title: AppStrings.cosmeticsTitle,
           subtitle: AppStrings.cosmeticsRingTitle(ring.id),
           trailing: Row(
@@ -73,15 +75,15 @@ class _CosmeticsEntry extends StatelessWidget {
                 ring: ring,
                 gapColor: TurnaTheme.cardBg(context),
                 backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                child: const Icon(
-                  Icons.person_rounded,
+                child: const TurnaIcon(
+                  TurnaIconId.person,
                   size: 14,
                   color: TurnaTheme.brandTeal,
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
+              TurnaIcon(
+                TurnaIconId.chevronRight,
                 color: TurnaTheme.textHintColor(context),
               ),
             ],
@@ -110,7 +112,7 @@ class _LearningGoalsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionTitle(
-          icon: Icons.flag_rounded,
+          iconId: TurnaIconId.flag,
           title: AppStrings.accountGoalsTitle,
         ),
         const SizedBox(height: 8),
@@ -134,39 +136,33 @@ class _LearningGoalsSection extends StatelessWidget {
     return SettingsCard(
       children: [
         _GoalSliderTile(
-          icon: Icons.emoji_events_rounded,
+          icon: TurnaIconId.trophy,
           title: AppStrings.accountDailyXpGoal,
           value: user.dailyXpGoal ?? 100,
           steps: _xpGoalSteps,
           formatValue: (v) => '$v',
-          onChanged: (v) => _updateUser(
-            user.copyWith(dailyXpGoal: v),
-            settings,
-          ),
+          onChanged: (v) =>
+              _updateUser(user.copyWith(dailyXpGoal: v), settings),
         ),
         settingsTileDivider(context),
         _GoalSliderTile(
-          icon: Icons.timer_rounded,
+          icon: TurnaIconId.timer,
           title: AppStrings.accountDailyStudyGoal,
           value: user.dailyStudyMinutesGoal ?? 30,
           steps: _studyMinuteSteps,
           formatValue: (v) => AppStrings.accountDailyStudyGoalValue(v),
-          onChanged: (v) => _updateUser(
-            user.copyWith(dailyStudyMinutesGoal: v),
-            settings,
-          ),
+          onChanged: (v) =>
+              _updateUser(user.copyWith(dailyStudyMinutesGoal: v), settings),
         ),
         settingsTileDivider(context),
         _GoalSliderTile(
-          icon: Icons.menu_book_rounded,
+          icon: TurnaIconId.book,
           title: AppStrings.accountDailyLessonGoal,
           value: user.dailyLessonGoal ?? 5,
           steps: _lessonGoalSteps,
           formatValue: (v) => AppStrings.accountLessonsCompletedValue(v),
-          onChanged: (v) => _updateUser(
-            user.copyWith(dailyLessonGoal: v),
-            settings,
-          ),
+          onChanged: (v) =>
+              _updateUser(user.copyWith(dailyLessonGoal: v), settings),
         ),
       ],
     );
@@ -181,7 +177,7 @@ class _LearningGoalsSection extends StatelessWidget {
 }
 
 class _GoalSliderTile extends StatefulWidget {
-  final IconData icon;
+  final TurnaIconId icon;
   final String title;
   final int value;
   final List<int> steps;
@@ -234,11 +230,12 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
               Container(
                 width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                 ),
-                child: Icon(
+                child: TurnaIcon(
                   widget.icon,
                   color: TurnaTheme.brandTeal,
                   size: 20,
@@ -248,17 +245,16 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
               Expanded(
                 child: Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               Text(
                 widget.formatValue(_value),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.brandTeal,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: TurnaTheme.brandTeal,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),

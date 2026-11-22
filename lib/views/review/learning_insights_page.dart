@@ -12,7 +12,9 @@ import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -20,9 +22,12 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/widgets/learning_stats.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/report_kit.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_page_content.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 学习洞察 — the second-level analytics page (Plan 3 §15.2).
 ///
@@ -73,12 +78,12 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
   }
 
   InsightsQuery get _query => InsightsQuery(
-        range: _filter.eventRange,
-        source: _filter.source,
-        type: _filter.type,
-        maturity: _filter.maturity,
-        due: _filter.due,
-      );
+    range: _filter.eventRange,
+    source: _filter.source,
+    type: _filter.type,
+    maturity: _filter.maturity,
+    due: _filter.due,
+  );
 
   void _setFilter(ReviewProgressFilter next) {
     _filter = next;
@@ -99,12 +104,9 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(AppStrings.reviewInsightsTitle),
-        backgroundColor: TurnaTheme.scaffoldBg(context),
-      ),
+      appBar: TurnaTopBar(title: AppStrings.reviewInsightsTitle),
       body: TurnaPageContent(
-        maxWidth: 840,
+        maxWidth: AppSpacing.formColumnMaxWidth,
         child: FutureBuilder<ReviewProgressSnapshot>(
           future: _future,
           builder: (context, snap) {
@@ -121,7 +123,7 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
                   onAction: _reload,
                 );
               }
-              return const Center(child: CircularProgressIndicator());
+              return Center(child: TurnaLoader.page());
             }
             if (snap.hasError) {
               _logErrorOnce(snap.error, snap.stackTrace);
@@ -159,12 +161,17 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  AppSpacing.xxl,
+                ),
                 children: [
                   if (refreshing) const LinearProgressIndicator(minHeight: 2),
                   if (snap.hasError)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: _InlineInsightsErrorBanner(onRetry: _reload),
                     ),
                   _FilterPanel(
@@ -172,21 +179,21 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
                     sources: data.availableSources,
                     onChanged: _setFilter,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   _KpiCard(snapshot: data),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   _CurveCard(
                     snapshot: data,
                     eventRange: _filter.eventRange,
                     onRangeChanged: (r) =>
                         _setFilter(_filter.copyWith(eventRange: r)),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   ReviewActivityHeatmap(rows: data.activity),
                   if (!focusMode) ...[
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xl),
                     StudyStatsSection(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     _SourceList(
                       rows: data.bySource,
                       selected: _filter.source,
@@ -223,10 +230,10 @@ class _FilterPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: TurnaTheme.flatPaperDecoration(
         context,
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+        borderRadius: TurnaTheme.borderRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,7 +250,7 @@ class _FilterPanel extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm + 2),
           TurnaSegmented<ProgressTypeFilter>(
             selected: filter.type,
             onChanged: (t) => onChanged(filter.copyWith(type: t)),
@@ -252,7 +259,7 @@ class _FilterPanel extends StatelessWidget {
                 ButtonSegment(value: t, label: Text(_typeLabel(t))),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm + 2),
           TurnaSegmented<DueFilter>(
             selected: filter.due,
             onChanged: (d) => onChanged(filter.copyWith(due: d)),
@@ -296,12 +303,14 @@ class _FilterPanel extends StatelessWidget {
   Widget _chipRow({required List<Widget> children}) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Row(children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          children[i],
+      child: Row(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            children[i],
+          ],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -327,7 +336,8 @@ class _KpiCard extends StatelessWidget {
         ReportMetricHeader(
           label: AppStrings.reviewProgressKpiRetention,
           value: ret,
-          caption: '${AppStrings.reviewProgressKpiCards} ${a.totalCards} · '
+          caption:
+              '${AppStrings.reviewProgressKpiCards} ${a.totalCards} · '
               '${AppStrings.reviewProgressKpiReviews} ${a.totalReviews}',
         ),
         if (hasTracked) ...[
@@ -382,9 +392,8 @@ class _CurveCard extends StatelessWidget {
           title: AppStrings.profileMemoryCurveTitle,
           trailing: Text(
             AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: TurnaTheme.textHintColor(context)),
           ),
         ),
         TurnaSegmented<EventRange>(
@@ -397,38 +406,39 @@ class _CurveCard extends StatelessWidget {
                 label: Text(
                   _rangeLabel(r),
                   maxLines: 1,
-                  style: const TextStyle(fontSize: 12),
+                  style: AppTextStyles.captionSm(context),
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         if (curve.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 28),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl + 4),
             child: Center(
               child: Text(
                 snapshot.aggregate.totalCards == 0
                     ? AppStrings.reviewProgressEmpty
                     : AppStrings.profileMemoryCurveEmpty,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textHintColor(context)),
               ),
             ),
           )
         else
           ReportLineChart(
             semanticsLabel: AppStrings.reviewMemoryCurveSemantics(
-                snapshot.aggregate.totalReviews),
+              snapshot.aggregate.totalReviews,
+            ),
             height: 160,
             maxValue: 1,
             points: [
               for (final point in curve)
                 ReportPoint(
-                  label:
-                      AppStrings.reviewIntervalDays(point.intervalBucketDays),
+                  label: AppStrings.reviewIntervalDays(
+                    point.intervalBucketDays,
+                  ),
                   value: point.retention,
                 ),
             ],
@@ -480,11 +490,13 @@ class ReviewActivityHeatmap extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ReportSectionHeading(title: AppStrings.insightsHeatmapTitle),
-          Text(summary, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 12),
+          Text(summary, style: AppTextStyles.captionSm(context)),
+          const SizedBox(height: AppSpacing.md),
           ReportHeatmap(
-            semanticsLabel:
-                AppStrings.reviewHeatmapChartSemantics(activeDays, reviews),
+            semanticsLabel: AppStrings.reviewHeatmapChartSemantics(
+              activeDays,
+              reviews,
+            ),
             // 逐格语义保留「day-N：k 次复习」粒度（屏幕阅读器逐日可读）。
             cellLabel: (index, _) => index < rows.length
                 ? AppStrings.insightsBucketReviewSummary(
@@ -494,9 +506,7 @@ class ReviewActivityHeatmap extends StatelessWidget {
                 : '',
             // 每行 18 格：365 天 ≈ 20 行，窄屏也能放下。
             columns: 18,
-            levels: [
-              for (final row in rows) _levelFor(row.reviewedCount),
-            ],
+            levels: [for (final row in rows) _levelFor(row.reviewedCount)],
           ),
         ],
       ),
@@ -527,12 +537,11 @@ class _SourceList extends StatelessWidget {
         ReportSectionHeading(title: AppStrings.reviewProgressSourcesTitle),
         if (rows.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             child: Text(
               AppStrings.reviewProgressEmptyFiltered,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
+              style: AppTextStyles.captionSm(context)
+                  .copyWith(color: TurnaTheme.textHintColor(context)),
             ),
           )
         else
@@ -563,18 +572,18 @@ class _SourceTile extends StatelessWidget {
     required this.onOpen,
   });
 
-  IconData get _icon {
+  TurnaIconId get _icon {
     switch (row.source.kind) {
       case ReviewSourceKind.course:
-        return Icons.school_rounded;
+        return TurnaIconId.school;
       case ReviewSourceKind.grammar:
-        return Icons.menu_book_rounded;
+        return TurnaIconId.book;
       case ReviewSourceKind.ankiDeck:
-        return Icons.style_rounded;
+        return TurnaIconId.cards;
       case ReviewSourceKind.ankiOfficial:
-        return Icons.collections_bookmark_rounded;
+        return TurnaIconId.layers;
       case ReviewSourceKind.all:
-        return Icons.layers_rounded;
+        return TurnaIconId.layers;
     }
   }
 
@@ -583,7 +592,8 @@ class _SourceTile extends StatelessWidget {
     final hasTracked = row.tracked > 0;
     final ret = hasTracked
         ? AppStrings.reviewProgressRetentionPct(
-            (row.meanRetention * 100).round())
+            (row.meanRetention * 100).round(),
+          )
         : '—';
     final progress = row.totalCards == 0
         ? 0.0
@@ -591,58 +601,61 @@ class _SourceTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      borderRadius: TurnaTheme.borderRadius,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(_icon,
-                    size: 22,
-                    color: selected
-                        ? TurnaTheme.brandTeal
-                        : TurnaTheme.textSecondaryColor(context)),
-                const SizedBox(width: 10),
+                TurnaIcon(
+                  _icon,
+                  size: 20,
+                  color: selected
+                      ? TurnaTheme.brandTeal
+                      : TurnaTheme.textSecondaryColor(context),
+                ),
+                const SizedBox(width: AppSpacing.sm + 2),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         row.source.label,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: selected ? TurnaTheme.brandTeal : null,
-                            ),
+                        style: AppTextStyles.cardTitle(context).copyWith(
+                          color: selected ? TurnaTheme.brandTeal : null,
+                        ),
                       ),
                       Text(
                         AppStrings.reviewProgressCardsDue(
-                            row.totalCards, row.dueToday),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textHintColor(context),
-                            ),
+                          row.totalCards,
+                          row.dueToday,
+                        ),
+                        style: AppTextStyles.captionSm(context)
+                            .copyWith(color: TurnaTheme.textHintColor(context)),
                       ),
                     ],
                   ),
                 ),
                 Text(
                   ret,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: TurnaTheme.brandTeal,
-                      ),
+                  style: AppTextStyles.cardTitle(context).copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: TurnaTheme.brandTeal,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
                 IconButton(
                   tooltip: AppStrings.insightsViewSourceDetail,
                   onPressed: onOpen,
-                  icon: const Icon(Icons.chevron_right_rounded),
+                  icon: const TurnaIcon(TurnaIconId.chevronRight, size: 18),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: TurnaTheme.borderRadius,
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 6,
@@ -666,18 +679,24 @@ class _InlineInsightsErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: TurnaTheme.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 16, color: TurnaTheme.error),
-            const SizedBox(width: 8),
+            const TurnaIcon(
+              TurnaIconId.cloudOff,
+              size: 16,
+              color: TurnaTheme.error,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 AppStrings.insightsLoadFailed,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: AppTextStyles.captionSm(context),
               ),
             ),
             TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),

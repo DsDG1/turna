@@ -14,10 +14,14 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/motion.dart';
+import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// List filter: everything, word mistakes only, or grammar mistakes only.
 enum _MistakeFilter { all, words, grammar }
@@ -53,12 +57,13 @@ class _MistakeListPageState extends State<MistakeListPage> {
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppStrings.reviewMyMistakesTitle),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: TurnaTopBar(
+        title: AppStrings.reviewMyMistakesTitle,
         actions: [
           IconButton(
             tooltip: AppStrings.mistakeDashboardTitle,
-            icon: const Icon(Icons.insights_outlined),
+            icon: const TurnaIcon(TurnaIconId.insights, size: 20),
             onPressed: () => context.router.push(const MistakeDashboardRoute()),
           ),
         ],
@@ -70,67 +75,67 @@ class _MistakeListPageState extends State<MistakeListPage> {
               onAction: () => context.read<MistakeProvider>().retry(),
             )
           : mistakes.isEmpty
-              ? PracticeEmptyState(
-                  title: AppStrings.reviewNoMistakesRecorded,
-                  message: AppStrings.reviewKeepItUp,
-                )
-              : RefreshIndicator(
-                  color: TurnaTheme.brandTeal,
-                  onRefresh: () => context.read<MistakeProvider>().retry(),
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    slivers: [
-                      if (hasLoadError)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.pageMargin,
-                              AppSpacing.md,
-                              AppSpacing.pageMargin,
-                              0,
-                            ),
-                            child: _MistakeLoadErrorBanner(
-                              onRetry: () =>
-                                  context.read<MistakeProvider>().retry(),
-                            ),
-                          ),
-                        ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.pageMargin,
-                            AppSpacing.md,
-                            AppSpacing.pageMargin,
-                            0,
-                          ),
-                          child: _FilterBar(
-                            selected: _filter,
-                            allCount: mistakes.length,
-                            wordCount: wordCount,
-                            grammarCount: grammarCount,
-                            onSelected: (filter) =>
-                                setState(() => _filter = filter),
-                          ),
-                        ),
-                      ),
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.pageMargin,
-                          vertical: AppSpacing.sm,
-                        ),
-                        sliver: SliverList.builder(
-                          itemCount: visible.length,
-                          itemBuilder: (context, index) => _RevealOnMount(
-                            index: index,
-                            child: _MistakeEntryRow(mistake: visible[index]),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+          ? PracticeEmptyState(
+              title: AppStrings.reviewNoMistakesRecorded,
+              message: AppStrings.reviewKeepItUp,
+            )
+          : RefreshIndicator(
+              color: TurnaTheme.brandTeal,
+              onRefresh: () => context.read<MistakeProvider>().retry(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
+                slivers: [
+                  if (hasLoadError)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.pageMargin,
+                          AppSpacing.md,
+                          AppSpacing.pageMargin,
+                          0,
+                        ),
+                        child: _MistakeLoadErrorBanner(
+                          onRetry: () =>
+                              context.read<MistakeProvider>().retry(),
+                        ),
+                      ),
+                    ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pageMargin,
+                        AppSpacing.md,
+                        AppSpacing.pageMargin,
+                        0,
+                      ),
+                      child: _FilterBar(
+                        selected: _filter,
+                        allCount: mistakes.length,
+                        wordCount: wordCount,
+                        grammarCount: grammarCount,
+                        onSelected: (filter) =>
+                            setState(() => _filter = filter),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pageMargin,
+                      vertical: AppSpacing.sm,
+                    ),
+                    sliver: SliverList.builder(
+                      itemCount: visible.length,
+                      itemBuilder: (context, index) => _RevealOnMount(
+                        index: index,
+                        child: _MistakeEntryRow(mistake: visible[index]),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -144,24 +149,27 @@ class _MistakeLoadErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: TurnaTheme.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+      borderRadius: TurnaTheme.borderRadius,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 16, color: TurnaTheme.error),
-            const SizedBox(width: 8),
+            const TurnaIcon(
+              TurnaIconId.cloudOff,
+              size: 16,
+              color: TurnaTheme.error,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 AppStrings.mistakesLoadFailed,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: AppTextStyles.captionSm(context),
               ),
             ),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(AppStrings.commonRetry),
-            ),
+            TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
           ],
         ),
       ),
@@ -188,8 +196,8 @@ class _FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 4,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
       children: [
         TurnaFilterChip(
           label: '${AppStrings.reviewMistakeFilterAll} $allCount',
@@ -254,7 +262,8 @@ class _MistakeEntryRow extends StatelessWidget {
     final grammar = mistake.grammarPointId != null
         ? grammarPointById[mistake.grammarPointId!]
         : null;
-    final title = word?.term ??
+    final title =
+        word?.term ??
         grammar?.title ??
         (mistake.interactionId.isNotEmpty
             ? mistake.interactionId
@@ -263,8 +272,8 @@ class _MistakeEntryRow extends StatelessWidget {
     final typeLabel = grammar != null
         ? AppStrings.reviewGrammarLabel
         : word != null
-            ? AppStrings.reviewWordsLabel
-            : AppStrings.mistakeDashboardOtherType;
+        ? AppStrings.reviewWordsLabel
+        : AppStrings.mistakeDashboardOtherType;
 
     return DirectoryEntryRow(
       title: title,

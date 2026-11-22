@@ -49,8 +49,9 @@ void main() {
     );
   }
 
-  testWidgets('SystemHealthPage renders header, summary, and action items',
-      (tester) async {
+  testWidgets('SystemHealthPage renders header, summary, and action items', (
+    tester,
+  ) async {
     await tester.pumpWidget(wrap(const SystemHealthPage()));
     await tester.pumpAndSettle();
 
@@ -74,7 +75,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final switchFinder = find.byKey(const Key('settings-square-switch'));
+    final switchFinder = find.byKey(const Key('turna-switch'));
     expect(switchFinder, findsOneWidget);
 
     await tester.tap(switchFinder);
@@ -84,36 +85,38 @@ void main() {
   });
 
   testWidgets(
-      'critical alert shows a NON-blocking banner; no score-deduction UI exists',
-      (tester) async {
-    // 15 distinct error groups -> 45 points -> critical level.
-    final now = DateTime.now();
-    logs.value = [
-      for (var i = 0; i < 15; i++)
-        LogEntry(
-          timestamp: now.add(Duration(milliseconds: i)),
-          level: Level.error,
-          message: 'error-$i',
-        ),
-    ];
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(monitor.score, 45);
-    expect(monitor.level, SystemHealthLevel.critical);
+    'critical alert shows a NON-blocking banner; no score-deduction UI exists',
+    (tester) async {
+      // 15 distinct error groups -> 45 points -> critical level.
+      final now = DateTime.now();
+      logs.value = [
+        for (var i = 0; i < 15; i++)
+          LogEntry(
+            timestamp: now.add(Duration(milliseconds: i)),
+            level: Level.error,
+            message: 'error-$i',
+          ),
+      ];
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(monitor.score, 45);
+      expect(monitor.level, SystemHealthLevel.critical);
 
-    await tester.pumpWidget(wrap(const SystemHealthPage()));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(wrap(const SystemHealthPage()));
+      await tester.pumpAndSettle();
 
-    // Non-blocking banner explains the state…
-    expect(find.textContaining('检测到异常'), findsOneWidget);
-    // …the manual score deduction is gone everywhere…
-    expect(find.textContaining('确定（-40分）'), findsNothing);
-    expect(find.textContaining('降低40分'), findsNothing);
-    // …and the page never blocks pop: there is no PopScope at all.
-    expect(find.byType(PopScope), findsNothing);
-  });
+      // Non-blocking banner explains the state…
+      expect(find.textContaining('检测到异常'), findsOneWidget);
+      // …the manual score deduction is gone everywhere…
+      expect(find.textContaining('确定（-40分）'), findsNothing);
+      expect(find.textContaining('降低40分'), findsNothing);
+      // …and the page never blocks pop: there is no PopScope at all.
+      expect(find.byType(PopScope), findsNothing);
+    },
+  );
 
-  testWidgets('acknowledge hides the banner without touching the facts',
-      (tester) async {
+  testWidgets('acknowledge hides the banner without touching the facts', (
+    tester,
+  ) async {
     final now = DateTime.now();
     logs.value = [
       for (var i = 0; i < 15; i++)

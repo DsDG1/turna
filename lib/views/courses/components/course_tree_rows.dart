@@ -11,6 +11,7 @@ import 'package:turna/core/motion.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
@@ -20,6 +21,9 @@ import 'package:turna/views/courses/components/course_tree_models.dart';
 import 'package:turna/views/courses/components/section_bottom_sheet.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 typedef NavigateToLessonCallback = void Function(
   BuildContext context,
@@ -41,11 +45,14 @@ class CourseTreeLessonTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lesson = item.lesson;
-    return Selector<ProgressProvider,
-        ({bool completed, bool previousCompleted})>(
+    return Selector<
+      ProgressProvider,
+      ({bool completed, bool previousCompleted})
+    >(
       selector: (_, provider) => (
         completed: provider.isLessonCompleted(lesson.id),
-        previousCompleted: item.previousNode != null &&
+        previousCompleted:
+            item.previousNode != null &&
             courseTreeNodeCompleted(
               provider,
               item.previousNode!.lessonId,
@@ -116,11 +123,14 @@ class CourseTreeSubLessonTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lesson = item.lesson;
-    return Selector<ProgressProvider,
-        ({bool completed, bool previousCompleted})>(
+    return Selector<
+      ProgressProvider,
+      ({bool completed, bool previousCompleted})
+    >(
       selector: (_, provider) => (
         completed: courseTreeNodeCompleted(provider, lesson.id, item.sub.id),
-        previousCompleted: item.previousNode != null &&
+        previousCompleted:
+            item.previousNode != null &&
             courseTreeNodeCompleted(
               provider,
               item.previousNode!.lessonId,
@@ -193,7 +203,7 @@ class CourseTreeSectionHeadBand extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => showSectionBottomSheet(context),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: TurnaTheme.borderRadius,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Row(
@@ -204,10 +214,9 @@ class CourseTreeSectionHeadBand extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: colors.background,
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.cardRadius),
+                      borderRadius: TurnaTheme.borderRadius,
                     ),
-                    child: Icon(
+                    child: TurnaIcon(
                       SectionVisuals.iconFor(section.id),
                       size: 17,
                       color: colors.foreground,
@@ -222,8 +231,8 @@ class CourseTreeSectionHeadBand extends StatelessWidget {
                           section.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.sectionTitle(context)
-                              .copyWith(fontSize: 16, height: 1.2),
+                          style: AppTextStyles.cardTitle(context)
+                              .copyWith(height: 1.2),
                         ),
                         if ((section.level ?? '').trim().isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.xs),
@@ -235,7 +244,7 @@ class CourseTreeSectionHeadBand extends StatelessWidget {
                             (progressValue * 100).round(),
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: TurnaTheme.borderRadius,
                             child: LinearProgressIndicator(
                               value: progressValue,
                               minHeight: 3,
@@ -250,8 +259,8 @@ class CourseTreeSectionHeadBand extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    Icons.expand_more_rounded,
+                  TurnaIcon(
+                    TurnaIconId.chevronDown,
                     size: 18,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
@@ -355,10 +364,10 @@ class CourseTreeUnitStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAttention = dueLessonCount > 0 || weakLessonCount > 0;
-    final attentionColor =
-        dueLessonCount > 0 ? TurnaTheme.warning : TurnaTheme.brandSky;
+    final attentionColor = dueLessonCount > 0
+        ? TurnaTheme.warning
+        : TurnaTheme.brandSky;
     final duration = TurnaMotion.scaled(TurnaMotion.base, reduceMotion);
-    final borderRadius = BorderRadius.circular(TurnaTheme.radiusMedium);
 
     // 完成计数响应课级进度记录——目录里每个单元条的 k/n 都要跟着走，
     // 不能只在整树重建时算一遍。
@@ -375,7 +384,7 @@ class CourseTreeUnitStrip extends StatelessWidget {
               color: expanded
                   ? TurnaTheme.brandTeal.withValues(alpha: 0.07)
                   : Colors.transparent,
-              borderRadius: borderRadius,
+              borderRadius: TurnaTheme.borderRadius,
               border: Border(
                 bottom: BorderSide(color: TurnaTheme.dividerBg(context)),
               ),
@@ -388,7 +397,7 @@ class CourseTreeUnitStrip extends StatelessWidget {
               excludeSemantics: true,
               child: InkWell(
                 onTap: onToggle,
-                borderRadius: borderRadius,
+                borderRadius: TurnaTheme.borderRadius,
                 child: SizedBox(
                   height: CourseTreeUnitStripDelegate.height - AppSpacing.sm,
                   child: Padding(
@@ -407,13 +416,13 @@ class CourseTreeUnitStrip extends StatelessWidget {
                             color: expanded
                                 ? TurnaTheme.brandTeal
                                 : TurnaTheme.brandTeal.withValues(alpha: 0.09),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: TurnaTheme.borderRadius,
                           ),
                           child: AnimatedDefaultTextStyle(
                             duration: duration,
                             curve: TurnaMotion.easeOut,
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: AppTextStyles.caption(context).copyWith(
+                              letterSpacing: 0,
                               fontWeight: FontWeight.w700,
                               color: expanded
                                   ? TurnaTheme.textOnPrimary
@@ -428,9 +437,10 @@ class CourseTreeUnitStrip extends StatelessWidget {
                             duration: duration,
                             curve: TurnaMotion.easeOut,
                             style: AppTextStyles.bodyText(context).copyWith(
-                              fontSize: 14,
-                              fontWeight:
-                                  expanded ? FontWeight.w700 : FontWeight.w600,
+                              fontWeight: expanded
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              height: 1.3,
                             ),
                             child: Text(
                               unit.name,
@@ -453,14 +463,11 @@ class CourseTreeUnitStrip extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           '$completedCount/${unit.lessons.length}',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: AppTextStyles.captionSm(context).copyWith(
                             color: expanded
                                 ? TurnaTheme.brandTeal
                                 : TurnaTheme.textSecondaryColor(context),
-                            fontFeatures: const [
-                              FontFeature.tabularFigures(),
-                            ],
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                         const SizedBox(width: AppSpacing.xs + 2),
@@ -468,8 +475,8 @@ class CourseTreeUnitStrip extends StatelessWidget {
                           turns: expanded ? 0.5 : 0,
                           duration: duration,
                           curve: TurnaMotion.easeOut,
-                          child: Icon(
-                            Icons.keyboard_arrow_down_rounded,
+                          child: TurnaIcon(
+                            TurnaIconId.chevronDown,
                             size: 18,
                             color: expanded
                                 ? TurnaTheme.brandTeal
@@ -517,7 +524,6 @@ class CourseTreeSubLessonGroupRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.bodyText(context).copyWith(
-                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: TurnaTheme.textPrimaryColor(context),
               ),
@@ -527,8 +533,7 @@ class CourseTreeSubLessonGroupRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Text(
               lessonAttentionText(attention) ?? '',
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTextStyles.captionSm(context).copyWith(
                 fontWeight: FontWeight.w600,
                 color: attention == LessonAttention.due
                     ? TurnaTheme.warning
@@ -539,8 +544,7 @@ class CourseTreeSubLessonGroupRow extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             '$completedCount/$subCount',
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTextStyles.captionSm(context).copyWith(
               color: TurnaTheme.textSecondaryColor(context),
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -560,8 +564,10 @@ class CourseTreeResumeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<ProgressProvider,
-        ({String lessonId, String? subLessonId, String name})?>(
+    return Selector<
+      ProgressProvider,
+      ({String lessonId, String? subLessonId, String name})?
+    >(
       selector: (_, progress) {
         final next = courseTreeSectionNextUpNode(progress, section);
         if (next == null) return null;
@@ -590,12 +596,12 @@ class CourseTreeResumeBar extends StatelessWidget {
                   subLessonId: next.subLessonId,
                 ),
               ),
-              borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+              borderRadius: TurnaTheme.borderRadius,
               child: Container(
                 padding: const EdgeInsets.all(AppSpacing.md - 1),
                 decoration: BoxDecoration(
                   color: TurnaTheme.cardBg(context),
-                  borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+                  borderRadius: TurnaTheme.borderRadius,
                   border: Border.all(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.40),
                   ),
@@ -617,8 +623,8 @@ class CourseTreeResumeBar extends StatelessWidget {
                         color: TurnaTheme.brandTeal,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.arrow_right_alt_rounded,
+                      child: const TurnaIcon(
+                        TurnaIconId.arrowForward,
                         size: 20,
                         color: TurnaTheme.textOnPrimary,
                       ),
@@ -630,28 +636,21 @@ class CourseTreeResumeBar extends StatelessWidget {
                         children: [
                           Text(
                             AppStrings.coursesResumeCap,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              letterSpacing: 0.6,
-                              fontWeight: FontWeight.w600,
-                              color: TurnaTheme.brandTeal,
-                            ),
+                            style: AppTextStyles.caption(context)
+                                .copyWith(color: TurnaTheme.brandTeal),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             next.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyText(context).copyWith(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: AppTextStyles.cardTitle(context),
                           ),
                         ],
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right_rounded,
+                    TurnaIcon(
+                      TurnaIconId.chevronRight,
                       size: 18,
                       color: TurnaTheme.textSecondaryColor(context),
                     ),
@@ -671,72 +670,53 @@ class CourseTreeEmptyMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            AppStrings.coursesNoUnitsAvailable,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: () => context.router.push(CourseManagementRoute()),
-            child: Text(AppStrings.courseManagementTitle),
-          ),
-        ],
-      ),
+    return PracticeEmptyState(
+      title: AppStrings.coursesNoUnitsAvailable,
+      actionLabel: AppStrings.courseManagementTitle,
+      onAction: () => context.router.push(CourseManagementRoute()),
     );
   }
 }
 
 class CourseTreeOfficialUnavailableBanner extends StatelessWidget {
-  const CourseTreeOfficialUnavailableBanner({
-    super.key,
-    required this.onRetry,
-  });
+  const CourseTreeOfficialUnavailableBanner({super.key, required this.onRetry});
 
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageMarginCompact,
+        AppSpacing.md,
+        AppSpacing.pageMarginCompact,
+        0,
+      ),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(AppSpacing.md + 2),
         decoration: BoxDecoration(
           color: TurnaTheme.warningSurface(context),
-          borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
+          borderRadius: TurnaTheme.borderRadius,
           border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.4)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.warning_amber_rounded,
+            const TurnaIcon(
+              TurnaIconId.warning,
               size: 20,
               color: TurnaTheme.warning,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.sm + 2),
             Expanded(
               child: Text(
                 AppStrings.coursesOfficialTreeUnavailable,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.35,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
+                style: AppTextStyles.captionSm(context)
+                    .copyWith(color: TurnaTheme.textPrimaryColor(context)),
               ),
             ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(AppStrings.commonRetry),
-            ),
+            const SizedBox(width: AppSpacing.sm),
+            TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
           ],
         ),
       ),
@@ -749,29 +729,7 @@ class CourseTreeLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 40,
-          height: 40,
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              TurnaTheme.brandTeal.withValues(alpha: 0.7),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          AppStrings.coursesLoadingCourses,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: TurnaTheme.textHintColor(context),
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-      ],
-    );
+    return TurnaLoader.page(label: AppStrings.coursesLoadingCourses);
   }
 }
 
@@ -789,58 +747,11 @@ class CourseTreeErrorMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 56,
-              color: TurnaTheme.error.withValues(alpha: 0.8),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.textPrimaryColor(context),
-                  ),
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-              ),
-            ],
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(AppStrings.commonRetry),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: TurnaTheme.brandTeal,
-                foregroundColor: TurnaTheme.textOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return PracticeEmptyState(
+      title: title,
+      message: error?.toString(),
+      actionLabel: AppStrings.commonRetry,
+      onAction: onRetry,
     );
   }
 }

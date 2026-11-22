@@ -4,9 +4,11 @@ import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/core/motion.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 class ListeningAudioPanel extends StatelessWidget {
   const ListeningAudioPanel({
@@ -32,7 +34,8 @@ class ListeningAudioPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         accessibilityOf(context).reduceMotion;
     final hasTranscript = transcript.trim().isNotEmpty;
     return SessionRecallCanvas(
@@ -45,8 +48,8 @@ class ListeningAudioPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.headphones_rounded,
+              const TurnaIcon(
+                TurnaIconId.headphones,
                 size: 18,
                 color: TurnaTheme.brandTeal,
               ),
@@ -54,9 +57,8 @@ class ListeningAudioPanel extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: AppTextStyles.caption(context).copyWith(
-                    color: TurnaTheme.brandTeal,
-                  ),
+                  style: AppTextStyles.caption(context)
+                      .copyWith(color: TurnaTheme.brandTeal),
                 ),
               ),
               if (hasTranscript) ...[
@@ -69,8 +71,10 @@ class ListeningAudioPanel extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
-                    style:
-                        AppTextStyles.captionSm(context).copyWith(fontSize: 11),
+                    style: AppTextStyles.caption(context).copyWith(
+                      letterSpacing: 0,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
               ],
@@ -82,9 +86,8 @@ class ListeningAudioPanel extends StatelessWidget {
               prompt,
               textAlign: TextAlign.center,
               style: compact
-                  ? AppTextStyles.bodyText(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                    )
+                  ? AppTextStyles.bodyText(context)
+                        .copyWith(fontWeight: FontWeight.w600)
                   : AppTextStyles.promptMd(context),
             ),
           ],
@@ -96,19 +99,16 @@ class ListeningAudioPanel extends StatelessWidget {
                 ? AppStrings.lessonTapToReplay
                 : AppStrings.lessonTapToListen,
             textAlign: TextAlign.center,
-            style: AppTextStyles.captionSm(context).copyWith(
-              color: TurnaTheme.textHintColor(context),
-            ),
+            style: AppTextStyles.captionSm(context)
+                .copyWith(color: TurnaTheme.textHintColor(context)),
           ),
           if (hasTranscript && hasPlayed && onToggleTranscript != null) ...[
             const SizedBox(height: 6),
             Center(
               child: TextButton.icon(
                 onPressed: onToggleTranscript,
-                icon: Icon(
-                  showTranscript
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
+                icon: TurnaIcon(
+                  showTranscript ? TurnaIconId.eyeOff : TurnaIconId.eye,
                   size: 18,
                 ),
                 label: Text(
@@ -129,16 +129,14 @@ class ListeningAudioPanel extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusMedium),
+                      borderRadius: TurnaTheme.borderRadius,
                     ),
                     child: Text(
                       transcript,
                       maxLines: compact ? 4 : null,
                       overflow: compact ? TextOverflow.ellipsis : null,
-                      style: AppTextStyles.bodyText(context).copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: AppTextStyles.bodyText(context)
+                          .copyWith(fontWeight: FontWeight.w500),
                     ),
                   )
                 : const SizedBox.shrink(
@@ -158,19 +156,19 @@ class ListeningAudioPanel extends StatelessWidget {
   brightness: Brightness.dark,
 )
 Widget listeningDialoguePreview() => const _ListeningPanelPreview(
-      title: '对话理解',
-      prompt: '听对话，再回答问题',
-      transcript: 'A: Merhaba!\nB: Merhaba, nasılsın?',
-      showTranscript: true,
-    );
+  title: '对话理解',
+  prompt: '听对话，再回答问题',
+  transcript: 'A: Merhaba!\nB: Merhaba, nasılsın?',
+  showTranscript: true,
+);
 
 @Preview(name: 'Listening · summary', group: 'Lesson templates')
 Widget listeningSummaryPreview() => const _ListeningPanelPreview(
-      title: '收听概要',
-      prompt: '听一段总结，回顾刚才学到的表达',
-      transcript: 'Bugün temel selamlaşma ifadelerini öğrendik.',
-      showTranscript: true,
-    );
+  title: '收听概要',
+  prompt: '听一段总结，回顾刚才学到的表达',
+  transcript: 'Bugün temel selamlaşma ifadelerini öğrendik.',
+  showTranscript: true,
+);
 
 class _ListeningPanelPreview extends StatelessWidget {
   const _ListeningPanelPreview({

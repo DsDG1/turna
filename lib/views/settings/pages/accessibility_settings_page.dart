@@ -6,10 +6,11 @@ import 'package:auto_route/auto_route.dart';
 
 // Project imports:
 import 'package:turna/application/settings/settings_destination.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/components/settings_accessibility_section.dart';
 import 'package:turna/views/settings/components/settings_common.dart';
+import 'package:turna/views/settings/pages/settings_category_body.dart';
 
 /// Accessibility category page (formal route: `/settings/accessibility`).
 @RoutePage()
@@ -26,7 +27,7 @@ class AccessibilitySettingsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SettingsSectionTitle(
-              icon: Icons.accessibility_new_rounded,
+              iconId: TurnaIconId.accessibility,
               title: AppStrings.settingsA11ySectionTitle,
             ),
             const SizedBox(height: 8),

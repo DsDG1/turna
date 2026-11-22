@@ -2,83 +2,21 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/core/spacing.dart';
 import 'package:turna/core/theme.dart';
 
 /// Shared visual building blocks for the AI tutor surfaces (config page, hint
-/// sheet, depth-tutor sheet, chat page) so they share one card-based design
-/// language: soft-tint group cards with a neutral hairline, tinted input
-/// fields, and a matching primary/secondary button pair.
-///
-/// Extracted from the config form's former private `_groupCard` /
-/// `_fieldDecoration` so every AI surface reuses the exact same look without
-/// duplicating the theme-token wiring.
+/// sheet, depth-tutor sheet, chat page) using the unified 4px flat paper
+/// surface and input/button language.
 
-/// A group card: soft-tint fill, 1px neutral border, rounded corners, with an
-/// accent icon + title header. The canonical "card element" used across the AI
-/// sheets.
-class AiGroupCard extends StatelessWidget {
-  const AiGroupCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.children,
-    this.padding = const EdgeInsets.all(14),
-    this.accent,
-  });
-
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-  final EdgeInsetsGeometry padding;
-
-  /// Accent color for the header icon. Defaults to the Turna teal accent.
-  final Color? accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final a = TurnaTheme.accentOnCard(context, accent ?? TurnaTheme.brandTeal);
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.dividerBg(context),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: a),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: TurnaTheme.textPrimaryColor(context),
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-/// A headerless card surface with the same soft-tint + neutral-border treatment
-/// as [AiGroupCard], for content blocks that don't need a titled header (e.g.
-/// an explanation body or a result panel).
+/// A headerless flat-paper card surface (4px radius + 1px hairline border),
+/// for content blocks that don't need a titled header (e.g. an explanation body
+/// or a result panel).
 class AiSurfaceCard extends StatelessWidget {
   const AiSurfaceCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(12),
+    this.padding = const EdgeInsets.all(AppSpacing.md),
     this.accent,
   });
 
@@ -88,24 +26,20 @@ class AiSurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final base = TurnaTheme.flatPaperDecoration(context);
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
-        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
-        borderRadius: BorderRadius.circular(TurnaTheme.cardRadius),
-        border: Border.all(
-          color: TurnaTheme.dividerBg(context),
-          width: 1,
-        ),
-      ),
+      decoration: accent == null
+          ? base
+          : base.copyWith(color: TurnaTheme.softTint(context, accent!)),
       child: child,
     );
   }
 }
 
-/// Unified input decoration for AI sheets: tint fill, radiusMedium, no hard
-/// border, teal hairline on focus. Pass [label] for a floating label or
-/// [hint] for placeholder text.
+/// Unified input decoration for AI sheets: tint fill, 4px border radius,
+/// neutral hairline, teal hairline on focus. Pass [label] for a floating label
+/// or [hint] for placeholder text.
 InputDecoration aiSheetInputDecoration(
   BuildContext context, {
   String? hint,
@@ -113,8 +47,8 @@ InputDecoration aiSheetInputDecoration(
   Widget? suffixIcon,
 }) {
   final base = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-    borderSide: BorderSide.none,
+    borderRadius: TurnaTheme.borderRadius,
+    borderSide: BorderSide(color: TurnaTheme.dividerBg(context)),
   );
   return InputDecoration(
     hintText: hint,
@@ -123,40 +57,30 @@ InputDecoration aiSheetInputDecoration(
     filled: true,
     fillColor: TurnaTheme.tintLight,
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.md + 2,
+      vertical: AppSpacing.md,
+    ),
     suffixIcon: suffixIcon,
     border: base,
     enabledBorder: base,
     disabledBorder: base,
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      borderSide: const BorderSide(
-        color: TurnaTheme.brandTeal,
-        width: 1.2,
-      ),
+    focusedBorder: const OutlineInputBorder(
+      borderRadius: TurnaTheme.borderRadius,
+      borderSide: BorderSide(color: TurnaTheme.brandTeal, width: 1.2),
     ),
   );
 }
 
-/// Primary (filled) button style for AI sheets: radiusLarge, bold label.
+/// Primary (filled) button style for AI sheets: 4px geometric shape.
 ButtonStyle aiSheetPrimaryButtonStyle() => FilledButton.styleFrom(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      ),
-      textStyle: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-      ),
-    );
+  padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+  shape: TurnaTheme.shape,
+);
 
-/// Secondary (outlined) button style for AI sheets: radiusMedium, teal border.
+/// Secondary (outlined) button style for AI sheets: 4px shape, teal border.
 ButtonStyle aiSheetSecondaryButtonStyle() => OutlinedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(vertical: 13),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      ),
-      side: BorderSide(
-        color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
-      ),
-    );
+  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md + 1),
+  shape: TurnaTheme.shape,
+  side: BorderSide(color: TurnaTheme.brandTeal.withValues(alpha: 0.5)),
+);

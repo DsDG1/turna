@@ -13,11 +13,14 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/components/share_progress_card.dart';
 import 'package:turna/views/profile/utils/share_image_generator.dart';
 import 'package:turna/views/widgets/optional_provider.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_sheet.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
@@ -77,18 +80,12 @@ class _ShareProgressBodyState extends State<_ShareProgressBody> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Visible preview doubles as the capture target. The
-                  // RepaintBoundary wraps the ClipRRect (not the reverse) so
-                  // its layer includes the rounded-corner clip —
-                  // RenderRepaintBoundary.toImage rasterizes the boundary's
-                  // own subtree only and does NOT apply ancestor clips, so
-                  // the boundary must be the OUTER widget for the rounded
-                  // corners to appear in the captured PNG.
+                  // RepaintBoundary wraps ClipRRect so the captured PNG keeps
+                  // the 4px corner clip.
                   RepaintBoundary(
                     key: _generator.boundaryKey,
                     child: ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusXLarge),
+                      borderRadius: TurnaTheme.borderRadius,
                       child: ShareProgressCard(
                         user: user,
                         streak: streak,
@@ -108,15 +105,12 @@ class _ShareProgressBodyState extends State<_ShareProgressBody> {
                     ),
                     onPressed: _sharing ? null : _handleShare,
                     icon: _sharing
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: TurnaTheme.textOnPrimary,
-                            ),
-                          )
-                        : const Icon(Icons.share_rounded),
+                        ? TurnaLoader.button()
+                        : const TurnaIcon(
+                            TurnaIconId.share,
+                            size: 18,
+                            color: TurnaTheme.textOnPrimary,
+                          ),
                     label: Text(
                       _sharing
                           ? AppStrings.profileSharing
@@ -141,9 +135,9 @@ class _ShareProgressBodyState extends State<_ShareProgressBody> {
     // FutureBuilder forever — fall back to 0.
     try {
       return await provider.getGemsStream().first.timeout(
-            const Duration(seconds: 1),
-            onTimeout: () => 0,
-          );
+        const Duration(seconds: 1),
+        onTimeout: () => 0,
+      );
     } catch (_) {
       return 0;
     }
@@ -152,9 +146,7 @@ class _ShareProgressBodyState extends State<_ShareProgressBody> {
   Future<void> _handleShare() async {
     setState(() => _sharing = true);
     try {
-      await _generator.captureAndShare(
-        shareText: AppStrings.profileShareText,
-      );
+      await _generator.captureAndShare(shareText: AppStrings.profileShareText);
       if (mounted) {
         Navigator.of(context).pop();
       }

@@ -17,9 +17,13 @@ import 'package:turna/application/anki_official/render/official_anki_render_stat
 import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_view.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 
 /// Card surface without Scaffold/AppBar. Formal review embeds this; preview
 /// wraps it and optionally keeps flip/replay chrome.
@@ -99,7 +103,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       );
 
   bool _effectiveAllowJs(BuildContext context) {
-    final forceDisableJs = Provider.of<SettingsProvider?>(
+    final forceDisableJs =
+        Provider.of<SettingsProvider?>(
           context,
           listen: false,
         )?.ankiForceDisableJs ??
@@ -193,8 +198,10 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         binding.detach(_controller);
         return;
       }
-      logger.w('[OhosReviewer] stage attached in '
-          '${DateTime.now().difference(started).inMilliseconds}ms');
+      logger.w(
+        '[OhosReviewer] stage attached in '
+        '${DateTime.now().difference(started).inMilliseconds}ms',
+      );
       setState(() {
         _ohos = binding;
         _ohosError = null;
@@ -202,8 +209,11 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       });
       _rebindOhos();
     } catch (error, stack) {
-      logger.w('[OhosReviewer] failed to open',
-          error: error, stackTrace: stack);
+      logger.w(
+        '[OhosReviewer] failed to open',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() => _ohosError = error);
     } finally {
@@ -291,7 +301,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     }
     // The replay button replays the card author's own AV tags; hide it on
     // cards without media instead of offering a no-op "system read aloud".
-    final hasReplayableAv = card != null &&
+    final hasReplayableAv =
+        card != null &&
         (controller.showingAnswer
             ? card.answerAvTags.isNotEmpty
             : card.questionAvTags.isNotEmpty);
@@ -312,8 +323,13 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
             ),
           ),
         Expanded(
-            child: _buildSurface(controller, card, cardTextScale,
-                allowJs: allowJs)),
+          child: _buildSurface(
+            controller,
+            card,
+            cardTextScale,
+            allowJs: allowJs,
+          ),
+        ),
         if (controller.avHint != null && !controller.ui.isError)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -363,9 +379,11 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _flip,
-                    child: Text(controller.showingAnswer
-                        ? AppStrings.ankiShowFront
-                        : AppStrings.ankiShowAnswer),
+                    child: Text(
+                      controller.showingAnswer
+                          ? AppStrings.ankiShowFront
+                          : AppStrings.ankiShowAnswer,
+                    ),
                   ),
                 ),
                 if (hasReplayableAv) ...[
@@ -373,7 +391,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
                   IconButton(
                     tooltip: AppStrings.commonReplayAudio,
                     onPressed: controller.replayBusy ? null : _replay,
-                    icon: const Icon(Icons.replay),
+                    icon: const TurnaIcon(TurnaIconId.repeat, size: 20),
                   ),
                 ],
               ],
@@ -385,7 +403,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
             child: IconButton(
               tooltip: AppStrings.commonReplayAudio,
               onPressed: controller.replayBusy ? null : _replay,
-              icon: const Icon(Icons.replay),
+              icon: const TurnaIcon(TurnaIconId.repeat, size: 20),
             ),
           ),
       ],
@@ -456,8 +474,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         Expanded(
           child: error == null
               ? (_ohosClosed
-                  ? const _OhosReviewerInterruptedPanel()
-                  : const SizedBox.expand())
+                    ? const _OhosReviewerInterruptedPanel()
+                    : const SizedBox.expand())
               : OfficialAnkiReviewerErrorView(
                   messageKey: 'official_anki.render_failed',
                   onRetry: () {
@@ -471,16 +489,20 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     );
   }
 
-  Widget _buildSurface(OfficialAnkiReviewerController controller,
-      OfficialAnkiRenderedCard? card, int cardTextScale,
-      {required bool allowJs}) {
+  Widget _buildSurface(
+    OfficialAnkiReviewerController controller,
+    OfficialAnkiRenderedCard? card,
+    int cardTextScale, {
+    required bool allowJs,
+  }) {
     if (!allowJs) {
       _scheduleBlockedJsFailure(controller);
       // The official shell needs JavaScript for its render ACK. Until it has
       // a script-free contract, honour the user's hard off-switch by failing
       // closed instead of executing imported scripts or issuing a fake ACK.
       return const OfficialAnkiReviewerErrorView(
-          messageKey: 'official_anki.renderer_flag_fail_closed');
+        messageKey: 'official_anki.renderer_flag_fail_closed',
+      );
     }
     _blockedJsGeneration = null;
     if (card != null) {
@@ -490,7 +512,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     final surfaceCard = card ?? _heldCard;
     if (surfaceCard == null) {
       assert(!_surfaceReleased);
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: TurnaLoader.page());
     }
     _surfaceReleased = true;
     final recoverable =
@@ -512,10 +534,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
             final generation = result.generation;
             final side = result.side;
             if (generation == null || side == null) return;
-            controller.onRenderComplete(
-              generation: generation,
-              side: side,
-            );
+            controller.onRenderComplete(generation: generation, side: side);
           },
           onRenderError: (message) {
             controller.onRenderFailure(
@@ -529,9 +548,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Material(
-              color: Theme.of(context).scaffoldBackgroundColor.withValues(
-                    alpha: 0.94,
-                  ),
+              color: Theme.of(context).scaffoldBackgroundColor
+                  .withValues(alpha: 0.94),
               child: OfficialAnkiReviewerErrorView.fromUi(
                 ui: controller.ui,
                 error: controller.error,
@@ -543,9 +561,8 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         else if (controller.ui.isError)
           // Alpha < 1 keeps the Android PlatformView from being disposed as occluded.
           ColoredBox(
-            color: Theme.of(context).scaffoldBackgroundColor.withValues(
-                  alpha: 0.92,
-                ),
+            color: Theme.of(context).scaffoldBackgroundColor
+                .withValues(alpha: 0.92),
             child: OfficialAnkiReviewerErrorView.fromUi(
               ui: controller.ui,
               error: controller.error,
@@ -570,7 +587,11 @@ class _OhosReviewerInterruptedPanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.logout_rounded, size: 40),
+          TurnaIcon(
+            TurnaIconId.logout,
+            size: 36,
+            color: TurnaTheme.textSecondaryColor(context),
+          ),
           const SizedBox(height: 12),
           Text(
             AppStrings.ankiReviewNativeClosed,

@@ -5,18 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:turna/core/motion.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// 包豪斯几何语汇。
 ///
-/// 前四种是**方框内**的图形（徽章 / 空态 / 分享卡都按 112 的方框设计）；
+/// 前五种是**方框内**的图形（徽章 / 空态 / 断签 / 分享卡均按 112 方框设计）；
 /// 后三种（[arch] / [diagonalCut] / [ring]）刻意画到方框**之外**，只用于贴边的
-/// 页级主视觉位（[TurnaGeometryBackdrop]）——它们靠"被屏幕边缘切掉"才成立，
-/// 放进方框中央会读成一张贴纸。
+/// 页级主视觉位（[TurnaGeometryBackdrop]）。
 enum TurnaGeometryKind {
   ripples,
   journey,
   connection,
   achievement,
+
+  /// 熄灭的连胜火焰：包豪斯菱形切分 + 静默弧线，替代旧栅格 `offFire.png`。
+  brokenStreak,
 
   /// 半圆拱：直径落在方框下沿并向下越出，弧从左右两侧切开。
   arch,
@@ -25,10 +29,6 @@ enum TurnaGeometryKind {
   diagonalCut,
 
   /// 单环：环心偏右，右缘由页面或卡片边缘切掉一截。
-  ///
-  /// 和 [achievement] 的区别是**没有那两根短条**——短条是徽章的装饰，
-  /// 放到页级/卡级尺度上会变成两块漂浮的色块。要徽章用 [achievement]，
-  /// 要环用这个。
   ring,
 }
 
@@ -81,7 +81,7 @@ class TurnaGeometryBadge extends StatelessWidget {
     this.iconSize = 40,
   });
 
-  final IconData icon;
+  final TurnaIconId icon;
   final TurnaGeometryKind kind;
   final Color accent;
   final double size;
@@ -97,13 +97,11 @@ class TurnaGeometryBadge extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: TurnaTheme.glassFill(context, accent),
-          border: Border.all(
-            color: TurnaTheme.glassStroke(context, accent),
-          ),
+          border: Border.all(color: TurnaTheme.glassStroke(context, accent)),
         ),
         child: Padding(
           padding: EdgeInsets.all(size * 0.19),
-          child: Icon(icon, size: iconSize, color: accent),
+          child: TurnaIcon(icon, size: iconSize, color: accent),
         ),
       ),
     );
@@ -278,7 +276,7 @@ class _TurnaGeometryPainter extends CustomPainter {
     final solid = accent.withValues(alpha: (highContrast ? 0.42 : 0.62) * a);
     final sand = highContrast
         ? (dark ? TurnaTheme.darkTextSecondary : TurnaTheme.textSecondary)
-            .withValues(alpha: 0.16 * a)
+              .withValues(alpha: 0.16 * a)
         : TurnaTheme.warmSand.withValues(alpha: (dark ? 0.22 : 0.72) * a);
     final fill = Paint()..style = PaintingStyle.fill;
     final stroke = Paint()
@@ -295,7 +293,10 @@ class _TurnaGeometryPainter extends CustomPainter {
     switch (kind) {
       case TurnaGeometryKind.ripples:
         canvas.drawCircle(
-            Offset(w * .70, h * .30), unit * 18, fill..color = sand);
+          Offset(w * .70, h * .30),
+          unit * 18,
+          fill..color = sand,
+        );
         stroke.color = medium;
         for (var i = 0; i < 3; i++) {
           canvas.drawArc(
@@ -311,7 +312,10 @@ class _TurnaGeometryPainter extends CustomPainter {
           );
         }
         canvas.drawCircle(
-            Offset(w * .42, h * .56), unit * 10, fill..color = accent);
+          Offset(w * .42, h * .56),
+          unit * 10,
+          fill..color = accent,
+        );
       case TurnaGeometryKind.journey:
         final arch = RRect.fromRectAndCorners(
           Rect.fromLTWH(w * .24, h * .14, w * .52, h * .72),
@@ -327,7 +331,10 @@ class _TurnaGeometryPainter extends CustomPainter {
           fill..color = medium,
         );
         canvas.drawCircle(
-            Offset(w * .73, h * .25), unit * 13, fill..color = sand);
+          Offset(w * .73, h * .25),
+          unit * 13,
+          fill..color = sand,
+        );
         canvas.drawRect(
           Rect.fromLTWH(w * .10, h * .78, w * .22, h * .08),
           fill..color = accent,
@@ -339,7 +346,10 @@ class _TurnaGeometryPainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromCenter(
-                center: Offset.zero, width: w * .48, height: h * .62),
+              center: Offset.zero,
+              width: w * .48,
+              height: h * .62,
+            ),
             Radius.circular(unit * 10),
           ),
           fill..color = soft,
@@ -351,17 +361,26 @@ class _TurnaGeometryPainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromCenter(
-                center: Offset.zero, width: w * .42, height: h * .54),
+              center: Offset.zero,
+              width: w * .42,
+              height: h * .54,
+            ),
             Radius.circular(unit * 10),
           ),
           fill..color = sand,
         );
         canvas.restore();
         canvas.drawCircle(
-            Offset(w * .51, h * .50), unit * 11, fill..color = accent);
+          Offset(w * .51, h * .50),
+          unit * 11,
+          fill..color = accent,
+        );
       case TurnaGeometryKind.achievement:
         canvas.drawCircle(
-            Offset(w * .50, h * .46), unit * 38, fill..color = soft);
+          Offset(w * .50, h * .46),
+          unit * 38,
+          fill..color = soft,
+        );
         canvas.drawArc(
           Rect.fromCircle(center: Offset(w * .50, h * .46), radius: unit * 43),
           math.pi * .14,
@@ -431,17 +450,39 @@ class _TurnaGeometryPainter extends CustomPainter {
           Rect.fromLTWH(-w * .30, baseline - unit * .8, w * 1.6, unit * 1.6),
           fill..color = medium,
         );
+      case TurnaGeometryKind.brokenStreak:
+        // 静默几何熄火：外弧 + 切分菱形 + 底部微烬方锚，替代旧栅格 offFire.png。
+        canvas.drawCircle(
+          Offset(w * .50, h * .52),
+          unit * 36,
+          highContrast ? (stroke..color = medium) : (fill..color = soft),
+        );
+        final diamond = Path()
+          ..moveTo(w * .50, h * .14)
+          ..lineTo(w * .72, h * .52)
+          ..lineTo(w * .50, h * .82)
+          ..lineTo(w * .28, h * .52)
+          ..close();
+        canvas.drawPath(
+          diamond,
+          highContrast ? (stroke..color = accent) : (fill..color = medium),
+        );
+        // 斜切线表达中断
+        canvas.drawLine(
+          Offset(w * .24, h * .28),
+          Offset(w * .76, h * .76),
+          stroke..color = accent,
+        );
+        // 底部余温方点
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(w * .50, h * .88),
+            width: unit * 14,
+            height: unit * 5,
+          ),
+          fill..color = sand,
+        );
       case TurnaGeometryKind.ring:
-        // 单环：环心偏右、右缘被切掉一截，剩下的弧读作"从画外进来的圆"。
-        //
-        // 只画环本身，不带环心圆和内弧 —— 这两个装饰在徽章尺度上有用，
-        // 一旦环里放了内容（个人页里是编辑/分享按钮簇），它们必然和内容
-        // 打架：环心点正好落在按钮缝隙里，内弧横穿按钮。环要当"内容的
-        // 光环"用，就必须是空心的。
-        //
-        // 尺寸下限：放在毛玻璃卡里时只有**印在玻璃之上**才读得出来。
-        // sigma 14 会把 10px 的线整条抹平，再乘 0.72 遮罩就彻底没了
-        // （实测过）。要让环进模糊层，线宽得 ≥30px —— 卡片级放不下。
         final c = Offset(w * .72, h * .50);
         final r = math.min(w, h) * .38;
         canvas.drawCircle(c, r, stroke..color = soft);
@@ -459,42 +500,46 @@ class _TurnaGeometryPainter extends CustomPainter {
 
 @Preview(name: 'Geometry · light', group: 'Wetland mist')
 @Preview(
-    name: 'Geometry · dark', group: 'Wetland mist', brightness: Brightness.dark)
+  name: 'Geometry · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget turnaGeometryPreview() => const Padding(
-      padding: EdgeInsets.all(24),
-      child: TurnaGeometryBadge(icon: Icons.auto_awesome_rounded),
-    );
+  padding: EdgeInsets.all(24),
+  child: TurnaGeometryBadge(icon: TurnaIconId.spark),
+);
 
 /// 页级形态的样板：拱贴下沿、斜切贴右上，两者都靠边缘裁切成立。
 @Preview(name: 'Geometry field · light', group: 'Wetland mist')
 @Preview(
-    name: 'Geometry field · dark',
-    group: 'Wetland mist',
-    brightness: Brightness.dark)
+  name: 'Geometry field · dark',
+  group: 'Wetland mist',
+  brightness: Brightness.dark,
+)
 Widget turnaGeometryFieldPreview() => const SizedBox(
-      width: 320,
-      height: 320,
-      child: ColoredBox(
-        color: Colors.white,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: TurnaGeometryBackdrop(
-                kind: TurnaGeometryKind.diagonalCut,
-                child: SizedBox.shrink(),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: TurnaGeometry(
-                kind: TurnaGeometryKind.arch,
-                size: 320,
-                intensity: 0.86,
-              ),
-            ),
-          ],
+  width: 320,
+  height: 320,
+  child: ColoredBox(
+    color: TurnaTheme.scaffoldBackground,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: TurnaGeometryBackdrop(
+            kind: TurnaGeometryKind.diagonalCut,
+            child: SizedBox.shrink(),
+          ),
         ),
-      ),
-    );
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: TurnaGeometry(
+            kind: TurnaGeometryKind.arch,
+            size: 320,
+            intensity: 0.86,
+          ),
+        ),
+      ],
+    ),
+  ),
+);

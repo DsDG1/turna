@@ -46,10 +46,7 @@ Future<void> deleteAiPractices(
     return;
   }
   if (!context.mounted) return;
-  TurnaSnackBar.show(
-    context,
-    AppStrings.aiPracticeDeleted(items.length),
-  );
+  TurnaSnackBar.show(context, AppStrings.aiPracticeDeleted(items.length));
 }
 
 Future<void> togglePin(
@@ -68,17 +65,11 @@ Future<void> togglePin(
   );
 }
 
-Future<void> retryAiPractice(
-  BuildContext context,
-  AiCourse item,
-) async {
+Future<void> retryAiPractice(BuildContext context, AiCourse item) async {
   await context.read<AiPracticeJobQueue>().retry(item.id);
 }
 
-Future<void> adjustAiPractice(
-  BuildContext context,
-  AiCourse item,
-) async {
+Future<void> adjustAiPractice(BuildContext context, AiCourse item) async {
   final controller = TextEditingController();
   try {
     final instruction = await showTurnaSheet<String>(
@@ -86,9 +77,7 @@ Future<void> adjustAiPractice(
       title: AppStrings.aiPracticeAdjust,
       subtitle: AppStrings.aiPracticeAdjustHint,
       body: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.pageMargin,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageMargin),
         child: TextField(
           controller: controller,
           autofocus: true,
@@ -138,9 +127,6 @@ Future<void> adjustAiPractice(
   }
 }
 
-Future<void> cancelAiPractice(
-  BuildContext context,
-  AiCourse item,
-) async {
+Future<void> cancelAiPractice(BuildContext context, AiCourse item) async {
   await context.read<AiPracticeJobQueue>().cancel(item.id);
 }

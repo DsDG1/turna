@@ -10,6 +10,7 @@ import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/language_detector.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -18,6 +19,7 @@ import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_fields.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/widgets/session_shell.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
 
 /// Pick one of N options. Submit locks the UI and colours correct/incorrect
 /// choices using [InteractionState.correct].
@@ -105,10 +107,12 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
     if (!autoReadOnTapForActiveCourse()) return;
     final langs = currentSpeechLanguages();
     const detector = LanguageDetector();
-    final optionLang = detector.inferOptionLanguage(widget.prompt,
-        targetLanguage: langs.target,
-        nativeLanguage: langs.native,
-        signatureChars: langs.signatureChars);
+    final optionLang = detector.inferOptionLanguage(
+      widget.prompt,
+      targetLanguage: langs.target,
+      nativeLanguage: langs.native,
+      signatureChars: langs.signatureChars,
+    );
     final lang = detector.detectOption(
       widget.options[idx],
       optionLanguage: optionLang,
@@ -130,9 +134,9 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
       canSubmit: canSubmit,
       submit: canSubmit
           ? () => widget.onSubmit(
-                _picked == widget.correctIndex,
-                userAnswerText: widget.options[_picked!],
-              )
+              _picked == widget.correctIndex,
+              userAnswerText: widget.options[_picked!],
+            )
           : null,
     );
 
@@ -150,8 +154,8 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.quiz_rounded,
+                    const TurnaIcon(
+                      TurnaIconId.help,
                       size: 18,
                       color: TurnaTheme.brandTeal,
                     ),
@@ -165,9 +169,8 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
                 const SizedBox(height: 16),
                 Text(
                   widget.prompt,
-                  style: AppTextStyles.promptLg(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyles.promptLg(context)
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (widget.imageAsset != null &&
                     widget.imageAsset!.isNotEmpty &&
@@ -210,20 +213,22 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
   List<Widget> _buildOptions(bool submitted, bool? correct) {
     final widgets = <Widget>[];
     for (var idx = 0; idx < widget.options.length; idx++) {
-      widgets.add(InteractionOptionTile(
-        label: widget.options[idx],
-        index: idx + 1,
-        isSelected: _picked == idx,
-        isCorrect: submitted && idx == widget.correctIndex,
-        isWrong: submitted && correct == false && _picked == idx,
-        showDivider: idx < widget.options.length - 1,
-        onTap: submitted
-            ? null
-            : () {
-                setState(() => _picked = idx);
-                _maybeSpeakOption(idx);
-              },
-      ));
+      widgets.add(
+        InteractionOptionTile(
+          label: widget.options[idx],
+          index: idx + 1,
+          isSelected: _picked == idx,
+          isCorrect: submitted && idx == widget.correctIndex,
+          isWrong: submitted && correct == false && _picked == idx,
+          showDivider: idx < widget.options.length - 1,
+          onTap: submitted
+              ? null
+              : () {
+                  setState(() => _picked = idx);
+                  _maybeSpeakOption(idx);
+                },
+        ),
+      );
     }
     return widgets;
   }

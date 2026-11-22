@@ -18,10 +18,14 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/core/logger.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/core/turna_icon_id.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/directory_rows.dart';
 import 'package:turna/views/widgets/search_field.dart';
+import 'package:turna/views/widgets/turna_icon.dart';
+import 'package:turna/views/widgets/turna_loader.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_top_bar.dart';
 
 /// 卡牌浏览器 ——「湿地雾光」阅读目录版式：正面摘要 + 元信息的
 /// [DirectoryEntryRow] 行（发丝线，不是卡）；搜索与标签走 [TurnaSearchField]
@@ -216,12 +220,13 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppStrings.ankiBrowserPageTitle(widget.title)),
+      appBar: TurnaTopBar(
+        title: AppStrings.ankiBrowserPageTitle(widget.title),
+        showDivider: true,
         actions: [
           IconButton(
             tooltip: AppStrings.ankiReviewAll,
-            icon: const Icon(Icons.play_arrow_rounded),
+            icon: const TurnaIcon(TurnaIconId.play, size: 20),
             onPressed: () => _openFormalReview(context),
           ),
         ],
@@ -278,7 +283,11 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   (4, TurnaTheme.achievementEmerald),
                 ]) ...[
                   TurnaFilterChip(
-                    avatar: Icon(Icons.flag, color: entry.$2, size: 16),
+                    avatar: TurnaIcon(
+                      TurnaIconId.flag,
+                      color: entry.$2,
+                      size: 16,
+                    ),
                     label: '${entry.$1}',
                     selected: _flag == entry.$1,
                     onSelected: (value) {
@@ -333,44 +342,46 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
             ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: TurnaLoader.page())
                 : _loadError != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(AppStrings.ankiBrowserLoadFailed(_loadError!),
-                                textAlign: TextAlign.center),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: _load,
-                              child: Text(AppStrings.commonRetry),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          AppStrings.ankiBrowserLoadFailed(_loadError!),
+                          textAlign: TextAlign.center,
                         ),
-                      )
-                    : _officialUnavailableReason != null
-                        ? Center(
-                            child: Text(
-                              AppStrings.ankiBrowserOfficialUnavailable(
-                                  _officialUnavailableReason!),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : (_officialRows.isEmpty
-                            ? Center(
-                                child: Text(AppStrings.ankiBrowserNoMatches))
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 4,
-                                ),
-                                itemCount: _officialRows.length,
-                                itemBuilder: (context, index) {
-                                  final row = _officialRows[index];
-                                  return _buildEntryRow(context, row);
-                                },
-                              )),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _load,
+                          child: Text(AppStrings.commonRetry),
+                        ),
+                      ],
+                    ),
+                  )
+                : _officialUnavailableReason != null
+                ? Center(
+                    child: Text(
+                      AppStrings.ankiBrowserOfficialUnavailable(
+                        _officialUnavailableReason!,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : (_officialRows.isEmpty
+                      ? Center(child: Text(AppStrings.ankiBrowserNoMatches))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
+                          itemCount: _officialRows.length,
+                          itemBuilder: (context, index) {
+                            final row = _officialRows[index];
+                            return _buildEntryRow(context, row);
+                          },
+                        )),
           ),
         ],
       ),
@@ -380,8 +391,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   /// 阅读目录行：正面摘要（懒加载）+ 卡片元信息，发丝线分隔。
   Widget _buildEntryRow(BuildContext context, SourceAwareBrowserCard row) {
     final lazy = _loadedPreviews[row.cardId];
-    final front =
-        row.frontPreview.isNotEmpty ? row.frontPreview : lazy?.$1 ?? '';
+    final front = row.frontPreview.isNotEmpty
+        ? row.frontPreview
+        : lazy?.$1 ?? '';
     final back = row.backPreview.isNotEmpty ? row.backPreview : lazy?.$2 ?? '';
     if (front.isEmpty && _browser != null) {
       // 空 preview → 一次 renderCard FFI（Doc 38 P4-A），取回后行升级。
@@ -407,6 +419,11 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         children: [
           _FlagIcon(flag: row.flag),
           PopupMenuButton<String>(
+            icon: TurnaIcon(
+              TurnaIconId.moreVert,
+              size: 18,
+              color: TurnaTheme.textSecondaryColor(context),
+            ),
             onSelected: (value) {
               if (value == 'review') {
                 _openFormalReview(context);
@@ -442,7 +459,11 @@ class _FlagIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (flag == 0) {
-      return const Icon(Icons.style_outlined, color: TurnaTheme.brandTeal);
+      return const TurnaIcon(
+        TurnaIconId.cards,
+        color: TurnaTheme.brandTeal,
+        size: 18,
+      );
     }
     final color = switch (flag) {
       1 => TurnaTheme.error,
@@ -451,6 +472,6 @@ class _FlagIcon extends StatelessWidget {
       4 => TurnaTheme.achievementEmerald,
       _ => TurnaTheme.brandTeal,
     };
-    return Icon(Icons.flag, color: color);
+    return TurnaIcon(TurnaIconId.flag, color: color, size: 18);
   }
 }
