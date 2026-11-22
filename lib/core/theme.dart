@@ -1261,7 +1261,7 @@ class TurnaTheme {
       ),
       iconTheme: IconThemeData(color: brandTeal),
     ),
-    cardTheme: const CardThemeData(
+    cardTheme: CardThemeData(
       elevation: 0,
       color: cardBackground,
       surfaceTintColor: Colors.transparent,
@@ -1275,23 +1275,23 @@ class TurnaTheme {
     textButtonTheme: textButtonTheme(line: primary),
     outlinedButtonTheme: outlinedButtonTheme(line: primary),
     iconButtonTheme: iconButtonTheme(),
-    popupMenuTheme: const PopupMenuThemeData(
+    popupMenuTheme: PopupMenuThemeData(
       color: cardBackground,
       surfaceTintColor: Colors.transparent,
       shape: shape,
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: cardBackground,
       surfaceTintColor: Colors.transparent,
       shape: shape,
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: cardBackground,
       surfaceTintColor: Colors.transparent,
       constraints: BoxConstraints(maxWidth: 720),
       shape: RoundedRectangleBorder(borderRadius: sheetTopBorderRadius),
     ),
-    inputDecorationTheme: const InputDecorationTheme(
+    inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Color(0xFFF5F6F5),
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1343,7 +1343,7 @@ class TurnaTheme {
       fill: primary,
       onFill: textOnPrimary,
     ),
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: borderRadius,
@@ -1423,7 +1423,7 @@ class TurnaTheme {
       ),
       iconTheme: IconThemeData(color: brandReed),
     ),
-    cardTheme: const CardThemeData(
+    cardTheme: CardThemeData(
       elevation: 0,
       color: darkCardBackground,
       surfaceTintColor: Colors.transparent,
@@ -1437,23 +1437,23 @@ class TurnaTheme {
     textButtonTheme: textButtonTheme(line: primary),
     outlinedButtonTheme: outlinedButtonTheme(line: primary),
     iconButtonTheme: iconButtonTheme(),
-    popupMenuTheme: const PopupMenuThemeData(
+    popupMenuTheme: PopupMenuThemeData(
       color: Color(0xFF141414),
       surfaceTintColor: Colors.transparent,
       shape: shape,
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: Color(0xFF141414),
       surfaceTintColor: Colors.transparent,
       shape: shape,
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: Color(0xFF141414),
       surfaceTintColor: Colors.transparent,
       constraints: BoxConstraints(maxWidth: 720),
       shape: RoundedRectangleBorder(borderRadius: sheetTopBorderRadius),
     ),
-    inputDecorationTheme: const InputDecorationTheme(
+    inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Color(0xFF121212),
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1505,7 +1505,7 @@ class TurnaTheme {
       fill: primary,
       onFill: textOnPrimary,
     ),
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: borderRadius,
@@ -1615,7 +1615,7 @@ class TurnaTheme {
       fill: primaryDark,
       onFill: Colors.white,
     ),
-    cardTheme: const CardThemeData(
+    cardTheme: CardThemeData(
       elevation: 0,
       color: Colors.white,
       surfaceTintColor: Colors.transparent,
@@ -1624,7 +1624,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.black, width: 1.5),
       ),
     ),
-    popupMenuTheme: const PopupMenuThemeData(
+    popupMenuTheme: PopupMenuThemeData(
       color: Colors.white,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -1632,7 +1632,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.black, width: 1.5),
       ),
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -1640,7 +1640,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.black, width: 1.5),
       ),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       constraints: BoxConstraints(maxWidth: 720),
@@ -1649,7 +1649,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.black, width: 1.5),
       ),
     ),
-    inputDecorationTheme: const InputDecorationTheme(
+    inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1686,7 +1686,7 @@ class TurnaTheme {
       outline: Colors.black,
       highContrast: true,
     ),
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: borderRadius,
@@ -1783,7 +1783,7 @@ class TurnaTheme {
       fill: brandReed,
       onFill: Colors.black,
     ),
-    cardTheme: const CardThemeData(
+    cardTheme: CardThemeData(
       elevation: 0,
       color: Colors.black,
       surfaceTintColor: Colors.transparent,
@@ -1792,7 +1792,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.white, width: 1.5),
       ),
     ),
-    popupMenuTheme: const PopupMenuThemeData(
+    popupMenuTheme: PopupMenuThemeData(
       color: Colors.black,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -1800,7 +1800,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.white, width: 1.5),
       ),
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: Colors.black,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -1808,7 +1808,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.white, width: 1.5),
       ),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: Colors.black,
       surfaceTintColor: Colors.transparent,
       constraints: BoxConstraints(maxWidth: 720),
@@ -1817,7 +1817,7 @@ class TurnaTheme {
         side: BorderSide(color: Colors.white, width: 1.5),
       ),
     ),
-    inputDecorationTheme: const InputDecorationTheme(
+    inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.black,
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1854,7 +1854,7 @@ class TurnaTheme {
       outline: Colors.white,
       highContrast: true,
     ),
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: borderRadius,

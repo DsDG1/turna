@@ -1,3 +1,6 @@
+// Flutter imports:
+import 'package:flutter/widgets.dart' show BuildContext;
+
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 

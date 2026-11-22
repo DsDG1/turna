@@ -724,7 +724,7 @@ class _OrphanWarningCard extends StatelessWidget {
                     orphans.length,
                     _formatBytes(bytes),
                   ),
-                  style: AppTextStyles.bodySm(context)
+                  style: AppTextStyles.captionSm(context)
                       .copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
@@ -779,7 +779,7 @@ class _MemoryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   AppStrings.storageDiagMemoryTitle,
-                  style: AppTextStyles.bodySm(context)
+                  style: AppTextStyles.captionSm(context)
                       .copyWith(color: TurnaTheme.textSecondaryColor(context)),
                 ),
               ),
@@ -839,7 +839,7 @@ class _ErrorCard extends StatelessWidget {
             children: [
               Text(
                 message,
-                style: AppTextStyles.bodySm(context)
+                style: AppTextStyles.captionSm(context)
                     .copyWith(color: TurnaTheme.error),
               ),
               const SizedBox(height: 10),

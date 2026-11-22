@@ -178,9 +178,10 @@ class _MistakeReviewPageState extends State<MistakeReviewPage>
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: isNonSession
           ? TurnaTopBar(
-              title: AppStrings.reviewMistakeReviewTitle,
-              actions: [listAction],
-            )
+                  title: AppStrings.reviewMistakeReviewTitle,
+                  actions: [listAction],
+                )
+                as PreferredSizeWidget
           : _MistakeReviewProgressBar(listAction: listAction),
       body: _blockedMessage != null
           ? PracticeEmptyState(

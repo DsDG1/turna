@@ -246,7 +246,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
             alignment: Alignment.centerLeft,
             child: Text(
               widget.totalBytesLabel,
-              style: AppTextStyles.bodySm(context)
+              style: AppTextStyles.captionSm(context)
                   .copyWith(color: TurnaTheme.textSecondaryColor(context)),
             ),
           ),

@@ -117,6 +117,7 @@ class _DailyChallengePageState extends State<DailyChallengePage>
         backgroundColor: TurnaTheme.scaffoldBg(context),
         appBar: isNonSession
             ? TurnaTopBar(title: AppStrings.playDailyTitle)
+                  as PreferredSizeWidget
             : const _ChallengeProgressBar(),
         body: Consumer<LessonViewModel>(
           builder: (context, vm, _) {

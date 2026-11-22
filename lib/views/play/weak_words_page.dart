@@ -145,6 +145,7 @@ class _WeakWordsPageState extends State<WeakWordsPage>
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: isNonSession
           ? TurnaTopBar(title: AppStrings.playWeakWordsTitleAppBar)
+                as PreferredSizeWidget
           : const _WeakWordsProgressBar(),
       body: _blockedMessage != null
           ? PracticeEmptyState(

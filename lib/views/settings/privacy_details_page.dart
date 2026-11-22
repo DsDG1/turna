@@ -239,7 +239,7 @@ class _PrivacyHero extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   AppStrings.privacyDetailsEntrySubtitle,
-                  style: AppTextStyles.bodySm(context)
+                  style: AppTextStyles.captionSm(context)
                       .copyWith(color: TurnaTheme.textSecondaryColor(context)),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -479,7 +479,7 @@ class _TransparencyHintPill extends StatelessWidget {
               Flexible(
                 child: Text(
                   AppStrings.transparencyPillHint,
-                  style: AppTextStyles.bodySm(context).copyWith(
+                  style: AppTextStyles.captionSm(context).copyWith(
                     color: TurnaTheme.textOnPrimary,
                     fontWeight: FontWeight.w700,
                     height: 1.2,

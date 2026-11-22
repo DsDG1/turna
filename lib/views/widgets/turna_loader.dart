@@ -32,34 +32,32 @@ class TurnaLoader extends StatefulWidget {
     this.color,
     this.label,
     super.key,
-  });
+  }) : _defaultOnPrimary = false;
 
   /// 整页居中加载态。
-  factory TurnaLoader.page({String? label, Color? color, Key? key}) =>
-      TurnaLoader(
-        key: key,
-        size: 36,
-        strokeWidth: 2.6,
-        color: color,
-        label: label,
-      );
+  const TurnaLoader.page({this.label, this.color, super.key})
+      : size = 36,
+        strokeWidth = 2.6,
+        _defaultOnPrimary = false;
 
   /// 局部内联加载态。
-  factory TurnaLoader.inline({double size = 20, Color? color, Key? key}) =>
-      TurnaLoader(key: key, size: size, strokeWidth: 2.0, color: color);
+  const TurnaLoader.inline({this.size = 20, this.color, super.key})
+      : strokeWidth = 2.0,
+        label = null,
+        _defaultOnPrimary = false;
 
   /// 按钮内紧凑加载态。
-  factory TurnaLoader.button({Color? color, Key? key}) => TurnaLoader(
-    key: key,
-    size: 18,
-    strokeWidth: 2.0,
-    color: color ?? TurnaTheme.textOnPrimary,
-  );
+  const TurnaLoader.button({this.color, super.key})
+      : size = 18,
+        strokeWidth = 2.0,
+        label = null,
+        _defaultOnPrimary = true;
 
   final double size;
   final double strokeWidth;
   final Color? color;
   final String? label;
+  final bool _defaultOnPrimary;
 
   @override
   State<TurnaLoader> createState() => _TurnaLoaderState();
@@ -97,7 +95,10 @@ class _TurnaLoaderState extends State<TurnaLoader>
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.color ?? TurnaTheme.brandTeal;
+    final accent = widget.color ??
+        (widget._defaultOnPrimary
+            ? TurnaTheme.textOnPrimary
+            : TurnaTheme.brandTeal);
     final track = TurnaTheme.dividerBg(context);
     final reduced = _reduceMotion(context);
 

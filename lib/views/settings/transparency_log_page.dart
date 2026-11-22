@@ -144,7 +144,7 @@ class _TransparencyHero extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         AppStrings.transparencyIntro,
-                        style: AppTextStyles.bodySm(context).copyWith(
+                        style: AppTextStyles.captionSm(context).copyWith(
                           color: TurnaTheme.textSecondaryColor(context),
                         ),
                       ),
